@@ -1906,19 +1906,17 @@
 
         <div class="docs-h3">Importing</div>
         <p>Click "↑ Import CSV" — either in the New Project modal (pre-fills Installed SqFt for all turf rows) or in the Layout tab after project creation. The shape is drawn on the canvas with roll strips overlaid immediately. "Installed Area" shows the polygon-computed area; use "Apply Area" to push it into a turf row's Installed SqFt.</p>
-        <p>You can import more than one CSV into the same project — useful when a job's measurements weren't captured in one Moasure session and you have separate files for different sections of the yard. The first import sets the primary shape as usual; every CSV imported after that adds its shape(s) as additional layers, without replacing what's already there. Each new layer defaults to "Exclude" — pick "Base Turf Area" (see below) if it's additional turf, not a cutout.</p>
 
         <div class="docs-h3">Multi-Layer CSVs (Layers)</div>
-        <p>Moasure files can contain more than one measured layer — for example, the main yard outline plus a separate shape for a planter bed, tree well, or putting green cutout inside it. When you import a CSV with multiple layers, the largest shape becomes the <strong>primary layer</strong> (the main boundary used for roll calculations), and any other shapes appear below it under <strong>"Layers"</strong> on the right, alongside any other layers from previously-imported CSVs.</p>
+        <p>Moasure files can contain more than one measured layer — for example, the main yard outline plus a separate shape for a planter bed, tree well, or putting green cutout inside it. When you import a CSV with multiple layers, the largest shape becomes the <strong>primary layer</strong> (the main boundary used for roll calculations), and any other shapes appear below it under <strong>"Layers"</strong> on the right.</p>
         <p>Every layer — including the primary one — has a checkbox. Uncheck it to hide that layer on the canvas; this is purely visual and doesn't affect any calculations. This is useful for decluttering the view when a file has several overlapping shapes, or for focusing on one layer while editing.</p>
         <p>Each additional (non-primary) layer also has a dropdown that controls how it affects Installed Area:</p>
         <ul class="docs-list">
-          <li><strong>Base Turf Area</strong> — treats this shape as additional turf, separate from but equal to the primary shape: it gets its own roll layout (same Roll Width/Direction/Seam Offset/margins as the primary shape), its own strips and pieces on the canvas and in the Piece List, and its area is added to Installed Area rather than subtracted. Use this for a second yard section measured in its own CSV, or any layer that's actual turf rather than a hole or reference outline. Each Base layer can be repositioned independently via "Move Layers", same as any other layer.</li>
           <li><strong>Exclude from Installed Area (hole/cutout)</strong> — default. Subtracts that shape's area from the Installed Area total, and draws it on the canvas as a hatched red region — turf doesn't go there.</li>
           <li><strong>Ignore (informational only)</strong> — has no effect on Installed Area. Drawn as a dashed blue outline for reference (e.g. you want to see where a feature is, but it doesn't change how much turf you order).</li>
           <li><strong>Putting Green (used for fringe calculation)</strong> — subtracts that shape's area from Installed Area like Exclude, AND marks it as the putting green outline for the Fringe feature (see below). Drawn as a solid green shape. Only one layer can be the putting green at a time — selecting it on a different layer demotes the previous one back to Exclude.</li>
         </ul>
-        <p>"Installed Area" shows the adjusted total (after exclusions and any Base layers added in), with the pre-exclusion total in parentheses if anything was excluded. "Apply Area" and the roll plan's scrap calculation both use the adjusted total. Note that hiding a layer (visibility checkbox) is independent from its exclude/ignore/putting-green/base mode — a hidden layer can still count toward the area total, and a visible layer can be set to "ignore."</p>
+        <p>"Installed Area" shows the adjusted total (after exclusions), with the pre-exclusion total in parentheses if anything was excluded. "Apply Area" and the roll plan's scrap calculation both use the adjusted total. Note that hiding a layer (visibility checkbox) is independent from its exclude/ignore/putting-green mode — a hidden layer can still be excluded from the area total, and a visible layer can be set to "ignore."</p>
 
         <div class="docs-h3">Putting Green Fringe</div>
         <p>Once a layer is set to <strong>Putting Green</strong>, a "Putting Green Fringe" section appears below the Layers list. Check <strong>"Add a fringe border around the putting green"</strong> to enable it, then choose a <strong>Fringe Turf Product</strong> from your catalog and set the <strong>Fringe Width</strong> (in feet) — the border strip's width all the way around the green.</p>
@@ -4463,30 +4461,7 @@ function importLayoutCsv(input) {
     try {
       const { points, area, secondaryShapes } = parseLayoutCsv(e.target.result);
       if (points.length < 3) throw new Error('Could not find a valid shape in this CSV.');
-
-      if (!proj.layout || !proj.layout.points || !proj.layout.points.length) {
-        // First import for this project: sets the primary shape, same as before.
-        proj.layout = { points, area, secondaryShapes: secondaryShapes || [], fileName: file.name, imported: Date.now(), viewCentroid: centroidOf(points) };
-      } else {
-        // Subsequent import: append every shape from this CSV (including what
-        // would have been "primary" within that file) as additional layers,
-        // rather than replacing the existing layout. This supports separate
-        // Moasure measurements taken at different times for the same job —
-        // each becomes its own independently positionable/markable shape.
-        if (!proj.layout.secondaryShapes) proj.layout.secondaryShapes = [];
-        const startIndex = proj.layout.secondaryShapes.length;
-        const newShapes = [
-          { layer: 'import', name: file.name.replace(/\.csv$/i, ''), points, area },
-          ...(secondaryShapes || []),
-        ];
-        proj.layout.secondaryShapes.push(...newShapes);
-        // New shapes default to "exclude" mode like any other secondary shape
-        // (the user picks "Base Turf Area" explicitly if that's what they want).
-        if (!proj.layout.secondaryShapeModes) proj.layout.secondaryShapeModes = {};
-        newShapes.forEach((_, j) => {
-          proj.layout.secondaryShapeModes[startIndex + j] = 'exclude';
-        });
-      }
+      proj.layout = { points, area, secondaryShapes: secondaryShapes || [], fileName: file.name, imported: Date.now(), viewCentroid: centroidOf(points) };
       save();
       renderLayoutTab();
     } catch (err) {
@@ -4539,13 +4514,7 @@ function getSecondaryShapeArea(shape) {
 }
 
 // Total area to use for "Installed Area" / roll calculations, after applying
-// each secondary shape's mode (exclude = subtract as a hole, putting-green =
-// subtract like exclude, ignore = no effect). Does NOT add "base" mode
-// shapes' area — callers that need base shapes included should add
-// getBaseShapesArea(proj) themselves (renderRollLayout already folds it into
-// baseArea before calling this, since each base shape's own roll layout is
-// computed there; this function only ever subtracts holes/PG from whatever
-// total it's given).
+// each secondary shape's mode (exclude = subtract as a hole, ignore = no effect).
 function getAdjustedShapeArea(proj, baseArea) {
   const secondary = (proj.layout && proj.layout.secondaryShapes) || [];
   let area = baseArea;
@@ -4554,26 +4523,6 @@ function getAdjustedShapeArea(proj, baseArea) {
     if (mode === 'exclude' || mode === 'putting-green') area -= getSecondaryShapeArea(s);
   });
   return Math.max(0, area);
-}
-
-// Sum of all secondary shapes currently marked "Base Turf Area".
-function getBaseShapesArea(proj) {
-  const secondary = (proj.layout && proj.layout.secondaryShapes) || [];
-  const modes = (proj.layout && proj.layout.secondaryShapeModes) || {};
-  let total = 0;
-  secondary.forEach((s, i) => { if (modes[i] === 'base') total += getSecondaryShapeArea(s); });
-  return total;
-}
-
-// Indices of all secondary shapes currently marked as an additional Base
-// Turf Area (each gets its own independent roll layout, merged with the
-// primary shape's strips for totals/canvas/piece list).
-function getBaseSecondaryShapeIndices(proj) {
-  const modes = (proj.layout && proj.layout.secondaryShapeModes) || {};
-  const secondary = (proj.layout && proj.layout.secondaryShapes) || [];
-  const out = [];
-  secondary.forEach((_, i) => { if (modes[i] === 'base') out.push(i); });
-  return out;
 }
 
 function setSecondaryShapeMode(i, mode) {
@@ -4667,7 +4616,6 @@ function renderLayersList(proj) {
           ${resetBtn(i)}
         </label>
         <select style="width:100%;font-size:11px;padding:3px 4px;margin-bottom:4px;" onchange="setSecondaryShapeMode(${i}, this.value)">
-          <option value="base" ${mode==='base'?'selected':''}>Base Turf Area (gets its own roll layout, adds to Installed Area)</option>
           <option value="exclude" ${mode==='exclude'?'selected':''}>Exclude from Installed Area (hole/cutout)</option>
           <option value="ignore" ${mode==='ignore'?'selected':''}>Ignore (informational only)</option>
           <option value="putting-green" ${mode==='putting-green'?'selected':''}>Putting Green (used for fringe calculation)</option>
@@ -5225,8 +5173,7 @@ function countRollsAndPieces(layout) {
   return { totalRolls, totalPieces };
 }
 
-function computeRollLayout(basePoints, rotationDeg, translation, opts, keyPrefix) {
-  keyPrefix = keyPrefix || '';
+function computeRollLayout(basePoints, rotationDeg, translation, opts) {
   const rollWidth = parseFloat(opts.rollWidth) || 15;
   const rollLength = parseFloat(opts.rollLength) || 100;
   const sideTrim = (parseFloat(opts.sideTrim) || 0) / 12;   // in -> ft
@@ -5322,7 +5269,7 @@ function computeRollLayout(basePoints, rotationDeg, translation, opts, keyPrefix
     // Stable identity based on this strip's geometric band position, independent
     // of array index — survives roll-direction/translation/width changes as long
     // as a strip still occupies (roughly) the same band.
-    const stripKey = keyPrefix + 'y' + y0.toFixed(2);
+    const stripKey = 'y' + y0.toFixed(2);
     strips.push({ index: i, key: stripKey, y0, y1, clipped: clippedForDisplay, clippedArea, neededLength, orderedLength, numSegments, purchasedArea, usableArea, wasteArea, displayClipped, displayLine0, displayLine1, displayRect, sMinX, rfX0: sMinX, rfX1: sMinX + orderedLength, rfY0: y0, rfY1: y1, occupiedX0: sMinX, occupiedX1: sMinX + neededLength, nestedInto: null, nestedIntoKey: null, nestHost: [], pieces: null });
   }
 
@@ -5531,38 +5478,6 @@ function renderRollLayout() {
   layout.secondaryShapeModes = proj.layout.secondaryShapeModes || {};
   layout.layerVisibility = proj.layout.layerVisibility || {};
   layout.layerOffsets = layerOffsets;
-
-  // Tag every primary-shape strip with its origin so it can be told apart
-  // from base-mode secondary shapes' strips below.
-  layout.strips.forEach(s => { s.shapeOrigin = 'primary'; });
-
-  // Any secondary shape marked "Base Turf Area" gets its own independent
-  // roll layout (same rotation/translation/roll settings as the primary
-  // shape, since there's only one set of roll controls), and its strips are
-  // merged into layout.strips so the rest of the pipeline (canvas, piece
-  // list, roll/piece counts, totals) treats them uniformly. Each shape's
-  // strip keys are prefixed with its shape index (passed as keyPrefix to
-  // computeRollLayout, so manual-cut splitting inside it uses the right
-  // keys from the start) so manual cuts and nesting state never collide
-  // between shapes that happen to produce the same roll-frame y-band position.
-  const baseIndices = getBaseSecondaryShapeIndices(proj);
-  let baseShapesArea = 0;
-  baseIndices.forEach(i => {
-    const shape = secondaryShapes[i];
-    if (!shape || !shape.displayPoints || shape.displayPoints.length < 3) return;
-    const shapeLayout = computeRollLayout(shape.displayPoints, rotation, translation, opts, 'shape' + i + '_');
-    shapeLayout.strips.forEach(s => {
-      s.shapeOrigin = i;
-      layout.strips.push(s);
-    });
-    layout.totalOrdered += shapeLayout.totalOrdered;
-    layout.totalUsable += shapeLayout.totalUsable;
-    layout.totalClipped += shapeLayout.totalClipped;
-    layout.totalLinearFt += shapeLayout.totalLinearFt;
-    layout.shapeArea += shapeLayout.shapeArea;
-    baseShapesArea += shapeLayout.shapeArea;
-  });
-  layout.baseShapesArea = baseShapesArea;
 
   // Adjust for secondary shapes (e.g. excluded cutouts from a multi-layer
   // Moasure file) — recompute scrap/wastePct against the adjusted area
@@ -5874,14 +5789,6 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
           }
         }
       }
-    } else if (mode === 'base') {
-      // Additional Base Turf Area: its strips are already drawn (filled,
-      // colored) by the merged-strips loop above — just need a solid
-      // outline here, matching the primary shape's treatment, so it reads
-      // as "this counts as turf" rather than the dashed/informational style.
-      ctx.lineWidth = 2;
-      drawPoly(s.displayPoints, null, '#2e7d32');
-      ctx.lineWidth = 1.5;
     } else {
       // Informational only: dashed blue outline, no fill
       ctx.save();
@@ -6709,7 +6616,7 @@ function applyLayoutAreaToTurf() {
   const i = parseInt(sel.value, 10);
   if (isNaN(i) || !proj.turf[i]) { alert('No turf row selected.'); return; }
   const layout = window._wtCurrentRollLayout;
-  const area = layout ? (layout.adjustedShapeArea != null ? layout.adjustedShapeArea : layout.shapeArea) : getAdjustedShapeArea(proj, (proj.layout.area || 0) + getBaseShapesArea(proj));
+  const area = layout ? (layout.adjustedShapeArea != null ? layout.adjustedShapeArea : layout.shapeArea) : getAdjustedShapeArea(proj, proj.layout.area || 0);
   if (!area) { alert('This layout has no area value.'); return; }
   proj.turf[i].installedSqFt = Math.round(area * 100) / 100;
   save();

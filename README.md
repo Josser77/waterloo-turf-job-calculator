@@ -12,8 +12,7 @@ Built for Waterloo Turf's internal use.
 
 **Layout Tab**
 - Import a Moasure CSV to get the yard's shape, sqft, and roll plan
-- Import multiple separate CSVs into one project for jobs measured across more than one Moasure session — each becomes its own layer
-- Multi-layer CSV support: mark secondary shapes as Base Turf Area (own roll layout, adds to Installed Area), holes, informational, or Putting Green
+- Multi-layer CSV support: mark secondary shapes as holes, informational, or Putting Green
 - Roll layout diagram showing strip/piece placement, seam lines, and scrap
 - Manual butt-seam cuts and drag-and-drop piece nesting into waste areas
 - Piece List cut sheet: length × width for every piece (main yard + fringe), labeled by roll, with total linear footage
@@ -81,7 +80,7 @@ Run the test suite before committing any changes to `waterloo_turf_calculator.ht
 node waterloo_turf_tests.js
 ```
 
-All tests should pass (currently **513**).
+All tests should pass (currently **492**).
 
 Each session that produces an updated calculator file also updates this README
 to reflect any new features, test count changes, or workflow changes.

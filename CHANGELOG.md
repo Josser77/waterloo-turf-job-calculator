@@ -5,7 +5,28 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-17 — Cut + nesting persistence fix
+## 2026-06-17 — Nesting/cut persistence fix; multi-CSV reverted
+
+### Bug fix: cut disappears when moving a piece to a waste area
+Two bugs caused the cut to vanish immediately after dropping a piece into a waste area:
+
+**Bug 1 — touch event coordinate failure (primary cause on mobile/touchscreen):** `touchend` events have an empty `evt.touches` list — the finger that lifted is only in `evt.changedTouches`. The code was reading `evt.touches[0]` on touchend, getting `undefined`, and computing NaN canvas coordinates. `endDragNesting` then received a nonsense drop position, found no valid waste area, and deleted the just-stored nesting entry — un-nesting the piece immediately after placing it. Fixed: `canvasEventToData` now falls back to `changedTouches[0]` when `touches[0]` is absent.
+
+**Bug 2 — click-in-place clears nesting (desktop):** any click on the canvas (mousedown + mouseup without moving) triggered `endDragNesting`, treated the click position as a "drop outside waste," and deleted the nesting entry. Fixed: `startDragNesting` now records the pointer's start position; `endDragNesting` skips processing entirely if the pointer moved fewer than 8 canvas pixels — treating it as a click, not a drop.
+
+### UI: "Apply Sqft to Order" clarification
+Added a helper note below the button explaining it pushes the Ordered SqFt value (which already reflects nesting savings) into the selected turf row — so the workflow after nesting is: nest piece → Ordered SqFt updates → click Apply Sqft to Order.
+
+### Reverted: multi-CSV import + Base Turf Area mode
+The multi-CSV feature (additive imports, "Base Turf Area" secondary shape mode, merged roll layouts) introduced bugs in independent layer movement and was reverted in full. The nesting fix and touch fix above were kept. Multi-CSV support will be revisited in a future session with a different implementation approach.
+
+### Tests
+- Section 44 (multi-CSV) removed along with the revert
+- **Total: 492 tests, all passing**
+
+---
+
+## 2026-06-16 (cont'd, 2) — Multi-CSV import + Base Turf Area mode (reverted)
 
 ### Bug fix: cut disappears / nesting clears immediately after dropping a piece
 Two separate bugs caused this:

@@ -3053,3 +3053,219 @@ console.log(`\n${'═'.repeat(58)}`);
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
+
+section('44. importLayoutCsv: additive imports + "Base Turf Area" secondary shape mode');
+{
+  // ── getAdjustedShapeArea: base mode is NOT handled here (no double count) ──
+  {
+    const proj = {
+      layout: {
+        secondaryShapes: [ { name:'Hole', points: rect(0,0,10,10), area:100 } ],
+        secondaryShapeModes: { 0: 'exclude' },
+      },
+    };
+    assert(near(ctx.getAdjustedShapeArea(proj, 500), 400), 'exclude mode still subtracts as before (500-100=400)');
+
+    proj.layout.secondaryShapeModes = { 0: 'base' };
+    assert(near(ctx.getAdjustedShapeArea(proj, 500), 500), 'getAdjustedShapeArea does NOT add base-mode area itself (caller already folded it in) — returns baseArea unchanged (500)');
+  }
+
+  // ── getBaseShapesArea: sums only shapes marked "base" ──
+  {
+    const proj = {
+      layout: {
+        secondaryShapes: [
+          { name:'A', points: rect(0,0,10,10), area:100 },
+          { name:'B', points: rect(0,0,5,5), area:25 },
+          { name:'C', points: rect(0,0,8,8), area:64 },
+        ],
+        secondaryShapeModes: { 0: 'base', 1: 'exclude', 2: 'base' },
+      },
+    };
+    assert(near(ctx.getBaseShapesArea(proj), 164), `sums only base-mode shapes (100+64=164, got ${ctx.getBaseShapesArea(proj)})`);
+  }
+
+  // ── getBaseSecondaryShapeIndices ──
+  {
+    const proj = {
+      layout: {
+        secondaryShapes: [{points:rect(0,0,1,1)}, {points:rect(0,0,1,1)}, {points:rect(0,0,1,1)}],
+        secondaryShapeModes: { 0: 'exclude', 1: 'base', 2: 'base' },
+      },
+    };
+    assert(JSON.stringify(ctx.getBaseSecondaryShapeIndices(proj)) === JSON.stringify([1,2]), 'returns indices of base-mode shapes in order');
+  }
+
+  // ── importLayoutCsv: first import sets primary; second import appends ──
+  {
+    function mockEl44() {
+      return { checked:false, value:'', style:{}, classList:{add:()=>{},remove:()=>{}}, addEventListener:()=>{}, querySelector:()=>null, querySelectorAll:()=>[], innerHTML:'', appendChild:()=>{}, replaceChildren:()=>{} };
+    }
+    const stored = {};
+    const mockLS = { getItem: k => stored[k]||null, setItem: (k,v) => { stored[k]=v; } };
+    stored['wt_catalog_v2'] = JSON.stringify({turf:[],infill:[],rock:[]});
+    stored['wt_projects_v4'] = JSON.stringify([{
+      id:'p1', name:'Test', created:1000, edging:{}, pgSqFt:0, miscItems:[], turf:[], infill:[], rock:[],
+    }]);
+
+    const inputs = {
+      quoteOptionsContainer:{innerHTML:''}, layoutLayersList:{innerHTML:''}, fringeGroup:{style:{}},
+      fringeSummary:{innerHTML:''}, pieceListGroup:{style:{}}, pieceListTable:{innerHTML:''},
+      manualCutsGroup:{style:{}}, manualCutsList:{innerHTML:''}, layoutArea:{value:''},
+      rollLayoutCanvas: { width:700,height:350,getContext:()=>({clearRect:()=>{},beginPath:()=>{},moveTo:()=>{},lineTo:()=>{},closePath:()=>{},fill:()=>{},stroke:()=>{},save:()=>{},restore:()=>{},setLineDash:()=>{},arc:()=>{},fillRect:()=>{},fillText:()=>{},measureText:()=>({width:10}),translate:()=>{},rect:()=>{},clip:()=>{}}),getBoundingClientRect:()=>({left:0,top:0,width:700,height:350}),addEventListener:()=>{},style:{},classList:{add:()=>{},remove:()=>{}},textContent:'' },
+      layoutCanvasWrap: { clientWidth:700, scrollLeft:0, scrollTop:0, addEventListener:()=>{} },
+    };
+    const hctx = {
+      window:{onload:null,_wtLayoutZoom:1,_wtEditMode:false,_wtSelectedProjects:null,innerHeight:900},
+      document:{ getElementById: id => inputs[id]||mockEl44(), querySelectorAll:()=>[], querySelector:()=>({classList:{add:()=>{},remove:()=>{}}}), addEventListener:()=>{}, createElement:()=>mockEl44() },
+      localStorage: mockLS, alert:()=>{}, confirm:()=>true, console,
+      ResizeObserver: function(){return{observe:()=>{}};},
+    };
+    vm.runInNewContext(scriptSrc, hctx);
+    hctx.loadProject('p1');
+
+    // First CSV: a simple 20x10 rectangle, single layer
+    const csv1 = '"Layer","Path","Point","X:ft","Y:ft","Z:ft","Layer-Name","Path-Type","Point-Name","Point-Type","Area:ft²",\n'
+      + '"1","1","1","0.00","0.00","0.00","Main","Dot2Dot","","Default","200.00"\n'
+      + '"1","1","2","20.00","0.00","0.00","Main","Dot2Dot","","Default","200.00"\n'
+      + '"1","1","3","20.00","10.00","0.00","Main","Dot2Dot","","Default","200.00"\n'
+      + '"1","1","4","0.00","10.00","0.00","Main","Dot2Dot","","Default","200.00"\n';
+    let capturedOnload;
+    const fakeInput1 = { files: [{ name: 'first.csv' }] };
+    hctx.FileReader = function() {
+      return {
+        set onload(fn) { capturedOnload = fn; },
+        get onload() { return capturedOnload; },
+        set onerror(fn) {},
+        readAsText: function() { capturedOnload({ target: { result: csv1 } }); },
+      };
+    };
+    hctx.importLayoutCsv(fakeInput1);
+    const proj = hctx.getCurrentProject();
+    assert(proj.layout.points.length === 4, 'first import sets the primary shape (4 points)');
+    assert(near(proj.layout.area, 200), `first import sets primary area (got ${proj.layout.area})`);
+    assert(!proj.layout.secondaryShapes || proj.layout.secondaryShapes.length === 0, 'first import: no secondary shapes yet (single-layer CSV)');
+
+    // Second CSV: a different 5x5 square, imported afterward — should APPEND, not replace
+    const csv2 = '"Layer","Path","Point","X:ft","Y:ft","Z:ft","Layer-Name","Path-Type","Point-Name","Point-Type","Area:ft²",\n'
+      + '"1","1","1","0.00","0.00","0.00","Second","Dot2Dot","","Default","25.00"\n'
+      + '"1","1","2","5.00","0.00","0.00","Second","Dot2Dot","","Default","25.00"\n'
+      + '"1","1","3","5.00","5.00","0.00","Second","Dot2Dot","","Default","25.00"\n'
+      + '"1","1","4","0.00","5.00","0.00","Second","Dot2Dot","","Default","25.00"\n';
+    const fakeInput2 = { files: [{ name: 'second.csv' }] };
+    hctx.FileReader = function() {
+      return {
+        set onload(fn) { capturedOnload = fn; },
+        get onload() { return capturedOnload; },
+        set onerror(fn) {},
+        readAsText: function() { capturedOnload({ target: { result: csv2 } }); },
+      };
+    };
+    hctx.importLayoutCsv(fakeInput2);
+
+    assert(proj.layout.points.length === 4 && near(proj.layout.area, 200), 'second import does NOT replace the primary shape — still the first 20x10 rect');
+    assert(proj.layout.secondaryShapes && proj.layout.secondaryShapes.length === 1, `second import appends as a secondary shape (got ${proj.layout.secondaryShapes ? proj.layout.secondaryShapes.length : 0})`);
+    if (proj.layout.secondaryShapes && proj.layout.secondaryShapes.length) {
+      const newShape = proj.layout.secondaryShapes[0];
+      assert(near(getSecondaryArea(newShape), 25), `appended shape has the second CSV's area (got ${getSecondaryArea(newShape)})`);
+      assert(proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[0] === 'exclude', 'newly appended shape defaults to "exclude" mode');
+    }
+
+    function getSecondaryArea(s) { return s.area != null ? s.area : ctx.polygonArea(s.points); }
+  }
+
+  // ── End-to-end renderRollLayout: a "Base Turf Area" secondary shape gets
+  //    its own roll layout merged into the main one, with correct combined
+  //    totals (no double counting) and isolated manual-cut keys ──
+  {
+    function mockEl44b() {
+      return { checked:false, value:'', style:{}, classList:{add:()=>{},remove:()=>{}}, addEventListener:()=>{}, querySelector:()=>null, querySelectorAll:()=>[], innerHTML:'', appendChild:()=>{}, replaceChildren:()=>{} };
+    }
+    const stored = {};
+    const mockLS = { getItem: k => stored[k]||null, setItem: (k,v) => { stored[k]=v; } };
+    stored['wt_catalog_v2'] = JSON.stringify({turf:[],infill:[],rock:[]});
+
+    // Primary: 30x15 rect (450 sqft). Base secondary: a separate 20x15 rect
+    // (300 sqft), positioned far away (no overlap) — simulating a second
+    // yard section measured in its own CSV.
+    const primaryShape = rect(0, 0, 30, 15);
+    const baseShape = rect(100, 0, 20, 15);
+    stored['wt_projects_v4'] = JSON.stringify([{
+      id:'p1', name:'Test', created:1000, edging:{}, pgSqFt:0, miscItems:[],
+      turf:[{ product:'Turf', installedSqFt:'', sqFtToOrder:'', orderedSqFt:'', role:'base' }],
+      infill:[], rock:[],
+      layout: {
+        points: primaryShape, area: 450,
+        secondaryShapes: [ { name:'second.csv', points: baseShape, area: 300 } ],
+        secondaryShapeModes: { 0: 'base' },
+        rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, rotation:0, translation:0,
+      },
+    }]);
+
+    const inputs = {
+      quoteOptionsContainer:{innerHTML:''}, layoutLayersList:{innerHTML:''}, fringeGroup:{style:{}},
+      fringeSummary:{innerHTML:''}, pieceListGroup:{style:{}}, pieceListTable:{innerHTML:''},
+      manualCutsGroup:{style:{}}, manualCutsList:{innerHTML:''}, layoutArea:{value:''},
+      rollWidthInput:{value:'15'}, rollLengthInput:{value:'100'}, sideTrimInput:{value:'0'},
+      cuttingMarginInput:{value:'0'}, rollRotationInput:{value:'0'}, rollRotationValue:{textContent:''},
+      rollTranslationInput:{value:'0', max:''}, rollTranslationValue:{textContent:''},
+      showRectanglesToggle:{checked:false},
+      rollStripsOut:{value:''}, rollOrderedOut:{value:''}, rollUsableOut:{value:''},
+      rollLinearOut:{value:''}, rollWasteOut:{value:''}, rollSavedGroup:{style:{}}, rollSavedOut:{value:''},
+      rollNestingLegend:{style:{}},
+      rollLayoutCanvas: { width:700,height:350,getContext:()=>({clearRect:()=>{},beginPath:()=>{},moveTo:()=>{},lineTo:()=>{},closePath:()=>{},fill:()=>{},stroke:()=>{},save:()=>{},restore:()=>{},setLineDash:()=>{},arc:()=>{},fillRect:()=>{},fillText:()=>{},measureText:()=>({width:10}),translate:()=>{},rect:()=>{},clip:()=>{}}),getBoundingClientRect:()=>({left:0,top:0,width:700,height:350}),addEventListener:()=>{},style:{},classList:{add:()=>{},remove:()=>{}},textContent:'' },
+      layoutCanvasWrap: { clientWidth:700, scrollLeft:0, scrollTop:0, addEventListener:()=>{} },
+    };
+    const hctx = {
+      window:{onload:null,_wtLayoutZoom:1,_wtEditMode:false,_wtSelectedProjects:null,innerHeight:900},
+      document:{ getElementById: id => inputs[id]||mockEl44b(), querySelectorAll:()=>[], querySelector:()=>({classList:{add:()=>{},remove:()=>{}}}), addEventListener:()=>{}, createElement:()=>mockEl44b() },
+      localStorage: mockLS, alert:()=>{}, confirm:()=>true, console,
+      ResizeObserver: function(){return{observe:()=>{}};},
+    };
+    vm.runInNewContext(scriptSrc, hctx);
+    hctx.loadProject('p1');
+
+    const layout = hctx.window._wtCurrentRollLayout;
+    assert(!!layout, 'renderRollLayout produced a layout object');
+
+    // Strips: primary (30x15 @ 15ft roll width = exactly 1 strip) + base shape
+    // (20x15 = exactly 1 strip) = 2 strips total, tagged with correct origin.
+    const primaryStrips = layout.strips.filter(s => s.shapeOrigin === 'primary');
+    const baseStrips = layout.strips.filter(s => s.shapeOrigin === 0);
+    assert(primaryStrips.length >= 1, `at least one strip tagged shapeOrigin='primary' (got ${primaryStrips.length})`);
+    assert(baseStrips.length >= 1, `at least one strip tagged shapeOrigin=0 for the base secondary shape (got ${baseStrips.length})`);
+
+    // Combined area: 450 (primary) + 300 (base) = 750, no double counting
+    assert(near(layout.shapeArea, 750, 1), `combined shapeArea = primary + base shape (450+300=750, got ${layout.shapeArea})`);
+    assert(near(layout.adjustedShapeArea, 750, 1), `adjustedShapeArea matches (no exclusions here) (got ${layout.adjustedShapeArea})`);
+    assert(near(layout.baseShapesArea, 300, 1), `baseShapesArea tracks just the base shape's contribution (got ${layout.baseShapesArea})`);
+
+    // Combined ordered sqft = sum of both shapes' independently-computed
+    // roll layouts (each rounds up to whole feet per its own strip).
+    const primaryOnly = hctx.computeRollLayout(primaryShape, 0, 0, {rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0});
+    const baseOnly = hctx.computeRollLayout(baseShape, 0, 0, {rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0});
+    assert(near(layout.totalOrdered, primaryOnly.totalOrdered + baseOnly.totalOrdered, 1), `totalOrdered = sum of each shape's independent roll layout (got ${layout.totalOrdered} vs expected ${primaryOnly.totalOrdered + baseOnly.totalOrdered}`);
+
+    // Manual cut key isolation: strips from different shapes must never share
+    // a key, even if their roll-frame y0 happens to coincide (both start at
+    // y0=0 here, since both are simple rectangles with no rotation).
+    const allKeys = layout.strips.map(s => s.key);
+    const uniqueKeys = new Set(allKeys);
+    assert(uniqueKeys.size === allKeys.length, `every strip has a unique key — no collisions between primary and base-shape strips (got ${allKeys.length} strips, ${uniqueKeys.size} unique keys: ${JSON.stringify(allKeys)})`);
+    assert(baseStrips.every(s => s.key.startsWith('shape0_')), `base shape's strip keys are prefixed with its index (got ${JSON.stringify(baseStrips.map(s=>s.key))}`);
+
+    // Apply Area should reflect the combined total
+    inputs.layoutApplyTarget = { value: '0' };
+    hctx.applyLayoutAreaToTurf();
+    const proj = hctx.getCurrentProject();
+    assert(near(parseFloat(proj.turf[0].installedSqFt), 750, 1), `Apply Area pushes the combined total (primary+base) to the turf row (got ${proj.turf[0].installedSqFt})`);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  SUMMARY
+// ════════════════════════════════════════════════════════════════════════
+console.log(`\n${'═'.repeat(58)}`);
+console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
+console.log('═'.repeat(58));
+process.exit(failed > 0 ? 1 : 0);
