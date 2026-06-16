@@ -5,6 +5,48 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd) — Cut Mode drag-to-nest fix; dead test section removed; test gate
+
+### Bug fix: can't move a piece to a waste area while in Cut Mode
+The earlier "cut disappears" fixes (touch-coordinate fallback, click-in-place guard in
+`endDragNesting`) addressed nesting being cleared *after* a drop — but a separate root
+cause remained: while Cut Mode was active you couldn't even start the drag. In Cut Mode,
+`mousedown` went straight to `startCut`, which toggled the seam you grabbed (so the cut
+line vanished) and never armed a drag, so the piece didn't move and the gesture appeared
+to do nothing.
+
+Fixed by making Cut Mode distinguish a **click** from a **press-and-drag** using the same
+8px movement threshold used elsewhere:
+- `startDragNesting` no longer bails when Cut Mode is on (it still bails in Move Layers and
+  Edit Shape modes). On `mousedown` in Cut Mode it records the press position and arms a
+  potential drag-nest.
+- New `endCutClick` runs on release: if the pointer barely moved it performs the cut toggle
+  (`startCut`); if it moved past the threshold it leaves the nest to `endDragNesting`.
+
+Result: you can cut a strip and immediately drag a leftover piece into another roll's waste
+area without switching modes. In-app docs updated to match.
+
+### Test infrastructure: removed orphaned section + added a gate
+- Removed a **duplicate summary block with a stray `process.exit()`** in
+  `waterloo_turf_tests.js` that was silently terminating the run partway through — the
+  entire "44. importLayoutCsv / Base Turf Area" section after it had never executed.
+- That orphaned section referenced `getBaseShapesArea` / `getBaseSecondaryShapeIndices`,
+  which were removed in the 2026-06-17 multi-CSV revert. It was hidden, not deleted; the
+  revert is now actually complete and the stale section was removed (recoverable from git
+  history if multi-CSV is revisited).
+- `Sync and Push.command` now runs the suite as a **gate**: a failing test aborts the push,
+  so failing code can't reach GitHub Pages.
+
+### Tests
+- Added section 44 ("Cut Mode drag-to-nest routing"): 10 assertions covering the
+  click-vs-drag decision in `endCutClick` and the relaxed guard in `startDragNesting`.
+  These are DOM-less unit tests of the routing logic, not real pointer drags — a manual
+  drag on the layout canvas remains the only end-to-end check.
+- **Total: 502 tests, all passing** (492 prior + 10 new; the orphaned section was never
+  in the running count).
+
+---
+
 ## 2026-06-17 — Nesting/cut persistence fix; multi-CSV reverted
 
 ### Bug fix: cut disappears when moving a piece to a waste area

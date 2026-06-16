@@ -14,7 +14,7 @@ Built for Waterloo Turf's internal use.
 - Import a Moasure CSV to get the yard's shape, sqft, and roll plan
 - Multi-layer CSV support: mark secondary shapes as holes, informational, or Putting Green
 - Roll layout diagram showing strip/piece placement, seam lines, and scrap
-- Manual butt-seam cuts and drag-and-drop piece nesting into waste areas
+- Manual butt-seam cuts and drag-and-drop piece nesting into waste areas (in Cut Mode, a click toggles a cut and a press-and-drag nests a piece — no mode switching needed)
 - Piece List cut sheet: length × width for every piece (main yard + fringe), labeled by roll, with total linear footage
 
 **Putting Green Fringe**
@@ -46,8 +46,9 @@ After saving an updated `waterloo_turf_calculator.html` into the
 folder. It will:
 
 1. Copy `waterloo_turf_calculator.html` from `../waterloo-turf-app/` into this repo
-2. Commit the change with a timestamped message (or pass a custom message: `./sync-and-push.sh "describe the change"`)
-3. Push to GitHub — Pages redeploys automatically in a minute or two
+2. **Run the test suite as a gate** — if any test fails, the script stops here and nothing is committed or pushed
+3. Commit the change with a timestamped message (or pass a custom message: `./sync-and-push.sh "describe the change"`)
+4. Push to GitHub — Pages redeploys automatically in a minute or two
 
 Live at: **https://josser77.github.io/waterloo-turf-job-calculator/**
 
@@ -80,7 +81,8 @@ Run the test suite before committing any changes to `waterloo_turf_calculator.ht
 node waterloo_turf_tests.js
 ```
 
-All tests should pass (currently **492**).
+All tests should pass (currently **502**). The `Sync and Push.command` script runs
+this suite as a gate and refuses to commit or push if any test fails.
 
 Each session that produces an updated calculator file also updates this README
 to reflect any new features, test count changes, or workflow changes.
