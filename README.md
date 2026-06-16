@@ -84,3 +84,5 @@ All tests should pass (currently **472**).
 
 Each session that produces an updated calculator file also updates this README
 to reflect any new features, test count changes, or workflow changes.
+
+See **[CHANGELOG.md](CHANGELOG.md)** for a full history of changes by session.
