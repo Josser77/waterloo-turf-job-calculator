@@ -6215,7 +6215,9 @@ function assignRollPieceLabels(layout) {
 }
 
 function startDragNesting(evt) {
-  if (window._wtMoveLayersMode || window._wtCutMode) return; // other modes take priority
+  if (window._wtMoveLayersMode) return; // Move Layers takes priority. Cut Mode is
+  // intentionally allowed: in Cut Mode a press-and-drag on a piece nests it, while a
+  // click (no drag) toggles a cut — disambiguated on mouseup by endCutClick().
   const proj = getCurrentProject(); if (!proj || !proj.layout) return;
   const layout = window._wtCurrentRollLayout; if (!layout) return;
   const showRects = document.getElementById('showRectanglesToggle') && document.getElementById('showRectanglesToggle').checked;
@@ -6566,6 +6568,28 @@ function startCut(evt) {
   renderRollLayout();
 }
 
+// In Cut Mode, mousedown arms BOTH a potential cut (records _wtCutDownPos) and a
+// potential drag-nest (startDragNesting). On release we decide which the user meant:
+// barely moved → it was a click, so toggle the cut; moved past the drag threshold →
+// it was a drag, so leave the nest to endDragNesting. This lets a single Cut Mode
+// support "click a seam to add/remove it" AND "drag a piece into a waste area" without
+// the cut-toggle eating the drag gesture.
+function endCutClick(evt) {
+  if (!window._wtCutMode) return;
+  const downPos = window._wtCutDownPos;
+  window._wtCutDownPos = null;
+  if (!downPos) return;
+  const pos = canvasEventToData(evt);
+  const moved = pos && Math.hypot(pos.canvasX - downPos.canvasX, pos.canvasY - downPos.canvasY) >= 8;
+  if (moved) return; // real drag → endDragNesting handles the nest drop
+  // Treated as a click → cancel any armed drag-nest so endDragNesting is a no-op,
+  // then perform the cut toggle at the click position.
+  window._wtDragNestKey = null;
+  window._wtDragNestStart = null;
+  window._wtDragNestPos = null;
+  startCut(evt);
+}
+
 
 function setupLayoutCanvasEvents() {
   const canvas = document.getElementById('rollLayoutCanvas');
@@ -6574,21 +6598,31 @@ function setupLayoutCanvasEvents() {
   canvas.addEventListener('mousedown', e => {
     if (window._wtEditMode) { onLayoutCanvasMouseDown(e); return; }
     if (window._wtMoveLayersMode) { startDragLayer(e); return; }
-    if (window._wtCutMode) { startCut(e); return; }
+    if (window._wtCutMode) {
+      const p = canvasEventToData(e);
+      window._wtCutDownPos = p ? { canvasX: p.canvasX, canvasY: p.canvasY } : null;
+      startDragNesting(e); // arm potential drag-nest; cut toggles on click via endCutClick
+      return;
+    }
     startDragNesting(e);
   });
   canvas.addEventListener('mousemove', e => { onLayoutCanvasMouseMove(e); moveDragNesting(e); moveDragLayer(e); });
-  canvas.addEventListener('mouseup', e => { onLayoutCanvasMouseUp(e); endDragNesting(e); endDragLayer(e); });
-  canvas.addEventListener('mouseleave', e => { onLayoutCanvasMouseUp(e); endDragNesting(e); endDragLayer(e); });
+  canvas.addEventListener('mouseup', e => { onLayoutCanvasMouseUp(e); endCutClick(e); endDragNesting(e); endDragLayer(e); });
+  canvas.addEventListener('mouseleave', e => { onLayoutCanvasMouseUp(e); window._wtCutDownPos = null; endDragNesting(e); endDragLayer(e); });
   canvas.addEventListener('dblclick', onLayoutCanvasDblClick);
   canvas.addEventListener('touchstart', e => {
     if (window._wtEditMode) { onLayoutCanvasMouseDown(e); return; }
     if (window._wtMoveLayersMode) { startDragLayer(e); return; }
-    if (window._wtCutMode) { startCut(e); return; }
+    if (window._wtCutMode) {
+      const p = canvasEventToData(e);
+      window._wtCutDownPos = p ? { canvasX: p.canvasX, canvasY: p.canvasY } : null;
+      startDragNesting(e);
+      return;
+    }
     startDragNesting(e);
   }, {passive:false});
   canvas.addEventListener('touchmove', e => { onLayoutCanvasMouseMove(e); moveDragNesting(e); moveDragLayer(e); }, {passive:false});
-  canvas.addEventListener('touchend', e => { onLayoutCanvasMouseUp(e); endDragNesting(e); endDragLayer(e); });
+  canvas.addEventListener('touchend', e => { onLayoutCanvasMouseUp(e); endCutClick(e); endDragNesting(e); endDragLayer(e); });
 }
 
 
