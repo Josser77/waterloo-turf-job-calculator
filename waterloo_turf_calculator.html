@@ -910,11 +910,26 @@
   #rollLayoutCanvas { max-width: 100%; }
 
   #layoutGrid {
-    grid-template-columns: 1fr clamp(220px, 22vw, 320px);
+    grid-template-columns: 1fr clamp(260px, 26vw, 380px);
   }
 
   #layoutSidebar {
     max-height: calc(100vh - 180px);
+  }
+
+  #layoutSidebar .field-group {
+    margin-bottom: 22px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  #layoutSidebar .field-group:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+  #layoutSidebar .field-group label {
+    margin-bottom: 8px;
+    display: block;
   }
 
   @media (max-width: 860px) {
@@ -1277,9 +1292,10 @@
                       <label>S-Seam Side Trim (in)</label>
                       <input type="number" id="sideTrimInput" value="4" min="0" step="0.5" class="manual-input" oninput="renderRollLayout()">
                     </div>
-                    <div class="field-group">
-                      <label>Cutting Margin (in)</label>
+                    <div class="field-group" style="background:var(--yellow);border:1px solid var(--yellow-border);border-left:4px solid var(--yellow-border);border-radius:8px;padding:10px 12px;margin-top:4px;">
+                      <label style="color:var(--text);">⚠ Cutting Margin (in)</label>
                       <input type="number" id="cuttingMarginInput" value="4" min="0" step="0.5" class="manual-input" oninput="renderRollLayout()">
+                      <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Extra length added to <strong>every cut piece</strong> before rounding up to the next whole foot. This is the main lever for how much buffer gets ordered — increase it if your crew needs more trim room, decrease it to order tighter.</div>
                     </div>
                     <div class="field-group">
                       <label>Roll Direction (°)</label>
@@ -5187,7 +5203,17 @@ function computeRollLayout(basePoints, rotationDeg, translation, opts) {
     const y0 = gridStart + i * effW;
     const y1 = y0 + effW;
     const clipped = clipPolygonToRect(rotated, minX, maxX, y0, y1);
-    const clippedArea = clipped.length ? polygonArea(clipped) : 0;
+    const rawClippedArea = clipped.length ? polygonArea(clipped) : 0;
+    // A band that only grazes the shape boundary (e.g. translation pushed to
+    // an extreme, or a step in the outline landing exactly on a band edge)
+    // can clip to a degenerate sliver: near-zero area but a long, thin
+    // bounding box, since a thin triangle's x-extent isn't bounded by its
+    // height. Treat anything under a tenth of a square foot as "no real
+    // material here" so it doesn't generate a stray strip with a long but
+    // meaningless ordered length or a visible sliver on canvas.
+    const isDegenerate = rawClippedArea <= 0.1;
+    const clippedArea = isDegenerate ? 0 : rawClippedArea;
+    const clippedForDisplay = isDegenerate ? [] : clipped;
 
     let neededLength = 0, sMinX = minX, numSegments = 0, orderedLength = 0, purchasedArea = 0, usableArea = 0;
     if (clippedArea > 1e-9) {
@@ -5225,7 +5251,7 @@ function computeRollLayout(basePoints, rotationDeg, translation, opts) {
     totalLinearFt += orderedLength;
 
     // Rotate clipped strip + boundary + purchased rectangle back into the fixed display frame
-    const displayClipped = rotateAround(clipped, rotationDeg, cx, cy);
+    const displayClipped = rotateAround(clippedForDisplay, rotationDeg, cx, cy);
     const displayLine0 = rotateAround([{x:sMinX,y:y0},{x:sMinX+orderedLength,y:y0}], rotationDeg, cx, cy);
     const displayLine1 = rotateAround([{x:sMinX,y:y1},{x:sMinX+orderedLength,y:y1}], rotationDeg, cx, cy);
     const displayRect = rotateAround([
@@ -5237,7 +5263,7 @@ function computeRollLayout(basePoints, rotationDeg, translation, opts) {
     // of array index — survives roll-direction/translation/width changes as long
     // as a strip still occupies (roughly) the same band.
     const stripKey = 'y' + y0.toFixed(2);
-    strips.push({ index: i, key: stripKey, y0, y1, clipped, clippedArea, neededLength, orderedLength, numSegments, purchasedArea, usableArea, wasteArea, displayClipped, displayLine0, displayLine1, displayRect, sMinX, rfX0: sMinX, rfX1: sMinX + orderedLength, rfY0: y0, rfY1: y1, occupiedX0: sMinX, occupiedX1: sMinX + neededLength, nestedInto: null, nestedIntoKey: null, nestHost: [], pieces: null });
+    strips.push({ index: i, key: stripKey, y0, y1, clipped: clippedForDisplay, clippedArea, neededLength, orderedLength, numSegments, purchasedArea, usableArea, wasteArea, displayClipped, displayLine0, displayLine1, displayRect, sMinX, rfX0: sMinX, rfX1: sMinX + orderedLength, rfY0: y0, rfY1: y1, occupiedX0: sMinX, occupiedX1: sMinX + neededLength, nestedInto: null, nestedIntoKey: null, nestHost: [], pieces: null });
   }
 
   // ── Manual cuts: split a strip into multiple independently-nestable pieces ──

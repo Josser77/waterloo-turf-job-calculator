@@ -5,6 +5,24 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-16 — Stray line fix, cutting margin prominence
+
+### Bug fix: stray line at extreme seam offset
+- Fixed a rendering bug where, at certain Seam Offset slider positions (especially the extremes), a thin "ghost" strip could appear as a stray horizontal line extending well past the actual yard shape
+- Root cause: when a roll strip's band only grazes the shape boundary (barely touching a vertex), `clipPolygonToRect` can return a degenerate sliver — near-zero area, but with a long x-extent (a thin triangle's bounding box isn't bounded by its height). This sliver's misleading extent was being used to compute `orderedLength`, producing a long, thin, visible rectangle on the canvas
+- Fix: any strip whose true clipped area is at or below 0.1 sqft is now treated as having no material — its ordered length, clipped polygon, and display geometry all collapse to zero/empty instead of drawing a stray shape
+- Verified no impact on real strips: same strip count and consistent total clipped area at both seam offset extremes on the reproduction shape
+
+### Cutting Margin — visual prominence
+- The Cutting Margin field (Layout → Roll Settings) is now visually distinct from the other Roll Settings fields: amber background, left accent border, warning icon in the label, and a short explanation directly beneath it
+- Clarifies that this is the main lever controlling how much buffer length gets added to every cut piece before rounding up to the next whole foot — no calculation changes, this was a pure UI/clarity update
+
+### Tests
+- Added section 42: degenerate near-zero-area sliver strips produce zero ordered length, empty clipped/display polygons, and zero-area display rectangles (not stray visible shapes) — tested at both extremes of the seam offset range, with a sanity check that real strip counts and total areas are unaffected
+- **Total: 484 tests, all passing**
+
+---
+
 ## 2026-06-15 — GitHub Pages, Icons, Fringe polish
 
 ### GitHub / Deployment
