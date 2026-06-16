@@ -41,14 +41,19 @@ echo "Copied calculator into the web repo."
 
 cd "$REPO_DIR"
 
-# Check if anything actually changed
-if git diff --quiet -- waterloo_turf_calculator.html && git diff --cached --quiet -- waterloo_turf_calculator.html; then
+# Check if anything actually changed across all tracked files
+if git diff --quiet -- waterloo_turf_calculator.html README.md CHANGELOG.md && \
+   git diff --cached --quiet -- waterloo_turf_calculator.html README.md CHANGELOG.md; then
   echo ""
   echo "No changes detected — nothing to commit or push."
   exit 0
 fi
 
 git add waterloo_turf_calculator.html
+
+# Also stage README and CHANGELOG if they were updated this session
+[ -f "$REPO_DIR/README.md" ] && git add README.md
+[ -f "$REPO_DIR/CHANGELOG.md" ] && git add CHANGELOG.md
 
 # Use today's date in the commit message, plus allow an optional custom message
 TIMESTAMP=$(date "+%Y-%m-%d %H:%M")
