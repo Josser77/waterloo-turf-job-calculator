@@ -32,6 +32,19 @@ The Electron desktop app (Mac/Windows) lives in a separate project
 When you update this repo, copy the updated file into that project too if
 you want the desktop app to match.
 
+## Updating the live site
+
+After saving an updated `waterloo_turf_calculator.html` into the
+`waterloo-turf-app` folder (the Electron project, sibling to this repo),
+double-click **`Sync and Push.command`** in this folder. It will:
+
+1. Copy `waterloo_turf_calculator.html` from `../waterloo-turf-app/` into this repo
+2. Commit the change (with a timestamped message, or pass a custom message:
+   `./sync-and-push.sh "describe the change"`)
+3. Push to GitHub — the live site updates automatically in a minute or two
+
+If there are no changes, it does nothing.
+
 ## Development
 
 Run the test suite before committing any changes to
