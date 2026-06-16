@@ -10,8 +10,10 @@
 #   Turf Job Calculator/
 #     waterloo-turf-app/                    <- source of truth (Electron app)
 #       waterloo_turf_calculator.html
+#       waterloo_turf_tests.js
 #     waterloo-turf-job-calculator/         <- this repo (GitHub Pages)
 #       waterloo_turf_calculator.html
+#       waterloo_turf_tests.js
 #       sync-and-push.sh   <- this script
 
 set -e  # stop on first error
@@ -22,34 +24,46 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$SCRIPT_DIR"
 APP_DIR="$(cd "$REPO_DIR/../waterloo-turf-app" && pwd)"
 
-SOURCE_FILE="$APP_DIR/waterloo_turf_calculator.html"
-DEST_FILE="$REPO_DIR/waterloo_turf_calculator.html"
-
-echo "Source (Electron app):  $SOURCE_FILE"
-echo "Destination (web repo): $DEST_FILE"
+echo "Source (Electron app):  $APP_DIR"
+echo "Destination (web repo): $REPO_DIR"
 echo ""
 
-if [ ! -f "$SOURCE_FILE" ]; then
-  echo "ERROR: Source file not found at $SOURCE_FILE"
+# Files that get synced from the app folder into the repo. The HTML file is
+# required; the test file is optional (only copied if present in the app
+# folder) since not every session touches it.
+HTML_SOURCE="$APP_DIR/waterloo_turf_calculator.html"
+HTML_DEST="$REPO_DIR/waterloo_turf_calculator.html"
+TESTS_SOURCE="$APP_DIR/waterloo_turf_tests.js"
+TESTS_DEST="$REPO_DIR/waterloo_turf_tests.js"
+
+if [ ! -f "$HTML_SOURCE" ]; then
+  echo "ERROR: Source file not found at $HTML_SOURCE"
   echo "Did you save the updated waterloo_turf_calculator.html into the waterloo-turf-app folder?"
   exit 1
 fi
 
-# Copy the file over
-cp "$SOURCE_FILE" "$DEST_FILE"
-echo "Copied calculator into the web repo."
+cp "$HTML_SOURCE" "$HTML_DEST"
+echo "Copied waterloo_turf_calculator.html into the web repo."
+
+if [ -f "$TESTS_SOURCE" ]; then
+  cp "$TESTS_SOURCE" "$TESTS_DEST"
+  echo "Copied waterloo_turf_tests.js into the web repo."
+else
+  echo "(waterloo_turf_tests.js not found in waterloo-turf-app — skipping, leaving repo's copy as-is)"
+fi
 
 cd "$REPO_DIR"
 
 # Check if anything actually changed across all tracked files
-if git diff --quiet -- waterloo_turf_calculator.html README.md CHANGELOG.md && \
-   git diff --cached --quiet -- waterloo_turf_calculator.html README.md CHANGELOG.md; then
+if git diff --quiet -- waterloo_turf_calculator.html waterloo_turf_tests.js README.md CHANGELOG.md && \
+   git diff --cached --quiet -- waterloo_turf_calculator.html waterloo_turf_tests.js README.md CHANGELOG.md; then
   echo ""
   echo "No changes detected — nothing to commit or push."
   exit 0
 fi
 
 git add waterloo_turf_calculator.html
+[ -f "$TESTS_DEST" ] && git add waterloo_turf_tests.js
 
 # Also stage README and CHANGELOG if they were updated this session
 [ -f "$REPO_DIR/README.md" ] && git add README.md
