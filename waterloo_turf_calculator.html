@@ -5254,7 +5254,13 @@ function computeRollLayout(basePoints, rotationDeg, translation, opts) {
     const displayClipped = rotateAround(clippedForDisplay, rotationDeg, cx, cy);
     const displayLine0 = rotateAround([{x:sMinX,y:y0},{x:sMinX+orderedLength,y:y0}], rotationDeg, cx, cy);
     const displayLine1 = rotateAround([{x:sMinX,y:y1},{x:sMinX+orderedLength,y:y1}], rotationDeg, cx, cy);
-    const displayRect = rotateAround([
+    // A degenerate strip has orderedLength 0, which collapses this rectangle
+    // to two coincident point-pairs — zero area, but still 4 points, which
+    // would still satisfy a truthy `.length` check at the draw site and get
+    // drawn (hatching + outline) as a visible sliver/line. Make it explicitly
+    // empty so every degenerate-strip check (clipped, displayClipped,
+    // displayRect) is consistent: nothing to draw, full stop.
+    const displayRect = isDegenerate ? [] : rotateAround([
       {x:sMinX, y:y0}, {x:sMinX+orderedLength, y:y0},
       {x:sMinX+orderedLength, y:y1}, {x:sMinX, y:y1},
     ], rotationDeg, cx, cy);

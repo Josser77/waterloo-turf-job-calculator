@@ -5,7 +5,21 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-16 — Stray line fix, cutting margin prominence
+## 2026-06-16 (cont'd) — Stray line fix, round 2
+
+### Bug fix: stray line still appeared with "Show purchased roll rectangles" on
+- The previous fix (same day) suppressed a degenerate strip's clipped polygon and ordered length, but missed that its purchased-rectangle outline (`displayRect`) still had 4 points even though they collapsed to zero area — and the canvas drawing code only checks `.length` (truthy with 4 points) before drawing that rectangle's hatching and outline
+- With "Show purchased roll rectangles" checked, this meant the degenerate strip's near-zero-area rectangle still got drawn, appearing as the same kind of stray line
+- Fix: a degenerate strip's `displayRect` is now an empty array (not a 4-point zero-area shape), consistent with how `clipped`/`displayClipped` were already handled — every draw-site check (`u.displayRect.length`) now correctly skips it
+- Reproduced and verified against a real customer yard CSV (Melanie_yard.csv) at the exact settings from the report: Roll Direction 89°, Seam Offset 0ft, rectangles shown
+
+### Tests
+- Added section 43: degenerate strips' `displayRect` is empty (not 4 zero-area points), verified against both the real reproduction CSV and the synthetic shape from the prior fix, at multiple seam offsets; confirmed real strips keep their normal 4-point rectangles
+- **Total: 492 tests, all passing**
+
+---
+
+## 2026-06-16 — Stray line fix (round 1), cutting margin prominence
 
 ### Bug fix: stray line at extreme seam offset
 - Fixed a rendering bug where, at certain Seam Offset slider positions (especially the extremes), a thin "ghost" strip could appear as a stray horizontal line extending well past the actual yard shape

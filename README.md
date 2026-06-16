@@ -80,7 +80,7 @@ Run the test suite before committing any changes to `waterloo_turf_calculator.ht
 node waterloo_turf_tests.js
 ```
 
-All tests should pass (currently **484**).
+All tests should pass (currently **492**).
 
 Each session that produces an updated calculator file also updates this README
 to reflect any new features, test count changes, or workflow changes.

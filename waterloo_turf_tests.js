@@ -2995,6 +2995,58 @@ section('42. computeRollLayout: degenerate near-zero-area slivers produce no str
 }
 
 // ════════════════════════════════════════════════════════════════════════
+//  43. STRAY LINE FIX (round 2): degenerate strip's displayRect must also
+//      be suppressed, not just clipped/displayClipped — "Show purchased
+//      roll rectangles" draws displayRect directly and only checks
+//      `.length`, so a degenerate strip with a 4-point zero-area rect still
+//      passed that truthy check and got drawn as a visible sliver/line.
+// ════════════════════════════════════════════════════════════════════════
+section('43. computeRollLayout: degenerate strip displayRect is empty (not just zero-area)');
+{
+  const csvPath = path.join(__dirname, 'Melanie_yard.csv');
+  if (fs.existsSync(csvPath)) {
+    const csv = fs.readFileSync(csvPath, 'utf8');
+    const parsed = ctx.parseLayoutCsv(csv);
+    const opts = { rollWidth:15, rollLength:100, sideTrim:4, cuttingMargin:4 };
+
+    // Exact reproduction: Roll Direction 89°, Seam Offset 0ft, "Show
+    // purchased roll rectangles" on (which is what actually exposed this —
+    // the rectangle-drawing branch checks `u.displayRect.length` directly).
+    const layout = ctx.computeRollLayout(parsed.points, 89, 0, opts);
+    const degenerate = layout.strips.filter(s => s.clippedArea === 0);
+    assert(degenerate.length >= 1, `Melanie_yard.csv at rot=89,t=0 has at least one degenerate strip (got ${degenerate.length})`);
+    degenerate.forEach((s, i) => {
+      assert(Array.isArray(s.displayRect) && s.displayRect.length === 0, `degenerate strip ${i}: displayRect is empty, not a 4-point zero-area rect (got ${s.displayRect.length} points)`);
+    });
+
+    // Real (non-degenerate) strips must keep their normal 4-point rectangle
+    const real = layout.strips.filter(s => s.clippedArea > 0);
+    assert(real.length >= 1, 'at least one real strip exists for comparison');
+    real.forEach((s, i) => {
+      assert(s.displayRect.length === 4, `real strip ${i}: displayRect still has its normal 4 points (got ${s.displayRect.length})`);
+    });
+  } else {
+    skipped++;
+    console.log('  ⊘ (skipped: Melanie_yard.csv not present in this environment)');
+  }
+
+  // Same check on the synthetic reproduction shape from section 42, across
+  // both seam offset extremes, so this is covered even without the fixture file.
+  const shape = [
+    {x:0,y:5},{x:5,y:30},{x:12,y:33},{x:22,y:28},{x:33,y:26},{x:43,y:18},
+    {x:62,y:18},{x:67,y:14},{x:75,y:10},{x:80,y:0},{x:55,y:0},{x:48,y:-12},
+    {x:40,y:-2},{x:18,y:-3},{x:0,y:0}
+  ];
+  const opts2 = { rollWidth:15, rollLength:100, sideTrim:4, cuttingMargin:4 };
+  [0, 14.9].forEach(t => {
+    const layout = ctx.computeRollLayout(shape, 89, t, opts2);
+    layout.strips.filter(s => s.clippedArea === 0).forEach((s, i) => {
+      assert(s.displayRect.length === 0, `t=${t}: degenerate strip ${i}'s displayRect is empty (got ${s.displayRect.length} points)`);
+    });
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════
 //  SUMMARY
 // ════════════════════════════════════════════════════════════════════════
 console.log(`\n${'═'.repeat(58)}`);
