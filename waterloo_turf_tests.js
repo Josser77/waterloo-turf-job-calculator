@@ -2950,6 +2950,51 @@ section('41. computeFringeOutline: smooth per-vertex offset hugging the PG outli
 }
 
 // ════════════════════════════════════════════════════════════════════════
+//  42. STRAY LINE FIX: degenerate sliver strips at extreme seam offset
+// ════════════════════════════════════════════════════════════════════════
+section('42. computeRollLayout: degenerate near-zero-area slivers produce no stray geometry');
+{
+  // Irregular 15-point polygon (similar shape/scale to a real Moasure yard)
+  // where, at certain seam offsets, the first strip's band only grazes a
+  // vertex of the shape — clipping to a thin sliver triangle with near-zero
+  // area but a long x-extent (a thin triangle's bounding box isn't bounded
+  // by its height). Before the fix, this produced a strip with a long
+  // orderedLength/displayRect despite having no real material — a visible
+  // stray line on the canvas.
+  const shape = [
+    {x:0,y:5},{x:5,y:30},{x:12,y:33},{x:22,y:28},{x:33,y:26},{x:43,y:18},
+    {x:62,y:18},{x:67,y:14},{x:75,y:10},{x:80,y:0},{x:55,y:0},{x:48,y:-12},
+    {x:40,y:-2},{x:18,y:-3},{x:0,y:0}
+  ];
+  const opts = { rollWidth:15, rollLength:100, sideTrim:4, cuttingMargin:4 };
+
+  [0, 14.9].forEach(t => {
+    const layout = ctx.computeRollLayout(shape, 89, t, opts);
+    const degenerate = layout.strips.filter(s => s.clippedArea === 0);
+    assert(degenerate.length >= 1, `t=${t}: at least one degenerate (zero-area) strip exists in this reproduction (got ${degenerate.length})`);
+    degenerate.forEach((s, i) => {
+      assert(s.orderedLength === 0, `t=${t}: degenerate strip ${i} has orderedLength 0 (got ${s.orderedLength})`);
+      assert(Array.isArray(s.clipped) && s.clipped.length === 0, `t=${t}: degenerate strip ${i} has no clipped polygon (got ${s.clipped.length} points)`);
+      assert(Array.isArray(s.displayClipped) && s.displayClipped.length === 0, `t=${t}: degenerate strip ${i} has no displayClipped polygon`);
+      // displayRect collapses to zero LENGTH (sMinX to sMinX+orderedLength is
+      // a zero-width span) even though it retains its normal strip height —
+      // so its area is zero and it draws as invisible, not a visible line.
+      const rectArea = ctx.polygonArea(s.displayRect);
+      assert(rectArea < 0.01, `t=${t}: degenerate strip ${i}'s displayRect has ~zero area, not a stray visible shape (got ${rectArea.toFixed(4)} sqft)`);
+    });
+  });
+
+  // Sanity: the real (non-degenerate) strips are unaffected — same count and
+  // similar areas regardless of which extreme of the seam offset slider.
+  const layout0 = ctx.computeRollLayout(shape, 89, 0, opts);
+  const layout149 = ctx.computeRollLayout(shape, 89, 14.9, opts);
+  assert(layout0.strips.length === layout149.strips.length, `same strip count at both seam offset extremes (got ${layout0.strips.length} vs ${layout149.strips.length})`);
+  const realArea0 = layout0.strips.reduce((s,st)=>s+st.clippedArea, 0);
+  const realArea149 = layout149.strips.reduce((s,st)=>s+st.clippedArea, 0);
+  assert(near(realArea0, realArea149, 5), `total real clipped area is consistent across seam offset extremes (got ${realArea0.toFixed(1)} vs ${realArea149.toFixed(1)})`);
+}
+
+// ════════════════════════════════════════════════════════════════════════
 //  SUMMARY
 // ════════════════════════════════════════════════════════════════════════
 console.log(`\n${'═'.repeat(58)}`);
