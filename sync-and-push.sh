@@ -62,6 +62,26 @@ if git diff --quiet -- waterloo_turf_calculator.html waterloo_turf_tests.js READ
   exit 0
 fi
 
+# ── TEST GATE — never commit or push failing tests ───────────────────────────
+# Runs against the freshly-synced repo copies. A failure aborts before any
+# commit/push, so failing code can't reach GitHub Pages.
+if ! command -v node >/dev/null 2>&1; then
+  echo ""
+  echo "ERROR: node not found — cannot run the test gate. Aborting (nothing pushed)."
+  exit 1
+fi
+echo ""
+echo "Running test suite (gate)..."
+if ! node waterloo_turf_tests.js; then
+  echo ""
+  echo "TESTS FAILED — aborting. Nothing was committed or pushed."
+  echo "The synced files are in the repo working tree but were NOT deployed."
+  echo "Fix the failures, then run this again."
+  exit 1
+fi
+echo "Tests passed."
+echo ""
+
 git add waterloo_turf_calculator.html
 [ -f "$TESTS_DEST" ] && git add waterloo_turf_tests.js
 
