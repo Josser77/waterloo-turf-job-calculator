@@ -1352,11 +1352,17 @@
                       <input type="text" id="rollSavedOut" class="auto-filled" readonly>
                     </div>
                     <div id="rollNestingLegend" style="display:none;font-size:11px;color:var(--text-light);margin-top:4px;padding:5px 8px;background:var(--bg-alt);border-radius:6px;">
-                      Drag a roll's piece onto another roll's hatched waste area to nest it there. Drag back to reset.
+                      <strong>Move a piece:</strong> drag it onto another roll's hatched (red) waste area. <strong>Put it back:</strong> use the “↩ Put back” button in the <em>Nested Pieces</em> list below — that's the reliable way. (Dragging the piece fully off every waste area onto open space also works, but it's fiddly.) Putting a piece back keeps your cuts; it only undoes the move.
                     </div>
                     <div class="field-group" id="manualCutsGroup" style="display:none;">
                       <label>Manual Cuts (Butt Seams)</label>
+                      <div style="font-size:11px;color:var(--text-light);margin:-2px 0 6px;line-height:1.4;">Splits a roll into separate pieces. “✕” removes one seam; “Clear all cuts” un-cuts the whole roll — which also discards any moves of those pieces. Use this only when you want fewer/no cuts, not to put a moved piece back.</div>
                       <div id="manualCutsList" style="font-size:11px;"></div>
+                    </div>
+                    <div class="field-group" id="nestedPiecesGroup" style="display:none;">
+                      <label>Nested Pieces</label>
+                      <div style="font-size:11px;color:var(--text-light);margin:-2px 0 6px;line-height:1.4;">Pieces you've moved into another roll's waste area. “↩ Put back” returns one piece to its own order and adds its area back to Ordered SqFt — your cuts stay intact. This is the per-piece reset.</div>
+                      <div id="nestedPiecesList" style="font-size:11px;"></div>
                     </div>
                     <div class="field-group" id="pieceListGroup" style="display:none;">
                       <label>Piece List (Length × Width)</label>
@@ -1715,6 +1721,37 @@
   </div>
 </div>
 
+<!-- TIERED PRICING MODAL -->
+<div class="modal-overlay" id="tierModal">
+  <div class="modal" style="width:480px;max-height:85vh;overflow-y:auto;">
+    <div class="modal-title" id="tierModalTitle">Tiered Pricing</div>
+    <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;" id="tierModalSub"></p>
+    <label style="display:flex;align-items:center;gap:8px;font-weight:500;margin-bottom:12px;">
+      <input type="checkbox" id="tierEnabled" onchange="toggleTierEnabled()" style="width:auto;margin:0;">
+      Use sqft-based tiered pricing for this line
+    </label>
+    <div id="tierEditor" style="display:none;">
+      <div style="font-size:12px;color:var(--text-light);margin-bottom:10px;line-height:1.45;background:var(--bg-alt);padding:8px 10px;border-radius:6px;">
+        The whole job is charged at the rate of the bracket its installed sqft falls into (not a blend). Set each bracket's upper limit and its $/sqft; the box at the bottom covers everything above the largest limit.
+      </div>
+      <div id="tierRows"></div>
+      <button class="btn btn-ghost btn-sm" style="margin:2px 0 12px;" onclick="tierAddBracket()">＋ Add bracket</button>
+      <div class="field-group" style="border-top:1px solid var(--border);padding-top:10px;">
+        <label id="tierAboveLabel">All other sq ft (above the largest limit)</label>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <span style="color:var(--text-light);">$</span>
+          <input type="number" id="tierAboveRate" step="0.01" placeholder="0.00" class="manual-input" style="width:100px;padding:5px 8px;">
+          <span style="font-size:12px;color:var(--text-light);">/sqft</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeTierModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTierModal()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- MISCELLANEOUS ITEM MODAL -->
 <div class="modal-overlay" id="miscModal">
   <div class="modal" style="width:400px;">
@@ -1932,7 +1969,7 @@
         <div class="docs-h3">Manual Cuts (Butt Seams)</div>
         <p>Click <strong>"✂ Cut Mode"</strong> to enter cut mode. Click anywhere along a roll to add a butt-seam cut at that point — this splits the roll into separate pieces, each with its own cutting margin, labeled "Roll N.1", "Roll N.2", etc. with a red seam line marking the cut. You can add multiple cuts to the same roll to create 3 or more pieces. Click an existing cut line again to remove it. Click "✓ Done Cutting" to exit — Cut Mode is mutually exclusive with Edit Shape and Move Layers modes.</p>
         <p>A <strong>"Manual Cuts (Butt Seams)"</strong> list appears in Roll Results whenever any roll has cuts, showing each cut's position with a "✕" to remove it individually, or a "Clear all cuts on this roll" button — a precise alternative to clicking the (sometimes thin) seam line on canvas. If roll settings change such that a saved cut position no longer falls within that roll's current length, it's shown as "cuts not currently applied" with a button to clear it — so it never becomes invisible/stuck.</p>
-        <p>Each piece behaves like its own roll for nesting purposes: with "Show purchased roll rectangles" on, press-and-drag any piece onto another roll's (or another piece's) hatched waste area to nest it there — exactly like whole-roll nesting. This works with Cut Mode either on or off: in Cut Mode a quick click toggles a cut while a drag moves a piece, so you can split off a small leftover piece and immediately tuck it into another roll's offcut without switching modes. Drag it back off the waste area to reset.</p>
+        <p>Each piece behaves like its own roll for nesting purposes: with "Show purchased roll rectangles" on, press-and-drag any piece onto another roll's (or another piece's) hatched waste area to nest it there — exactly like whole-roll nesting. This works with Cut Mode either on or off: in Cut Mode a quick click toggles a cut while a drag moves a piece, so you can split off a small leftover piece and immediately tuck it into another roll's offcut without switching modes. To put a moved piece back, use its <strong>"↩ Put back"</strong> button in the Nested Pieces list (see below) — this undoes only the move and keeps your cuts. (Note: clearing or removing a cut is a different action — it un-cuts the roll and merges the pieces back together.)</p>
         <p>Cut positions are stored as a distance along the roll's length, so like nesting placements, they're tied to that roll's band position and persist across saves/reloads. If a major roll-setting change (direction, seam offset, width) causes that band to no longer exist, the cuts for it are simply dropped.</p>
 
         <div class="docs-h3">Canvas Layout</div>
@@ -1976,8 +2013,9 @@
         <p>A table listing every individual piece that will be cut for this job — each row shows its <strong>Roll N / Piece M</strong> label, <strong>Length</strong> (its ordered length along the roll), <strong>Width</strong> (the roll width), and resulting <strong>SqFt</strong>. This is the cut sheet for your installers: it tells them exactly how long to cut each piece from the roll, and the total linear footage at the bottom helps you sanity-check how many rolls to bring and plan seam placement to minimize butt seams. Pieces created by Manual Cuts or that have been nested into another roll's waste show a note (e.g. "cut from Roll N / Piece M waste"). If a Putting Green Fringe is configured, the fringe pieces ("Fringe 1", "Fringe 2", ...) are listed too, with their own length/width/sqft.</p>
 
         <div class="docs-h3">Drag-and-Drop Nesting</div>
-        <p>With "Show purchased roll rectangles" on, drag a roll's colored shape (the installed piece) onto another roll's hatched waste area to indicate it can be cut from that roll's offcut rather than ordered separately. Valid drop targets highlight with a green dashed border while dragging. On a successful drop the piece is redrawn relocated into the target roll's waste area, outlined in orange and labeled "from Roll N / Piece M waste," and its area is removed from Ordered SqFt. Drag it back off the waste area to reset. Works whether or not Cut Mode is active — in Cut Mode a quick click still toggles a cut, while a press-and-drag on a piece nests it (so you can cut a strip and immediately tuck a leftover piece into another roll's waste without switching modes). Disabled only in Edit Shape and Move Layers modes.</p>
+        <p>With "Show purchased roll rectangles" on, drag a roll's colored shape (the installed piece) onto another roll's hatched waste area to indicate it can be cut from that roll's offcut rather than ordered separately. Valid drop targets highlight with a green dashed border while dragging. On a successful drop the piece is redrawn relocated into the target roll's waste area, outlined in orange and labeled "from Roll N / Piece M waste," and its area is removed from Ordered SqFt. To undo a move, use the piece's <strong>"↩ Put back"</strong> button in the Nested Pieces list — that's the reliable way; you can also drag the orange piece fully off every waste area onto open space, but that gesture is fiddly. You can move several pieces independently and put any one of them back without affecting the others. Works whether or not Cut Mode is active — in Cut Mode a quick click still toggles a cut, while a press-and-drag on a piece nests it. Disabled only in Edit Shape and Move Layers modes.</p>
         <p>Placements are tied to each roll's position in the shape, so they persist across saves/reloads. If you later change roll direction, seam offset, roll width, or side trim enough that the rolls reflow into different bands, a placement tied to a band that no longer exists is simply dropped — it won't jump onto an unrelated roll. Re-check nesting after making significant roll-setting changes.</p>
+        <p>A <strong>"Nested Pieces"</strong> list appears in Roll Results whenever any piece is nested, showing each one as "Roll N / Piece M → nested in …" with a <strong>"↩ Put back"</strong> button. Clicking it reverts that single placement — the piece returns to its own ordered length and its area is added back into Ordered SqFt. This is the discoverable equivalent of dragging the orange piece back off the waste area on the canvas.</p>
 
         <div class="docs-h3">Known Limitations</div>
         <p>Nesting feasibility is area-based only — the tool checks that a piece's area fits within another roll's waste area, but does not verify geometric fit (shape, orientation). For simple rectangular pieces this is reliable; for irregular shapes, confirm visually before finalizing. Roll strips currently don't split further within a strip for very irregular shapes — treat scrap % as a useful planning number, not a guarantee.</p>
@@ -1999,6 +2037,7 @@
         <p>Go to <strong>Settings → Labor Rates</strong>. Click <strong>＋ Add Crew</strong> to create a new rate set (e.g. "Main Crew", "Temp Crew"). You can copy rates from an existing crew as a starting point. Edit any rate inline and it saves automatically.</p>
         <p><strong>Per-project crew selection:</strong> Each project can use a different crew. Use the <strong>Crew</strong> dropdown in the topbar (next to the project name) to assign a specific crew to the current project — all quote calculations update immediately to use that crew's rates. This lets you quote jobs with different crews without changing the global setting.</p>
         <p><strong>Reordering line items:</strong> In the Labor Rates table, drag any row by its <span style="font-weight:700;">⠿</span> handle to reorder the line items within a crew.</p>
+        <p><strong>Tiered (sqft-based) pricing:</strong> The <em>Standard Turf Install</em> and <em>Putting Green Install</em> rates can vary by job size instead of being a single flat number. Click <strong>"Tiers…"</strong> next to that rate (or "Edit tiers" if already tiered) to open the tier editor, check <strong>"Use sqft-based tiered pricing,"</strong> and define brackets — each with an upper sqft limit and a $/sqft rate — plus an "all other" rate for anything above the largest limit. The <strong>whole job is charged at the rate of the bracket its installed sqft falls into</strong> (not a blend): e.g. with "up to 1,000 sqft → $8" and "above → $7," a 1,500 sqft yard is billed at $7 × 1,500. Tiers are per-crew, so one crew can be flat while another is tiered; the standard rate tiers off the standard install area and the putting green rate tiers off the putting green area. Each quote card's labor line shows the resolved rate with a "tiered" tag. To go back to a single rate, uncheck the box and Save.</p>
       </div>
 
       <!-- BACKUP -->
@@ -2167,6 +2206,44 @@ function getRates() {
   const r = { standard:8, putting:9, edging:4, edgingBoard:55 };
   items.forEach(item => { if (item.key && r.hasOwnProperty(item.key)) r[item.key] = parseFloat(item.rate)||0; });
   return r;
+}
+
+// ── Tiered labor pricing ─────────────────────────────────────────────────
+// A per-sqft labor line item (currently 'standard' / 'putting') may carry a
+// `tiers` array instead of a single flat `rate`. Each tier is { upTo, rate };
+// tiers are ordered by upTo ascending with the final tier's upTo === null
+// meaning "and above". The WHOLE job's relevant sqft is charged at the
+// matching tier's rate (flat per bracket — NOT progressive).
+function itemIsTiered(item) {
+  return !!(item && Array.isArray(item.tiers) && item.tiers.length);
+}
+function resolveTierRate(item, sqft) {
+  if (itemIsTiered(item)) {
+    const s = parseFloat(sqft) || 0;
+    const capOf = t => (t.upTo == null || t.upTo === '') ? Infinity : parseFloat(t.upTo);
+    const tiers = item.tiers.slice().sort((a,b) => capOf(a) - capOf(b));
+    for (const t of tiers) { if (s <= capOf(t)) return parseFloat(t.rate) || 0; }
+    return parseFloat(tiers[tiers.length - 1].rate) || 0; // above all bounds, no unbounded tier
+  }
+  return parseFloat(item ? item.rate : 0) || 0;
+}
+// Resolve the labor items for the project's selected crew (falls back to the
+// active crew), mirroring getRates()'s crew resolution.
+function getCrewItemsForQuote() {
+  const proj = getCurrentProject();
+  const crewId = proj && proj.crewId;
+  if (crewId) {
+    const crew = getCrews().find(c => c.id === crewId);
+    if (crew && crew.items) return crew.items;
+  }
+  return getLaborItems();
+}
+// Per-sqft labor rate for a key, tier-aware. `sqft` selects the bracket.
+function getRateFor(key, sqft) {
+  const defaults = { standard:8, putting:9, edging:4, edgingBoard:55 };
+  const item = getCrewItemsForQuote().find(it => it.key === key);
+  if (!item) return defaults[key] || 0;
+  return resolveTierRate(item, sqft);
 }
 
 // Populate the crew dropdown in topbar for the current project
@@ -3439,8 +3516,12 @@ function calcQuote() {
         const totalSqFt = tc.sqFt;
         const pgSqFt    = pg.pgSqFt;
         const stdSqFt   = Math.max(0, totalSqFt - pgSqFt);
-        const laborStd  = stdSqFt * rates.standard;
-        const laborPg   = pgSqFt * rates.putting;
+        const stdRate   = getRateFor('standard', stdSqFt);
+        const pgRate    = getRateFor('putting', pgSqFt);
+        const stdTieredNote = itemIsTiered(getCrewItemsForQuote().find(it=>it.key==='standard')) ? ' tiered' : '';
+        const pgTieredNote  = itemIsTiered(getCrewItemsForQuote().find(it=>it.key==='putting'))  ? ' tiered' : '';
+        const laborStd  = stdSqFt * stdRate;
+        const laborPg   = pgSqFt * pgRate;
         const turfMatCost = turfMaterialCost(tc.rows);
         const scenarioInfillCost = tierInfillCost + (pgSqFt > 0 ? pgInfillCost : 0);
         const scenarioMiscCost = baseMiscCost + (pgSqFt > 0 ? pgMiscCost : 0);
@@ -3453,10 +3534,10 @@ function calcQuote() {
 
         let breakdown = '';
         if (pgSqFt) {
-          breakdown += `<div class="opt-line"><span>Standard yard ($${rates.standard}/sqft × ${stdSqFt.toLocaleString()} sqft)</span><span>${fmt(laborStd)}</span></div>`;
-          breakdown += `<div class="opt-line"><span>Putting green ($${rates.putting}/sqft × ${pgSqFt.toLocaleString()} sqft)</span><span>${fmt(laborPg)}</span></div>`;
+          breakdown += `<div class="opt-line"><span>Standard yard ($${stdRate}/sqft${stdTieredNote} × ${stdSqFt.toLocaleString()} sqft)</span><span>${fmt(laborStd)}</span></div>`;
+          breakdown += `<div class="opt-line"><span>Putting green ($${pgRate}/sqft${pgTieredNote} × ${pgSqFt.toLocaleString()} sqft)</span><span>${fmt(laborPg)}</span></div>`;
         } else {
-          breakdown += `<div class="opt-line"><span>Labor ($${rates.standard}/sqft × ${totalSqFt.toLocaleString()} sqft)</span><span>${fmt(laborStd)}</span></div>`;
+          breakdown += `<div class="opt-line"><span>Labor ($${stdRate}/sqft${stdTieredNote} × ${totalSqFt.toLocaleString()} sqft)</span><span>${fmt(laborStd)}</span></div>`;
         }
         if (turfMatCost) breakdown += `<div class="opt-line"><span>Turf materials</span><span>${fmt(turfMatCost)}</span></div>`;
         if (scenarioFringeCost) breakdown += `<div class="opt-line"><span>PG Fringe (${fringeSqFt.toLocaleString(undefined,{maximumFractionDigits:1})} sqft)</span><span>${fmt(scenarioFringeCost)}</span></div>`;
@@ -3893,7 +3974,11 @@ function saveCrewModal() {
     let items = DEFAULT_RATE_ITEMS.map(i=>({...i}));
     if (copyFromId) {
       const src = crews.find(c=>c.id===copyFromId);
-      if (src) items = src.items.map(i=>({...i, id: i.id+'_'+Date.now()}));
+      if (src) items = src.items.map(i => {
+        const copy = { ...i, id: i.id+'_'+Date.now() };
+        if (Array.isArray(i.tiers)) copy.tiers = i.tiers.map(t => ({ ...t })); // deep-copy so crews don't share tier arrays
+        return copy;
+      });
     }
     const newCrew = { id: 'crew_'+Date.now(), name, items };
     crews.push(newCrew);
@@ -3948,12 +4033,25 @@ function renderLaborRatesTable() {
             <td style="font-size:12px;color:var(--text-light);">${item.desc||'—'}</td>
             <td style="font-size:12px;color:var(--text-mid);">${item.unit||''}</td>
             <td>
-              <div style="display:flex;align-items:center;gap:4px;">
-                <span style="color:var(--text-light);font-size:13px;">$</span>
-                <input type="number" value="${item.rate||''}" step="0.01" placeholder="0.00"
-                  class="manual-input" style="width:75px;padding:5px 8px;"
-                  oninput="updateLaborRate(${i}, this.value)">
-              </div>
+              ${(item.key === 'standard' || item.key === 'putting')
+                ? (itemIsTiered(item)
+                    ? `<div style="display:flex;flex-direction:column;gap:2px;">
+                         <span style="font-size:11px;color:#2f9e44;font-weight:700;">Tiered · ${item.tiers.length} bracket${item.tiers.length>1?'s':''}</span>
+                         <button class="btn-edit" style="font-size:11px;padding:2px 8px;" onclick="openTierModal(${i})">Edit tiers</button>
+                       </div>`
+                    : `<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+                         <span style="color:var(--text-light);font-size:13px;">$</span>
+                         <input type="number" value="${item.rate||''}" step="0.01" placeholder="0.00"
+                           class="manual-input" style="width:68px;padding:5px 8px;"
+                           oninput="updateLaborRate(${i}, this.value)">
+                         <button class="btn-edit" style="font-size:10px;padding:2px 6px;white-space:nowrap;" title="Charge different per-sqft rates based on job size" onclick="openTierModal(${i})">Tiers…</button>
+                       </div>`)
+                : `<div style="display:flex;align-items:center;gap:4px;">
+                     <span style="color:var(--text-light);font-size:13px;">$</span>
+                     <input type="number" value="${item.rate||''}" step="0.01" placeholder="0.00"
+                       class="manual-input" style="width:75px;padding:5px 8px;"
+                       oninput="updateLaborRate(${i}, this.value)">
+                   </div>`}
             </td>
             <td><div class="item-actions">
               <button class="btn-edit" onclick="openEditRateModal(${i})">Edit</button>
@@ -4008,6 +4106,98 @@ function updateLaborRate(index, val) {
   items[index].rate = parseFloat(val)||0;
   saveLaborItems(items);
   if (currentId) calcQuote();
+}
+
+// ── Tiered pricing editor ────────────────────────────────────────────────
+// Edits item.tiers on the ACTIVE crew. Working state lives in window._wtTierEdit
+// as { index, brackets:[{upTo,rate}], aboveRate } until Save.
+function openTierModal(index) {
+  const items = getLaborItems();
+  const item = items[index]; if (!item) return;
+  let brackets = [], aboveRate = '';
+  if (itemIsTiered(item)) {
+    const capOf = t => (t.upTo == null || t.upTo === '') ? Infinity : parseFloat(t.upTo);
+    item.tiers.slice().sort((a,b)=>capOf(a)-capOf(b)).forEach(t => {
+      if (t.upTo == null || t.upTo === '') aboveRate = t.rate;
+      else brackets.push({ upTo: t.upTo, rate: t.rate });
+    });
+  }
+  if (!brackets.length) brackets = [{ upTo:'', rate:'' }];
+  window._wtTierEdit = { index, brackets, aboveRate };
+
+  document.getElementById('tierModalTitle').textContent = 'Tiered Pricing — ' + (item.name || 'Line item');
+  const crew = getActiveCrew();
+  document.getElementById('tierModalSub').textContent =
+    'Crew: ' + (crew ? crew.name : '—') + '. The $/sqft for this line varies by the job\u2019s installed sqft.';
+  const enabled = itemIsTiered(item);
+  document.getElementById('tierEnabled').checked = enabled;
+  document.getElementById('tierAboveRate').value = aboveRate;
+  document.getElementById('tierEditor').style.display = enabled ? '' : 'none';
+  renderTierRows();
+  document.getElementById('tierModal').classList.add('open');
+}
+function toggleTierEnabled() {
+  document.getElementById('tierEditor').style.display =
+    document.getElementById('tierEnabled').checked ? '' : 'none';
+}
+function renderTierRows() {
+  const wrap = document.getElementById('tierRows');
+  const b = window._wtTierEdit ? window._wtTierEdit.brackets : [];
+  wrap.innerHTML = b.map((row,i)=>`
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+      <span style="font-size:12px;color:var(--text-mid);white-space:nowrap;">Up to</span>
+      <input type="number" value="${row.upTo}" step="1" min="0" placeholder="sqft" class="manual-input tier-up" data-i="${i}" style="width:90px;padding:5px 8px;">
+      <span style="font-size:12px;color:var(--text-mid);">sqft &rarr; $</span>
+      <input type="number" value="${row.rate}" step="0.01" min="0" placeholder="0.00" class="manual-input tier-rate" data-i="${i}" style="width:78px;padding:5px 8px;">
+      <span style="font-size:12px;color:var(--text-light);">/sqft</span>
+      <button class="btn-delete" style="margin-left:auto;" onclick="tierRemoveBracket(${i})" title="Remove bracket">✕</button>
+    </div>`).join('');
+}
+function tierReadInputs() {
+  if (!window._wtTierEdit) return;
+  const ups = document.querySelectorAll('#tierRows .tier-up');
+  const rates = document.querySelectorAll('#tierRows .tier-rate');
+  const brackets = [];
+  ups.forEach((u,idx)=> brackets.push({ upTo: u.value, rate: rates[idx] ? rates[idx].value : '' }));
+  window._wtTierEdit.brackets = brackets;
+  window._wtTierEdit.aboveRate = document.getElementById('tierAboveRate').value;
+}
+function tierAddBracket() {
+  tierReadInputs();
+  window._wtTierEdit.brackets.push({ upTo:'', rate:'' });
+  renderTierRows();
+}
+function tierRemoveBracket(i) {
+  tierReadInputs();
+  window._wtTierEdit.brackets.splice(i,1);
+  if (!window._wtTierEdit.brackets.length) window._wtTierEdit.brackets.push({ upTo:'', rate:'' });
+  renderTierRows();
+}
+function saveTierModal() {
+  const ed = window._wtTierEdit; if (!ed) return;
+  const items = getLaborItems();
+  const item = items[ed.index]; if (!item) { closeTierModal(); return; }
+  if (!document.getElementById('tierEnabled').checked) {
+    delete item.tiers;
+  } else {
+    tierReadInputs();
+    const brackets = ed.brackets
+      .map(b => ({ upTo: parseFloat(b.upTo), rate: parseFloat(b.rate) || 0 }))
+      .filter(b => !isNaN(b.upTo) && b.upTo > 0)
+      .sort((a,b) => a.upTo - b.upTo);
+    const tiers = brackets.concat([{ upTo: null, rate: parseFloat(ed.aboveRate) || 0 }]);
+    if (tiers.length < 2) { alert('Add at least one bracket limit, plus the "all other" rate at the bottom.'); return; }
+    item.tiers = tiers;
+  }
+  saveLaborItems(items);
+  window._wtTierEdit = null;
+  document.getElementById('tierModal').classList.remove('open');
+  renderLaborRatesTable();
+  if (currentId) calcQuote();
+}
+function closeTierModal() {
+  window._wtTierEdit = null;
+  document.getElementById('tierModal').classList.remove('open');
 }
 
 function deleteLaborItem(index) {
@@ -5517,6 +5707,7 @@ function renderRollLayout() {
   sizeLayoutCanvas();
   drawRollLayoutCanvas(layout);
   renderManualCutsList(layout, proj);
+  renderNestedPiecesList(layout, proj);
   renderPieceList(layout, proj);
   document.getElementById('layoutArea').value = `${layout.adjustedShapeArea.toLocaleString(undefined,{maximumFractionDigits:2})} ft²`
     + (layout.adjustedShapeArea !== layout.shapeArea ? ` (${layout.shapeArea.toLocaleString(undefined,{maximumFractionDigits:2})} ft² before exclusions)` : '');
@@ -6227,9 +6418,15 @@ function startDragNesting(evt) {
   const t = window._wtCanvasTransform; if (!t) return;
   const dataPt = { x: t.minX + (pos.canvasX - t.pad) / t.scale, y: t.minY + (t.h - t.pad - pos.canvasY) / t.scale };
 
-  // Find which unit's (strip's or piece's) clipped shape was clicked
+  // Find which unit's (strip's or piece's) shape was pressed. A nested piece is
+  // drawn relocated into its target's waste (orange), so prefer its moved shape
+  // (_displayClippedMoved) when present — that's where the user sees it — and
+  // fall back to the piece's original clipped shape.
   const units = getNestableUnits(layout);
-  const hitUnit = units.find(u => u.displayClipped.length && pointInPoly(dataPt, u.displayClipped));
+  const hitUnit = units.find(u =>
+    (u._displayClippedMoved && u._displayClippedMoved.length && pointInPoly(dataPt, u._displayClippedMoved)) ||
+    (u.displayClipped.length && pointInPoly(dataPt, u.displayClipped))
+  );
   if (!hitUnit) return;
   evt.preventDefault();
   window._wtDragNestKey = hitUnit.key;
@@ -6516,6 +6713,43 @@ function removeManualCutAt(stripKey, cutPos) {
 function clearManualCuts(stripKey) {
   const proj = getCurrentProject(); if (!proj || !proj.layout || !proj.layout.manualCuts) return;
   delete proj.layout.manualCuts[stripKey];
+  save();
+  renderRollLayout();
+}
+
+// ── Nested pieces list & per-piece "Put back" controls ──
+// Lists every piece currently nested into another roll's waste area, with a
+// button to revert that single placement — a visible, discoverable alternative
+// to dragging the orange piece back off the waste area on the canvas.
+function renderNestedPiecesList(layout, proj) {
+  const group = document.getElementById('nestedPiecesGroup');
+  const list = document.getElementById('nestedPiecesList');
+  if (!group || !list) return;
+
+  const rollPieceLabels = assignRollPieceLabels(layout);
+  const units = getNestableUnits(layout);
+  const nested = units.filter(u => u.nestedInto != null);
+
+  if (!nested.length) { group.style.display = 'none'; list.innerHTML = ''; return; }
+
+  group.style.display = '';
+  list.innerHTML = nested.map(u => {
+    const rp = rollPieceLabels.get(u);
+    const srcLabel = rp ? `Roll ${rp.roll} / Piece ${rp.piece}` : 'Piece';
+    const hostLabel = u.nestedIntoLabel || 'another roll';
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--border);border-radius:6px;padding:6px 8px;margin-bottom:6px;">
+        <div style="color:var(--text-mid);"><strong>${srcLabel}</strong> → nested in ${hostLabel}</div>
+        <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;white-space:nowrap;" onclick="unnestPiece('${u.key}')" title="Move this piece back out of the waste area">↩ Put back</button>
+      </div>`;
+  }).join('');
+}
+
+// Revert a single nesting placement: the piece returns to its own ordered
+// length and its area is added back into Ordered SqFt.
+function unnestPiece(srcKey) {
+  const proj = getCurrentProject(); if (!proj || !proj.layout || !proj.layout.nesting) return;
+  delete proj.layout.nesting[srcKey];
   save();
   renderRollLayout();
 }

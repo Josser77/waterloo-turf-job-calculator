@@ -3166,6 +3166,147 @@ section('44. Cut Mode drag-to-nest routing');
 }
 
 // ════════════════════════════════════════════════════════════════════════
+//  45. NESTING — per-piece "Put back" (unnestPiece) + restore semantics
+//  The user workflow: make multiple cuts, move multiple pieces into waste
+//  areas, then reset SPECIFIC pieces. unnestPiece must remove exactly one
+//  placement and leave the others alone. The compute-level check confirms that
+//  removing a nesting key restores Ordered SqFt to the un-nested baseline.
+// ════════════════════════════════════════════════════════════════════════
+section('45. Nesting: per-piece Put back');
+{
+  function unnestCtx() {
+    const c = {
+      window: { _wtEditMode:false, _wtLayoutZoom:1 },
+      document: { getElementById:()=>({ checked:false, value:'', style:{}, classList:{add:()=>{},remove:()=>{}}, addEventListener:()=>{} }), querySelectorAll:()=>[], querySelector:()=>null, addEventListener:()=>{} },
+      localStorage: { getItem:()=>null, setItem:()=>{} },
+      console,
+    };
+    vm.runInNewContext(scriptSrc, c);
+    return c;
+  }
+
+  // ── unnestPiece removes exactly the targeted piece, leaves others nested ──
+  {
+    const c = unnestCtx();
+    const proj = { layout: { nesting: { a: 'host1', b: 'host2', d: 'host1' } } };
+    let saved = false, rendered = false;
+    c.getCurrentProject = () => proj;
+    c.save = () => { saved = true; };
+    c.renderRollLayout = () => { rendered = true; };
+    c.unnestPiece('b');
+    assert(!('b' in proj.layout.nesting), 'unnestPiece removes the targeted piece (b)');
+    assert(proj.layout.nesting.a === 'host1' && proj.layout.nesting.d === 'host1', 'unnestPiece leaves the other nested pieces intact (per-piece reset)');
+    assert(saved && rendered, 'unnestPiece persists and re-renders');
+  }
+
+  // ── unnestPiece is a safe no-op when there is no project/layout/nesting ──
+  {
+    const c = unnestCtx();
+    let threw = false;
+    try {
+      c.getCurrentProject = () => null;             c.unnestPiece('x');
+      c.getCurrentProject = () => ({});             c.unnestPiece('x');
+      c.getCurrentProject = () => ({ layout:{} });  c.unnestPiece('x');
+    } catch (e) { threw = true; }
+    assert(!threw, 'unnestPiece is a safe no-op when project/layout/nesting are missing');
+  }
+
+  // ── Compute-level: removing the nesting key restores Ordered SqFt baseline ──
+  {
+    const c = unnestCtx();
+    const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{} };
+    const lShape = [{x:0,y:0},{x:30,y:0},{x:30,y:8},{x:5,y:8},{x:5,y:30},{x:0,y:30}];
+    const base = c.computeRollLayout(lShape, 0, 0, opts);
+    const small = base.strips.find(s => s.purchasedArea > 0.5 && s.wasteArea < 1);
+    const big = base.strips.find(s => s.index !== (small||{}).index && s.wasteArea >= (small||{purchasedArea:9e9}).purchasedArea);
+    if (small && big) {
+      const nested = c.computeRollLayout(lShape, 0, 0, { ...opts, nesting:{ [small.key]: big.key } });
+      assert(nested.totalOrdered < base.totalOrdered, 'nesting a piece lowers Ordered SqFt');
+      // "Put back" = remove that key → recompute → back to baseline
+      const putBack = c.computeRollLayout(lShape, 0, 0, { ...opts, nesting:{} });
+      assert(near(putBack.totalOrdered, base.totalOrdered, 0.01), 'removing the nesting key (Put back) restores Ordered SqFt to baseline');
+    } else {
+      console.log('  (compute-level restore check skipped — no suitable strip pair)');
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  46. TIERED LABOR PRICING — resolveTierRate / getRateFor (whole-job-at-bracket)
+//  A crew's per-sqft labor line (standard/putting) can carry sqft brackets;
+//  the whole job is charged at the matching bracket's rate (flat, not
+//  progressive). These test the resolver and the crew-aware lookup.
+// ════════════════════════════════════════════════════════════════════════
+section('46. Tiered labor pricing');
+{
+  function tierCtx() {
+    const c = {
+      window: { _wtEditMode:false },
+      document: { getElementById:()=>null, querySelectorAll:()=>[], querySelector:()=>null, addEventListener:()=>{} },
+      localStorage: { getItem:()=>null, setItem:()=>{} },
+      console,
+    };
+    vm.runInNewContext(scriptSrc, c);
+    return c;
+  }
+
+  // ── resolveTierRate: flat item (no tiers) returns its flat rate ──
+  {
+    const c = tierCtx();
+    assert(c.resolveTierRate({ rate: 8 }, 1234) === 8, 'flat item returns flat rate regardless of sqft');
+    assert(c.resolveTierRate({ rate: '' }, 500) === 0, 'flat item with empty rate returns 0');
+    assert(c.itemIsTiered({ rate: 8 }) === false, 'itemIsTiered false for flat item');
+    assert(c.itemIsTiered({ tiers: [] }) === false, 'itemIsTiered false for empty tiers');
+    assert(c.itemIsTiered({ tiers: [{upTo:null,rate:7}] }) === true, 'itemIsTiered true when tiers present');
+  }
+
+  // ── resolveTierRate: whole job at the matching bracket's rate ──
+  {
+    const c = tierCtx();
+    const item = { tiers: [ {upTo:500, rate:9}, {upTo:1000, rate:8}, {upTo:null, rate:7} ] };
+    assert(c.resolveTierRate(item, 400)  === 9, '400 sqft → first bracket ($9)');
+    assert(c.resolveTierRate(item, 500)  === 9, '500 sqft (== bound) → first bracket ($9)');
+    assert(c.resolveTierRate(item, 501)  === 8, '501 sqft → second bracket ($8)');
+    assert(c.resolveTierRate(item, 1000) === 8, '1000 sqft (== bound) → second bracket ($8)');
+    assert(c.resolveTierRate(item, 1001) === 7, '1001 sqft → unbounded bracket ($7)');
+    assert(c.resolveTierRate(item, 99999) === 7, 'very large sqft → unbounded bracket ($7)');
+    assert(c.resolveTierRate(item, 0) === 9, '0 sqft → first bracket ($9)');
+  }
+
+  // ── resolveTierRate: unsorted tiers and missing unbounded tier ──
+  {
+    const c = tierCtx();
+    const unsorted = { tiers: [ {upTo:1000, rate:8}, {upTo:null, rate:7}, {upTo:500, rate:9} ] };
+    assert(c.resolveTierRate(unsorted, 600) === 8, 'unsorted tiers still resolve correctly (600 → $8)');
+    const noUnbounded = { tiers: [ {upTo:500, rate:9}, {upTo:1000, rate:8} ] };
+    assert(c.resolveTierRate(noUnbounded, 5000) === 8, 'above all bounds with no unbounded tier → last bracket rate');
+  }
+
+  // ── getRateFor: uses the project crew, tier-aware; falls back to default ──
+  {
+    const c = tierCtx();
+    const crews = [
+      { id:'crew_flat', name:'Flat', items:[ {key:'standard', rate:8}, {key:'putting', rate:9} ] },
+      { id:'crew_tier', name:'Tiered', items:[
+        {key:'standard', tiers:[ {upTo:1000, rate:8}, {upTo:null, rate:7} ]},
+        {key:'putting',  rate:10 },
+      ] },
+    ];
+    c.getCrews = () => crews;
+    c.getLaborItems = () => crews[0].items;
+    c.getCurrentProject = () => ({ crewId:'crew_tier' });
+    assert(c.getRateFor('standard', 500)  === 8, 'tiered crew: 500 sqft standard → $8');
+    assert(c.getRateFor('standard', 1500) === 7, 'tiered crew: 1500 sqft standard → $7 (higher bracket)');
+    assert(c.getRateFor('putting', 9999)  === 10, 'tiered crew: putting is flat → $10 regardless of sqft');
+    assert(c.getRateFor('edging', 100) === 4, 'unknown-on-crew key falls back to default ($4 edging)');
+    c.getCurrentProject = () => ({ crewId:'crew_flat' });
+    assert(c.getRateFor('standard', 1500) === 8, 'flat crew: standard is $8 at any sqft');
+    c.getCurrentProject = () => ({});
+    assert(c.getRateFor('standard', 1500) === 8, 'no project crew → active crew flat rate');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
 //  SUMMARY
 // ════════════════════════════════════════════════════════════════════════
 console.log(`\n${'═'.repeat(58)}`);

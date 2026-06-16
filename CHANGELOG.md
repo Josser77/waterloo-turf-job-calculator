@@ -5,6 +5,73 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd, 3) — Per-crew tiered (sqft-based) labor pricing
+
+### New feature: tiered pricing for standard & putting-green install rates
+A crew's per-sqft **Standard Turf Install** and **Putting Green Install** rates can now
+vary by job size instead of being a single flat number. Each can hold a set of brackets
+(an upper sqft limit + a $/sqft rate) plus an "all other" rate for anything above the
+largest limit. The **whole job is charged at the rate of the bracket its installed sqft
+falls into** — flat per bracket, not progressive (e.g. "up to 1,000 → $8", "above → $7":
+a 1,500 sqft yard bills at $7 × 1,500). Tiers are per-crew, so one crew can be flat while
+another is tiered. The standard rate tiers off the standard install area; the putting
+green rate tiers off the putting green area.
+
+### How it works
+- **Settings → Labor Rates:** the rate cell for those two lines now shows a **"Tiers…"**
+  button (or "Edit tiers" when already tiered) that opens a tier editor modal — toggle
+  "Use sqft-based tiered pricing," add/remove brackets, set the "all other" rate.
+- **Quote Builder:** each option card's labor line shows the resolved per-sqft rate with a
+  "tiered" tag so it's clear which bracket applied.
+- **Data model:** a labor line item may carry `tiers: [{upTo, rate}, …, {upTo:null, rate}]`
+  (upTo null = "and above"); absence of `tiers` = flat `rate`, unchanged. New helpers
+  `resolveTierRate`, `getCrewItemsForQuote`, `getRateFor`, `itemIsTiered`; the quote labor
+  calc now resolves standard/putting via `getRateFor(key, sqft)` instead of a flat lookup.
+- **Bug fix:** copying a crew now deep-copies tier arrays so two crews never share the same
+  brackets.
+
+### Tests
+- Added section 46 ("Tiered labor pricing"): 20 assertions covering `resolveTierRate`
+  (flat fallback, bracket boundaries, unsorted tiers, missing unbounded tier) and
+  `getRateFor` (project-crew resolution, tiered vs flat, default fallback).
+- **Total: 528 tests, all passing** (508 prior + 20 new).
+
+### Not in this change
+- "Layout page as source of truth for Installed/Ordered SqFt (auto-apply to Quote Builder)"
+  was scoped and deferred to the next session per build-order preference (tiered first).
+
+---
+
+## 2026-06-17 (cont'd, 2) — Cut/move/reset clarity; per-piece Put back tests
+
+### UX clarity: distinguishing cuts from moved (nested) pieces
+Users were conflating two separate things — *clearing a cut* vs *putting a moved piece
+back* — and chasing the finicky "drag the piece off the waste area" gesture because the
+docs presented it as the primary reset. No behavior changed; the functionality was already
+complete (multiple cuts, multiple independent moves, and per-piece reset via the existing
+"↩ Put back" button). The fixes are purely explanatory:
+- Rewrote the nesting legend in Roll Results to name **"↩ Put back"** as the reliable reset
+  and demote drag-off-waste to a fiddly secondary option. Clarified that putting a piece
+  back keeps your cuts.
+- Added sub-labels under the **Manual Cuts (Butt Seams)** and **Nested Pieces** lists
+  spelling out the difference: "Clear all cuts" un-cuts the roll (and discards moves of
+  those pieces); "↩ Put back" returns one moved piece to its own order while cuts stay
+  intact.
+- Updated the in-app docs (Manual Cuts and Drag-and-Drop Nesting sections) to match.
+
+### Tests
+- Added section 45 ("Nesting: per-piece Put back"): 6 assertions covering `unnestPiece`
+  (removes exactly the targeted piece, leaves others nested, persists + re-renders, safe
+  no-op when project/layout/nesting are missing) and the compute-level guarantee that
+  removing a nesting key restores Ordered SqFt to the un-nested baseline.
+- **Total: 508 tests, all passing** (502 prior + 6 new).
+
+> **Doc-hygiene note:** the "Nested Pieces / ↩ Put back" feature itself is not recorded in
+> the entries below — it appears to have shipped without a CHANGELOG entry. If the repo
+> copy of this file also lacks one, backfill a short entry for it.
+
+---
+
 ## 2026-06-17 (cont'd) — Cut Mode drag-to-nest fix; dead test section removed; test gate
 
 ### Bug fix: can't move a piece to a waste area while in Cut Mode

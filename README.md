@@ -30,6 +30,7 @@ Built for Waterloo Turf's internal use.
 **Settings**
 - Turf, infill, rock, and misc item catalog
 - Multiple crew rate sets (labor rates per sqft, edging, etc.)
+- Per-crew tiered (sqft-based) pricing for the standard and putting-green install rates — the whole job is billed at the rate of the bracket its installed sqft falls into
 - Profit margin setting (margin-on-price)
 
 **General**
@@ -81,7 +82,7 @@ Run the test suite before committing any changes to `waterloo_turf_calculator.ht
 node waterloo_turf_tests.js
 ```
 
-All tests should pass (currently **502**). The `Sync and Push.command` script runs
+All tests should pass (currently **528**). The `Sync and Push.command` script runs
 this suite as a gate and refuses to commit or push if any test fails.
 
 Each session that produces an updated calculator file also updates this README
