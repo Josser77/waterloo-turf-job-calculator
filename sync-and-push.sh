@@ -55,8 +55,8 @@ fi
 cd "$REPO_DIR"
 
 # Check if anything actually changed across all tracked files
-if git diff --quiet -- waterloo_turf_calculator.html waterloo_turf_tests.js README.md CHANGELOG.md && \
-   git diff --cached --quiet -- waterloo_turf_calculator.html waterloo_turf_tests.js README.md CHANGELOG.md; then
+if git diff --quiet -- waterloo_turf_calculator.html waterloo_turf_tests.js README.md CHANGELOG.md sync-and-push.sh Sync_and_Push.command && \
+   git diff --cached --quiet -- waterloo_turf_calculator.html waterloo_turf_tests.js README.md CHANGELOG.md sync-and-push.sh Sync_and_Push.command; then
   echo ""
   echo "No changes detected — nothing to commit or push."
   exit 0
@@ -88,6 +88,12 @@ git add waterloo_turf_calculator.html
 # Also stage README and CHANGELOG if they were updated this session
 [ -f "$REPO_DIR/README.md" ] && git add README.md
 [ -f "$REPO_DIR/CHANGELOG.md" ] && git add CHANGELOG.md
+
+# Stage the sync scripts themselves so changes to them push automatically —
+# no more separate manual "push the scripts" step. (A script that commits
+# itself includes whatever edits it has at run time, which is what we want.)
+[ -f "$REPO_DIR/sync-and-push.sh" ] && git add sync-and-push.sh
+[ -f "$REPO_DIR/Sync_and_Push.command" ] && git add Sync_and_Push.command
 
 # Use today's date in the commit message, plus allow an optional custom message
 TIMESTAMP=$(date "+%Y-%m-%d %H:%M")
