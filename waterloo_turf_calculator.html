@@ -910,26 +910,11 @@
   #rollLayoutCanvas { max-width: 100%; }
 
   #layoutGrid {
-    grid-template-columns: 1fr clamp(260px, 26vw, 380px);
+    grid-template-columns: 1fr clamp(220px, 22vw, 320px);
   }
 
   #layoutSidebar {
     max-height: calc(100vh - 180px);
-  }
-
-  #layoutSidebar .field-group {
-    margin-bottom: 22px;
-    padding-bottom: 18px;
-    border-bottom: 1px solid var(--border);
-  }
-  #layoutSidebar .field-group:last-child {
-    margin-bottom: 0;
-    padding-bottom: 0;
-    border-bottom: none;
-  }
-  #layoutSidebar .field-group label {
-    margin-bottom: 8px;
-    display: block;
   }
 
   @media (max-width: 860px) {
