@@ -5,6 +5,40 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd, 4) — Nested pieces land where you drop them
+
+### Fix: moving a cut piece to a waste area now honors the drop point
+Previously, dropping a piece into a roll's waste area only recorded *which* roll it went
+to — the draw code then auto-placed it at the first clear spot, ignoring where you actually
+dropped it. So the piece never went where you put it. Now the drop position is captured (in
+roll-frame coordinates) and the piece is placed there: centered on the drop point along the
+target roll, clamped so the whole piece stays on the roll. Drop it again to nudge it. Pieces
+nested before this change (with no stored position) still auto-place as before.
+
+### How it works
+- On drop, `endDragNesting` un-rotates the drop point to roll-frame and stores it in a new
+  `proj.layout.nestPos` map (parallel to `proj.layout.nesting`, so the existing
+  key→target mapping, compute, Put-back, and tests are unchanged).
+- `getRollOpts` passes `nestPos` into `computeRollLayout`, which attaches the anchor to the
+  nested unit; the draw step's `nestedPieceOffset` uses it via the new pure helper
+  `nestPlacementX(dropRfX, pieceWidth, rectX0, rectX1)` (center-and-clamp). No anchor →
+  the original auto-scan placement.
+- "↩ Put back" and dropping a piece off the waste area both clear the stored position.
+
+### Tests
+- Added section 47 ("Nesting: honor drop point"): 9 assertions covering `nestPlacementX`
+  (centering, clamping at both edges, non-zero rect origin, oversized piece), `getRollOpts`
+  carrying `nestPos` through, and `computeRollLayout` attaching the anchor to the nested
+  unit (and leaving it null when none was dropped).
+- **Total: 537 tests, all passing** (528 prior + 9 new).
+
+### Still open
+- Overlap between two pieces nested into the *same* waste area isn't prevented (placement
+  avoids the target's turf, not other nested pieces). Not addressed here.
+- Layout → Quote Builder auto-apply; more tiered-pricing work; doc/test-count reconciliation.
+
+---
+
 ## 2026-06-17 (cont'd, 3) — Per-crew tiered (sqft-based) labor pricing
 
 ### New feature: tiered pricing for standard & putting-green install rates

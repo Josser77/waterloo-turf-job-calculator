@@ -3307,6 +3307,69 @@ section('46. Tiered labor pricing');
 }
 
 // ════════════════════════════════════════════════════════════════════════
+//  47. NESTING — honor the drop point (nestPlacementX + nestPos plumbing)
+//  Dropping a piece into a waste area now places it where it was dropped
+//  (centered on the drop x, clamped inside the target rect), instead of
+//  auto-snapping to the first clear spot. nestedPieceOffset itself is nested
+//  inside the canvas draw fn (not reachable here), so we test the extracted
+//  placement math + the data plumbing that carries the anchor to the unit.
+// ════════════════════════════════════════════════════════════════════════
+section('47. Nesting: honor drop point');
+{
+  function nestCtx(getEl) {
+    const c = {
+      window: { _wtEditMode:false },
+      document: { getElementById: getEl || (()=>({ value:'' })), querySelectorAll:()=>[], querySelector:()=>null, addEventListener:()=>{} },
+      localStorage: { getItem:()=>null, setItem:()=>{} },
+      console,
+    };
+    vm.runInNewContext(scriptSrc, c);
+    return c;
+  }
+
+  // ── nestPlacementX: center on drop, clamp inside the target rectangle ──
+  {
+    const c = nestCtx();
+    assert(c.nestPlacementX(600, 200, 0, 1000) === 500, 'centers piece on the drop x (600 → left edge 500)');
+    assert(c.nestPlacementX(50, 200, 0, 1000) === 0, 'clamps to rect start when dropped near the left edge');
+    assert(c.nestPlacementX(980, 200, 0, 1000) === 800, 'clamps so the piece stays inside the right edge (max 800)');
+    assert(c.nestPlacementX(400, 100, 100, 600) === 350, 'respects a rect that does not start at 0 (400 → 350)');
+    assert(c.nestPlacementX(400, 1200, 0, 1000) === 0, 'piece longer than the rect pins to the start');
+  }
+
+  // ── getRollOpts carries nestPos through (and defaults to {}) ──
+  {
+    const c = nestCtx(() => ({ value:'15' }));
+    const pos = { 's1_p0': { rfX: 42, rfY: 0 } };
+    const proj = { layout: { nestPos: pos, nesting: { 's1_p0':'s2' } } };
+    const opts = c.getRollOpts(proj);
+    assert(opts.nestPos === pos, 'getRollOpts passes proj.layout.nestPos through');
+    assert(JSON.stringify(c.getRollOpts({ layout:{} }).nestPos) === '{}', 'getRollOpts defaults nestPos to {} when absent');
+  }
+
+  // ── computeRollLayout attaches the drop anchor to the nested unit ──
+  {
+    const c = nestCtx();
+    const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{} };
+    const lShape = [{x:0,y:0},{x:30,y:0},{x:30,y:8},{x:5,y:8},{x:5,y:30},{x:0,y:30}];
+    const base = c.computeRollLayout(lShape, 0, 0, opts);
+    const small = base.strips.find(s => s.purchasedArea > 0.5 && s.wasteArea < 1);
+    const big = base.strips.find(s => s.index !== (small||{}).index && s.wasteArea >= (small||{purchasedArea:9e9}).purchasedArea);
+    if (small && big) {
+      const anchor = { rfX: 12.5, rfY: big.rfY0 };
+      const withPos = c.computeRollLayout(lShape, 0, 0, { ...opts, nesting:{ [small.key]: big.key }, nestPos:{ [small.key]: anchor } });
+      const nestedUnit = [].concat(...withPos.strips.map(s => s.pieces || [s])).find(u => u.nestedIntoKey === big.key);
+      assert(nestedUnit && nestedUnit.nestPos && nestedUnit.nestPos.rfX === 12.5, 'nested unit carries the drop anchor (nestPos)');
+      const noPos = c.computeRollLayout(lShape, 0, 0, { ...opts, nesting:{ [small.key]: big.key } });
+      const nestedNoPos = [].concat(...noPos.strips.map(s => s.pieces || [s])).find(u => u.nestedIntoKey === big.key);
+      assert(nestedNoPos && nestedNoPos.nestPos == null, 'without a drop anchor, nested unit nestPos is null (auto-place path)');
+    } else {
+      console.log('  (compute nestPos check skipped — no suitable strip pair)');
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
 //  SUMMARY
 // ════════════════════════════════════════════════════════════════════════
 console.log(`\n${'═'.repeat(58)}`);

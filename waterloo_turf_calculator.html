@@ -2013,7 +2013,7 @@
         <p>A table listing every individual piece that will be cut for this job — each row shows its <strong>Roll N / Piece M</strong> label, <strong>Length</strong> (its ordered length along the roll), <strong>Width</strong> (the roll width), and resulting <strong>SqFt</strong>. This is the cut sheet for your installers: it tells them exactly how long to cut each piece from the roll, and the total linear footage at the bottom helps you sanity-check how many rolls to bring and plan seam placement to minimize butt seams. Pieces created by Manual Cuts or that have been nested into another roll's waste show a note (e.g. "cut from Roll N / Piece M waste"). If a Putting Green Fringe is configured, the fringe pieces ("Fringe 1", "Fringe 2", ...) are listed too, with their own length/width/sqft.</p>
 
         <div class="docs-h3">Drag-and-Drop Nesting</div>
-        <p>With "Show purchased roll rectangles" on, drag a roll's colored shape (the installed piece) onto another roll's hatched waste area to indicate it can be cut from that roll's offcut rather than ordered separately. Valid drop targets highlight with a green dashed border while dragging. On a successful drop the piece is redrawn relocated into the target roll's waste area, outlined in orange and labeled "from Roll N / Piece M waste," and its area is removed from Ordered SqFt. To undo a move, use the piece's <strong>"↩ Put back"</strong> button in the Nested Pieces list — that's the reliable way; you can also drag the orange piece fully off every waste area onto open space, but that gesture is fiddly. You can move several pieces independently and put any one of them back without affecting the others. Works whether or not Cut Mode is active — in Cut Mode a quick click still toggles a cut, while a press-and-drag on a piece nests it. Disabled only in Edit Shape and Move Layers modes.</p>
+        <p>With "Show purchased roll rectangles" on, drag a roll's colored shape (the installed piece) onto another roll's hatched waste area to indicate it can be cut from that roll's offcut rather than ordered separately. Valid drop targets highlight with a green dashed border while dragging. On a successful drop the piece is redrawn relocated into the target roll's waste area, outlined in orange and labeled "from Roll N / Piece M waste," and its area is removed from Ordered SqFt. The piece is placed roughly where you drop it along that roll (centered on the drop point, clamped to stay on the roll) — drop it again to nudge it elsewhere in the same or another waste area. To undo a move, use the piece's <strong>"↩ Put back"</strong> button in the Nested Pieces list — that's the reliable way; you can also drag the orange piece fully off every waste area onto open space, but that gesture is fiddly. You can move several pieces independently and put any one of them back without affecting the others. Works whether or not Cut Mode is active — in Cut Mode a quick click still toggles a cut, while a press-and-drag on a piece nests it. Disabled only in Edit Shape and Move Layers modes.</p>
         <p>Placements are tied to each roll's position in the shape, so they persist across saves/reloads. If you later change roll direction, seam offset, roll width, or side trim enough that the rolls reflow into different bands, a placement tied to a band that no longer exists is simply dropped — it won't jump onto an unrelated roll. Re-check nesting after making significant roll-setting changes.</p>
         <p>A <strong>"Nested Pieces"</strong> list appears in Roll Results whenever any piece is nested, showing each one as "Roll N / Piece M → nested in …" with a <strong>"↩ Put back"</strong> button. Clicking it reverts that single placement — the piece returns to its own ordered length and its area is added back into Ordered SqFt. This is the discoverable equivalent of dragging the orange piece back off the waste area on the canvas.</p>
 
@@ -5565,6 +5565,7 @@ function computeRollLayout(basePoints, rotationDeg, translation, opts) {
     return '?';
   }
 
+  const nestPos = opts.nestPos || {};
   Object.keys(nesting).forEach(srcKey => {
     const targetKey = nesting[srcKey];
     const src = byKey[srcKey];
@@ -5575,6 +5576,7 @@ function computeRollLayout(basePoints, rotationDeg, translation, opts) {
       src.nestedInto = target.index;
       src.nestedIntoKey = target.key;
       src.nestedIntoLabel = nestTargetLabel(target.key);
+      src.nestPos = nestPos[srcKey] || null; // roll-frame drop anchor, if the user placed it
       target.nestHost.push(src.index);
     }
   });
@@ -5607,8 +5609,17 @@ function getRollOpts(proj) {
     sideTrim: document.getElementById('sideTrimInput').value,
     cuttingMargin: document.getElementById('cuttingMarginInput').value,
     nesting: (proj && proj.layout && proj.layout.nesting) || {},
+    nestPos: (proj && proj.layout && proj.layout.nestPos) || {},
     manualCuts: (proj && proj.layout && proj.layout.manualCuts) || {},
   };
+}
+
+// Where a nested piece should sit along the target roll's length when the user
+// dropped it at roll-frame x = dropRfX: center the piece on the drop point,
+// clamped so the whole piece stays within the target's purchased rectangle.
+function nestPlacementX(dropRfX, pieceWidth, rectX0, rectX1) {
+  const maxX = Math.max(rectX0, rectX1 - pieceWidth);
+  return Math.max(rectX0, Math.min(dropRfX - pieceWidth / 2, maxX));
 }
 
 function renderRollLayout() {
@@ -5860,12 +5871,21 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     const steps = 40;
     const span = Math.max(1e-6, maxX - rectX0);
     let rfTargetX = null;
-    for (let i = 0; i <= steps; i++) {
-      const candX = rectX0 + (span * i) / steps;
-      const candX1 = Math.min(candX + pieceWidth, rectX1);
-      const overlap = targetClip.length ? clipPolygonToRect(targetClip, candX, candX1, rectY0, rectY1) : [];
-      const overlapArea = overlap.length ? polygonArea(overlap) : 0;
-      if (overlapArea < 1e-6) { rfTargetX = candX; break; }
+    // If the user dropped the piece at a specific spot, honor it: center the
+    // piece on the dropped x, clamped within the target's rectangle.
+    if (u.nestPos && u.nestPos.rfX != null) {
+      rfTargetX = nestPlacementX(u.nestPos.rfX, pieceWidth, rectX0, rectX1);
+    }
+    // Otherwise auto-place at the first position where a pieceWidth-wide strip
+    // doesn't overlap the target's installed shape at all.
+    if (rfTargetX == null) {
+      for (let i = 0; i <= steps; i++) {
+        const candX = rectX0 + (span * i) / steps;
+        const candX1 = Math.min(candX + pieceWidth, rectX1);
+        const overlap = targetClip.length ? clipPolygonToRect(targetClip, candX, candX1, rectY0, rectY1) : [];
+        const overlapArea = overlap.length ? polygonArea(overlap) : 0;
+        if (overlapArea < 1e-6) { rfTargetX = candX; break; }
+      }
     }
     // Fallback: if no fully-clear position exists (piece doesn't truly fit
     // anywhere, or the waste region is itself irregular), pick the candidate
@@ -6489,14 +6509,20 @@ function endDragNesting(evt) {
   }
 
   if (!proj.layout.nesting) proj.layout.nesting = {};
+  if (!proj.layout.nestPos) proj.layout.nestPos = {};
 
   if (targetKey != null && srcUnit) {
     // Nest srcUnit into the unit at targetKey, keyed by stable position
     // identity so this survives roll-direction/translation/width changes.
     proj.layout.nesting[srcUnit.key] = targetKey;
+    // Remember WHERE in the target the user dropped it, in roll-frame coords
+    // (un-rotate the drop point), so it's drawn where they placed it.
+    const rollPt = rotateAround([dataPt], -(layout.rotationDeg || 0), layout.cx, layout.cy)[0];
+    proj.layout.nestPos[srcUnit.key] = { rfX: rollPt.x, rfY: rollPt.y };
   } else if (srcUnit) {
     // Dropped outside waste — reset nesting for this unit
     delete proj.layout.nesting[srcUnit.key];
+    delete proj.layout.nestPos[srcUnit.key];
   }
   save();
   renderRollLayout();
@@ -6750,6 +6776,7 @@ function renderNestedPiecesList(layout, proj) {
 function unnestPiece(srcKey) {
   const proj = getCurrentProject(); if (!proj || !proj.layout || !proj.layout.nesting) return;
   delete proj.layout.nesting[srcKey];
+  if (proj.layout.nestPos) delete proj.layout.nestPos[srcKey];
   save();
   renderRollLayout();
 }
