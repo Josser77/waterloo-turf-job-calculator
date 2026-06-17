@@ -5,6 +5,41 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd, 7) — Nested pieces never overlap turf (geometry-aware) + layout integration tests
+
+### Root cause found: full-width pieces vs partial-width waste
+A nested piece is always the full roll width, but a roll's leftover waste is usually
+*partial*-width (a side sliver or a notch). Earlier placement tried to set the piece down in
+that waste and, when no full-roll-width clear column existed, it overlapped the installed
+turf — visible in testing as a piece sitting on top of another piece's turf. (An integration
+probe against the real `computeRollLayout` confirmed: with a notch-shaped waste an 840-sqft
+overlap was unavoidable.)
+
+### Fix: relocate only when it fits cleanly, otherwise draw in place
+- New `clearXOrNull(...)` returns the nearest x with a genuinely clear full-roll-width column
+  (avoiding the target's turf and any pieces already placed there), or `null` if none exists.
+- `assignNestPlacements` now flags pieces with no clear column as `_nestNoFit`; `nestedPieceOffset`
+  draws those in their own place (zero offset) rather than overlapping the turf. The area saving
+  still applies, and a brief toast explains the in-place draw.
+- `nearestClearX` keeps a least-overlap fallback for drawing only; nesting is never rejected,
+  so the feature stays usable even though most real waste is partial-width.
+
+### New: layout integration tests (catching these before you do)
+The prior tests were unit-level with synthetic inputs, which is why on-canvas placement bugs
+slipped through. Section 49 adds an integration test that drives the **real `computeRollLayout`**,
+forces a nest between two strips using their actual clipped polygons, runs the placement pass,
+and asserts the invariant: every nested piece is either drawn in place or has ~0 turf overlap.
+Plus unit coverage for `clearXOrNull` (notch → null, clear end-waste → x, oversized piece → null)
+and the `_nestNoFit` flag.
+
+### Tests
+- **Total: 555 tests, all passing** (548 prior + 7 new).
+
+### Still open
+- Layout → Quote Builder auto-apply; more tiered-pricing work; doc/test-count reconciliation.
+
+---
+
 ## 2026-06-17 (cont'd, 6) — Nested pieces never overlap turf or each other
 
 ### Fix: pieces nested in the same roll no longer overlap

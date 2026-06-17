@@ -3435,6 +3435,80 @@ section('48. Nesting: snap off turf');
 }
 
 // ════════════════════════════════════════════════════════════════════════
+//  49. NESTING — fit gating + real-layout integration (no turf overlap, ever)
+//  A nested piece is the full roll width, so it can only be DRAWN relocated
+//  into a clear full-width column of the target's waste. clearXOrNull decides
+//  whether such a column exists; assignNestPlacements flags pieces that don't
+//  fit (_nestNoFit) so they're drawn in place instead of overlapping turf. The
+//  integration test drives the REAL computeRollLayout and asserts the invariant
+//  on actual clipped geometry — the check that would have caught the overlap.
+// ════════════════════════════════════════════════════════════════════════
+section('49. Nesting: fit gating + real-layout integration');
+{
+  function intCtx() {
+    const c = {
+      window: {},
+      document: { getElementById:()=>null, querySelectorAll:()=>[], querySelector:()=>null, addEventListener:()=>{} },
+      localStorage: { getItem:()=>null, setItem:()=>{} },
+      console,
+    };
+    vm.runInNewContext(scriptSrc, c);
+    return c;
+  }
+
+  // ── clearXOrNull: partial-width (notch) waste has no clear full-width column ──
+  {
+    const c = intCtx();
+    const notch = [{x:0,y:0},{x:400,y:0},{x:400,y:8},{x:600,y:8},{x:600,y:0},{x:1000,y:0},{x:1000,y:15},{x:0,y:15}];
+    assert(c.clearXOrNull(500, 120, 0, 1000, notch, 0, 15, []) === null,
+      'notch waste (no full-width gap) → clearXOrNull returns null (no clean spot)');
+    const endWaste = [{x:0,y:0},{x:700,y:0},{x:700,y:15},{x:0,y:15}];
+    const x = c.clearXOrNull(850, 120, 0, 1000, endWaste, 0, 15, []);
+    assert(x != null && x >= 700 - 1e-6, 'clear end waste → returns a clean x in the empty column');
+    assert(c.clearXOrNull(500, 1200, 0, 1000, [], 0, 15, []) === null,
+      'a piece longer than the whole roll never fits');
+  }
+
+  // ── assignNestPlacements flags no-fit pieces (drawn in place, never overlap) ──
+  {
+    const c = intCtx();
+    const notch = [{x:0,y:0},{x:400,y:0},{x:400,y:8},{x:600,y:8},{x:600,y:0},{x:1000,y:0},{x:1000,y:15},{x:0,y:15}];
+    const target = { key:'T', rfX0:0, rfX1:1000, rfY0:0, rfY1:15, clipped:notch, nestedInto:null };
+    const piece = { key:'P', rfX0:0, rfX1:120, rfY0:0, rfY1:15, nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:500} };
+    c.assignNestPlacements({ strips:[{ pieces:[target, piece] }] });
+    assert(piece._nestNoFit === true && piece._nestX == null,
+      'piece that cannot fit a notch is flagged no-fit and not relocated (drawn in place)');
+  }
+
+  // ── INTEGRATION: real computeRollLayout geometry → no nested piece overlaps turf ──
+  {
+    const c = intCtx();
+    const shape = [{x:0,y:0},{x:10,y:0},{x:10,y:25},{x:0,y:25}];
+    const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{} };
+    const layout = c.computeRollLayout(shape, 0, 0, opts);
+    const units = [];
+    layout.strips.forEach(s => (s.pieces || [s]).forEach(u => units.push(u)));
+    const real = units.filter(u => u.clipped && u.clipped.length && u.rfX0 != null);
+    assert(real.length >= 2, 'real layout yields at least two strips with clipped geometry');
+    // Force a nest between two real strips (bypassing the area-eligibility loop)
+    // using their ACTUAL clipped polygons, then assert the no-overlap invariant.
+    const tgt = real[0], src = real[1];
+    src.nestedInto = 0; src.nestedIntoKey = tgt.key; src.nestPos = { rfX: tgt.rfX0 };
+    c.assignNestPlacements(layout);
+    const placed = units.find(u => u.nestedIntoKey === tgt.key);
+    assert(placed, 'the forced nest is recognized by assignNestPlacements');
+    if (placed._nestNoFit) {
+      assert(placed._nestX == null, 'no-fit on real geometry → drawn in place (no overlap by construction)');
+    } else {
+      const pw = placed.rfX1 - placed.rfX0;
+      const ov = c.clipPolygonToRect(tgt.clipped, placed._nestX, placed._nestX + pw, tgt.rfY0, tgt.rfY1);
+      const area = ov.length ? c.polygonArea(ov) : 0;
+      assert(area < 1e-2, 'relocated nested piece does NOT overlap the target turf (real geometry)');
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
 //  SUMMARY
 // ════════════════════════════════════════════════════════════════════════
 console.log(`\n${'═'.repeat(58)}`);
