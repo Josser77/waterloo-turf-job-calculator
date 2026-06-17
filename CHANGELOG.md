@@ -5,6 +5,79 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd, 11) — Multi-layer install Phase 2: each layer's roll plan drawn on the canvas
+
+### Per-layer roll plans now render in place
+Building on Phase 1 (math + summed totals), each install layer's roll plan is now drawn on the
+canvas at its positioned/rotated location — the installed strips filled in the layer's colour,
+plus the purchased rectangles with waste hatch when "Show purchased roll rectangles" is on, and
+a label showing the layer name + its Ordered SqFt. The canvas bounding box was extended to
+include every install layer's roll rects so nothing is clipped. The primary's rendering
+(cuts, nesting, labels, drag) is untouched.
+
+### Implementation
+- `drawRollLayoutCanvas`: the secondary-shape `install` branch now looks up that layer's layout
+  in `layout._installLayers` and draws its strips (`displayClipped` fill + optional `displayRect`
+  hatch) via the shared canvas transform, with a centroid label. Empty bands (no turf) are
+  skipped. Falls back to a plain outline if a layer has no computed strips.
+- `allPts` (frame extents) now includes each install layer's strip rects.
+
+### Tests
+- Section 50 extended: install layers expose drawable strip geometry (`displayClipped`) and that
+  geometry reflects the layer's moved position. (Canvas pixels themselves aren't unit-tested;
+  these assert the data the renderer consumes.)
+- **Total: 567 tests, all passing** (565 prior + 2 new).
+
+### Still open
+- Multi-layer Phase 3: per-layer roll direction/translation and per-layer cuts/nesting.
+- Nesting drop placement (paused at user's request); tiered-pricing work; doc/test-count reconciliation.
+
+---
+
+## 2026-06-17 (cont'd, 10) — Multi-layer install: each layer its own rolls, summed (Phase 1)
+
+### New "Install" layer mode (now the default)
+Multi-layer Moasure files often capture a yard as several separate pieces, not one outline
+with cutouts. Layers now default to a new **Install — its own turf + rolls** mode: every
+install layer (the primary plus each sub-layer left on Install) is rolled independently with
+the shared roll settings, and the Roll Results show the **combined** Ordered SqFt / Usable /
+Linear Ft / Rolls / Waste, with a per-layer breakdown beneath. "Apply" sends the combined
+Ordered SqFt to the chosen turf row. Exclude / Ignore / Putting Green still work as before;
+set a layer to one of those to drop it out of the install sum.
+
+This is **Phase 1** (math + totals + apply). Per the plan: Phase 2 = draw each layer's roll
+strips on the canvas at its position; Phase 3 = per-layer roll direction/translation and
+per-layer cuts/nesting. Positioning today uses the existing "✋ Move Layers" drag and the
+per-sub-layer Rotate slider; roll settings are shared across layers for now.
+
+### Implementation
+- `computeInstallLayerLayouts(proj, primaryLayout, secondaryShapes, rotation, translation, opts)`
+  rolls the primary + every `install` secondary (on its positioned `displayPoints`).
+- `sumInstallLayouts(list)` adds up ordered/usable/linear/area/rolls/pieces; combined
+  scrap = total ordered − total installed area.
+- `renderRollLayout` overrides the output fields with the combined totals and renders a
+  per-layer breakdown when more than one install layer exists; `applyRollLayoutToTurf` applies
+  the combined Ordered SqFt. Install layers draw as light-green turf areas on the canvas.
+- `getAdjustedShapeArea` and the layer dropdown default changed from `exclude` to `install`;
+  a replaced putting-green layer now demotes to `install`.
+
+### Behavior-change note
+Previously-imported multi-layer projects whose sub-layers had no explicit mode were treated as
+**exclude** (cutouts); they now default to **install** (added to the sum). If a sub-layer is
+actually a cutout, set it to Exclude in the Layers list.
+
+### Tests
+- Section 50 added: all-layers-install → N layouts, combined = sum of layers, exclude/ignore
+  drop out, and translation-invariance of a positioned layer's ordered area. Two prior tests
+  updated for the new `install` default (area not subtracted; PG demotes to install).
+- **Total: 565 tests, all passing** (558 prior + 7 new).
+
+### Still open
+- Multi-layer Phase 2 (canvas roll strips per layer) and Phase 3 (per-layer direction/cuts).
+- Nesting drop placement (paused at user's request); tiered-pricing work; doc/test-count reconciliation.
+
+---
+
 ## 2026-06-17 (cont'd, 9) — Nested piece stays exactly where you drop it (centroid match)
 
 ### The piece jumped off the cursor onto the turf

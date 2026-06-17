@@ -801,11 +801,13 @@ section('17. Multi-layer CSV parsing & secondary shapes');
     assert(near(adjusted, 100), 'ignore mode: area unchanged (100)');
   }
 
-  // ── getAdjustedShapeArea: default mode (no explicit mode set) is "exclude" ──
+  // ── getAdjustedShapeArea: default mode (no explicit mode set) is "install" ──
+  // Install layers are their own areas (summed separately), so they do NOT
+  // subtract from the primary's installed area.
   {
     const proj = { layout: { secondaryShapes: [{ name:'Cutout', area: 10, points: rect(0,0,5,5) }], secondaryShapeModes: {} } };
     const adjusted = ctx.getAdjustedShapeArea(proj, 100);
-    assert(near(adjusted, 90), 'default mode (no entry) = exclude: 100 - 10 = 90');
+    assert(near(adjusted, 100), 'default mode (no entry) = install: primary area unchanged (100)');
   }
 
   // ── getAdjustedShapeArea: multiple secondary shapes, mixed modes ──
@@ -2311,13 +2313,13 @@ section('37. Putting green fringe: layer mode, config persistence, and quote cos
 
     assert(ctx37a.getPuttingGreenShapeIndex(ctx37a.getCurrentProject()) === 0, 'shape 0 is initially the putting green');
 
-    // Mark shape 1 as putting-green -> shape 0 should be demoted to 'exclude'
+    // Mark shape 1 as putting-green -> shape 0 should be demoted to 'install'
     let threw = false;
     try { ctx37a.setSecondaryShapeMode(1, 'putting-green'); } catch(e) { threw = true; }
     assert(!threw, 'setSecondaryShapeMode runs without throwing');
     const proj = ctx37a.getCurrentProject();
     assert(proj.layout.secondaryShapeModes[1] === 'putting-green', 'shape 1 is now putting-green');
-    assert(proj.layout.secondaryShapeModes[0] === 'exclude', 'shape 0 demoted to exclude (mutual exclusivity)');
+    assert(proj.layout.secondaryShapeModes[0] === 'install', 'shape 0 demoted to install (mutual exclusivity)');
     assert(ctx37a.getPuttingGreenShapeIndex(proj) === 1, 'getPuttingGreenShapeIndex now returns 1');
   }
 
@@ -3523,6 +3525,82 @@ section('49. Nesting: area eligibility + honor-the-drop placement');
     const pw = placed.rfX1 - placed.rfX0, ph = placed.rfY1 - placed.rfY0;
     assert(placed._nestX >= tgt.rfX0 - 1e-6 && placed._nestX + pw <= tgt.rfX1 + 1e-6, 'placed piece stays within target rect (x)');
     assert(placed._nestY >= tgt.rfY0 - 1e-6 && placed._nestY + ph <= tgt.rfY1 + 1e-6, 'placed piece stays within target rect (y)');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  50. MULTI-LAYER INSTALL — each layer its own rolls, summed (Phase 1)
+//  All layers default to 'install'; computeInstallLayerLayouts rolls the
+//  primary + every 'install' secondary with shared settings, and
+//  sumInstallLayouts adds up ordered/usable/linear/area/rolls. Layers set to
+//  exclude/ignore/putting-green drop out of the install set.
+// ════════════════════════════════════════════════════════════════════════
+section('50. Multi-layer install (Phase 1)');
+{
+  function ic() {
+    const c = { window:{}, document:{getElementById:()=>null,querySelectorAll:()=>[],querySelector:()=>null,addEventListener:()=>{}}, localStorage:{getItem:()=>null,setItem:()=>{}}, console };
+    vm.runInNewContext(scriptSrc, c);
+    return c;
+  }
+  const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{} };
+  // Three simple rectangles as three layers.
+  const rectA = [{x:0,y:0},{x:10,y:0},{x:10,y:12},{x:0,y:12}];  // primary
+  const rectB = [{x:0,y:0},{x:8,y:0},{x:8,y:10},{x:0,y:10}];
+  const rectC = [{x:0,y:0},{x:6,y:0},{x:6,y:6},{x:0,y:6}];
+
+  {
+    const c = ic();
+    const proj = { layout: { primaryLayerName:'A', secondaryShapes:[{name:'B',points:rectB},{name:'C',points:rectC}], secondaryShapeModes:{} } };
+    const primaryLayout = c.computeRollLayout(rectA, 0, 0, opts);
+    const secs = proj.layout.secondaryShapes.map(s => ({ ...s, displayPoints: s.points }));
+    const layers = c.computeInstallLayerLayouts(proj, primaryLayout, secs, 0, 0, opts);
+    assert(layers.length === 3, 'all layers default to install → 3 install layouts (primary + 2)');
+    const sum = c.sumInstallLayouts(layers);
+    const expectOrdered = layers.reduce((a,l)=>a+l.layout.totalOrdered,0);
+    assert(Math.abs(sum.ordered - expectOrdered) < 1e-6, 'combined ordered = sum of each layer\'s ordered');
+    assert(sum.ordered > primaryLayout.totalOrdered + 1e-6, 'combined ordered exceeds the primary alone (extra layers add)');
+    assert(sum.rolls >= 3, 'each layer contributes at least one roll');
+  }
+
+  {
+    // Mark one secondary as exclude and one as ignore → both drop out of install
+    const c = ic();
+    const proj = { layout: { primaryLayerName:'A', secondaryShapes:[{name:'B',points:rectB},{name:'C',points:rectC}], secondaryShapeModes:{0:'exclude',1:'ignore'} } };
+    const primaryLayout = c.computeRollLayout(rectA, 0, 0, opts);
+    const secs = proj.layout.secondaryShapes.map(s => ({ ...s, displayPoints: s.points }));
+    const layers = c.computeInstallLayerLayouts(proj, primaryLayout, secs, 0, 0, opts);
+    assert(layers.length === 1, 'exclude + ignore secondaries are not install layers → primary only');
+    assert(layers[0].id === 'primary', 'the remaining install layer is the primary');
+  }
+
+  {
+    // Positioned (offset) layer: rolling uses the displayPoints, so a pure
+    // translation does not change ordered area (translation-invariant).
+    const c = ic();
+    const proj = { layout: { primaryLayerName:'A', secondaryShapes:[{name:'B',points:rectB}], secondaryShapeModes:{} } };
+    const primaryLayout = c.computeRollLayout(rectA, 0, 0, opts);
+    const moved = rectB.map(p => ({ x: p.x + 100, y: p.y + 50 }));
+    const layersMoved = c.computeInstallLayerLayouts(proj, primaryLayout, [{ name:'B', points:rectB, displayPoints:moved }], 0, 0, opts);
+    const layersHome = c.computeInstallLayerLayouts(proj, primaryLayout, [{ name:'B', points:rectB, displayPoints:rectB }], 0, 0, opts);
+    assert(Math.abs(layersMoved[1].layout.totalOrdered - layersHome[1].layout.totalOrdered) < 1e-6,
+      'translating a layer does not change its ordered area (math is position-invariant)');
+  }
+
+  {
+    // Phase 2 render input: every install layer must expose strips with
+    // displayClipped geometry positioned via its displayPoints, so the canvas
+    // has something to draw at that layer's location.
+    const c = ic();
+    const proj = { layout: { primaryLayerName:'A', secondaryShapes:[{name:'B',points:rectB}], secondaryShapeModes:{} } };
+    const primaryLayout = c.computeRollLayout(rectA, 0, 0, opts);
+    const moved = rectB.map(p => ({ x: p.x + 100, y: p.y + 50 }));
+    const layers = c.computeInstallLayerLayouts(proj, primaryLayout, [{ name:'B', points:rectB, displayPoints:moved }], 0, 0, opts);
+    const sec = layers.find(l => l.id === 0);
+    const drawable = sec.layout.strips.filter(s => s.displayClipped && s.displayClipped.length >= 3);
+    assert(drawable.length >= 1, 'secondary install layer has at least one turf-bearing strip to draw');
+    // its geometry should sit near the moved position (x ~ 100+), not the origin
+    const anyX = drawable[0].displayClipped.map(p => p.x);
+    assert(Math.max(...anyX) > 50, 'strip geometry reflects the layer\'s moved position (x ≈ 100+)');
   }
 }
 

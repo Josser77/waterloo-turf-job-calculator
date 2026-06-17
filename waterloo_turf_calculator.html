@@ -1351,6 +1351,7 @@
                       <label>Saved (nested)</label>
                       <input type="text" id="rollSavedOut" class="auto-filled" readonly>
                     </div>
+                    <div id="rollLayerBreakdown" style="display:none;font-size:11px;margin-top:6px;padding:6px 8px;background:var(--bg-alt);border-radius:6px;"></div>
                     <div id="rollNestingLegend" style="display:none;font-size:11px;color:var(--text-light);margin-top:4px;padding:5px 8px;background:var(--bg-alt);border-radius:6px;">
                       <strong>Move a piece:</strong> drag it onto another roll's hatched (red) waste area. <strong>Put it back:</strong> use the “↩ Put back” button in the <em>Nested Pieces</em> list below — that's the reliable way. (Dragging the piece fully off every waste area onto open space also works, but it's fiddly.) Putting a piece back keeps your cuts; it only undoes the move.
                     </div>
@@ -1947,12 +1948,14 @@
         <div class="docs-h3">Multi-Layer CSVs (Layers)</div>
         <p>Moasure files can contain more than one measured layer — for example, the main yard outline plus a separate shape for a planter bed, tree well, or putting green cutout inside it. When you import a CSV with multiple layers, the largest shape becomes the <strong>primary layer</strong> (the main boundary used for roll calculations), and any other shapes appear below it under <strong>"Layers"</strong> on the right.</p>
         <p>Every layer — including the primary one — has a checkbox. Uncheck it to hide that layer on the canvas; this is purely visual and doesn't affect any calculations. This is useful for decluttering the view when a file has several overlapping shapes, or for focusing on one layer while editing.</p>
-        <p>Each additional (non-primary) layer also has a dropdown that controls how it affects Installed Area:</p>
+        <p>Each layer has a dropdown that controls how it's treated:</p>
         <ul class="docs-list">
-          <li><strong>Exclude from Installed Area (hole/cutout)</strong> — default. Subtracts that shape's area from the Installed Area total, and draws it on the canvas as a hatched red region — turf doesn't go there.</li>
-          <li><strong>Ignore (informational only)</strong> — has no effect on Installed Area. Drawn as a dashed blue outline for reference (e.g. you want to see where a feature is, but it doesn't change how much turf you order).</li>
-          <li><strong>Putting Green (used for fringe calculation)</strong> — subtracts that shape's area from Installed Area like Exclude, AND marks it as the putting green outline for the Fringe feature (see below). Drawn as a solid green shape. Only one layer can be the putting green at a time — selecting it on a different layer demotes the previous one back to Exclude.</li>
+          <li><strong>Install — its own turf + rolls</strong> — default. The layer is its own turf area: it gets rolled independently (with the same shared roll settings) and its Ordered SqFt, Linear Ft, rolls, and waste are <strong>summed into the combined totals</strong> shown in Roll Results. Use this when a Moasure file captures the yard as several separate pieces (e.g. a front yard measured in sections). A per-layer breakdown is listed under the totals, and "Apply" sends the combined Ordered SqFt to the chosen turf row. Each install layer's <strong>roll plan is drawn on the canvas at its position</strong> (its installed strips, plus purchased rectangles + waste hatch when "Show purchased roll rectangles" is on), labeled with the layer name and its Ordered SqFt. Position each layer with "✋ Move Layers" and the per-layer Rotate slider. <em>(Per-layer roll direction and per-layer cuts/nesting are planned next; roll direction is currently shared across layers.)</em></li>
+          <li><strong>Exclude from Installed Area (hole/cutout)</strong> — subtracts that shape's area from the primary's Installed Area, and draws it as a hatched red region — turf doesn't go there.</li>
+          <li><strong>Ignore (informational only)</strong> — no effect on any total. Drawn as a dashed blue outline for reference.</li>
+          <li><strong>Putting Green (used for fringe calculation)</strong> — subtracts that shape's area from the primary's Installed Area like Exclude, AND marks it as the putting green outline for the Fringe feature (see below). Drawn as a solid green shape. Only one layer can be the putting green at a time — selecting it on a different layer demotes the previous one back to Install.</li>
         </ul>
+        <p>Note: because Install is now the default, a multi-layer file treats every sub-layer as turf to install unless you change it. If a sub-layer is actually a cutout, set it to Exclude.</p>
         <p>"Installed Area" shows the adjusted total (after exclusions), with the pre-exclusion total in parentheses if anything was excluded. "Apply Area" and the roll plan's scrap calculation both use the adjusted total. Note that hiding a layer (visibility checkbox) is independent from its exclude/ignore/putting-green mode — a hidden layer can still be excluded from the area total, and a visible layer can be set to "ignore."</p>
 
         <div class="docs-h3">Putting Green Fringe</div>
@@ -4709,7 +4712,9 @@ function getAdjustedShapeArea(proj, baseArea) {
   const secondary = (proj.layout && proj.layout.secondaryShapes) || [];
   let area = baseArea;
   secondary.forEach((s, i) => {
-    const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'exclude';
+    const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'install';
+    // Only true cutouts subtract from the primary's installed area. 'install'
+    // layers are their own areas (summed separately); 'ignore' has no effect.
     if (mode === 'exclude' || mode === 'putting-green') area -= getSecondaryShapeArea(s);
   });
   return Math.max(0, area);
@@ -4723,7 +4728,7 @@ function setSecondaryShapeMode(i, mode) {
     // shape currently marked as such back to 'exclude'.
     Object.keys(proj.layout.secondaryShapeModes).forEach(k => {
       if (String(k) !== String(i) && proj.layout.secondaryShapeModes[k] === 'putting-green') {
-        proj.layout.secondaryShapeModes[k] = 'exclude';
+        proj.layout.secondaryShapeModes[k] = 'install';
       }
     });
   }
@@ -4796,7 +4801,7 @@ function renderLayersList(proj) {
   // Secondary shapes — visibility, rotation, + exclude/ignore mode
   secondary.forEach((s, i) => {
     const area = getSecondaryShapeArea(s);
-    const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'exclude';
+    const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'install';
     const rot = (offsets[i] && offsets[i].rotation) || 0;
     rows.push(`
       <div style="border:1px solid var(--border);border-radius:6px;padding:6px 8px;margin-bottom:6px;">
@@ -4806,6 +4811,7 @@ function renderLayersList(proj) {
           ${resetBtn(i)}
         </label>
         <select style="width:100%;font-size:11px;padding:3px 4px;margin-bottom:4px;" onchange="setSecondaryShapeMode(${i}, this.value)">
+          <option value="install" ${mode==='install'?'selected':''}>Install — its own turf + rolls (summed into the quote)</option>
           <option value="exclude" ${mode==='exclude'?'selected':''}>Exclude from Installed Area (hole/cutout)</option>
           <option value="ignore" ${mode==='ignore'?'selected':''}>Ignore (informational only)</option>
           <option value="putting-green" ${mode==='putting-green'?'selected':''}>Putting Green (used for fringe calculation)</option>
@@ -5729,6 +5735,46 @@ function assignNestPlacements(layout) {
   });
 }
 
+// Returns the roll layout for every "install" layer: the primary shape (always
+// installed) plus each secondary shape whose mode is 'install'. Each is rolled
+// independently with the SAME shared roll settings, on that layer's positioned
+// (view-rotated + per-layer rotated + offset) points. `primaryLayout` is the
+// already-computed primary layout; `secondaryShapes` carry `.displayPoints`.
+function computeInstallLayerLayouts(proj, primaryLayout, secondaryShapes, rotation, translation, opts) {
+  const out = [{
+    id: 'primary',
+    name: (proj.layout && proj.layout.primaryLayerName) || 'Primary Shape',
+    layout: primaryLayout,
+  }];
+  const modes = (proj.layout && proj.layout.secondaryShapeModes) || {};
+  (secondaryShapes || []).forEach((s, i) => {
+    const mode = modes[i] || 'install';
+    if (mode !== 'install') return;
+    const pts = s.displayPoints || s.points;
+    if (!pts || pts.length < 3) return;
+    out.push({ id: i, name: s.name, layout: computeRollLayout(pts, rotation, translation, opts) });
+  });
+  return out;
+}
+
+// Sum the key outputs across install layers. Combined scrap = total ordered −
+// total installed area (each install layer contributes its own shape area).
+function sumInstallLayouts(list) {
+  let ordered = 0, usable = 0, linear = 0, area = 0, saved = 0, rolls = 0, pieces = 0;
+  (list || []).forEach(({ layout: L }) => {
+    if (!L) return;
+    ordered += L.totalOrdered || 0;
+    usable += L.totalUsable || 0;
+    linear += L.linearFt || 0;
+    area += L.shapeArea || 0;
+    saved += L.totalSaved || 0;
+    const rp = countRollsAndPieces(L);
+    rolls += rp.totalRolls; pieces += rp.totalPieces;
+  });
+  const scrap = ordered - area;
+  return { ordered, usable, linear, area, saved, rolls, pieces, scrap, wastePct: ordered > 0 ? (scrap / ordered * 100) : 0 };
+}
+
 function renderRollLayout() {
   const proj = getCurrentProject();
   if (!proj || !proj.layout) return;
@@ -5821,6 +5867,36 @@ function renderRollLayout() {
   const nestLegend = document.getElementById('rollNestingLegend');
   if (nestLegend) nestLegend.style.display = showRects ? '' : 'none';
 
+  // ── Multi-layer install: roll each 'install' layer and sum the outputs ──
+  // When more than one install layer exists, the output fields show the COMBINED
+  // totals and a per-layer breakdown is listed. 'Apply' uses the combined total.
+  const installLayers = computeInstallLayerLayouts(proj, layout, secondaryShapes, rotation, translation, opts);
+  const breakdownEl = document.getElementById('rollLayerBreakdown');
+  layout._installLayers = installLayers;
+  layout._combined = null;
+  if (installLayers.length > 1) {
+    const combined = sumInstallLayouts(installLayers);
+    layout._combined = combined;
+    const cRollsLabel = `${combined.rolls} roll${combined.rolls===1?'':'s'}`;
+    const cPiecesLabel = combined.pieces !== combined.rolls ? ` / ${combined.pieces} piece${combined.pieces===1?'':'s'}` : '';
+    document.getElementById('rollStripsOut').value = cRollsLabel + cPiecesLabel;
+    document.getElementById('rollOrderedOut').value = combined.ordered.toLocaleString(undefined,{maximumFractionDigits:0}) + ' ft²';
+    document.getElementById('rollUsableOut').value = combined.usable.toLocaleString(undefined,{maximumFractionDigits:0}) + ' ft²';
+    document.getElementById('rollLinearOut').value = combined.linear.toLocaleString(undefined,{maximumFractionDigits:1}) + ' ft';
+    document.getElementById('rollWasteOut').value = combined.scrap.toLocaleString(undefined,{maximumFractionDigits:0}) + ' ft² (' + combined.wastePct.toFixed(1) + '%)';
+    if (breakdownEl) {
+      const lines = installLayers.map(({ name, layout: L }) => {
+        const rp = countRollsAndPieces(L);
+        const pcs = rp.totalPieces !== rp.totalRolls ? `/${rp.totalPieces}pc` : '';
+        return `<div style="display:flex;justify-content:space-between;gap:8px;padding:1px 0;"><span>${name}</span><span style="white-space:nowrap;color:var(--text-light);">${(L.totalOrdered||0).toLocaleString(undefined,{maximumFractionDigits:0})} ft² · ${rp.totalRolls}r${pcs}</span></div>`;
+      }).join('');
+      breakdownEl.innerHTML = `<div style="font-weight:600;margin-bottom:3px;color:var(--text-mid);">${installLayers.length} install layers (combined above)</div>${lines}`;
+      breakdownEl.style.display = '';
+    }
+  } else if (breakdownEl) {
+    breakdownEl.style.display = 'none';
+  }
+
   window._wtCurrentRollLayout = layout;
   sizeLayoutCanvas();
   drawRollLayoutCanvas(layout);
@@ -5881,6 +5957,15 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   });
   (layout.secondaryShapes || []).forEach(s => {
     if (s.displayPoints) allPts.push(...s.displayPoints);
+  });
+  // Include each install layer's roll rects so their purchased rectangles
+  // (which can extend past the shape outline) aren't clipped by the frame.
+  (layout._installLayers || []).forEach(({ id, layout: L }) => {
+    if (id === 'primary' || !L) return;
+    (L.strips || []).forEach(st => {
+      if (st.displayRect) allPts.push(...st.displayRect);
+      if (st.displayClipped) allPts.push(...st.displayClipped);
+    });
   });
   // Include fringe piece extents (they extend beyond the PG outline) so the
   // canvas frame doesn't clip the fringe diagram.
@@ -6031,8 +6116,39 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   (layout.secondaryShapes || []).forEach((s, i) => {
     if (!s.displayPoints || s.displayPoints.length < 3) return;
     if (layout.layerVisibility[i] === false) return; // layer hidden
-    const mode = (layout.secondaryShapeModes && layout.secondaryShapeModes[i]) || 'exclude';
-    if (mode === 'exclude') {
+    const mode = (layout.secondaryShapeModes && layout.secondaryShapeModes[i]) || 'install';
+    if (mode === 'install') {
+      // Phase 2: draw this layer's own roll plan at its position. Each strip's
+      // installed shape is filled in the layer's colour; with "show rectangles"
+      // on, its purchased rectangle + waste hatch are drawn too.
+      const il = (layout._installLayers || []).find(e => e.id === i);
+      const fill = STRIP_COLORS[(i + 1) % STRIP_COLORS.length];
+      const stroke = '#2e7d32';
+      if (il && il.layout && il.layout.strips && il.layout.strips.length) {
+        il.layout.strips.forEach(st => {
+          if (showRects && st.displayRect) {
+            drawHatched(st.displayRect, 'rgba(244,67,54,0.18)');
+            drawPoly(st.displayRect, null, 'rgba(0,0,0,0.18)');
+          }
+          if (st.displayClipped) drawPoly(st.displayClipped, fill, stroke);
+        });
+      } else {
+        drawPoly(s.displayPoints, 'rgba(46,125,50,0.10)', stroke);
+      }
+      // Label the layer at its centroid (name + ordered sqft).
+      const n = s.displayPoints.length;
+      const lcx = s.displayPoints.reduce((a,p)=>a+p.x,0)/n;
+      const lcy = s.displayPoints.reduce((a,p)=>a+p.y,0)/n;
+      const cc = toCanvas({ x: lcx, y: lcy });
+      const ordered = il && il.layout ? Math.round(il.layout.totalOrdered) : 0;
+      const label = `${s.name}${ordered ? ` — ${ordered} ft²` : ''}`;
+      ctx.font = '11px sans-serif';
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillRect(cc.x - tw/2 - 2, cc.y - 7, tw + 4, 14);
+      ctx.fillStyle = '#2e7d32';
+      ctx.fillText(label, cc.x - tw/2, cc.y + 4);
+    } else if (mode === 'exclude') {
       // Hole: hatch it and outline in red to show it's subtracted from Installed Area
       drawHatched(s.displayPoints, 'rgba(244,67,54,0.25)');
       ctx.save();
@@ -6985,13 +7101,18 @@ function applyRollLayoutToTurf() {
   const layout = window._wtCurrentRollLayout
     || computeRollLayout(getBaseLayoutPoints(proj), proj.layout.rotation||0, proj.layout.translation||0, getRollOpts(proj));
 
-  proj.turf[i].sqFtToOrder = Math.round(layout.totalOrdered * 100) / 100;
+  const combined = layout._combined || null;
+  const orderedTotal = combined ? combined.ordered : layout.totalOrdered;
+  const linearTotal = combined ? combined.linear : layout.linearFt;
+  proj.turf[i].sqFtToOrder = Math.round(orderedTotal * 100) / 100;
   save();
   calcTurfRow(i);
   renderTurfRows(proj);
-  const { totalRolls, totalPieces } = countRollsAndPieces(layout);
+  const totalRolls = combined ? combined.rolls : countRollsAndPieces(layout).totalRolls;
+  const totalPieces = combined ? combined.pieces : countRollsAndPieces(layout).totalPieces;
   const pieceNote = totalPieces !== totalRolls ? `, ${totalPieces} piece(s)` : '';
-  alert(`Applied ${layout.totalOrdered.toLocaleString(undefined,{maximumFractionDigits:0})} ft² (${totalRolls} roll(s)${pieceNote}, ${layout.linearFt.toFixed(1)} linear ft) to ${proj.turf[i].product || 'turf row '+(i+1)}.`);
+  const layerNote = combined ? ` across ${layout._installLayers.length} layers` : '';
+  alert(`Applied ${orderedTotal.toLocaleString(undefined,{maximumFractionDigits:0})} ft² (${totalRolls} roll(s)${pieceNote}, ${linearTotal.toFixed(1)} linear ft)${layerNote} to ${proj.turf[i].product || 'turf row '+(i+1)}.`);
 }
 
 function applyLayoutAreaToTurf() {
