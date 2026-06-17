@@ -5,6 +5,66 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd, 6) — Nested pieces never overlap turf or each other
+
+### Fix: pieces nested in the same roll no longer overlap
+Placement previously avoided the target roll's installed turf but not other pieces already
+nested in that same roll, so two dropped pieces could land on top of each other. Now every
+nested piece's position is resolved together: pieces sharing a roll are placed one at a time
+(in drop-x order), each avoiding the turf AND the pieces already placed there. Nothing
+overlaps — not turf, not other nested pieces.
+
+### How it works
+- New `assignNestPlacements(layout)` runs at the start of each canvas draw. For each roll it
+  walks its nested pieces in drop order and assigns a non-overlapping roll-frame x (stored on
+  the unit as `_nestX`), accumulating occupied intervals as it goes.
+- `nearestClearX` now takes an `occupied` list of `[x0,x1]` intervals and treats them as
+  blocked in addition to the turf.
+- `nestedPieceOffset` just uses the pre-assigned `_nestX` (its old inline scan was removed),
+  so draw-time placement and overlap-avoidance share one code path.
+
+### Tests
+- Extended section 48 with 6 assertions: `nearestClearX` honoring occupied intervals (snaps
+  to the nearest free side, clears turf + an occupied piece at once) and `assignNestPlacements`
+  giving two pieces in the same roll non-overlapping positions inside the rectangle.
+- **Total: 548 tests, all passing** (542 prior + 6 new).
+
+### Still open
+- Layout → Quote Builder auto-apply; more tiered-pricing work; doc/test-count reconciliation.
+
+---
+
+## 2026-06-17 (cont'd, 5) — Nested piece honors the drop AND stays off the turf
+
+### Follow-up to the drop-point placement fix
+The previous change made a dropped piece land where you dropped it, but it removed all
+turf-avoidance — so a drop whose x-range overlaps the target roll's installed turf placed
+the piece on top of that turf (a nested piece spans the full roll width, so any turf at that
+x collides). Now placement honors the drop as the *preferred* position but **snaps to the
+nearest clear x** so the piece lands in the waste, not on the turf. A drop that's already in
+clear waste is kept exactly where dropped.
+
+### How it works
+- New pure helper `nearestClearX(preferredX, pieceWidth, rectX0, rectX1, targetClip, rectY0,
+  rectY1)`: returns the preferred x if a pieceWidth-wide strip there doesn't overlap the
+  target's clipped turf, otherwise the nearest x (scanning both directions) that's clear;
+  falls back to the preferred x if nothing fully fits.
+- `nestedPieceOffset` now feeds the drop's centered x through `nearestClearX` instead of
+  using it raw.
+
+### Tests
+- Added section 48 ("Nesting: snap off turf"): 5 assertions — drop in clear waste kept as-is,
+  drop on turf snaps just past the turf edge to the nearest clear x, deep-in-waste kept,
+  and no-turf returns the preferred x unchanged.
+- **Total: 542 tests, all passing** (537 prior + 5 new).
+
+### Still open
+- Two pieces nested into the *same* waste area can still overlap each other (placement
+  avoids the target's turf, not other nested pieces).
+- Layout → Quote Builder auto-apply; more tiered-pricing work; doc/test-count reconciliation.
+
+---
+
 ## 2026-06-17 (cont'd, 4) — Nested pieces land where you drop them
 
 ### Fix: moving a cut piece to a waste area now honors the drop point

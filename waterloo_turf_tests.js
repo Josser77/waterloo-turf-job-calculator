@@ -3370,6 +3370,71 @@ section('47. Nesting: honor drop point');
 }
 
 // ════════════════════════════════════════════════════════════════════════
+//  48. NESTING — honor drop but snap off the target's turf (nearestClearX)
+//  A nested piece spans the full roll width, so it must sit at an x-range the
+//  target's installed turf doesn't occupy. nearestClearX honors the drop's
+//  preferred x but snaps to the nearest turf-free x when needed.
+// ════════════════════════════════════════════════════════════════════════
+section('48. Nesting: snap off turf');
+{
+  function clearCtx() {
+    const c = {
+      window: {},
+      document: { getElementById:()=>null, querySelectorAll:()=>[], querySelector:()=>null, addEventListener:()=>{} },
+      localStorage: { getItem:()=>null, setItem:()=>{} },
+      console,
+    };
+    vm.runInNewContext(scriptSrc, c);
+    return c;
+  }
+  // Target turf occupies x ∈ [0,500] across the full band y ∈ [0,15];
+  // waste is x ∈ [500,1000]. Piece width 100.
+  const turf = [{x:0,y:0},{x:500,y:0},{x:500,y:15},{x:0,y:15}];
+
+  {
+    const c = clearCtx();
+    // Drop in clear waste → kept where dropped
+    assert(Math.abs(c.nearestClearX(600, 100, 0, 1000, turf, 0, 15) - 600) < 1e-6,
+      'drop in clear waste (600) is kept as-is');
+    // Drop on turf → snaps to nearest clear x (just past the turf at 500)
+    const snapped = c.nearestClearX(200, 100, 0, 1000, turf, 0, 15);
+    assert(snapped >= 500 - 1e-6, 'drop on turf (200) snaps to the clear region (x ≥ 500)');
+    assert(Math.abs(snapped - 500) <= 1000/80 + 1e-6, 'snaps to the NEAREST clear x, just past the turf edge');
+    // Drop deep in clear area stays put
+    assert(Math.abs(c.nearestClearX(820, 100, 0, 1000, turf, 0, 15) - 820) < 1e-6,
+      'drop deep in waste (820) is kept as-is');
+    // No turf at all → preferred x is always clear
+    assert(c.nearestClearX(300, 100, 0, 1000, [], 0, 15) === 300,
+      'with no target turf, the preferred x is returned unchanged');
+  }
+
+  // ── nearestClearX avoids already-placed pieces (occupied intervals) ──
+  {
+    const c = clearCtx();
+    // A piece already occupies [600,700]; dropping another at 650 should snap clear
+    const x = c.nearestClearX(650, 100, 0, 1000, [], 0, 15, [[600,700]]);
+    assert(x <= 600 + 1e-6 || x >= 700 - 1e-6, 'a piece dropped onto an occupied spot snaps off it');
+    assert(Math.abs(x - 700) < 1000/120 + 1e-6, 'snaps to the NEAREST free side of the occupied piece (700)');
+    // Turf [0,500] AND an occupied [500,600]: a 550 drop must clear both → x ≥ 600
+    const x2 = c.nearestClearX(550, 100, 0, 1000, turf, 0, 15, [[500,600]]);
+    assert(x2 >= 600 - 1e-6, 'clears both the turf and an occupied piece');
+  }
+
+  // ── assignNestPlacements: two pieces in the same roll never overlap ──
+  {
+    const c = clearCtx();
+    const target = { key:'T', rfX0:0, rfX1:1000, rfY0:0, rfY1:15, clipped:[], nestedInto:null };
+    const p1 = { key:'P1', rfX0:0, rfX1:100, rfY0:0, rfY1:15, nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:50} };
+    const p2 = { key:'P2', rfX0:0, rfX1:100, rfY0:0, rfY1:15, nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:60} };
+    const layout = { strips:[ { pieces:[target, p1, p2] } ] };
+    c.assignNestPlacements(layout);
+    assert(p1._nestX != null && p2._nestX != null, 'both nested pieces get an assigned x');
+    assert(Math.abs(p1._nestX - p2._nestX) >= 100 - 1e-6, 'two pieces nested in the same roll do not overlap (gap ≥ piece width)');
+    assert(p1._nestX >= 0 && p2._nestX + 100 <= 1000 + 1e-6, 'both placed pieces stay within the target rectangle');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
 //  SUMMARY
 // ════════════════════════════════════════════════════════════════════════
 console.log(`\n${'═'.repeat(58)}`);
