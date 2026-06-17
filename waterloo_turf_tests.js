@@ -3435,15 +3435,15 @@ section('48. Nesting: snap off turf');
 }
 
 // ════════════════════════════════════════════════════════════════════════
-//  49. NESTING — fit gating + real-layout integration (no turf overlap, ever)
-//  A nested piece is the full roll width, so it can only be DRAWN relocated
-//  into a clear full-width column of the target's waste. clearXOrNull decides
-//  whether such a column exists; assignNestPlacements flags pieces that don't
-//  fit (_nestNoFit) so they're drawn in place instead of overlapping turf. The
-//  integration test drives the REAL computeRollLayout and asserts the invariant
-//  on actual clipped geometry — the check that would have caught the overlap.
+//  49. NESTING — area eligibility + honor-the-drop placement (real layout)
+//  Eligibility is by AREA (piece area ≤ target waste area), not by whether a
+//  full-roll-width clear column exists — a small cut piece can be sourced from
+//  an irregular leftover. assignNestPlacements puts the piece where the user
+//  dropped it (clamped into the target rect) and only nudges to avoid stacking
+//  on another nested piece. The integration test drives the REAL
+//  computeRollLayout and checks those properties on actual clipped geometry.
 // ════════════════════════════════════════════════════════════════════════
-section('49. Nesting: fit gating + real-layout integration');
+section('49. Nesting: area eligibility + honor-the-drop placement');
 {
   function intCtx() {
     const c = {
@@ -3456,31 +3456,40 @@ section('49. Nesting: fit gating + real-layout integration');
     return c;
   }
 
-  // ── clearXOrNull: partial-width (notch) waste has no clear full-width column ──
+  // ── the dropped piece is placed where it was dropped (centered, clamped) ──
   {
     const c = intCtx();
-    const notch = [{x:0,y:0},{x:400,y:0},{x:400,y:8},{x:600,y:8},{x:600,y:0},{x:1000,y:0},{x:1000,y:15},{x:0,y:15}];
-    assert(c.clearXOrNull(500, 120, 0, 1000, notch, 0, 15, []) === null,
-      'notch waste (no full-width gap) → clearXOrNull returns null (no clean spot)');
-    const endWaste = [{x:0,y:0},{x:700,y:0},{x:700,y:15},{x:0,y:15}];
-    const x = c.clearXOrNull(850, 120, 0, 1000, endWaste, 0, 15, []);
-    assert(x != null && x >= 700 - 1e-6, 'clear end waste → returns a clean x in the empty column');
-    assert(c.clearXOrNull(500, 1200, 0, 1000, [], 0, 15, []) === null,
-      'a piece longer than the whole roll never fits');
-  }
-
-  // ── assignNestPlacements flags no-fit pieces (drawn in place, never overlap) ──
-  {
-    const c = intCtx();
+    // Irregular target turf (a notch) — placement must NOT refuse just because
+    // there's no full-width clear column; eligibility is by area.
     const notch = [{x:0,y:0},{x:400,y:0},{x:400,y:8},{x:600,y:8},{x:600,y:0},{x:1000,y:0},{x:1000,y:15},{x:0,y:15}];
     const target = { key:'T', rfX0:0, rfX1:1000, rfY0:0, rfY1:15, clipped:notch, nestedInto:null };
-    const piece = { key:'P', rfX0:0, rfX1:120, rfY0:0, rfY1:15, nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:500} };
+    const piece = { key:'P', rfX0:0, rfX1:120, rfY0:0, rfY1:15, nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:500, rfY:7.5} };
     c.assignNestPlacements({ strips:[{ pieces:[target, piece] }] });
-    assert(piece._nestNoFit === true && piece._nestX == null,
-      'piece that cannot fit a notch is flagged no-fit and not relocated (drawn in place)');
+    assert(piece._nestX != null, 'piece is placed (never refused) even when the waste is an irregular notch');
+    assert(Math.abs(piece._nestX - (500 - 60)) < 1e-6, 'piece is centered on the dropped x (drop 500, half-length 60 → left edge 440)');
+    assert(piece._nestX >= 0 && piece._nestX + 120 <= 1000 + 1e-6, 'placement stays within the target rectangle');
   }
 
-  // ── INTEGRATION: real computeRollLayout geometry → no nested piece overlaps turf ──
+  // ── a drop near the edge is clamped so the whole piece stays on the roll ──
+  {
+    const c = intCtx();
+    const target = { key:'T', rfX0:0, rfX1:1000, rfY0:0, rfY1:15, clipped:[], nestedInto:null };
+    const piece = { key:'P', rfX0:0, rfX1:120, rfY0:0, rfY1:15, nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:990, rfY:7.5} };
+    c.assignNestPlacements({ strips:[{ pieces:[target, piece] }] });
+    assert(Math.abs(piece._nestX - 880) < 1e-6, 'drop near the right edge clamps the piece to maxX (1000-120=880)');
+  }
+
+  // ── two pieces dropped in the same roll still do not stack on each other ──
+  {
+    const c = intCtx();
+    const target = { key:'T', rfX0:0, rfX1:1000, rfY0:0, rfY1:15, clipped:[], nestedInto:null };
+    const p1 = { key:'P1', rfX0:0, rfX1:100, rfY0:0, rfY1:15, nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:200,rfY:7.5} };
+    const p2 = { key:'P2', rfX0:0, rfX1:100, rfY0:0, rfY1:15, nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:230,rfY:7.5} };
+    c.assignNestPlacements({ strips:[{ pieces:[target, p1, p2] }] });
+    assert(Math.abs(p1._nestX - p2._nestX) >= 100 - 1e-6, 'two pieces dropped close together are nudged apart (no stacking)');
+  }
+
+  // ── INTEGRATION: real computeRollLayout geometry, honor-drop placement ──
   {
     const c = intCtx();
     const shape = [{x:0,y:0},{x:10,y:0},{x:10,y:25},{x:0,y:25}];
@@ -3490,21 +3499,15 @@ section('49. Nesting: fit gating + real-layout integration');
     layout.strips.forEach(s => (s.pieces || [s]).forEach(u => units.push(u)));
     const real = units.filter(u => u.clipped && u.clipped.length && u.rfX0 != null);
     assert(real.length >= 2, 'real layout yields at least two strips with clipped geometry');
-    // Force a nest between two real strips (bypassing the area-eligibility loop)
-    // using their ACTUAL clipped polygons, then assert the no-overlap invariant.
     const tgt = real[0], src = real[1];
-    src.nestedInto = 0; src.nestedIntoKey = tgt.key; src.nestPos = { rfX: tgt.rfX0 };
+    // Drop near the target's left edge.
+    src.nestedInto = 0; src.nestedIntoKey = tgt.key; src.nestPos = { rfX: tgt.rfX0 + 0.5, rfY: tgt.rfY0 + 0.5 };
     c.assignNestPlacements(layout);
     const placed = units.find(u => u.nestedIntoKey === tgt.key);
-    assert(placed, 'the forced nest is recognized by assignNestPlacements');
-    if (placed._nestNoFit) {
-      assert(placed._nestX == null, 'no-fit on real geometry → drawn in place (no overlap by construction)');
-    } else {
-      const pw = placed.rfX1 - placed.rfX0;
-      const ov = c.clipPolygonToRect(tgt.clipped, placed._nestX, placed._nestX + pw, tgt.rfY0, tgt.rfY1);
-      const area = ov.length ? c.polygonArea(ov) : 0;
-      assert(area < 1e-2, 'relocated nested piece does NOT overlap the target turf (real geometry)');
-    }
+    assert(placed && placed._nestX != null && placed._nestY != null, 'nested piece on real geometry is placed (x and y)');
+    const pw = placed.rfX1 - placed.rfX0, ph = placed.rfY1 - placed.rfY0;
+    assert(placed._nestX >= tgt.rfX0 - 1e-6 && placed._nestX + pw <= tgt.rfX1 + 1e-6, 'placed piece stays within target rect (x)');
+    assert(placed._nestY >= tgt.rfY0 - 1e-6 && placed._nestY + ph <= tgt.rfY1 + 1e-6, 'placed piece stays within target rect (y)');
   }
 }
 

@@ -5,6 +5,35 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd, 8) — Nesting: area decides, piece goes where you drop it
+
+### Corrected the fit test (it was measuring the wrong thing)
+The previous build refused to relocate a nested piece unless a clear *full-roll-width* column
+existed in the target's waste, and otherwise drew it in place with a "won't fit" note. That was
+wrong: a nested piece is a small CUT shape, not a full-width block, and the prior check compared
+the piece's whole **bounding rectangle** (15 ft wide) against the waste — so pieces that plainly
+fit by area were rejected. Eligibility is now purely by **area** (piece area ≤ target waste area,
+as it already was at drop time), and the geometric refusal is gone.
+
+### Placement now honors the drop
+`assignNestPlacements` places each nested piece centered on the point where it was dropped
+(both along and across the roll), clamped to stay within the target's rectangle, and only nudges
+it along the roll to avoid stacking on another piece already nested there. `nestedPieceOffset`
+uses the stored `_nestX`/`_nestY`; the full-width-column gate, the `_nestNoFit` in-place draw,
+and the rejection toast were removed.
+
+### Tests
+- Section 49 rewritten to the real behavior: piece is placed (never refused) even on an irregular
+  notch target, is centered on the dropped x, clamps near edges, and two pieces dropped close
+  together are nudged apart. The integration test drives the real `computeRollLayout` and checks
+  the piece is placed within the target rect in x and y on actual clipped geometry.
+- **Total: 557 tests, all passing** (555 prior − 7 old section-49 + 9 new).
+
+### Still open
+- Layout → Quote Builder auto-apply; more tiered-pricing work; doc/test-count reconciliation.
+
+---
+
 ## 2026-06-17 (cont'd, 7) — Nested pieces never overlap turf (geometry-aware) + layout integration tests
 
 ### Root cause found: full-width pieces vs partial-width waste
