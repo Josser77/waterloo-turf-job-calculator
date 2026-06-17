@@ -3489,6 +3489,21 @@ section('49. Nesting: area eligibility + honor-the-drop placement');
     assert(Math.abs(p1._nestX - p2._nestX) >= 100 - 1e-6, 'two pieces dropped close together are nudged apart (no stacking)');
   }
 
+  // ── an asymmetric (triangle) piece lands with its CENTROID at the drop ──
+  // (matches the drag ghost, which tracks the centroid — not the bbox centre).
+  {
+    const c = intCtx();
+    const tri = [{x:0,y:0},{x:4,y:0},{x:0,y:3}]; // centroid (1.333, 1.0) ≠ bbox centre (2,1.5)
+    const cx = (0+4+0)/3, cy = (0+0+3)/3;
+    const target = { key:'T', rfX0:0, rfX1:1000, rfY0:0, rfY1:15, clipped:[], nestedInto:null };
+    const piece = { key:'P', rfX0:0, rfX1:4, rfY0:0, rfY1:3, clipped:tri, nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:500, rfY:7.5} };
+    c.assignNestPlacements({ strips:[{ pieces:[target, piece] }] });
+    const placedCx = cx + (piece._nestX - piece.rfX0);
+    const placedCy = cy + (piece._nestY - piece.rfY0);
+    assert(Math.abs(placedCx - 500) < 1e-6 && Math.abs(placedCy - 7.5) < 1e-6,
+      'triangle piece lands with its centroid exactly at the drop point (not bbox-centered)');
+  }
+
   // ── INTEGRATION: real computeRollLayout geometry, honor-drop placement ──
   {
     const c = intCtx();

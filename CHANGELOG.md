@@ -5,6 +5,32 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd, 9) — Nested piece stays exactly where you drop it (centroid match)
+
+### The piece jumped off the cursor onto the turf
+While dragging, the ghost centers the piece's **centroid** under the cursor, but the drop code
+placed the piece's **bounding-box centre** at the drop point. For a non-rectangular piece (a
+triangle), centroid ≠ bbox centre, so on release the piece jumped away from where the ghost
+showed it — often onto the neighbouring turf, even though clear waste was right where the user
+aimed.
+
+### Fix
+`assignNestPlacements` now translates the piece so its **centroid** lands at the drop point
+(falling back to the bbox centre only when a piece has no clipped polygon), matching the drag
+ghost exactly. Clamping still keeps the whole piece inside the target rectangle, and the
+anti-stacking nudge is unchanged. Net effect: the piece stays right where you drop it.
+
+### Tests
+- Added a test with an asymmetric triangle (centroid (1.33,1.0) vs bbox centre (2,1.5)) asserting
+  the placed centroid is exactly at the drop point. Existing honor-drop tests still hold
+  (rectangles have centroid = bbox centre).
+- **Total: 558 tests, all passing** (557 prior + 1 new).
+
+### Still open
+- Layout → Quote Builder auto-apply; more tiered-pricing work; doc/test-count reconciliation.
+
+---
+
 ## 2026-06-17 (cont'd, 8) — Nesting: area decides, piece goes where you drop it
 
 ### Corrected the fit test (it was measuring the wrong thing)

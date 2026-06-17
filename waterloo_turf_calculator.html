@@ -5699,21 +5699,31 @@ function assignNestPlacements(layout) {
     ordered.forEach(u => {
       if (u.rfX0 == null) return;
       const pieceW = u.rfX1 - u.rfX0;
-      const pieceH = u.rfY1 - u.rfY0;
-      // Honor the drop: center the piece's actual shape on where the user
-      // dropped it, clamped to stay within the target's purchased rectangle.
-      const cx = (u.nestPos && u.nestPos.rfX != null) ? u.nestPos.rfX : (rectX0 + pieceW / 2);
-      const cy = (u.nestPos && u.nestPos.rfY != null) ? u.nestPos.rfY : (rectY0 + pieceH / 2);
-      const maxX = Math.max(rectX0, rectX1 - pieceW);
-      let x = Math.max(rectX0, Math.min(cx - pieceW / 2, maxX));
-      // Don't stack on top of another piece already nested in this roll — nudge
-      // to the nearest free slot along the roll (turf isn't considered here; the
-      // drop tells us where the user wants it, and eligibility is by area).
+      // Match the drag ghost: while dragging, the piece's CENTROID follows the
+      // cursor, so on drop the centroid must land at the drop point (using the
+      // bbox centre instead makes the piece jump off the cursor for non-
+      // rectangular shapes like triangles, onto the turf).
+      const clip = (u.clipped && u.clipped.length) ? u.clipped : null;
+      const cxP = clip ? clip.reduce((s,p)=>s+p.x,0)/clip.length : (u.rfX0 + u.rfX1)/2;
+      const cyP = clip ? clip.reduce((s,p)=>s+p.y,0)/clip.length : (u.rfY0 + u.rfY1)/2;
+      let tx, ty;
+      if (u.nestPos && u.nestPos.rfX != null) {
+        tx = u.nestPos.rfX - cxP;
+        ty = (u.nestPos.rfY != null ? u.nestPos.rfY : cyP) - cyP;
+      } else {
+        tx = rectX0 - u.rfX0; // no drop point → tuck to the target's left edge
+        ty = rectY0 - u.rfY0;
+      }
+      // Clamp so the whole piece stays within the target's purchased rectangle.
+      tx = Math.max(rectX0 - u.rfX0, Math.min(tx, rectX1 - u.rfX1));
+      ty = Math.max(rectY0 - u.rfY0, Math.min(ty, rectY1 - u.rfY1));
+      let x = u.rfX0 + tx;
+      // Don't stack on another piece already nested in this roll — nudge along
+      // the roll to the nearest free slot (turf isn't considered; the drop says
+      // where the user wants it, eligibility is by area).
       x = nearestClearX(x, pieceW, rectX0, rectX1, [], rectY0, rectY1, occupied);
-      const maxY = Math.max(rectY0, rectY1 - pieceH);
-      const y = Math.max(rectY0, Math.min(cy - pieceH / 2, maxY));
       u._nestX = x;
-      u._nestY = y;
+      u._nestY = u.rfY0 + ty;
       occupied.push([x, x + pieceW]);
     });
   });
