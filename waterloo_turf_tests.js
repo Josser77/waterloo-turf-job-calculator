@@ -3316,15 +3316,19 @@ section('46. Tiered labor pricing');
     const r = c.getTierRanges(item);
     assert(r.length === 3, 'getTierRanges returns one entry per bracket');
     assert(r[0].from === 0 && r[0].to === 1000 && r[0].rate === 8, 'first range 0–1000 @ $8');
-    assert(r[1].from === 1000 && r[1].to === 2000 && r[1].rate === 7.5, 'second range 1000–2000 @ $7.50 (lower = previous cap)');
-    assert(r[2].from === 2000 && r[2].to === null && r[2].rate === 7, 'last range 2000+ (to=null) @ $7');
+    assert(r[1].from === 1001 && r[1].to === 2000 && r[1].rate === 7.5, 'second range 1001–2000 @ $7.50 (lower = previous cap + 1)');
+    assert(r[2].from === 2001 && r[2].to === null && r[2].rate === 7, 'last range 2001+ (to=null) @ $7');
     // Ranges align with resolveTierRate: a value in (from, to] resolves to that rate.
     assert(c.resolveTierRate(item, 1500) === r[1].rate, 'a sqft inside a range resolves to that range\'s rate');
     assert(c.resolveTierRate(item, 5000) === r[2].rate, 'a sqft above all caps resolves to the open-ended range rate');
+    // Boundary: a cap value belongs to the lower bracket (s <= cap).
+    assert(c.resolveTierRate(item, 1000) === r[0].rate, 'exact cap (1000) resolves to the lower bracket');
+    assert(c.resolveTierRate(item, 1001) === r[1].rate, 'cap + 1 (1001) resolves to the next bracket');
     // Unsorted input still produces ordered ranges.
     const unsorted = { tiers: [ {upTo:2000, rate:7.5}, {upTo:null, rate:7}, {upTo:1000, rate:8} ] };
     const ru = c.getTierRanges(unsorted);
-    assert(ru[0].to === 1000 && ru[1].to === 2000 && ru[2].to === null, 'getTierRanges sorts brackets ascending');
+    assert(ru[0].from === 0 && ru[0].to === 1000 && ru[1].from === 1001 && ru[1].to === 2000 && ru[2].from === 2001 && ru[2].to === null,
+      'getTierRanges sorts brackets ascending with integer lower bounds');
     assert(c.getTierRanges({ rate: 8 }).length === 0, 'flat item has no ranges');
   }
 }

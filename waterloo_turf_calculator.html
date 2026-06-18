@@ -2104,7 +2104,7 @@
         <p>Go to <strong>Settings → Labor Rates</strong>. Click <strong>＋ Add Crew</strong> to create a new rate set (e.g. "Main Crew", "Temp Crew"). You can copy rates from an existing crew as a starting point. Edit any rate inline and it saves automatically.</p>
         <p><strong>Per-project crew selection:</strong> Each project can use a different crew. Use the <strong>Crew</strong> dropdown in the topbar (next to the project name) to assign a specific crew to the current project — all quote calculations update immediately to use that crew's rates. This lets you quote jobs with different crews without changing the global setting.</p>
         <p><strong>Reordering line items:</strong> In the Labor Rates table, drag any row by its <span style="font-weight:700;">⠿</span> handle to reorder the line items within a crew.</p>
-        <p><strong>Tiered (sqft-based) pricing:</strong> The <em>Standard Turf Install</em> and <em>Putting Green Install</em> rates can vary by job size instead of being a single flat number, and each is tiered independently. Click <strong>"Tiers…"</strong> next to that rate (or "Edit tiers" if already tiered) to open the tier editor, check <strong>"Use sqft-based tiered pricing,"</strong> and define brackets. Each bracket is shown as an explicit <strong>sqft range</strong> ("From N to M sqft → $rate"); the lower bound of each range fills in automatically from the previous bracket's limit, and the box at the bottom covers everything above the largest limit. Each install type is charged at the rate of the single bracket <strong>its own installed area</strong> falls into (not a blend): the standard rate tiers off the standard turf area (total minus any putting green), and the putting green rate tiers off the putting green area. Example: with "0–1,000 sqft → $8" and "1,000+ → $7," a 1,500 sqft standard area is billed at $7 × 1,500. Tiers are per-crew, so one crew can be flat while another is tiered. The Labor Rates table lists each tiered line's ranges and prices, and each quote card's labor line shows the resolved rate with a "tiered" tag. To go back to a single rate, uncheck the box and Save.</p>
+        <p><strong>Tiered (sqft-based) pricing:</strong> The <em>Standard Turf Install</em> and <em>Putting Green Install</em> rates can vary by job size instead of being a single flat number, and each is tiered independently. Click <strong>"Tiers…"</strong> next to that rate (or "Edit tiers" if already tiered) to open the tier editor, check <strong>"Use sqft-based tiered pricing,"</strong> and define brackets. Each bracket is shown as an explicit <strong>sqft range</strong> ("From N to M sqft → $rate") as non-overlapping whole-sqft ranges — caps of 500 / 1,000 / 1,500 read as <strong>0–500, 501–1,000, 1,001–1,500, 1,501+</strong> (the lower bound fills in automatically as the previous cap + 1), and the box at the bottom covers everything above the largest limit. Each install type is charged at the rate of the single bracket <strong>its own installed area</strong> falls into (not a blend): the standard rate tiers off the standard turf area (total minus any putting green), and the putting green rate tiers off the putting green area. Set tiers on <em>Putting Green Install</em> exactly the same way (its own "Tiers…" button) — those brackets apply only to turf rows whose role is Putting Green, and the standard brackets apply to the rest. Example: with "0–1,000 → $8" and "1,001+ → $7," a 1,500 sqft standard area is billed at $7 × 1,500. Tiers are per-crew, so one crew can be flat while another is tiered. The Labor Rates table lists each tiered line's ranges and prices, and each quote card's labor line shows the resolved rate with a "tiered" tag. To go back to a single rate, uncheck the box and Save.</p>
       </div>
 
       <!-- BACKUP -->
@@ -2295,19 +2295,21 @@ function resolveTierRate(item, sqft) {
   return parseFloat(item ? item.rate : 0) || 0;
 }
 // Explicit sqft ranges for a tiered item, as line items: [{from, to, rate}],
-// where `to: null` means "and up". The lower bound of each bracket is the
-// previous bracket's upper limit, so ranges read naturally in the UI.
-// A value s falls in the bracket where prevCap < s <= cap (matches resolveTierRate).
+// where `to: null` means "and up". Brackets are treated as non-overlapping whole-
+// sqft ranges: the lower bound of each is the previous bracket's limit + 1, so
+// caps 500/1000/1500 read as 0–500, 501–1000, 1001–1500, 1501+. A value s
+// resolves to the bracket where prevCap < s <= cap (matches resolveTierRate).
 function getTierRanges(item) {
   if (!itemIsTiered(item)) return [];
   const capOf = t => (t.upTo == null || t.upTo === '') ? Infinity : parseFloat(t.upTo);
   const sorted = item.tiers.slice().sort((a,b) => capOf(a) - capOf(b));
-  let lower = 0;
+  let prevCap = null;
   const out = [];
   sorted.forEach(t => {
     const cap = capOf(t);
-    out.push({ from: lower, to: (cap === Infinity ? null : cap), rate: parseFloat(t.rate) || 0 });
-    if (cap !== Infinity) lower = cap;
+    const from = (prevCap == null) ? 0 : prevCap + 1;
+    out.push({ from, to: (cap === Infinity ? null : cap), rate: parseFloat(t.rate) || 0 });
+    if (cap !== Infinity) prevCap = cap;
   });
   return out;
 }
@@ -4261,14 +4263,17 @@ function updateTierRangeLabels() {
     const i = +span.getAttribute('data-i');
     const cap = ups[i] ? parseFloat(ups[i].value) : NaN;
     let lower = 0;
-    if (!isNaN(cap)) { const below = caps.filter(c => c < cap); lower = below.length ? Math.max(...below) : 0; }
+    if (!isNaN(cap)) {
+      const below = caps.filter(c => c < cap);
+      lower = below.length ? Math.max(...below) + 1 : 0; // non-overlapping whole-sqft ranges
+    }
     span.textContent = 'From ' + lower.toLocaleString();
   });
   const aboveLabel = document.getElementById('tierAboveLabel');
   if (aboveLabel) {
     const maxCap = caps.length ? Math.max(...caps) : 0;
     aboveLabel.textContent = caps.length
-      ? `${maxCap.toLocaleString()}+ sqft (everything above the largest limit)`
+      ? `${(maxCap + 1).toLocaleString()}+ sqft (everything above the largest limit)`
       : 'All other sq ft (above the largest limit)';
   }
 }

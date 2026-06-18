@@ -5,6 +5,31 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd, 15) — Tiered pricing: non-overlapping whole-sqft ranges
+
+### Brackets now read as clean integer ranges
+Tier brackets are displayed as non-overlapping whole-sqft ranges: the lower bound is
+the previous cap **+ 1**, so caps of 500 / 1,000 / 1,500 show as **0–500, 501–1,000,
+1,001–1,500, 1,501+** instead of the previous overlapping 0–500 / 500–1,000 / … This
+matches how brackets actually resolve (`s <= cap`, so 500 → the 0–500 bracket, 501 →
+the next). Applied in both the tier editor's live "From" labels and the Labor Rates
+table's range list (`getTierRanges`). The "above" box now reads "(maxCap + 1)+ sqft".
+
+No change to resolution math or stored data — only how ranges are labeled.
+
+### Putting greens (already supported, now clearer)
+Putting Green Install has always been independently tierable (its own "Tiers…"
+button) and the putting rate already bills only turf rows whose role is Putting
+Green, at the bracket its putting-green area falls into. Guide text now spells this
+out alongside the standard tiers.
+
+### Tests
+- Section 46 `getTierRanges` cases updated to the integer lower bounds (1001, 2001…),
+  plus boundary assertions: exact cap → lower bracket, cap + 1 → next bracket.
+- **Total: 597 tests, all passing** (595 prior + 2 new).
+
+---
+
 ## 2026-06-17 (cont'd, 14) — Phase 3a: per-layer roll direction & seam offset
 
 Multi-layer install layers can now each roll in their **own direction** instead of
