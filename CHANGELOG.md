@@ -5,6 +5,30 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd, 19) — Quote cards: roomier layout, margin $ line, no empty PG-only card
+
+### Margin dollar amount
+Each quote card with a profit margin now shows three figures — **Cost (COGS)**,
+**Margin** in dollars (Price − Cost), and **Price** — instead of just cost and price.
+
+### No empty "No Putting Green" card on putting-green-only jobs
+`shouldIncludeNoPgCombo(baseSqFt, pgRowCount)` gates the "No Putting Green" combo:
+shown only when there's standard yard area to install without the green (or when
+there are no PG rows at all). A putting-green-only job no longer renders an empty
+No-PG card.
+
+### Less squished cards
+Card grid switched from `auto-fill / minmax(260px)` to `auto-fit / minmax(300px)`
+with a larger gap and `align-items:start`, and the price row can wrap — so cards get
+more room and don't cramp when several options show.
+
+### Tests
+- Section 46: `shouldIncludeNoPgCombo` truth table; margin-dollars = `applyMargin`
+  price − cost (incl. 0% margin).
+- **Total: 614 tests, all passing** (607 prior + 7 new).
+
+---
+
 ## 2026-06-17 (cont'd, 18) — Fix: putting green infill not affecting quote pricing
 
 ### Bug

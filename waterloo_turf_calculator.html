@@ -1998,7 +1998,8 @@
           <li>Within each group, putting green variants appear side by side: one card without a putting green, one per Putting Green turf row</li>
         </ul>
         <p><strong>Example</strong> — Standard turf + 1 Alt turf, Standard + Upgraded infill, 1 putting green option → 4 groups, 2 cards each = 8 total quote options.</p>
-        <p><strong>What's included in each total:</strong> Labor (standard yard rate + putting green rate if applicable), turf material cost (ordered sqft × cost/sqft from Settings), edging, infill materials (bags × cost/bag), putting green fringe (if configured in the Layout tab — see Putting Green Fringe below), and miscellaneous items — all split correctly by role/tier per scenario.</p>
+        <p><strong>What's included in each total:</strong> Labor (standard yard rate + putting green rate if applicable), turf material cost (ordered sqft × cost/sqft from Settings), edging, infill materials (bags × cost/bag, with putting green infill on its own line), putting green fringe (if configured in the Layout tab — see Putting Green Fringe below), and miscellaneous items — all split correctly by role/tier per scenario.</p>
+        <p>When a profit margin is set, each card shows three figures: <strong>Cost (COGS)</strong>, your <strong>Margin</strong> in dollars (Price − Cost), and the customer <strong>Price</strong>. If a job is putting-green-only (no base/alt turf), the "No Putting Green" option is omitted since it would be an empty card.</p>
       </div>
 
       <!-- LAYOUT TAB -->
@@ -2251,6 +2252,13 @@ function setProfitMargin(pct) {
 function applyMargin(cogs, marginPct) {
   const m = Math.max(0, Math.min(99, parseFloat(marginPct) || 0));
   return cogs / (1 - m/100);
+}
+// Whether the quote should show a "No Putting Green" option. Only when there's
+// standard yard area to install without the green; for a putting-green-only job
+// that card is empty, so hide it. Always keep it when there are no PG rows
+// (that single combo is the normal, no-green job).
+function shouldIncludeNoPgCombo(baseSqFt, pgRowCount) {
+  return (parseFloat(baseSqFt) || 0) > 0 || (pgRowCount || 0) === 0;
 }
 function getActiveCrew() {
   const crews = getCrews(); const id = getActiveCrewId();
@@ -3589,9 +3597,14 @@ function calcQuote() {
     }))
   ];
 
-  // PG combos: no putting green, then each putting-green option
+  // PG combos: optionally "no putting green", then each putting-green option.
+  // The "no putting green" scenario only makes sense when there's standard yard
+  // to install without the green — for a putting-green-only job (no base/alt
+  // area) it would be an empty card, so omit it. Always keep it when there are
+  // no PG rows at all (that single combo IS the normal, no-green job).
+  const includeNoPg = shouldIncludeNoPgCombo(baseSqFt, pgRows.length);
   const pgCombos = [
-    { label: '', pgSqFt: 0 },
+    ...(includeNoPg ? [{ label: '', pgSqFt: 0 }] : []),
     ...pgRows.map(r => ({
       label: r.product || 'Putting Green',
       pgSqFt: parseFloat(r.installedSqFt)||0
@@ -3618,7 +3631,7 @@ function calcQuote() {
 
       html += `<div style="margin-bottom:20px;">
         <div style="font-family:'Raleway',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-light);padding-bottom:6px;border-bottom:1px solid var(--border);margin-bottom:10px;">${groupLabel}</div>
-        <div style="display:grid;grid-template-columns:${pgCombos.length > 1 ? 'repeat(auto-fill,minmax(260px,1fr))' : '1fr'};gap:12px;">`;
+        <div style="display:grid;grid-template-columns:${pgCombos.length > 1 ? 'repeat(auto-fit,minmax(300px,1fr))' : '1fr'};gap:14px;align-items:start;">`;
 
       pgCombos.forEach(pg => {
         const totalSqFt = tc.sqFt;
@@ -3658,10 +3671,13 @@ function calcQuote() {
         if (pgSqFt > 0 && pgInfillCost) breakdown += `<div class="opt-line"><span>Putting green infill</span><span>${fmt(pgInfillCost)}</span></div>`;
         if (scenarioMiscCost) breakdown += `<div class="opt-line"><span>Misc items</span><span>${fmt(scenarioMiscCost)}</span></div>`;
 
+        const marginAmt = sellPrice - cogs;
+        const priceLabelStyle = 'font-size:10px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.06em;';
         const priceBlock = marginPct > 0
-          ? `<div class="opt-price-row" style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">
-               <div><div style="font-size:10px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.06em;">Cost (COGS)</div><div class="opt-price" style="font-size:16px;">${fmtPrice(cogs)}</div></div>
-               <div style="text-align:right;"><div style="font-size:10px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.06em;">Price (${marginPct}% margin)</div><div class="opt-price">${fmtPrice(sellPrice)}</div></div>
+          ? `<div class="opt-price-row" style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;">
+               <div><div style="${priceLabelStyle}">Cost (COGS)</div><div class="opt-price" style="font-size:15px;">${fmtPrice(cogs)}</div></div>
+               <div style="text-align:center;"><div style="${priceLabelStyle}">Margin (${marginPct}%)</div><div class="opt-price" style="font-size:15px;color:var(--green);">${fmtPrice(marginAmt)}</div></div>
+               <div style="text-align:right;"><div style="${priceLabelStyle}">Price</div><div class="opt-price">${fmtPrice(sellPrice)}</div></div>
              </div>`
           : `<div class="opt-price">${fmtPrice(cogs)}</div>`;
 

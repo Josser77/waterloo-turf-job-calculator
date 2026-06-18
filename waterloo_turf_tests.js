@@ -3365,6 +3365,25 @@ section('46. Tiered labor pricing');
     assert(c.infillAreaForTier(proj, 'upgraded') === 1000, 'upgraded infill area = base yard sqft too');
     assert(c.infillAreaForTier({ turf: [{role:'base',installedSqFt:500}] }, 'putting-green') === 0, 'no PG row → putting-green area is 0');
   }
+
+  // ── shouldIncludeNoPgCombo: hide the empty "No Putting Green" card on PG-only jobs ──
+  {
+    const c = tierCtx();
+    assert(c.shouldIncludeNoPgCombo(1000, 1) === true,  'standard yard + a PG option → show No-PG card');
+    assert(c.shouldIncludeNoPgCombo(0, 1)    === false, 'putting-green-only job → hide the No-PG card');
+    assert(c.shouldIncludeNoPgCombo(0, 0)    === true,  'no PG rows at all → the single No-PG combo IS the job');
+    assert(c.shouldIncludeNoPgCombo(1000, 0) === true,  'standard yard, no PG → show (normal job)');
+  }
+
+  // ── margin dollar amount = price − cost ──
+  {
+    const c = tierCtx();
+    const cogs = 1000;
+    const price = c.applyMargin(cogs, 40);   // 40% margin on price → 1000/0.6
+    assert(Math.abs(price - 1666.67) < 0.01, 'applyMargin: 40% margin on $1000 cost → ~$1666.67 price');
+    assert(Math.abs((price - cogs) - 666.67) < 0.01, 'margin dollars = price − cost (~$666.67)');
+    assert(c.applyMargin(1000, 0) === 1000, '0% margin → price equals cost (margin $0)');
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════
