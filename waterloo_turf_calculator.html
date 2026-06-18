@@ -274,6 +274,21 @@
     text-transform: uppercase;
     color: #55B763;
   }
+  /* Layout page: keep the Edit Shape / Move Layers / Cut / Import toolbar pinned
+     to the top of the scroll area while you scroll through the canvas + sidebar. */
+  #layoutToolbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--surface);
+    margin: -20px -20px 14px -20px;   /* span the card's 20px padding (top + sides) */
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
 
   /* TWO COLUMN LAYOUT */
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -814,7 +829,31 @@
     margin-bottom: 8px;
     padding-bottom: 6px;
     border-bottom: 2px solid var(--highlight-border);
+    scroll-margin-top: 12px;
   }
+  .docs-toc {
+    background: var(--bg, #fafaf8);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 20px 14px 20px;
+    margin-bottom: 24px;
+  }
+  .docs-toc-title {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 800;
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .docs-toc ol { margin: 0; padding-left: 22px; }
+  .docs-toc li { margin: 3px 0; }
+  .docs-toc a {
+    color: var(--green);
+    cursor: pointer;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .docs-toc a:hover { text-decoration: underline; }
   .docs-h3 {
     font-family: 'Raleway', sans-serif;
     font-size: 13px;
@@ -1187,7 +1226,7 @@
       ══════════════════════════════════════ -->
       <div class="tab-panel" id="panel-layout">
         <div class="card">
-          <div class="card-header">
+          <div class="card-header" id="layoutToolbar">
             <div class="card-title">Site Layout & Roll Plan (Moasure Import)</div>
             <div style="display:flex;gap:8px;align-items:center;">
               <button id="editShapeBtn" class="btn btn-ghost btn-sm" onclick="toggleEditMode()">✎ Edit Shape</button>
@@ -1199,8 +1238,7 @@
             </div>
           </div>
           <p id="editShapeHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
-            <strong>Edit mode:</strong> drag a point to move it. Double-click a point to delete it (min. 3 points).
-            Double-click an edge to add a new point there. Click "✎ Edit Shape" again when done.
+            <strong>Edit mode:</strong> drag a point to move it — works on <strong>any layer</strong> (the main shape's points show green, each other layer's show blue). Double-click a point to delete it (min. 3 points). Double-click an edge to add a new point there. Click "✎ Edit Shape" again when done.
           </p>
           <p id="moveLayersHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
             <strong>Move Layers mode:</strong> click and drag any layer (the main shape outline, or any additional shape) to reposition it on the canvas. This is purely visual — it doesn't change area or roll calculations. Click "✋ Move Layers" again when done.
@@ -1320,13 +1358,7 @@
                 <details open style="margin-top:6px;">
                   <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:6px 0;">Roll Results</summary>
                   <div style="padding-top:8px;">
-                    <div class="field-group">
-                      <label style="display:flex;align-items:center;gap:6px;font-weight:500;">
-                        <input type="checkbox" id="showRectanglesToggle" onchange="renderRollLayout()" style="width:auto;margin:0;">
-                        Show purchased roll rectangles (incl. waste)
-                      </label>
-                      <div style="font-size:11px;color:var(--text-light);">Off = real installed shape per roll. On = full rectangle you'd order, with unused portion hatched.</div>
-                    </div>
+                    <!-- BASIC: the numbers a standard install needs -->
                     <div class="field-group">
                       <label>Rolls / Pieces</label>
                       <input type="text" id="rollStripsOut" class="auto-filled" readonly>
@@ -1335,46 +1367,60 @@
                       <label>Ordered SqFt</label>
                       <input type="text" id="rollOrderedOut" class="auto-filled" readonly>
                     </div>
-                    <div class="field-group">
-                      <label>Usable SqFt</label>
-                      <input type="text" id="rollUsableOut" class="auto-filled" readonly>
-                    </div>
-                    <div class="field-group">
-                      <label>Linear Ft</label>
-                      <input type="text" id="rollLinearOut" class="auto-filled" readonly>
-                    </div>
-                    <div class="field-group">
-                      <label>Scrap</label>
-                      <input type="text" id="rollWasteOut" class="auto-filled" readonly>
-                    </div>
-                    <div class="field-group" id="rollSavedGroup" style="display:none;">
-                      <label>Saved (nested)</label>
-                      <input type="text" id="rollSavedOut" class="auto-filled" readonly>
-                    </div>
                     <div id="rollLayerBreakdown" style="display:none;font-size:11px;margin-top:6px;padding:6px 8px;background:var(--bg-alt);border-radius:6px;"></div>
-                    <div id="rollNestingLegend" style="display:none;font-size:11px;color:var(--text-light);margin-top:4px;padding:5px 8px;background:var(--bg-alt);border-radius:6px;">
-                      <strong>Move a piece:</strong> drag it onto another roll's hatched (red) waste area. <strong>Put it back:</strong> use the “↩ Put back” button in the <em>Nested Pieces</em> list below — that's the reliable way. (Dragging the piece fully off every waste area onto open space also works, but it's fiddly.) Putting a piece back keeps your cuts; it only undoes the move.
-                    </div>
-                    <div class="field-group" id="manualCutsGroup" style="display:none;">
-                      <label>Manual Cuts (Butt Seams)</label>
-                      <div style="font-size:11px;color:var(--text-light);margin:-2px 0 6px;line-height:1.4;">Splits a roll into separate pieces. “✕” removes one seam; “Clear all cuts” un-cuts the whole roll — which also discards any moves of those pieces. Use this only when you want fewer/no cuts, not to put a moved piece back.</div>
-                      <div id="manualCutsList" style="font-size:11px;"></div>
-                    </div>
-                    <div class="field-group" id="nestedPiecesGroup" style="display:none;">
-                      <label>Nested Pieces</label>
-                      <div style="font-size:11px;color:var(--text-light);margin:-2px 0 6px;line-height:1.4;">Pieces you've moved into another roll's waste area. “↩ Put back” returns one piece to its own order and adds its area back to Ordered SqFt — your cuts stay intact. This is the per-piece reset.</div>
-                      <div id="nestedPiecesList" style="font-size:11px;"></div>
-                    </div>
-                    <div class="field-group" id="pieceListGroup" style="display:none;">
-                      <label>Piece List (Length × Width)</label>
-                      <div id="pieceListTable" style="font-size:11px;"></div>
-                    </div>
                     <div class="field-group">
                       <label>Apply to → Sqft to Order</label>
                       <select id="rollApplyTarget" style="width:100%;margin-bottom:6px;"></select>
                       <button class="btn btn-primary btn-sm" style="width:100%;" onclick="applyRollLayoutToTurf()">Apply Sqft to Order</button>
                       <div style="font-size:11px;color:var(--text-light);margin-top:5px;line-height:1.4;">Pushes <strong>Ordered SqFt</strong> (above) into the selected turf row's "SqFt to Order" — already accounts for any pieces nested into waste areas.</div>
                     </div>
+
+                    <!-- ADVANCED: extra detail + cut/nest tools, collapsed by default -->
+                    <details id="rollAdvancedDetails" style="margin-top:10px;border-top:1px dashed var(--border);padding-top:6px;">
+                      <summary style="cursor:pointer;font-weight:600;font-size:12px;color:var(--text-light);padding:4px 0;">⚙ Advanced details &amp; tools</summary>
+                      <div style="padding-top:8px;">
+                        <div class="field-group">
+                          <label style="display:flex;align-items:center;gap:6px;font-weight:500;">
+                            <input type="checkbox" id="showRectanglesToggle" onchange="renderRollLayout()" style="width:auto;margin:0;">
+                            Show purchased roll rectangles (incl. waste)
+                          </label>
+                          <div style="font-size:11px;color:var(--text-light);">Off = real installed shape per roll. On = full rectangle you'd order, with unused portion hatched.</div>
+                        </div>
+                        <div class="field-group">
+                          <label>Usable SqFt</label>
+                          <input type="text" id="rollUsableOut" class="auto-filled" readonly>
+                        </div>
+                        <div class="field-group">
+                          <label>Linear Ft</label>
+                          <input type="text" id="rollLinearOut" class="auto-filled" readonly>
+                        </div>
+                        <div class="field-group">
+                          <label>Scrap</label>
+                          <input type="text" id="rollWasteOut" class="auto-filled" readonly>
+                        </div>
+                        <div class="field-group" id="rollSavedGroup" style="display:none;">
+                          <label>Saved (nested)</label>
+                          <input type="text" id="rollSavedOut" class="auto-filled" readonly>
+                        </div>
+                        <div id="rollNestingLegend" style="display:none;font-size:11px;color:var(--text-light);margin-top:4px;padding:5px 8px;background:var(--bg-alt);border-radius:6px;">
+                          <strong>Move a piece:</strong> drag it onto another roll's hatched (red) waste area. <strong>Put it back:</strong> use the “↩ Put back” button in the <em>Nested Pieces</em> list below — that's the reliable way. (Dragging the piece fully off every waste area onto open space also works, but it's fiddly.) Putting a piece back keeps your cuts; it only undoes the move.
+                        </div>
+                        <div class="field-group" id="manualCutsGroup" style="display:none;">
+                          <label>Manual Cuts (Butt Seams)</label>
+                          <div style="font-size:11px;color:var(--text-light);margin:-2px 0 6px;line-height:1.4;">Splits a roll into separate pieces. “✕” removes one seam; “Clear all cuts” un-cuts the whole roll — which also discards any moves of those pieces. Use this only when you want fewer/no cuts, not to put a moved piece back.</div>
+                          <div id="manualCutsList" style="font-size:11px;"></div>
+                        </div>
+                        <div class="field-group" id="nestedPiecesGroup" style="display:none;">
+                          <label>Nested Pieces</label>
+                          <div style="font-size:11px;color:var(--text-light);margin:-2px 0 6px;line-height:1.4;">Pieces you've moved into another roll's waste area. “↩ Put back” returns one piece to its own order and adds its area back to Ordered SqFt — your cuts stay intact. This is the per-piece reset.</div>
+                          <div id="nestedPiecesList" style="font-size:11px;"></div>
+                        </div>
+                        <div class="field-group" id="pieceListGroup" style="display:none;">
+                          <label>Piece List (Length × Width)</label>
+                          <div id="pieceListTable" style="font-size:11px;"></div>
+                        </div>
+                      </div>
+                    </details>
                   </div>
                 </details>
 
@@ -1733,7 +1779,7 @@
     </label>
     <div id="tierEditor" style="display:none;">
       <div style="font-size:12px;color:var(--text-light);margin-bottom:10px;line-height:1.45;background:var(--bg-alt);padding:8px 10px;border-radius:6px;">
-        The whole job is charged at the rate of the bracket its installed sqft falls into (not a blend). Set each bracket's upper limit and its $/sqft; the box at the bottom covers everything above the largest limit.
+        This line is charged at the rate of the single bracket its <strong>own installed area</strong> falls into (not a blend across brackets) — Standard Install tiers off the standard turf area, Putting Green Install off the putting green area. Each row below is a sqft range and its $/sqft; the box at the bottom covers everything above the largest limit.
       </div>
       <div id="tierRows"></div>
       <button class="btn btn-ghost btn-sm" style="margin:2px 0 12px;" onclick="tierAddBracket()">＋ Add bracket</button>
@@ -1834,9 +1880,25 @@
         The Waterloo Turf Job Calculator helps you estimate material quantities and build customer quote options for artificial turf installation jobs. It handles turf ordering, infill, rock/base materials, edging, and miscellaneous items — then automatically generates all quote combinations so you can present pricing options to your customers.
       </div>
 
+      <!-- TABLE OF CONTENTS -->
+      <div class="docs-toc" id="docsToc">
+        <div class="docs-toc-title">Contents — jump to a section</div>
+        <ol>
+          <li><a onclick="jumpToDocSection('doc-colors')">Understanding Field Colors</a></li>
+          <li><a onclick="jumpToDocSection('doc-settings')">Getting Started: Settings First</a></li>
+          <li><a onclick="jumpToDocSection('doc-project')">Creating a Project</a></li>
+          <li><a onclick="jumpToDocSection('doc-quote')">Quote Builder Tab</a></li>
+          <li><a onclick="jumpToDocSection('doc-layout')">Layout Tab: Site Layout &amp; Roll Plan</a></li>
+          <li><a onclick="jumpToDocSection('doc-materials')">Materials Tab</a></li>
+          <li><a onclick="jumpToDocSection('doc-crews')">Multiple Crew Rate Sets</a></li>
+          <li><a onclick="jumpToDocSection('doc-backup')">Backup, Sync &amp; Restore</a></li>
+          <li><a onclick="jumpToDocSection('doc-workflow')">Recommended Workflow</a></li>
+        </ol>
+      </div>
+
       <!-- FIELD COLORS -->
       <div class="docs-section">
-        <div class="docs-h2">Understanding Field Colors</div>
+        <div class="docs-h2" id="doc-colors">Understanding Field Colors</div>
         <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;">
           <div style="display:flex;align-items:center;gap:10px;">
             <div style="width:36px;height:24px;border-radius:5px;background:#55B76322;border:1px solid #55B763;flex-shrink:0;"></div>
@@ -1855,7 +1917,7 @@
 
       <!-- GETTING STARTED -->
       <div class="docs-section">
-        <div class="docs-h2">Getting Started: Settings First</div>
+        <div class="docs-h2" id="doc-settings">Getting Started: Settings First</div>
         <p>Before creating any projects, go to the <strong>Settings tab</strong> and configure your catalogs. This data pre-fills your projects automatically.</p>
         <div class="docs-h3">Turf Products</div>
         <p>Add each turf product you sell. Set the <strong>Type</strong> (Standard or Putting Green), <strong>Vendor Product Name</strong> (how it appears on supplier orders), and <strong>Cost per SqFt</strong> (used in quote totals). Rolls are always 15 ft wide.</p>
@@ -1877,7 +1939,7 @@
 
       <!-- CREATING A PROJECT -->
       <div class="docs-section">
-        <div class="docs-h2">Creating a Project</div>
+        <div class="docs-h2" id="doc-project">Creating a Project</div>
         <p>Click <strong>＋ New Project</strong> in the sidebar. Fill in the project name, then optionally import a <strong>Moasure CSV</strong> right from the creation modal — doing so pre-fills the Installed SqFt for all turf rows you select, and attaches the layout so the Layout tab is ready as soon as the project opens.</p>
         <p>Check off turf products, then enter <strong>Installed SqFt</strong> for each. <strong>Sqft to Order is optional at creation</strong> — leave it blank if you don't have it yet (e.g. you haven't measured/imported the layout). "Create Project" only requires at least one turf product checked. You can fill in or calculate Sqft to Order afterward, either directly on the Quote Builder tab or via the Layout tab's roll planner once you import a Moasure CSV. Set the <strong>Role</strong> for each turf row (Base Yard, Alt Turf Option, Putting Green) at creation time rather than after. Check infill products, enter edging and putting green sqft if known. Rock rows are auto-created from your Settings catalog.</p>
         <p>Projects save automatically and appear in the sidebar sorted by name, newest, or oldest.</p>
@@ -1885,7 +1947,7 @@
 
       <!-- QUOTE BUILDER TAB -->
       <div class="docs-section">
-        <div class="docs-h2">Quote Builder Tab</div>
+        <div class="docs-h2" id="doc-quote">Quote Builder Tab</div>
         <p>This is the main working area for a job. It has five sections:</p>
 
         <div class="docs-h3">1. Turf</div>
@@ -1939,8 +2001,8 @@
       <!-- LAYOUT TAB -->
       <!-- MATERIALS TAB -->
       <div class="docs-section">
-        <div class="docs-h2">Layout Tab: Site Layout & Roll Plan</div>
-        <p>Import the CSV exported from a Moasure measurement to visualize the yard shape and plan how turf rolls lay across it. You can import at project creation time (pre-fills measurements) or later via the Layout tab.</p>
+        <div class="docs-h2" id="doc-layout">Layout Tab: Site Layout & Roll Plan</div>
+        <p>Import the CSV exported from a Moasure measurement to visualize the yard shape and plan how turf rolls lay across it. You can import at project creation time (pre-fills measurements) or later via the Layout tab. The toolbar holding <strong>Edit Shape / Move Layers / Cut Mode / Import</strong> stays pinned to the top as you scroll through the canvas and results, so those controls are always reachable.</p>
 
         <div class="docs-h3">Importing</div>
         <p>Click "↑ Import CSV" — either in the New Project modal (pre-fills Installed SqFt for all turf rows) or in the Layout tab after project creation. The shape is drawn on the canvas with roll strips overlaid immediately. "Installed Area" shows the polygon-computed area; use "Apply Area" to push it into a turf row's Installed SqFt.</p>
@@ -1950,7 +2012,7 @@
         <p>Every layer — including the primary one — has a checkbox. Uncheck it to hide that layer on the canvas; this is purely visual and doesn't affect any calculations. This is useful for decluttering the view when a file has several overlapping shapes, or for focusing on one layer while editing.</p>
         <p>Each layer has a dropdown that controls how it's treated:</p>
         <ul class="docs-list">
-          <li><strong>Install — its own turf + rolls</strong> — default. The layer is its own turf area: it gets rolled independently (with the same shared roll settings) and its Ordered SqFt, Linear Ft, rolls, and waste are <strong>summed into the combined totals</strong> shown in Roll Results. Use this when a Moasure file captures the yard as several separate pieces (e.g. a front yard measured in sections). A per-layer breakdown is listed under the totals, and "Apply" sends the combined Ordered SqFt to the chosen turf row. Each install layer's <strong>roll plan is drawn on the canvas at its position</strong> (its installed strips, plus purchased rectangles + waste hatch when "Show purchased roll rectangles" is on), labeled with the layer name and its Ordered SqFt. Position each layer with "✋ Move Layers" and the per-layer Rotate slider. <em>(Per-layer roll direction and per-layer cuts/nesting are planned next; roll direction is currently shared across layers.)</em></li>
+          <li><strong>Install — its own turf + rolls</strong> — default. The layer is its own turf area: it gets rolled independently and its Ordered SqFt, Linear Ft, rolls, and waste are <strong>summed into the combined totals</strong> shown in Roll Results. Use this when a Moasure file captures the yard as several separate pieces (e.g. a front yard measured in sections). A per-layer breakdown is listed under the totals (with each layer's roll direction), and "Apply" sends the combined Ordered SqFt to the chosen turf row. Each install layer's <strong>roll plan is drawn on the canvas at its position</strong> (its installed strips, plus purchased rectangles + waste hatch when "Show purchased roll rectangles" is on), labeled with the layer name and its Ordered SqFt. Position each layer with "✋ Move Layers" and the per-layer Rotate slider. <strong>Each install layer also has its own Roll direction + Seam offset</strong> in the Layers list (with Horizontal / Vertical / Auto buttons) so a multi-section yard can roll each section the way that minimizes its waste; until you change them, a layer "matches primary" (uses the main roll-direction sliders), and "↺ Match primary" clears an override. <em>(Per-layer cuts/nesting are still shared on the primary and planned next.)</em></li>
           <li><strong>Exclude from Installed Area (hole/cutout)</strong> — subtracts that shape's area from the primary's Installed Area, and draws it as a hatched red region — turf doesn't go there.</li>
           <li><strong>Ignore (informational only)</strong> — no effect on any total. Drawn as a dashed blue outline for reference.</li>
           <li><strong>Putting Green (used for fringe calculation)</strong> — subtracts that shape's area from the primary's Installed Area like Exclude, AND marks it as the putting green outline for the Fringe feature (see below). Drawn as a solid green shape. Only one layer can be the putting green at a time — selecting it on a different layer demotes the previous one back to Install.</li>
@@ -1965,7 +2027,7 @@
         <p>Fringe material cost is added to any quote option that includes a putting green (it has no effect on "No Putting Green" options), using the same turf material pricing as the main yard's products.</p>
 
         <div class="docs-h3">Moving &amp; Rotating Layers</div>
-        <p>Click <strong>"✋ Move Layers"</strong> to enter move mode. Click and drag any visible layer — the main shape outline or any additional shape — to reposition it on the canvas. This is purely visual: it doesn't change area, roll counts, scrap, or any other calculation, only where things are drawn. Each layer has its own independent position. Click "✓ Done Moving" to exit. Move Layers mode is mutually exclusive with Edit Shape mode.</p>
+        <p>Click <strong>"✋ Move Layers"</strong> to enter move mode. Click and drag any visible layer — the main shape outline or any additional shape — to reposition it on the canvas. The view stays fixed while you drag, so moving one layer doesn't make the others appear to slide around. This is purely visual: it doesn't change area, roll counts, scrap, or any other calculation, only where things are drawn. Each layer has its own independent position. Click "✓ Done Moving" to exit. Move Layers mode is mutually exclusive with Edit Shape mode.</p>
         <p>Each additional (non-primary) layer also has a <strong>Rotate</strong> slider (0-359°) in the Layers list. This rotates that shape in place about its own center — useful when Moasure captured a shape (e.g. a putting green outline) at the wrong orientation and you need to spin it to match how it actually sits in the yard. Combine with dragging to both rotate and position the shape correctly. Rotation, like position, is purely visual and doesn't affect Installed Area, scrap, or roll calculations.</p>
         <p>A layer that's been moved and/or rotated shows a "↺ Reset position" button in the Layers list to snap it back to its original (imported) position and orientation.</p>
 
@@ -1981,14 +2043,15 @@
         <div class="docs-h3">Zoom</div>
         <p>The canvas always opens at the natural fit — no dead space, shape fills the available area. Use <strong>＋</strong> / <strong>－</strong> to zoom in/out (the canvas grows and scrolls within its container), and <strong>⊙ Fit</strong> to snap back to the fitted view. Ctrl+scroll / two-finger trackpad pinch also zooms. All edit and drag interactions remain accurate at any zoom level.</p>
 
-        <div class="docs-h3">Editing the Shape</div>
-        <p>Click "✎ Edit Shape" to clean up the imported outline after import:</p>
+        <div class="docs-h3">Editing the Shape (any layer)</div>
+        <p>Click "✎ Edit Shape" to clean up an imported outline. This works on <strong>every visible layer</strong>, not just the main shape — grab a point on whichever layer you want to edit:</p>
         <ul class="docs-list">
-          <li>Drag a green point to move it — area and roll layout recompute live.</li>
-          <li>Double-click a point to delete it (minimum 3 points).</li>
+          <li>The main shape's points show <strong>green</strong>; each additional layer's points show <strong>blue</strong>. Drag any of them — area and roll layout recompute live, and the layer's own stored area updates.</li>
+          <li>Double-click a point to delete it (minimum 3 points per shape).</li>
           <li>Double-click on an edge (between points) to insert a new point there.</li>
+          <li>The view is held still while you drag a point, so editing one layer doesn't make the others appear to shift.</li>
         </ul>
-        <p>"↶ Undo" steps back through your last 20 shape edits. Click "✓ Done Editing" to exit. Everything saves automatically. To start over from the original file, re-import the CSV — this replaces the shape and clears edit history.</p>
+        <p>"↶ Undo" steps back through your last 20 edits (each remembers which layer it changed). Click "✓ Done Editing" to exit. Everything saves automatically. To start over from the original file, re-import the CSV — this replaces the shape and clears edit history.</p>
 
         <div class="docs-h3">Shape Rotation (view)</div>
         <p>Rotates the drawing to match how you're viewing the yard on-site. Purely cosmetic — does not affect area, roll counts, or any calculations.</p>
@@ -2006,7 +2069,8 @@
         <p>Each roll strip only orders the length it actually needs based on where it intersects the shape — strips don't all buy the full bounding-box length. Ordered length is rounded up to the next whole foot, since turf is sold in Roll Width × 1ft increments. This produces accurate per-strip quantities and more realistic scrap percentages.</p>
 
         <div class="docs-h3">Roll Results</div>
-        <p>Shows roll/piece count, Ordered SqFt (what you'd purchase, rounded to whole-foot increments), Usable SqFt (after side trim), Linear Ft, and Scrap (Ordered minus shape area, with %). "Apply Sqft to Order" pushes Ordered SqFt directly into a turf row.</p>
+        <p>Roll Results is split into <strong>Basic</strong> and <strong>Advanced</strong> so a standard install isn't cluttered. The Basic view (always shown) is the rolls/piece count, <strong>Ordered SqFt</strong> (what you'd purchase, rounded to whole-foot increments), and "Apply Sqft to Order," which pushes Ordered SqFt directly into a turf row. The installed area itself is shown at the top of the sidebar.</p>
+        <p>Open <strong>"⚙ Advanced details &amp; tools"</strong> for the rest: the purchased-rectangles toggle, Usable SqFt (after side trim), Linear Ft, Scrap (Ordered minus shape area, with %), the manual-cuts and nested-pieces lists, and the per-piece list. Entering Cut Mode opens this section automatically so the cut/nest tools are visible.</p>
         <p>The roll/piece count shows just <strong>"N rolls"</strong> when the number of rolls to purchase equals the number of installed pieces — the normal case. It shows <strong>"N rolls / M pieces"</strong> only when these differ.</p>
         <p><strong>Pieces</strong> = total separately-installed pieces across the whole job: one per band/strip normally, more if a strip is manually cut into butt-seamed sections, or if a single strip is longer than Max Roll Length (which forces an inherent seam even without a manual cut).</p>
         <p><strong>Rolls</strong> = a global count based on total linear footage: <code>ceil(sum of every piece's ordered length ÷ Max Roll Length)</code>. All pieces run the same direction at the same Roll Width, so pieces from different bands/strips can be cut from the same physical roll as long as their combined length fits. For example, 3 separate pieces totaling 75 linear ft all come from a single 100ft roll — shown as "1 roll / 3 pieces" — while 3 pieces totaling 180ft need "2 rolls / 3 pieces".</p>
@@ -2026,7 +2090,7 @@
 
       <!-- MATERIALS -->
       <div class="docs-section">
-        <div class="docs-h2">Materials Tab</div>
+        <div class="docs-h2" id="doc-materials">Materials Tab</div>
         <p>Shows the material quantities you need to order. Two sections:</p>
         <div class="docs-h3">Rock / Base</div>
         <p>Shows the <strong>tons to order</strong> for each rock/base material in your catalog, auto-calculated from this job's base turf sqft and each material's depth/density settings. SqFt basis, depth, and pricing are configured once under <strong>Settings → Rock / Base Materials</strong> rather than per-project — only the resulting tons total is shown here. Remove a row if this job doesn't need that material.</p>
@@ -2036,16 +2100,16 @@
 
       <!-- CREW RATES -->
       <div class="docs-section">
-        <div class="docs-h2">Multiple Crew Rate Sets</div>
+        <div class="docs-h2" id="doc-crews">Multiple Crew Rate Sets</div>
         <p>Go to <strong>Settings → Labor Rates</strong>. Click <strong>＋ Add Crew</strong> to create a new rate set (e.g. "Main Crew", "Temp Crew"). You can copy rates from an existing crew as a starting point. Edit any rate inline and it saves automatically.</p>
         <p><strong>Per-project crew selection:</strong> Each project can use a different crew. Use the <strong>Crew</strong> dropdown in the topbar (next to the project name) to assign a specific crew to the current project — all quote calculations update immediately to use that crew's rates. This lets you quote jobs with different crews without changing the global setting.</p>
         <p><strong>Reordering line items:</strong> In the Labor Rates table, drag any row by its <span style="font-weight:700;">⠿</span> handle to reorder the line items within a crew.</p>
-        <p><strong>Tiered (sqft-based) pricing:</strong> The <em>Standard Turf Install</em> and <em>Putting Green Install</em> rates can vary by job size instead of being a single flat number. Click <strong>"Tiers…"</strong> next to that rate (or "Edit tiers" if already tiered) to open the tier editor, check <strong>"Use sqft-based tiered pricing,"</strong> and define brackets — each with an upper sqft limit and a $/sqft rate — plus an "all other" rate for anything above the largest limit. The <strong>whole job is charged at the rate of the bracket its installed sqft falls into</strong> (not a blend): e.g. with "up to 1,000 sqft → $8" and "above → $7," a 1,500 sqft yard is billed at $7 × 1,500. Tiers are per-crew, so one crew can be flat while another is tiered; the standard rate tiers off the standard install area and the putting green rate tiers off the putting green area. Each quote card's labor line shows the resolved rate with a "tiered" tag. To go back to a single rate, uncheck the box and Save.</p>
+        <p><strong>Tiered (sqft-based) pricing:</strong> The <em>Standard Turf Install</em> and <em>Putting Green Install</em> rates can vary by job size instead of being a single flat number, and each is tiered independently. Click <strong>"Tiers…"</strong> next to that rate (or "Edit tiers" if already tiered) to open the tier editor, check <strong>"Use sqft-based tiered pricing,"</strong> and define brackets. Each bracket is shown as an explicit <strong>sqft range</strong> ("From N to M sqft → $rate"); the lower bound of each range fills in automatically from the previous bracket's limit, and the box at the bottom covers everything above the largest limit. Each install type is charged at the rate of the single bracket <strong>its own installed area</strong> falls into (not a blend): the standard rate tiers off the standard turf area (total minus any putting green), and the putting green rate tiers off the putting green area. Example: with "0–1,000 sqft → $8" and "1,000+ → $7," a 1,500 sqft standard area is billed at $7 × 1,500. Tiers are per-crew, so one crew can be flat while another is tiered. The Labor Rates table lists each tiered line's ranges and prices, and each quote card's labor line shows the resolved rate with a "tiered" tag. To go back to a single rate, uncheck the box and Save.</p>
       </div>
 
       <!-- BACKUP -->
       <div class="docs-section">
-        <div class="docs-h2">Backup, Sync & Restore</div>
+        <div class="docs-h2" id="doc-backup">Backup, Sync & Restore</div>
         <p>Your data is stored in your browser's local storage. <strong>This means it can be lost if you clear your browser cache.</strong> Use the <strong>⇄ Sync / Backup</strong> menu at the bottom of the sidebar regularly to export a JSON file. Keep backups somewhere safe (email to yourself, save to Google Drive, etc.).</p>
 
         <div class="docs-h3">Selecting Projects</div>
@@ -2085,7 +2149,7 @@
 
       <!-- WORKFLOW TIP -->
       <div class="docs-section">
-        <div class="docs-h2">Recommended Workflow</div>
+        <div class="docs-h2" id="doc-workflow">Recommended Workflow</div>
         <ol class="docs-list">
           <li>Set up your <strong>Settings</strong> once (turf products, infill, rock, misc items, crew rates, profit margin)</li>
           <li>Create a <strong>new project</strong> for each customer job — optionally import a Moasure CSV right away</li>
@@ -2229,6 +2293,23 @@ function resolveTierRate(item, sqft) {
     return parseFloat(tiers[tiers.length - 1].rate) || 0; // above all bounds, no unbounded tier
   }
   return parseFloat(item ? item.rate : 0) || 0;
+}
+// Explicit sqft ranges for a tiered item, as line items: [{from, to, rate}],
+// where `to: null` means "and up". The lower bound of each bracket is the
+// previous bracket's upper limit, so ranges read naturally in the UI.
+// A value s falls in the bracket where prevCap < s <= cap (matches resolveTierRate).
+function getTierRanges(item) {
+  if (!itemIsTiered(item)) return [];
+  const capOf = t => (t.upTo == null || t.upTo === '') ? Infinity : parseFloat(t.upTo);
+  const sorted = item.tiers.slice().sort((a,b) => capOf(a) - capOf(b));
+  let lower = 0;
+  const out = [];
+  sorted.forEach(t => {
+    const cap = capOf(t);
+    out.push({ from: lower, to: (cap === Infinity ? null : cap), rate: parseFloat(t.rate) || 0 });
+    if (cap !== Infinity) lower = cap;
+  });
+  return out;
 }
 // Resolve the labor items for the project's selected crew (falls back to the
 // active crew), mirroring getRates()'s crew resolution.
@@ -3519,6 +3600,10 @@ function calcQuote() {
         const totalSqFt = tc.sqFt;
         const pgSqFt    = pg.pgSqFt;
         const stdSqFt   = Math.max(0, totalSqFt - pgSqFt);
+        // Tiered labor brackets are chosen per install type by ITS OWN installed
+        // area: the standard rate off the standard turf area (total − putting
+        // green), the putting green rate off the putting green area. Each line is
+        // then multiplied by that same area.
         const stdRate   = getRateFor('standard', stdSqFt);
         const pgRate    = getRateFor('putting', pgSqFt);
         const stdTieredNote = itemIsTiered(getCrewItemsForQuote().find(it=>it.key==='standard')) ? ' tiered' : '';
@@ -4038,9 +4123,17 @@ function renderLaborRatesTable() {
             <td>
               ${(item.key === 'standard' || item.key === 'putting')
                 ? (itemIsTiered(item)
-                    ? `<div style="display:flex;flex-direction:column;gap:2px;">
-                         <span style="font-size:11px;color:#2f9e44;font-weight:700;">Tiered · ${item.tiers.length} bracket${item.tiers.length>1?'s':''}</span>
-                         <button class="btn-edit" style="font-size:11px;padding:2px 8px;" onclick="openTierModal(${i})">Edit tiers</button>
+                    ? `<div style="display:flex;flex-direction:column;gap:3px;">
+                         <div style="font-size:11px;color:#2f9e44;font-weight:700;">Tiered · by total installed sqft</div>
+                         <div style="font-size:11px;color:var(--text-mid);line-height:1.5;">
+                           ${getTierRanges(item).map(r => {
+                             const range = r.to == null
+                               ? `${r.from.toLocaleString()}+ sqft`
+                               : `${r.from.toLocaleString()}–${r.to.toLocaleString()} sqft`;
+                             return `<div style="display:flex;justify-content:space-between;gap:10px;"><span>${range}</span><span style="font-weight:600;white-space:nowrap;">$${r.rate.toFixed(2)}/sqft</span></div>`;
+                           }).join('')}
+                         </div>
+                         <button class="btn-edit" style="font-size:11px;padding:2px 8px;align-self:flex-start;margin-top:2px;" onclick="openTierModal(${i})">Edit tiers</button>
                        </div>`
                     : `<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
                          <span style="color:var(--text-light);font-size:13px;">$</span>
@@ -4148,13 +4241,36 @@ function renderTierRows() {
   const b = window._wtTierEdit ? window._wtTierEdit.brackets : [];
   wrap.innerHTML = b.map((row,i)=>`
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-      <span style="font-size:12px;color:var(--text-mid);white-space:nowrap;">Up to</span>
-      <input type="number" value="${row.upTo}" step="1" min="0" placeholder="sqft" class="manual-input tier-up" data-i="${i}" style="width:90px;padding:5px 8px;">
+      <span class="tier-from" data-i="${i}" style="font-size:12px;color:var(--text-mid);white-space:nowrap;min-width:74px;">From 0</span>
+      <span style="font-size:12px;color:var(--text-mid);">to</span>
+      <input type="number" value="${row.upTo}" step="1" min="0" placeholder="sqft" class="manual-input tier-up" data-i="${i}" oninput="updateTierRangeLabels()" style="width:84px;padding:5px 8px;">
       <span style="font-size:12px;color:var(--text-mid);">sqft &rarr; $</span>
-      <input type="number" value="${row.rate}" step="0.01" min="0" placeholder="0.00" class="manual-input tier-rate" data-i="${i}" style="width:78px;padding:5px 8px;">
+      <input type="number" value="${row.rate}" step="0.01" min="0" placeholder="0.00" class="manual-input tier-rate" data-i="${i}" style="width:74px;padding:5px 8px;">
       <span style="font-size:12px;color:var(--text-light);">/sqft</span>
       <button class="btn-delete" style="margin-left:auto;" onclick="tierRemoveBracket(${i})" title="Remove bracket">✕</button>
     </div>`).join('');
+  updateTierRangeLabels();
+}
+// Live-update each bracket's derived lower bound ("From N") and the "above"
+// label, so the editor reads as explicit sqft ranges. The lower bound of a
+// bracket is the largest other limit below it (robust to entry order).
+function updateTierRangeLabels() {
+  const ups = Array.from(document.querySelectorAll('#tierRows .tier-up'));
+  const caps = ups.map(u => parseFloat(u.value)).filter(v => !isNaN(v));
+  document.querySelectorAll('#tierRows .tier-from').forEach(span => {
+    const i = +span.getAttribute('data-i');
+    const cap = ups[i] ? parseFloat(ups[i].value) : NaN;
+    let lower = 0;
+    if (!isNaN(cap)) { const below = caps.filter(c => c < cap); lower = below.length ? Math.max(...below) : 0; }
+    span.textContent = 'From ' + lower.toLocaleString();
+  });
+  const aboveLabel = document.getElementById('tierAboveLabel');
+  if (aboveLabel) {
+    const maxCap = caps.length ? Math.max(...caps) : 0;
+    aboveLabel.textContent = caps.length
+      ? `${maxCap.toLocaleString()}+ sqft (everything above the largest limit)`
+      : 'All other sq ft (above the largest limit)';
+  }
 }
 function tierReadInputs() {
   if (!window._wtTierEdit) return;
@@ -4767,6 +4883,62 @@ function setLayerRotation(layerIndex, degrees) {
   save();
   renderRollLayout();
 }
+
+// ── Per-layer roll direction / seam offset (Phase 3a) ──────────────────────
+function setLayerRollDirection(layerId, deg) {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  if (!proj.layout.layerRoll) proj.layout.layerRoll = {};
+  const cur = proj.layout.layerRoll[layerId] || {};
+  proj.layout.layerRoll[layerId] = { ...cur, rotation: ((parseFloat(deg)||0) % 180 + 180) % 180 };
+  save();
+  renderRollLayout();
+  renderLayersList(proj);
+}
+function setLayerSeamOffset(layerId, ft) {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  if (!proj.layout.layerRoll) proj.layout.layerRoll = {};
+  const opts = getRollOpts(proj);
+  const effW = Math.max(0.01, (parseFloat(opts.rollWidth)||15) - (parseFloat(opts.sideTrim)||0)/12);
+  let v = parseFloat(ft) || 0;
+  v = Math.max(0, Math.min(v, effW));
+  const cur = proj.layout.layerRoll[layerId] || {};
+  proj.layout.layerRoll[layerId] = { ...cur, translation: v };
+  save();
+  renderRollLayout();
+  renderLayersList(proj);
+}
+function clearLayerRollOverride(layerId) {
+  const proj = getCurrentProject(); if (!proj || !proj.layout || !proj.layout.layerRoll) return;
+  delete proj.layout.layerRoll[layerId];
+  save();
+  renderRollLayout();
+  renderLayersList(proj);
+}
+// Per-layer auto-minimize: sweep roll direction + seam offset on this layer's
+// own (positioned) display points and store the lowest-ordered combination.
+function autoRotateLayer(layerId) {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  const opts = getRollOpts(proj);
+  const layoutNow = window._wtCurrentRollLayout;
+  const s = layoutNow && layoutNow.secondaryShapes && layoutNow.secondaryShapes[layerId];
+  const pts = (s && (s.displayPoints || s.points));
+  if (!pts || pts.length < 3) return;
+  const effW = Math.max(0.01, (parseFloat(opts.rollWidth)||15) - (parseFloat(opts.sideTrim)||0)/12);
+  let best = null;
+  for (let deg = 0; deg < 180; deg += 1) {
+    for (let ti = 0; ti < 8; ti++) {
+      const t = (ti/8) * effW;
+      const L = computeRollLayout(pts, deg, t, opts);
+      if (!best || L.totalOrdered < best.totalOrdered) best = { deg, t, totalOrdered: L.totalOrdered };
+    }
+  }
+  if (!best) return;
+  if (!proj.layout.layerRoll) proj.layout.layerRoll = {};
+  proj.layout.layerRoll[layerId] = { rotation: best.deg, translation: +best.t.toFixed(2) };
+  save();
+  renderRollLayout();
+  renderLayersList(proj);
+}
 function renderLayersList(proj) {
   const list = document.getElementById('layoutLayersList');
   if (!list) return;
@@ -4799,10 +4971,43 @@ function renderLayersList(proj) {
     </div>`);
 
   // Secondary shapes — visibility, rotation, + exclude/ignore mode
+  const primaryRot = (proj.layout && proj.layout.rotation) || 0;
+  const primaryTrans = (proj.layout && proj.layout.translation) || 0;
   secondary.forEach((s, i) => {
     const area = getSecondaryShapeArea(s);
     const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'install';
     const rot = (offsets[i] && offsets[i].rotation) || 0;
+    // Per-layer roll direction / seam offset block — only meaningful for install
+    // layers (other modes aren't rolled).
+    let rollControl = '';
+    if (mode === 'install') {
+      const rs = getLayerRoll(proj, i, primaryRot, primaryTrans);
+      const rsRot = Math.round(rs.rotation);
+      const rsTrans = (+rs.translation).toFixed(1);
+      rollControl = `
+        <div style="border-top:1px dashed var(--border);margin-top:5px;padding-top:5px;">
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:3px;">
+            <span style="color:var(--text-light);white-space:nowrap;">Roll dir</span>
+            <input type="range" min="0" max="179" step="1" value="${rsRot}" style="flex:1;"
+              oninput="this.nextElementSibling.textContent=this.value+'°'; setLayerRollDirection(${i}, this.value)">
+            <span style="min-width:30px;text-align:right;color:var(--text-light);">${rsRot}°</span>
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:3px;">
+            <button class="btn btn-ghost" style="padding:2px 7px;font-size:10px;" onclick="setLayerRollDirection(${i},0)">Horizontal</button>
+            <button class="btn btn-ghost" style="padding:2px 7px;font-size:10px;" onclick="setLayerRollDirection(${i},90)">Vertical</button>
+            <button class="btn btn-ghost" style="padding:2px 7px;font-size:10px;" onclick="autoRotateLayer(${i})">Auto</button>
+            ${rs.overridden
+              ? `<button class="btn btn-ghost" style="padding:2px 7px;font-size:10px;margin-left:auto;" onclick="clearLayerRollOverride(${i})" title="Use the same roll direction & seam offset as the primary layer">↺ Match primary</button>`
+              : `<span style="margin-left:auto;font-size:10px;color:var(--text-light);">matches primary</span>`}
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
+            <span style="color:var(--text-light);white-space:nowrap;">Seam off</span>
+            <input type="range" min="0" max="14.9" step="0.1" value="${rsTrans}" style="flex:1;"
+              oninput="this.nextElementSibling.textContent=(+this.value).toFixed(1)+' ft'; setLayerSeamOffset(${i}, this.value)">
+            <span style="min-width:40px;text-align:right;color:var(--text-light);">${rsTrans} ft</span>
+          </div>
+        </div>`;
+    }
     rows.push(`
       <div style="border:1px solid var(--border);border-radius:6px;padding:6px 8px;margin-bottom:6px;">
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--text-mid);margin-bottom:4px;">
@@ -4822,6 +5027,7 @@ function renderLayersList(proj) {
             oninput="this.nextElementSibling.textContent=this.value+'°'; setLayerRotation(${i}, this.value)">
           <span style="min-width:32px;text-align:right;color:var(--text-light);">${rot}°</span>
         </div>
+        ${rollControl}
       </div>`);
   });
 
@@ -4950,6 +5156,93 @@ function displayPointToCanonical(proj, p) {
   if (!viewRotation) return p;
   const { cx, cy } = getViewCentroid(proj);
   return rotateAround([p], -viewRotation, cx, cy)[0];
+}
+
+// Scroll the User Guide modal to a section (the modal is its own scroll
+// container, so anchor links won't do this on their own).
+function jumpToDocSection(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const scroller = el.closest('.modal') || el.parentElement;
+  if (scroller && scroller.scrollTo) {
+    const top = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 8;
+    scroller.scrollTo({ top, behavior: 'smooth' });
+  } else if (el.scrollIntoView) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+// Canonical (stored) points for an editable layer: 'primary' → the main shape,
+// a number → that secondary shape.
+function getLayerCanonicalPoints(proj, layerId) {
+  if (layerId === 'primary') return proj.layout.points;
+  const s = proj.layout.secondaryShapes && proj.layout.secondaryShapes[layerId];
+  return s ? s.points : null;
+}
+
+// Recompute and store a layer's area after its points change.
+function recomputeLayerArea(proj, layerId) {
+  if (layerId === 'primary') { proj.layout.area = polygonArea(proj.layout.points); return; }
+  const s = proj.layout.secondaryShapes && proj.layout.secondaryShapes[layerId];
+  if (s) s.area = polygonArea(s.points);
+}
+
+// Inverse of the forward display transform for ANY layer: turns a point in the
+// drawn (display) frame back into that layer's stored canonical frame, so a
+// dragged vertex on a secondary layer writes to the right place. Forward order
+// is: view-rotation → per-layer rotation about its (view-rotated) centroid →
+// position offset; this undoes them in reverse.
+function displayPointToLayerCanonical(proj, layerId, P) {
+  if (layerId === 'primary') return displayPointToCanonical(proj, P);
+  const s = proj.layout.secondaryShapes && proj.layout.secondaryShapes[layerId];
+  if (!s) return P;
+  const off = (proj.layout.layerOffsets && proj.layout.layerOffsets[layerId]) || { dx:0, dy:0, rotation:0 };
+  const viewRotation = proj.layout.viewRotation || 0;
+  let vrPts = s.points;
+  if (viewRotation) { const v = getViewCentroid(proj); vrPts = rotateAround(s.points, viewRotation, v.cx, v.cy); }
+  let p = { x: P.x - (off.dx || 0), y: P.y - (off.dy || 0) };
+  if (off.rotation) { const c = centroidOf(vrPts); p = rotateAround([p], -off.rotation, c.cx, c.cy)[0]; }
+  if (viewRotation) { const v = getViewCentroid(proj); p = rotateAround([p], -viewRotation, v.cx, v.cy)[0]; }
+  return p;
+}
+
+// Nearest vertex across ALL visible layers (primary + secondaries), in canvas
+// pixels. Returns { layerId, index } or null.
+function findNearestVertexAnyLayer(canvasX, canvasY, maxDist, layout) {
+  const t = window._wtCanvasTransform; if (!t) return null;
+  let best = null, bestDist = maxDist;
+  function scan(pts, layerId) {
+    if (!pts) return;
+    pts.forEach((p, i) => {
+      const cx = t.pad + (p.x - t.minX) * t.scale;
+      const cy = t.h - t.pad - (p.y - t.minY) * t.scale;
+      const d = Math.hypot(cx - canvasX, cy - canvasY);
+      if (d < bestDist) { bestDist = d; best = { layerId, index: i }; }
+    });
+  }
+  if (!layout.layerVisibility || layout.layerVisibility.primary !== false) scan(layout.basePoints, 'primary');
+  (layout.secondaryShapes || []).forEach((s, idx) => {
+    if (layout.layerVisibility && layout.layerVisibility[idx] === false) return;
+    if (s.displayPoints && s.displayPoints.length >= 3) scan(s.displayPoints, idx);
+  });
+  return best;
+}
+
+// Nearest edge across all visible layers, for inserting a vertex. Returns
+// { layerId, index, point } (point is in the display frame) or null.
+function findNearestEdgeAnyLayer(pos, maxPx, layout) {
+  let best = null, bestDist = maxPx;
+  function consider(pts, layerId) {
+    if (!pts) return;
+    const e = findNearestEdgeScreen(pos, pts, maxPx);
+    if (e && e.dist < bestDist) { bestDist = e.dist; best = { layerId, index: e.index, point: e.point }; }
+  }
+  if (!layout.layerVisibility || layout.layerVisibility.primary !== false) consider(layout.basePoints, 'primary');
+  (layout.secondaryShapes || []).forEach((s, idx) => {
+    if (layout.layerVisibility && layout.layerVisibility[idx] === false) return;
+    if (s.displayPoints && s.displayPoints.length >= 3) consider(s.displayPoints, idx);
+  });
+  return best;
 }
 
 function onViewRotationChange() {
@@ -5740,11 +6033,25 @@ function assignNestPlacements(layout) {
 // independently with the SAME shared roll settings, on that layer's positioned
 // (view-rotated + per-layer rotated + offset) points. `primaryLayout` is the
 // already-computed primary layout; `secondaryShapes` carry `.displayPoints`.
+// Per-layer roll direction + seam offset. Secondary install layers may override
+// the shared (primary) roll direction/translation; when no override is stored
+// they fall back to the primary's values. Primary always uses the main sliders.
+function getLayerRoll(proj, layerId, fallbackRot, fallbackTrans) {
+  const lr = proj && proj.layout && proj.layout.layerRoll && proj.layout.layerRoll[layerId];
+  const rotation = (lr && lr.rotation != null) ? lr.rotation : fallbackRot;
+  const translation = (lr && lr.translation != null) ? lr.translation : fallbackTrans;
+  const overridden = !!(lr && (lr.rotation != null || lr.translation != null));
+  return { rotation, translation, overridden };
+}
+
 function computeInstallLayerLayouts(proj, primaryLayout, secondaryShapes, rotation, translation, opts) {
   const out = [{
     id: 'primary',
     name: (proj.layout && proj.layout.primaryLayerName) || 'Primary Shape',
     layout: primaryLayout,
+    rollRotation: rotation,
+    rollTranslation: translation,
+    rollOverridden: false,
   }];
   const modes = (proj.layout && proj.layout.secondaryShapeModes) || {};
   (secondaryShapes || []).forEach((s, i) => {
@@ -5752,7 +6059,17 @@ function computeInstallLayerLayouts(proj, primaryLayout, secondaryShapes, rotati
     if (mode !== 'install') return;
     const pts = s.displayPoints || s.points;
     if (!pts || pts.length < 3) return;
-    out.push({ id: i, name: s.name, layout: computeRollLayout(pts, rotation, translation, opts) });
+    // Each install layer can roll in its own direction / seam offset; falls back
+    // to the primary's when not overridden.
+    const rs = getLayerRoll(proj, i, rotation, translation);
+    out.push({
+      id: i,
+      name: s.name,
+      layout: computeRollLayout(pts, rs.rotation, rs.translation, opts),
+      rollRotation: rs.rotation,
+      rollTranslation: rs.translation,
+      rollOverridden: rs.overridden,
+    });
   });
   return out;
 }
@@ -5885,12 +6202,13 @@ function renderRollLayout() {
     document.getElementById('rollLinearOut').value = combined.linear.toLocaleString(undefined,{maximumFractionDigits:1}) + ' ft';
     document.getElementById('rollWasteOut').value = combined.scrap.toLocaleString(undefined,{maximumFractionDigits:0}) + ' ft² (' + combined.wastePct.toFixed(1) + '%)';
     if (breakdownEl) {
-      const lines = installLayers.map(({ name, layout: L }) => {
+      const lines = installLayers.map(({ name, layout: L, rollRotation, rollOverridden }) => {
         const rp = countRollsAndPieces(L);
         const pcs = rp.totalPieces !== rp.totalRolls ? `/${rp.totalPieces}pc` : '';
-        return `<div style="display:flex;justify-content:space-between;gap:8px;padding:1px 0;"><span>${name}</span><span style="white-space:nowrap;color:var(--text-light);">${(L.totalOrdered||0).toLocaleString(undefined,{maximumFractionDigits:0})} ft² · ${rp.totalRolls}r${pcs}</span></div>`;
+        const dir = `${Math.round(rollRotation||0)}°${rollOverridden ? '' : '*'}`;
+        return `<div style="display:flex;justify-content:space-between;gap:8px;padding:1px 0;"><span>${name}</span><span style="white-space:nowrap;color:var(--text-light);">${dir} · ${(L.totalOrdered||0).toLocaleString(undefined,{maximumFractionDigits:0})} ft² · ${rp.totalRolls}r${pcs}</span></div>`;
       }).join('');
-      breakdownEl.innerHTML = `<div style="font-weight:600;margin-bottom:3px;color:var(--text-mid);">${installLayers.length} install layers (combined above)</div>${lines}`;
+      breakdownEl.innerHTML = `<div style="font-weight:600;margin-bottom:3px;color:var(--text-mid);">${installLayers.length} install layers (combined above)</div>${lines}<div style="font-size:10px;color:var(--text-light);margin-top:3px;">Roll direction shown per layer; * = matches primary.</div>`;
       breakdownEl.style.display = '';
     }
   } else if (breakdownEl) {
@@ -5979,12 +6297,20 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       if (plan) plan.pieces.forEach(p => allPts.push(p.p0, p.p1, p.p2, p.p3));
     }
   }
-  const xs = allPts.map(p=>p.x), ys = allPts.map(p=>p.y);
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const minY = Math.min(...ys), maxY = Math.max(...ys);
-  const spanX = (maxX-minX) || 1, spanY = (maxY-minY) || 1;
-  const pad = 24;
-  const scale = Math.min((w-2*pad)/spanX, (h-2*pad)/spanY);
+  let minX, minY, scale, pad = 24;
+  const _frozen = window._wtFreezeTransform && window._wtCanvasTransform;
+  if (_frozen) {
+    // During a layer drag the view is held fixed, so moving one shape doesn't
+    // reflow/rescale the whole canvas — which previously made every OTHER shape
+    // appear to jump around, and made the drag delta compound.
+    minX = _frozen.minX; minY = _frozen.minY; scale = _frozen.scale; pad = _frozen.pad;
+  } else {
+    const xs = allPts.map(p=>p.x), ys = allPts.map(p=>p.y);
+    const maxX = Math.max(...xs), maxY = Math.max(...ys);
+    minX = Math.min(...xs); minY = Math.min(...ys);
+    const spanX = (maxX-minX) || 1, spanY = (maxY-minY) || 1;
+    scale = Math.min((w-2*pad)/spanX, (h-2*pad)/spanY);
+  }
 
   function toCanvas(p) {
     return {
@@ -6328,17 +6654,26 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   // Expose the transform so edit-mode hit testing can map mouse <-> data coords
   window._wtCanvasTransform = { minX, minY, scale, pad, w, h };
 
-  // Edit mode: draw draggable vertex handles on the shape outline
+  // Edit mode: draw draggable vertex handles on every visible layer's outline.
   if (window._wtEditMode) {
-    layout.basePoints.forEach((p, i) => {
-      const c = toCanvas(p);
-      ctx.beginPath();
-      ctx.arc(c.x, c.y, 6, 0, Math.PI*2);
-      ctx.fillStyle = (i === window._wtDragVertexIndex) ? '#f4a822' : '#2e7d32';
-      ctx.fill();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+    function drawHandles(pts, layerId, color) {
+      if (!pts) return;
+      pts.forEach((p, i) => {
+        const c = toCanvas(p);
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, 6, 0, Math.PI*2);
+        const dragging = (i === window._wtDragVertexIndex && (window._wtEditLayerId == null ? 'primary' : window._wtEditLayerId) === layerId);
+        ctx.fillStyle = dragging ? '#f4a822' : color;
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      });
+    }
+    if (!layout.layerVisibility || layout.layerVisibility.primary !== false) drawHandles(layout.basePoints, 'primary', '#2e7d32');
+    (layout.secondaryShapes || []).forEach((s, idx) => {
+      if (layout.layerVisibility && layout.layerVisibility[idx] === false) return;
+      if (s.displayPoints && s.displayPoints.length >= 3) drawHandles(s.displayPoints, idx, '#1565c0');
     });
   }
 }
@@ -6347,9 +6682,11 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
 //  Layout shape editing (drag / add / delete vertices)
 // ───────────────────────────────────────────────────────
 
-function pushLayoutHistory(proj) {
+function pushLayoutHistory(proj, layerId) {
+  layerId = (layerId == null) ? 'primary' : layerId;
   if (!proj.layout.history) proj.layout.history = [];
-  proj.layout.history.push(JSON.parse(JSON.stringify(proj.layout.points)));
+  const pts = getLayerCanonicalPoints(proj, layerId) || [];
+  proj.layout.history.push({ layerId, points: JSON.parse(JSON.stringify(pts)) });
   if (proj.layout.history.length > 20) proj.layout.history.shift();
   updateUndoButton(proj);
 }
@@ -6364,8 +6701,18 @@ function updateUndoButton(proj) {
 function undoLayoutEdit() {
   const proj = getCurrentProject(); if (!proj || !proj.layout) return;
   if (!proj.layout.history || !proj.layout.history.length) return;
-  proj.layout.points = proj.layout.history.pop();
-  proj.layout.area = polygonArea(proj.layout.points);
+  const h = proj.layout.history.pop();
+  if (Array.isArray(h)) {
+    // Back-compat: older entries stored the primary's points directly.
+    proj.layout.points = h;
+    proj.layout.area = polygonArea(h);
+  } else if (h && h.points) {
+    if (h.layerId === 'primary') proj.layout.points = h.points;
+    else if (proj.layout.secondaryShapes && proj.layout.secondaryShapes[h.layerId]) {
+      proj.layout.secondaryShapes[h.layerId].points = h.points;
+    }
+    recomputeLayerArea(proj, h.layerId);
+  }
   save();
   renderRollLayout();
   updateUndoButton(proj);
@@ -6374,6 +6721,8 @@ function undoLayoutEdit() {
 function toggleEditMode() {
   window._wtEditMode = !window._wtEditMode;
   window._wtDragVertexIndex = null;
+  window._wtEditLayerId = null;
+  window._wtFreezeTransform = false;
   const btn = document.getElementById('editShapeBtn');
   const hint = document.getElementById('editShapeHint');
   const canvas = document.getElementById('rollLayoutCanvas');
@@ -6398,6 +6747,7 @@ function toggleEditMode() {
 function toggleMoveLayersMode() {
   window._wtMoveLayersMode = !window._wtMoveLayersMode;
   window._wtDragLayerId = null;
+  window._wtFreezeTransform = false;
   const btn = document.getElementById('moveLayersBtn');
   const hint = document.getElementById('moveLayersHint');
   const canvas = document.getElementById('rollLayoutCanvas');
@@ -6431,6 +6781,10 @@ function toggleCutMode() {
     btn.textContent = '✓ Done Cutting';
     hint.style.display = '';
     if (canvas) canvas.style.cursor = 'crosshair';
+    // The cut / nest tools now live under "Advanced details" — open it so the
+    // manual-cuts and nested-pieces lists are visible while cutting.
+    const adv = document.getElementById('rollAdvancedDetails');
+    if (adv) adv.open = true;
   } else {
     btn.classList.remove('btn-primary');
     btn.textContent = '✂ Cut Mode';
@@ -6487,7 +6841,7 @@ function findNearestEdgeScreen(pos, basePoints, maxPx) {
     if (d < bestDist) {
       bestDist = d;
       const dataPt = { x: a.x + tt*(b.x-a.x), y: a.y + tt*(b.y-a.y) };
-      best = { index: i, point: dataPt };
+      best = { index: i, point: dataPt, dist: d };
     }
   }
   return best;
@@ -6498,10 +6852,12 @@ function onLayoutCanvasMouseDown(evt) {
   const proj = getCurrentProject(); if (!proj || !proj.layout) return;
   const layout = window._wtCurrentRollLayout; if (!layout) return;
   const pos = canvasEventToData(evt); if (!pos) return;
-  const idx = findNearestVertex(pos.canvasX, pos.canvasY, layout.basePoints, 12);
-  if (idx >= 0) {
-    pushLayoutHistory(proj);
-    window._wtDragVertexIndex = idx;
+  const hit = findNearestVertexAnyLayer(pos.canvasX, pos.canvasY, 12, layout);
+  if (hit) {
+    pushLayoutHistory(proj, hit.layerId);
+    window._wtDragVertexIndex = hit.index;
+    window._wtEditLayerId = hit.layerId;
+    window._wtFreezeTransform = true; // hold the view while dragging a vertex
     evt.preventDefault();
   }
 }
@@ -6513,16 +6869,21 @@ function onLayoutCanvasMouseMove(evt) {
   evt.preventDefault();
 
   const idx = window._wtDragVertexIndex;
-  const canonical = displayPointToCanonical(proj, { x: pos.dataX, y: pos.dataY });
-  proj.layout.points[idx] = canonical;
+  const layerId = (window._wtEditLayerId == null) ? 'primary' : window._wtEditLayerId;
+  const canonical = displayPointToLayerCanonical(proj, layerId, { x: pos.dataX, y: pos.dataY });
+  const pts = getLayerCanonicalPoints(proj, layerId);
+  if (pts && idx < pts.length) pts[idx] = canonical;
   renderRollLayout();
 }
 
 function onLayoutCanvasMouseUp(evt) {
   if (!window._wtEditMode || window._wtDragVertexIndex == null) return;
+  const layerId = (window._wtEditLayerId == null) ? 'primary' : window._wtEditLayerId;
   window._wtDragVertexIndex = null;
+  window._wtEditLayerId = null;
+  window._wtFreezeTransform = false;
   const proj = getCurrentProject(); if (!proj) return;
-  proj.layout.area = polygonArea(proj.layout.points);
+  recomputeLayerArea(proj, layerId);
   save();
   renderRollLayout();
   updateUndoButton(proj);
@@ -6536,25 +6897,27 @@ function onLayoutCanvasDblClick(evt) {
   evt.preventDefault();
 
   // Delete a vertex if double-clicked directly on one (min 3 points)
-  const vIdx = findNearestVertex(pos.canvasX, pos.canvasY, layout.basePoints, 12);
-  if (vIdx >= 0) {
-    if (proj.layout.points.length <= 3) { alert('A shape needs at least 3 points.'); return; }
-    pushLayoutHistory(proj);
-    proj.layout.points.splice(vIdx, 1);
-    proj.layout.area = polygonArea(proj.layout.points);
+  const hit = findNearestVertexAnyLayer(pos.canvasX, pos.canvasY, 12, layout);
+  if (hit) {
+    const pts = getLayerCanonicalPoints(proj, hit.layerId);
+    if (!pts || pts.length <= 3) { alert('A shape needs at least 3 points.'); return; }
+    pushLayoutHistory(proj, hit.layerId);
+    pts.splice(hit.index, 1);
+    recomputeLayerArea(proj, hit.layerId);
     save();
     renderRollLayout();
     updateUndoButton(proj);
     return;
   }
 
-  // Otherwise, insert a new vertex on the nearest edge
-  const edge = findNearestEdgeScreen(pos, layout.basePoints, 14);
+  // Otherwise, insert a new vertex on the nearest edge (any layer)
+  const edge = findNearestEdgeAnyLayer(pos, 14, layout);
   if (edge) {
-    pushLayoutHistory(proj);
-    const canonical = displayPointToCanonical(proj, edge.point);
-    proj.layout.points.splice(edge.index + 1, 0, canonical);
-    proj.layout.area = polygonArea(proj.layout.points);
+    pushLayoutHistory(proj, edge.layerId);
+    const canonical = displayPointToLayerCanonical(proj, edge.layerId, edge.point);
+    const pts = getLayerCanonicalPoints(proj, edge.layerId);
+    pts.splice(edge.index + 1, 0, canonical);
+    recomputeLayerArea(proj, edge.layerId);
     save();
     renderRollLayout();
     updateUndoButton(proj);
@@ -6754,6 +7117,7 @@ function startDragLayer(evt) {
       evt.preventDefault();
       window._wtDragLayerId = i;
       window._wtDragLayerStart = dataPt;
+      window._wtFreezeTransform = true;
       return;
     }
   }
@@ -6763,6 +7127,7 @@ function startDragLayer(evt) {
     evt.preventDefault();
     window._wtDragLayerId = 'primary';
     window._wtDragLayerStart = dataPt;
+    window._wtFreezeTransform = true;
   }
 }
 
@@ -6791,7 +7156,9 @@ function endDragLayer(evt) {
   if (window._wtDragLayerId == null) return;
   window._wtDragLayerId = null;
   window._wtDragLayerStart = null;
+  window._wtFreezeTransform = false; // release the frozen view and re-fit
   save();
+  renderRollLayout();
   renderLayersList(getCurrentProject()); // refresh reset-position buttons in the Layers list
 }
 

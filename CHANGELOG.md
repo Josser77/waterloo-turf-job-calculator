@@ -5,6 +5,124 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd, 14) — Phase 3a: per-layer roll direction & seam offset
+
+Multi-layer install layers can now each roll in their **own direction** instead of
+sharing one global roll direction — so a yard measured as several sections can roll
+each section the way that minimizes its own waste.
+
+### What's new
+- Each install layer in the Layers list has its own **Roll direction** slider +
+  **Horizontal / Vertical / Auto** buttons and a **Seam offset** slider. "Auto"
+  sweeps direction × seam offset on that layer's own footprint and picks the
+  lowest-ordered combination (same search the global Auto-minimize uses).
+- Until changed, a layer **"matches primary"** (uses the main roll-direction
+  sliders); **"↺ Match primary"** clears a per-layer override. Stored in
+  `proj.layout.layerRoll[layerId] = {rotation, translation}`; unset fields fall
+  back to the primary's values (back-compatible — existing projects are unchanged).
+- The per-layer breakdown under Roll Results now shows each layer's roll direction
+  (`*` = matches primary).
+- The primary layer continues to use the main sliders.
+
+### Implementation
+- New `getLayerRoll(proj, layerId, fallbackRot, fallbackTrans)` →
+  `{rotation, translation, overridden}`.
+- `computeInstallLayerLayouts` now rolls each install secondary at its own
+  resolved direction/offset (primary uses the passed/global values), and tags each
+  entry with `rollRotation` / `rollTranslation` / `rollOverridden`.
+- New setters `setLayerRollDirection`, `setLayerSeamOffset`, `clearLayerRollOverride`,
+  and per-layer `autoRotateLayer`.
+
+### Tests
+- Section 52 added: `getLayerRoll` fallback / partial + full override / overridden
+  flag; `computeInstallLayerLayouts` honoring an override (rolled at the override
+  angle) vs falling back, primary unaffected, non-install layers excluded.
+- **Total: 595 tests, all passing** (580 prior + 15 new).
+
+### Still open
+- Phase 3b: per-layer cuts/nesting (still keyed to the primary roll plan).
+- Nesting drop placement (paused).
+
+---
+
+## 2026-06-17 (cont'd, 13) — User Guide TOC, sticky layout toolbar, Basic/Advanced sidebar, tiered-pricing ranges
+
+### User Guide: table of contents
+A clickable contents list at the top of the User Guide jumps to any of the nine
+sections. Because the guide is its own scroll container, anchor links alone don't
+work — a `jumpToDocSection()` helper smooth-scrolls the modal to the section. Each
+`docs-h2` now has an anchor id.
+
+### Layout: sticky toolbar
+The Edit Shape / Move Layers / Cut Mode / Import row (`#layoutToolbar`) is now
+`position:sticky` and stays pinned to the top of the scroll area while you scroll
+through the canvas and results. (Does not stick on narrow/mobile widths, where the
+card uses `overflow-x:auto`, which disables sticky.)
+
+### Layout: Basic / Advanced sidebar split
+Roll Results is split to reduce clutter. **Basic** (always shown): rolls/pieces,
+Ordered SqFt, and Apply. **Advanced** (collapsible `#rollAdvancedDetails`, closed by
+default): purchased-rectangles toggle, Usable SqFt, Linear Ft, Scrap, the nesting
+legend, manual-cuts list, nested-pieces list, and per-piece list. Entering Cut Mode
+auto-opens Advanced so the cut/nest tools are visible. All field ids unchanged.
+
+### Tiered labor pricing: explicit ranges + per-line installed area
+- The tier editor and the Labor Rates table now show each bracket as an explicit
+  **sqft range** ("From N to M sqft → $rate"); the lower bound auto-fills from the
+  previous bracket's limit. New `getTierRanges(item)` derives `[{from,to,rate}]`
+  (`to:null` = open-ended); the editor's "From" labels update live as caps change.
+- Bracket selection is **per install type by its own installed area**: the standard
+  rate tiers off the standard turf area (total − putting green), the putting green
+  rate off the putting green area. (This reverts the brief "whole-job total"
+  experiment from cont'd 12 per updated requirements — note it changes quote numbers
+  on tiered jobs vs that interim version.)
+
+### Tests
+- Section 46 extended with `getTierRanges` coverage (range derivation, lower-bound =
+  previous cap, open-ended bracket, unsorted input, alignment with `resolveTierRate`,
+  flat-item empty case).
+- **Total: 580 tests, all passing** (572 prior + 8 new).
+
+### Still open
+- Multi-layer Phase 3: per-layer roll direction/translation and per-layer cuts/nesting.
+- Nesting drop placement (paused); doc/test-count reconciliation.
+
+---
+
+## 2026-06-17 (cont'd, 12) — Move Layers no longer jitters; Edit Shape works on any layer
+
+### Fix: moving one layer made the others jump around
+In Move Layers mode, each drag step called `renderRollLayout`, which recomputed the auto-fit
+canvas transform from the new geometry — so moving one shape rescaled/recentred the whole view
+and every other shape appeared to slide, and the drag delta (measured across the shifting
+transform) compounded. The canvas transform is now **frozen during a layer drag** (and during a
+vertex drag): `drawRollLayoutCanvas` honours a `_wtFreezeTransform` flag and reuses the stored
+transform instead of re-fitting; the view re-fits once on drag end.
+
+### New: edit any layer's shape, not just the primary
+Edit Shape was hard-wired to the primary outline. It now hit-tests vertices/edges across **all
+visible layers** and edits whichever one you grab:
+- New `displayPointToLayerCanonical` inverts a layer's full forward transform (view-rotation →
+  per-layer rotation about its centroid → position offset), so a dragged secondary vertex writes
+  back to that shape's stored points correctly. A test confirms the inverse is exact.
+- `findNearestVertexAnyLayer` / `findNearestEdgeAnyLayer` pick the nearest handle/edge across
+  layers; `getLayerCanonicalPoints` / `recomputeLayerArea` read/write the right layer.
+- Vertex handles are drawn on every visible layer (primary green, others blue).
+- Undo history now records `{layerId, points}` per edit and restores the correct layer (old
+  array-format entries still load).
+
+### Tests
+- Section 51 added: per-layer canonical inverse round-trip (view-rotation + rotation + offset),
+  cross-layer nearest-vertex pick, and per-layer history/area. Section 6 history test updated for
+  the new entry format.
+- **Total: 572 tests, all passing** (567 prior + 5 new).
+
+### Still open
+- Multi-layer Phase 3: per-layer roll direction/translation and per-layer cuts/nesting.
+- Nesting drop placement (paused at user's request); tiered-pricing work; doc/test-count reconciliation.
+
+---
+
 ## 2026-06-17 (cont'd, 11) — Multi-layer install Phase 2: each layer's roll plan drawn on the canvas
 
 ### Per-layer roll plans now render in place

@@ -258,14 +258,16 @@ section('6. Layout edit history');
   // Push a snapshot, then modify
   ctx.pushLayoutHistory(proj);
   assert(proj.layout.history.length === 1, 'history has 1 entry after first push');
+  assert(proj.layout.history[0].layerId === 'primary' && Array.isArray(proj.layout.history[0].points),
+    'history entry records layerId + points');
 
   proj.layout.points[0] = {x:99, y:99};
   ctx.pushLayoutHistory(proj);
   assert(proj.layout.history.length === 2, 'history has 2 entries after second push');
 
-  // Simulate undo: pop and restore
+  // Simulate undo: pop and restore the entry's points
   const restored = proj.layout.history.pop();
-  proj.layout.points = restored;
+  proj.layout.points = restored.points;
   assert(near(proj.layout.points[0].x, 99, 0.1), 'undo restores second state (not original)');
 
   // Max 20 entries
@@ -3306,6 +3308,25 @@ section('46. Tiered labor pricing');
     c.getCurrentProject = () => ({});
     assert(c.getRateFor('standard', 1500) === 8, 'no project crew → active crew flat rate');
   }
+
+  // ── getTierRanges: explicit from–to line items, lower bound = previous cap ──
+  {
+    const c = tierCtx();
+    const item = { tiers: [ {upTo:1000, rate:8}, {upTo:2000, rate:7.5}, {upTo:null, rate:7} ] };
+    const r = c.getTierRanges(item);
+    assert(r.length === 3, 'getTierRanges returns one entry per bracket');
+    assert(r[0].from === 0 && r[0].to === 1000 && r[0].rate === 8, 'first range 0–1000 @ $8');
+    assert(r[1].from === 1000 && r[1].to === 2000 && r[1].rate === 7.5, 'second range 1000–2000 @ $7.50 (lower = previous cap)');
+    assert(r[2].from === 2000 && r[2].to === null && r[2].rate === 7, 'last range 2000+ (to=null) @ $7');
+    // Ranges align with resolveTierRate: a value in (from, to] resolves to that rate.
+    assert(c.resolveTierRate(item, 1500) === r[1].rate, 'a sqft inside a range resolves to that range\'s rate');
+    assert(c.resolveTierRate(item, 5000) === r[2].rate, 'a sqft above all caps resolves to the open-ended range rate');
+    // Unsorted input still produces ordered ranges.
+    const unsorted = { tiers: [ {upTo:2000, rate:7.5}, {upTo:null, rate:7}, {upTo:1000, rate:8} ] };
+    const ru = c.getTierRanges(unsorted);
+    assert(ru[0].to === 1000 && ru[1].to === 2000 && ru[2].to === null, 'getTierRanges sorts brackets ascending');
+    assert(c.getTierRanges({ rate: 8 }).length === 0, 'flat item has no ranges');
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -3605,9 +3626,136 @@ section('50. Multi-layer install (Phase 1)');
 }
 
 // ════════════════════════════════════════════════════════════════════════
-//  SUMMARY
+//  51. EDIT ANY LAYER — per-layer canonical inverse round-trip + history
+//  Editing a secondary layer's vertex must write back through the inverse of
+//  its full display transform (view-rotation → per-layer rotation → offset).
+//  displayPointToLayerCanonical must invert that exactly, and per-layer undo
+//  history must snapshot/restore the right layer.
 // ════════════════════════════════════════════════════════════════════════
-console.log(`\n${'═'.repeat(58)}`);
+section('51. Edit any layer (per-layer transform + history)');
+{
+  function ec() {
+    const c = { window:{}, document:{getElementById:()=>null,querySelectorAll:()=>[],querySelector:()=>null,addEventListener:()=>{}}, localStorage:{getItem:()=>null,setItem:()=>{}}, console };
+    vm.runInNewContext(scriptSrc, c);
+    return c;
+  }
+  const c = ec();
+  const primary = [{x:0,y:0},{x:20,y:0},{x:20,y:20},{x:0,y:20}];
+  const sec = [{x:2,y:2},{x:8,y:3},{x:6,y:9}]; // a triangle
+  const proj = { layout: {
+    points: primary,
+    viewRotation: 30,
+    secondaryShapes: [{ name:'B', points: JSON.parse(JSON.stringify(sec)) }],
+    layerOffsets: { 0: { dx: 12, dy: -5, rotation: 40 } },
+    secondaryShapeModes: {},
+  }};
+
+  // Build the layer's displayPoints exactly as renderRollLayout does.
+  function forwardDisplay() {
+    const v = c.getViewCentroid(proj);
+    let pts = c.rotateAround(sec, 30, v.cx, v.cy);
+    const cc = c.centroidOf(pts);
+    pts = c.rotateAround(pts, 40, cc.cx, cc.cy);
+    pts = pts.map(p => ({ x: p.x + 12, y: p.y - 5 }));
+    return pts;
+  }
+
+  {
+    const disp = forwardDisplay();
+    // Inverting each display point must return the original canonical point.
+    let maxErr = 0;
+    disp.forEach((dp, i) => {
+      const back = c.displayPointToLayerCanonical(proj, 0, dp);
+      maxErr = Math.max(maxErr, Math.abs(back.x - sec[i].x), Math.abs(back.y - sec[i].y));
+    });
+    assert(maxErr < 1e-6, 'displayPointToLayerCanonical exactly inverts view-rotation + rotation + offset');
+  }
+
+  {
+    // Nearest-vertex across layers: a layout with primary + the positioned secondary.
+    const layout = { basePoints: primary, layerVisibility: {}, secondaryShapes: [{ displayPoints: forwardDisplay() }] };
+    c.window._wtCanvasTransform = { minX:0, minY:-20, scale:5, pad:0, w:400, h:400 };
+    const t = c.window._wtCanvasTransform;
+    // Aim at the secondary's first display vertex (convert it to canvas px).
+    const dv = layout.secondaryShapes[0].displayPoints[0];
+    const cx = t.pad + (dv.x - t.minX)*t.scale, cy = t.h - t.pad - (dv.y - t.minY)*t.scale;
+    const hit = c.findNearestVertexAnyLayer(cx, cy, 12, layout);
+    assert(hit && hit.layerId === 0 && hit.index === 0, 'nearest vertex correctly identifies the secondary layer + index');
+  }
+
+  {
+    // Per-layer history snapshots and the area helper target the right layer.
+    const c2 = ec();
+    const proj2 = { layout: { points: primary, secondaryShapes:[{name:'B',points:JSON.parse(JSON.stringify(sec))}], secondaryShapeModes:{}, layerOffsets:{} } };
+    c2.pushLayoutHistory(proj2, 0);
+    assert(proj2.layout.history[0].layerId === 0, 'history entry targets the secondary layer');
+    proj2.layout.secondaryShapes[0].points[0] = { x: 99, y: 99 };
+    c2.recomputeLayerArea(proj2, 0);
+    assert(proj2.layout.secondaryShapes[0].area === c2.polygonArea(proj2.layout.secondaryShapes[0].points),
+      'recomputeLayerArea updates the secondary shape\'s stored area');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  52. PER-LAYER ROLL DIRECTION / SEAM OFFSET (Phase 3a)
+//  Each install layer may override the shared (primary) roll direction +
+//  seam offset; unset fields fall back to the primary's values. The primary
+//  always uses the passed (global) values.
+// ════════════════════════════════════════════════════════════════════════
+section('52. Per-layer roll direction / seam offset');
+{
+  function ec() {
+    const c = { window:{}, document:{getElementById:()=>null,querySelectorAll:()=>[],querySelector:()=>null,addEventListener:()=>{}}, localStorage:{getItem:()=>null,setItem:()=>{}}, console };
+    vm.runInNewContext(scriptSrc, c);
+    return c;
+  }
+  const c = ec();
+
+  // ── getLayerRoll: fallback + partial/full override + overridden flag ──
+  {
+    assert(c.getLayerRoll({layout:{}}, 0, 5, 2).rotation === 5, 'no layerRoll → fallback rotation');
+    assert(c.getLayerRoll({layout:{}}, 0, 5, 2).translation === 2, 'no layerRoll → fallback translation');
+    assert(c.getLayerRoll({layout:{}}, 0, 5, 2).overridden === false, 'no layerRoll → not overridden');
+    const proj = { layout: { layerRoll: { 0: { rotation: 90 } } } };
+    assert(c.getLayerRoll(proj, 0, 5, 2).rotation === 90, 'override rotation honored');
+    assert(c.getLayerRoll(proj, 0, 5, 2).translation === 2, 'partial override → translation falls back');
+    assert(c.getLayerRoll(proj, 0, 5, 2).overridden === true, 'overridden flag true when any field set');
+    assert(c.getLayerRoll({layout:{layerRoll:{}}}, 1, 5, 2).overridden === false, 'empty layerRoll map → not overridden');
+  }
+
+  // ── computeInstallLayerLayouts: per-layer override vs fallback ──
+  {
+    const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0 };
+    const primaryPts = [{x:0,y:0},{x:30,y:0},{x:30,y:30},{x:0,y:30}];
+    const strip = [{x:0,y:0},{x:40,y:0},{x:40,y:5},{x:0,y:5}]; // long thin → direction-sensitive
+    const primaryLayout = c.computeRollLayout(primaryPts, 0, 0, opts);
+    const secondaryShapes = [{ name:'Strip', displayPoints: strip }];
+
+    const at0  = c.computeRollLayout(strip, 0, 0, opts).totalOrdered;
+    const at90 = c.computeRollLayout(strip, 90, 0, opts).totalOrdered;
+    assert(Math.abs(at90 - at0) > 1e-6, 'sanity: the test strip is direction-sensitive');
+
+    // With a 90° override on the secondary, primary stays at the passed 0°.
+    const projOv = { layout: { secondaryShapeModes: {0:'install'}, layerRoll: { 0: { rotation: 90 } } } };
+    const layers = c.computeInstallLayerLayouts(projOv, primaryLayout, secondaryShapes, 0, 0, opts);
+    assert(layers.length === 2, 'primary + 1 install layer');
+    assert(layers[0].id === 'primary' && layers[0].rollRotation === 0 && layers[0].rollOverridden === false, 'primary uses passed rotation, not overridden');
+    assert(layers[1].rollRotation === 90 && layers[1].rollOverridden === true, 'secondary uses its 90° override');
+    assert(Math.abs(layers[1].layout.totalOrdered - at90) < 1e-6, 'overridden layer rolled at 90°');
+
+    // No override → secondary falls back to the passed rotation/translation.
+    const projFb = { layout: { secondaryShapeModes: {0:'install'} } };
+    const layersFb = c.computeInstallLayerLayouts(projFb, primaryLayout, secondaryShapes, 0, 0, opts);
+    assert(layersFb[1].rollRotation === 0 && layersFb[1].rollOverridden === false, 'no override → falls back to passed rotation');
+    assert(Math.abs(layersFb[1].layout.totalOrdered - at0) < 1e-6, 'fallback layer rolled at passed 0°');
+
+    // Non-install layers are excluded from the install layouts.
+    const projEx = { layout: { secondaryShapeModes: {0:'exclude'} } };
+    assert(c.computeInstallLayerLayouts(projEx, primaryLayout, secondaryShapes, 0, 0, opts).length === 1, 'excluded layer not rolled');
+  }
+}
+
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
