@@ -5,6 +5,25 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd, 17) — Fix: editing/renaming a labor line wiped its tiered pricing
+
+### Bug
+`saveRateItem` rebuilt the labor item from only `{id, name, desc, unit, rate, key}`,
+so any field the edit form doesn't show — notably **`tiers`** — was dropped. Renaming
+a tiered line (or editing its notes/unit) silently erased its whole tier table.
+
+### Fix
+New `buildEditedLaborItem(existing, fields)` spreads the existing item first, then
+overwrites only the edited fields — preserving `tiers`, `key`, and anything else.
+New items (no existing) still start clean. `saveRateItem` now uses it.
+
+### Tests
+- Section 46: rename preserves `tiers` (still tiered after) + `key` + `id`; a new
+  item starts clean with a parsed rate and no leaked tiers.
+- **Total: 603 tests, all passing** (597 prior + 6 new).
+
+---
+
 ## 2026-06-17 (cont'd, 16) — Tier editor: clearer range entry, pre-filled tiers
 
 Fixes the confusion where adding a tier showed a "From 0" that couldn't be edited

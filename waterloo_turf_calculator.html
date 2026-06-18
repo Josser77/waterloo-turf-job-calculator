@@ -4380,19 +4380,33 @@ function closeRateModal() {
   _riIndex = null;
 }
 
+// Build the saved labor item from the edit form, PRESERVING any fields the form
+// doesn't touch (notably `tiers` — renaming/editing a line must not wipe its
+// tiered pricing) and `key`. For a new item (existing == null) it starts clean.
+function buildEditedLaborItem(existing, fields) {
+  return {
+    ...(existing || {}),
+    id: existing ? existing.id : 'r_' + Date.now(),
+    name: fields.name,
+    desc: fields.desc,
+    unit: fields.unit,
+    rate: parseFloat(fields.rate) || 0,
+    key: existing ? (existing.key || '') : '',
+  };
+}
+
 function saveRateItem() {
   const name = document.getElementById('riName').value.trim();
   if (!name) { document.getElementById('riName').focus(); return; }
 
   const items = getLaborItems();
-  const item = {
-    id: _riIndex !== null ? items[_riIndex].id : 'r_' + Date.now(),
+  const existing = _riIndex !== null ? items[_riIndex] : null;
+  const item = buildEditedLaborItem(existing, {
     name,
     desc: document.getElementById('riDesc').value.trim(),
     unit: document.getElementById('riUnit').value.trim(),
-    rate: parseFloat(document.getElementById('riRate').value)||0,
-    key: _riIndex !== null ? (items[_riIndex].key||'') : '',
-  };
+    rate: document.getElementById('riRate').value,
+  });
 
   if (_riIndex !== null) items[_riIndex] = item;
   else items.push(item);

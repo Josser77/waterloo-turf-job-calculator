@@ -3331,6 +3331,25 @@ section('46. Tiered labor pricing');
       'getTierRanges sorts brackets ascending with integer lower bounds');
     assert(c.getTierRanges({ rate: 8 }).length === 0, 'flat item has no ranges');
   }
+
+  // ── buildEditedLaborItem: rename/edit must preserve tiers + key ──
+  {
+    const c = tierCtx();
+    const existing = {
+      id: 'r_putting', name: 'Putting Green Install', desc: 'New base included',
+      unit: 'per sq ft', rate: 0, key: 'putting',
+      tiers: [ {upTo:500, rate:5}, {upTo:1000, rate:6}, {upTo:null, rate:7} ],
+    };
+    const edited = c.buildEditedLaborItem(existing, { name: 'PG Install (renamed)', desc: 'd', unit: 'per sq ft', rate: '' });
+    assert(edited.name === 'PG Install (renamed)', 'rename applies');
+    assert(Array.isArray(edited.tiers) && edited.tiers.length === 3, 'tiers preserved through a rename');
+    assert(c.itemIsTiered(edited) === true, 'renamed item is still tiered');
+    assert(edited.key === 'putting', 'key preserved through a rename');
+    assert(edited.id === 'r_putting', 'id preserved on edit');
+    // New item (no existing) starts clean — no tiers leak in.
+    const fresh = c.buildEditedLaborItem(null, { name: 'New Line', desc: '', unit: 'per sq ft', rate: '8' });
+    assert(fresh.tiers === undefined && fresh.key === '' && fresh.rate === 8, 'new item starts clean with parsed rate');
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════
