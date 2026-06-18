@@ -1969,7 +1969,7 @@
         </div>
 
         <div class="docs-h3">2. Infill</div>
-        <p>Each row is an infill product. <strong>SqFt auto-populates</strong> from turf installed sqft based on the Tier — Standard and Upgraded infill get the base yard sqft, Putting Green infill gets the putting green sqft. Changing a row's Tier re-derives its sqft (and bags) for the new area automatically, so switching a row to Putting Green immediately picks up the putting-green sqft. You can override any sqft manually. In quote cards, putting green infill shows as its own line so you can see its contribution.</p>
+        <p>Each row is an infill product. <strong>SqFt auto-populates</strong> from turf installed sqft based on the Tier — Standard and Upgraded infill get the base yard sqft, Putting Green infill gets the putting green sqft. Products whose name contains "Putt" (e.g. GD Putting Sand) are auto-set to the Putting Green tier when added, so "↻ Refresh from SqFt" fills them from the putting green area without hand-setting the tier; you can still change any row's Tier. Changing a row's Tier re-derives its sqft (and bags) for the new area automatically. You can override any sqft manually. In quote cards, putting green infill shows as its own line so you can see its contribution.</p>
         <p>Enter <strong>Lbs per SqFt</strong> (how dense the infill is) and <strong>Cost per Bag</strong> (pre-filled from Settings if set). <strong>Bags ↑</strong> and <strong>Line Cost ↑</strong> calculate automatically (50 lbs per bag).</p>
         <p>The <strong>Tier</strong> dropdown controls how this infill appears in quote options:</p>
         <div style="background:var(--surface2);border-radius:8px;padding:12px 16px;margin:10px 0;font-size:12px;">
@@ -1998,7 +1998,7 @@
           <li>Within each group, putting green variants appear side by side: one card without a putting green, one per Putting Green turf row</li>
         </ul>
         <p><strong>Example</strong> — Standard turf + 1 Alt turf, Standard + Upgraded infill, 1 putting green option → 4 groups, 2 cards each = 8 total quote options.</p>
-        <p><strong>What's included in each total:</strong> Labor (standard yard rate + putting green rate if applicable), turf material cost (ordered sqft × cost/sqft from Settings), edging, infill materials (bags × cost/bag, with putting green infill on its own line), putting green fringe (if configured in the Layout tab — see Putting Green Fringe below), and miscellaneous items — all split correctly by role/tier per scenario.</p>
+        <p><strong>What's included in each total:</strong> Labor (the turf-install rate — standard yard + putting green if applicable), turf material cost (ordered sqft × cost/sqft from Settings, with putting green turf on its own line), edging, infill materials (bags × cost/bag, with putting green infill on its own line), putting green fringe (if configured in the Layout tab — see Putting Green Fringe below), and miscellaneous items (each shown as its own line, not lumped together) — all split correctly by role/tier per scenario.</p>
         <p>When a profit margin is set, each card shows three figures: <strong>Cost (COGS)</strong>, your <strong>Margin</strong> in dollars (Price − Cost), and the customer <strong>Price</strong>. If a job is putting-green-only (no base/alt turf), the "No Putting Green" option is omitted since it would be an empty card.</p>
       </div>
 
@@ -2826,7 +2826,7 @@ function createProject() {
   const selectedInfill = [...document.querySelectorAll('#infillCheckboxes input:checked')]
     .map(cb => {
       const i = cat.infill.find(x=>x.id===cb.value);
-      return { product: i ? i.name : cb.value, lbsPerSqFt: i ? (i.lbsPerSqFt||'') : '', costPerBag: i ? (i.costPerBag||'') : '', sqFt: '', bags: '', role:'base', tier:'standard' };
+      return { product: i ? i.name : cb.value, lbsPerSqFt: i ? (i.lbsPerSqFt||'') : '', costPerBag: i ? (i.costPerBag||'') : '', sqFt: '', bags: '', role:'base', tier: inferInfillTier(i ? i.name : cb.value) };
     });
 
   // Pre-calculate edging if provided
@@ -3039,6 +3039,13 @@ function calcTurfRow(i) {
   autoPopulateRock();
   calcQuote();
   updateMaterialsSummary();
+}
+
+// Guess an infill row's tier from its product name: putting-sand products are
+// for the putting green, everything else is yard infill. Lets "Refresh from
+// SqFt" pull the right area without the user hand-setting the tier.
+function inferInfillTier(productName) {
+  return /putt/i.test(productName || '') ? 'putting-green' : 'standard';
 }
 
 // The installed area an infill row covers, by tier: putting-green tier → the
@@ -3290,7 +3297,7 @@ function addInfillRow(prefill) {
   const proj = getCurrentProject(); if(!proj) return;
   proj.infill = proj.infill||[];
   const i = proj.infill.length;
-  proj.infill.push({ product: prefill?.product||'', sqFt:'', lbsPerSqFt: prefill?.lbsPerSqFt||'', costPerBag: prefill?.costPerBag||'', bags:'', role:'base', tier:'standard' });
+  proj.infill.push({ product: prefill?.product||'', sqFt:'', lbsPerSqFt: prefill?.lbsPerSqFt||'', costPerBag: prefill?.costPerBag||'', bags:'', role:'base', tier: inferInfillTier(prefill?.product) });
   save();
   const container = document.getElementById('infillRows');
   container.appendChild(makeInfillRow(proj.infill[i], i));
@@ -3534,6 +3541,15 @@ function calcQuote() {
   const pgMiscCost = (proj.miscItems||[])
     .filter(r => r.role === 'putting-green')
     .reduce((s,r) => s + (parseFloat(r.qty)||1)*(parseFloat(r.price)||0), 0);
+  // Per-item lists, so each misc item shows as its own quote line (not lumped).
+  const baseMiscItems = (proj.miscItems||[]).filter(r => (r.role||'base') === 'base');
+  const pgMiscItems   = (proj.miscItems||[]).filter(r => r.role === 'putting-green');
+  function miscLineHtml(r) {
+    const qty = parseFloat(r.qty)||1, price = parseFloat(r.price)||0, cost = qty*price;
+    if (!cost) return '';
+    const label = (r.name||'Item') + (qty !== 1 ? ` (${qty} × ${fmt(price)})` : '');
+    return `<div class="opt-line"><span>${label}</span><span>${fmt(cost)}</span></div>`;
+  }
 
   // Helper: turf material cost for a set of rows
   function turfMaterialCost(rows) {
@@ -3667,10 +3683,10 @@ function calcQuote() {
 
         let breakdown = '';
         if (pgSqFt) {
-          if (stdSqFt > 0) breakdown += `<div class="opt-line"><span>Standard yard ($${stdRate}/sqft${stdTieredNote} × ${stdSqFt.toLocaleString()} sqft)</span><span>${fmt(laborStd)}</span></div>`;
-          breakdown += `<div class="opt-line"><span>Putting green ($${pgRate}/sqft${pgTieredNote} × ${pgSqFt.toLocaleString()} sqft)</span><span>${fmt(laborPg)}</span></div>`;
+          if (stdSqFt > 0) breakdown += `<div class="opt-line"><span>Standard yard install ($${stdRate}/sqft${stdTieredNote} × ${stdSqFt.toLocaleString()} sqft)</span><span>${fmt(laborStd)}</span></div>`;
+          breakdown += `<div class="opt-line"><span>Putting green install ($${pgRate}/sqft${pgTieredNote} × ${pgSqFt.toLocaleString()} sqft)</span><span>${fmt(laborPg)}</span></div>`;
         } else {
-          breakdown += `<div class="opt-line"><span>Labor ($${stdRate}/sqft${stdTieredNote} × ${totalSqFt.toLocaleString()} sqft)</span><span>${fmt(laborStd)}</span></div>`;
+          breakdown += `<div class="opt-line"><span>Turf install ($${stdRate}/sqft${stdTieredNote} × ${totalSqFt.toLocaleString()} sqft)</span><span>${fmt(laborStd)}</span></div>`;
         }
         if (turfMatCost) breakdown += `<div class="opt-line"><span>Turf materials</span><span>${fmt(turfMatCost)}</span></div>`;
         if (pgTurfMatCost) breakdown += `<div class="opt-line"><span>Putting green turf</span><span>${fmt(pgTurfMatCost)}</span></div>`;
@@ -3678,7 +3694,8 @@ function calcQuote() {
         if (edgeCost) breakdown += `<div class="opt-line"><span>Edging</span><span>${fmt(edgeCost)}</span></div>`;
         if (tierInfillCost) breakdown += `<div class="opt-line"><span>Infill${infillTiers.length > 1 ? ' ('+infillTier+')' : ''}</span><span>${fmt(tierInfillCost)}</span></div>`;
         if (pgSqFt > 0 && pgInfillCost) breakdown += `<div class="opt-line"><span>Putting green infill</span><span>${fmt(pgInfillCost)}</span></div>`;
-        if (scenarioMiscCost) breakdown += `<div class="opt-line"><span>Misc items</span><span>${fmt(scenarioMiscCost)}</span></div>`;
+        baseMiscItems.forEach(r => { breakdown += miscLineHtml(r); });
+        if (pgSqFt > 0) pgMiscItems.forEach(r => { breakdown += miscLineHtml(r); });
 
         const marginAmt = sellPrice - cogs;
         const priceLabelStyle = 'font-size:10px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.06em;';

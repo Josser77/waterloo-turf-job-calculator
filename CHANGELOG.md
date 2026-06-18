@@ -5,6 +5,65 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd, 22) — End-to-end quote regression suite
+
+Adds section 53: a reusable harness (`qEnv`) that renders real quote cards through
+`loadProject` → `calcQuote` and asserts the dollar figures, line items, and card
+structure. This is the safety net for the money path, where most of this session's
+bugs lived. No application code changed — tests only.
+
+### Coverage (54 new assertions)
+Positive scenarios: A base-only, B base + putting green (No-PG and With-PG cards),
+C putting-green-only (no empty No-PG card, no standard line), D alt turf + PG
+(separate base/alt groups, alt material rate), E tiered standard **and** tiered
+putting resolving on each type's own area, F misc items broken out per line and
+split by role, G margin (cost / margin$ / price, and margin$ = price − cost).
+
+Boundary tests: E2 tier cap is inclusive (1000 → $9, 1001 → $8), H putting-green
+turf material rounds the order to a whole roll (100 → 105 × $3.50 = $367.50),
+I margin clamps at 99%.
+
+Negative tests: N1 empty project (no crash, no NaN, $0 card), N2 zero-sqft rows
+filtered out, N3 garbage labor rate → $0 labor with no NaN, N4 $0-priced misc item
+renders no line, N5 putting-green infill with no PG turf row is not billed and
+produces no PG card, N6 negative margin treated as no margin.
+
+### Tests
+- **Total: 674 tests, all passing** (620 prior + 54 new).
+
+---
+
+## 2026-06-17 (cont'd, 21) — PG infill auto-tier, misc items broken out, "install" wording
+
+### "Refresh from SqFt" now works for putting green infill
+Root cause: a putting-green infill product added with the default Standard tier
+pulls the base yard area (zero on a putting-green-only job), so refresh looked
+broken. New `inferInfillTier(productName)` auto-classifies products whose name
+contains "Putt" (e.g. GD Putting Sand) to the Putting Green tier when added (new
+rows and at project creation), so Refresh fills them from the putting green area.
+The row's Tier is still editable and remains the source of truth.
+
+### Misc items broken out per line
+Quote cards previously lumped all miscellaneous items into one "Misc items" line.
+Each misc item now renders as its own line (name, qty × price → cost), split by
+role (putting-green misc only on cards that include a green). COGS unchanged.
+
+### "Install" wording on labor lines
+Labor breakdown lines now read "Standard yard install", "Putting green install",
+and "Turf install" (was "Standard yard" / "Putting green" / "Labor").
+
+### Tests
+- Section 46: `inferInfillTier` — putting-sand → putting-green, other sands →
+  standard, blank/undefined → standard.
+- **Total: 620 tests, all passing** (615 prior + 5 new).
+
+### Note
+The auto-tier applies to newly added infill rows; existing rows keep their stored
+tier. A putting-green infill row already on the wrong tier can be fixed via its
+Tier dropdown (which now re-derives sqft on change).
+
+---
+
 ## 2026-06-17 (cont'd, 20) — Putting green quote cards: turf material, label, no empty standard line
 
 Fixes three issues on putting-green quote cards (seen on a PG-only job):

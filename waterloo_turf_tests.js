@@ -3368,6 +3368,16 @@ section('46. Tiered labor pricing');
     assert(c.infillAreaForTier({ turf: [{role:'base',installedSqFt:500}] }, 'putting-green') === 0, 'no PG row → putting-green area is 0');
   }
 
+  // ── inferInfillTier: putting-sand products auto-classify as putting-green ──
+  {
+    const c = tierCtx();
+    assert(c.inferInfillTier('GD Putting Sand') === 'putting-green', 'putting sand → putting-green tier');
+    assert(c.inferInfillTier('Pro Putt Infill') === 'putting-green', '"Putt" in name → putting-green tier');
+    assert(c.inferInfillTier('PFS Silica Sand 16/30') === 'standard', 'silica sand → standard tier');
+    assert(c.inferInfillTier('GD Medium Sand') === 'standard', 'medium sand → standard tier');
+    assert(c.inferInfillTier('') === 'standard' && c.inferInfillTier(undefined) === 'standard', 'blank/undefined → standard tier');
+  }
+
   // ── shouldIncludeNoPgCombo: hide the empty "No Putting Green" card on PG-only jobs ──
   {
     const c = tierCtx();
@@ -3811,6 +3821,285 @@ section('52. Per-layer roll direction / seam offset');
     // Non-install layers are excluded from the install layouts.
     const projEx = { layout: { secondaryShapeModes: {0:'exclude'} } };
     assert(c.computeInstallLayerLayouts(projEx, primaryLayout, secondaryShapes, 0, 0, opts).length === 1, 'excluded layer not rolled');
+  }
+}
+
+
+
+// ════════════════════════════════════════════════════════════════════════
+//  53. END-TO-END QUOTE SCENARIOS (regression net for calcQuote)
+//  Renders real quote cards through loadProject → calcQuote and asserts the
+//  dollar figures, line items, and card structure. Includes boundary tests
+//  (tier caps, roll rounding, margin clamp) and negative tests (empty/zero/
+//  garbage input) so the money path can't silently regress.
+// ════════════════════════════════════════════════════════════════════════
+section('53. End-to-end quote scenarios');
+{
+  const QCAT = {
+    turf: [
+      { id:'lush',    name:'WT Willamette Lush', type:'standard', costPerLinFt:'2.50' },
+      { id:'pdx85',   name:'WT PDX Putt 85',     type:'putting',  costPerLinFt:'3.50' },
+      { id:'reserve', name:'WT Pacific Reserve',  type:'standard', costPerLinFt:'3.00' },
+    ],
+    infill: [
+      { id:'silica', name:'PFS Silica Sand 16/30', lbsPerSqFt:'1', costPerBag:'10' },
+      { id:'gdputt', name:'GD Putting Sand',       lbsPerSqFt:'2', costPerBag:'12' },
+    ],
+    rock: [],
+  };
+  const FLAT_CREW = [{ id:'crew_main', name:'Main', items:[
+    { id:'r_standard', name:'Standard Turf Install', unit:'per sq ft', rate:'8',  key:'standard' },
+    { id:'r_putting',  name:'Putting Green Install',  unit:'per sq ft', rate:'12', key:'putting'  },
+  ]}];
+
+  function mockElQ(){ return { checked:false, value:'', style:{}, classList:{add:()=>{},remove:()=>{}}, addEventListener:()=>{}, querySelector:()=>null, querySelectorAll:()=>[], innerHTML:'', appendChild:()=>{}, replaceChildren:()=>{} }; }
+
+  // Render a project's quote cards and return { ctx, html, cards }.
+  function qEnv({ project, crews=FLAT_CREW, catalog=QCAT, margin=0, activeCrew='crew_main' }) {
+    const stored = {};
+    const mockLS = { getItem:k=>stored[k]||null, setItem:(k,v)=>{stored[k]=v;}, removeItem:k=>{delete stored[k];} };
+    stored['wt_catalog_v2']   = JSON.stringify(catalog);
+    stored['wt_crews_v1']     = JSON.stringify(crews);
+    stored['wt_active_crew']  = activeCrew;
+    stored['wt_profit_margin']= String(margin);
+    stored['wt_projects_v4']  = JSON.stringify([project]);
+    const inputs = {
+      quoteOptionsContainer:{innerHTML:''}, fringeSummary:{innerHTML:''}, fringeGroup:{style:{}},
+      fringeConfigFields:{style:{}}, fringeEnabled:{checked:false}, fringeTurfProduct:{innerHTML:'',value:''}, fringeWidth:{value:''},
+      layoutLayersList:{innerHTML:''}, infillRows:{innerHTML:'',appendChild:()=>{}}, turfRows:{innerHTML:'',appendChild:()=>{}},
+      quoteMiscRows:{innerHTML:'',appendChild:()=>{}}, rockRows:{innerHTML:'',appendChild:()=>{}},
+    };
+    const m2d = { clearRect:()=>{},beginPath:()=>{},moveTo:()=>{},lineTo:()=>{},closePath:()=>{},fill:()=>{},stroke:()=>{},save:()=>{},restore:()=>{},setLineDash:()=>{},arc:()=>{},fillRect:()=>{},fillText:()=>{},measureText:()=>({width:10}),translate:()=>{},rect:()=>{},clip:()=>{} };
+    const canvas = { width:700,height:350,getContext:()=>m2d,getBoundingClientRect:()=>({left:0,top:0,width:700,height:350}),addEventListener:()=>{},style:{},classList:{add:()=>{},remove:()=>{}},textContent:'' };
+    inputs.rollLayoutCanvas = canvas;
+    inputs.layoutCanvasWrap = { clientWidth:700, scrollLeft:0, scrollTop:0, addEventListener:()=>{} };
+    const ctx = {
+      window:{onload:null,_wtLayoutZoom:1,_wtEditMode:false,_wtSelectedProjects:null,innerHeight:900},
+      document:{ getElementById:id=>inputs[id]||mockElQ(), querySelectorAll:()=>[], querySelector:()=>({classList:{add:()=>{},remove:()=>{}}}), addEventListener:()=>{}, createElement:()=>mockElQ() },
+      localStorage: mockLS, alert:()=>{}, confirm:()=>true, console,
+      ResizeObserver:function(){return{observe:()=>{}};},
+    };
+    vm.runInNewContext(scriptSrc, ctx);
+    ctx.loadProject(project.id);
+    const html = inputs.quoteOptionsContainer.innerHTML;
+    const cards = html.split('quote-option').slice(1);
+    return { ctx, html, cards };
+  }
+
+  const findCard = (cards, s) => cards.find(c => c.includes(s));
+  const cardPrices = card => [...card.matchAll(/opt-price[^>]*>(\$[\d,]+\.\d\d)<\/div>/g)].map(m=>m[1]);
+  const money = s => s==null ? null : parseFloat(String(s).replace(/[$,]/g,''));
+  function lineAmt(card, label){
+    const i = card.indexOf(label); if(i<0) return null;
+    const seg = card.slice(i+label.length);
+    const m = seg.match(/<\/span><span[^>]*>([^<]*)<\/span>/);
+    return m ? m[1] : null;
+  }
+  const baseProject = over => Object.assign({
+    id:'p1', name:'T', created:1000, edging:{}, pgSqFt:0, miscItems:[], turf:[], infill:[], rock:[],
+    layout:{ points:rect(0,0,50,40), area:2000, secondaryShapes:[], secondaryShapeModes:{}, rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, rotation:0, translation:0 },
+  }, over);
+  const tRow = o => Object.assign({ product:'', installedSqFt:0, sqFtToOrder:0, orderedSqFt:0, role:'base' }, o);
+
+  // ── A. Base only, no putting green ──
+  {
+    const { cards } = qEnv({ project: baseProject({ turf:[ tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }) ] }) });
+    assert(cards.length === 1, 'A: base-only job → exactly one card');
+    const c0 = cards[0];
+    assert(c0.includes('Turf install'), 'A: labor line reads "Turf install"');
+    assert(!c0.includes('Standard yard install') && !c0.includes('Putting green install'), 'A: no standard/PG split lines');
+    assert(!c0.includes('Putting green turf'), 'A: no PG turf material line');
+    assert(money(cardPrices(c0)[0]) === 1500*8 + 1500*2.50, 'A: COGS = labor 12000 + turf 3750 = 15750');
+  }
+
+  // ── B. Base + putting green → No-PG and With-PG cards ──
+  {
+    const { cards } = qEnv({ project: baseProject({ turf:[
+      tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }),
+      tRow({ product:'WT PDX Putt 85', installedSqFt:150, sqFtToOrder:150, orderedSqFt:150, role:'putting-green' }),
+    ] }) });
+    assert(cards.length === 2, 'B: base+PG → No-PG and With-PG cards');
+    const noPg = findCard(cards, 'No Putting Green');
+    const withPg = findCard(cards, 'Putting Green — WT PDX Putt 85');
+    assert(noPg && withPg, 'B: both card titles present');
+    // No-PG card
+    assert(noPg.includes('Turf install') && !noPg.includes('Putting green install'), 'B: No-PG card has no PG labor line');
+    assert(!noPg.includes('Putting green turf'), 'B: No-PG card has no PG turf line');
+    assert(money(cardPrices(noPg)[0]) === 1500*8 + 1500*2.50, 'B: No-PG COGS = 15750');
+    // With-PG card
+    assert(withPg.includes('Standard yard install'), 'B: With-PG shows standard yard install line');
+    assert(withPg.includes('Putting green install'), 'B: With-PG shows putting green install line');
+    assert(money(lineAmt(withPg, 'Putting green turf')) === 150*3.50, 'B: PG turf material line = $525');
+    const expectB = 1350*8 + 150*12 + 1500*2.50 + 150*3.50; // 10800+1800+3750+525
+    assert(money(cardPrices(withPg)[0]) === expectB, 'B: With-PG COGS = 16875');
+  }
+
+  // ── C. Putting-green-only → no empty No-PG card, no standard line ──
+  {
+    const { cards, html } = qEnv({ project: baseProject({ turf:[
+      tRow({ product:'WT PDX Putt 85', installedSqFt:150, sqFtToOrder:150, orderedSqFt:150, role:'putting-green' }),
+    ] }) });
+    assert(cards.length === 1, 'C: PG-only → exactly one card');
+    assert(!html.includes('No Putting Green'), 'C: no "No Putting Green" card on a PG-only job');
+    const c0 = cards[0];
+    assert(!c0.includes('Standard yard install'), 'C: no empty standard-yard line when stdSqFt=0');
+    assert(c0.includes('Putting green install'), 'C: shows putting green install line');
+    assert(money(lineAmt(c0, 'Putting green turf')) === 150*3.50, 'C: PG turf material = $525');
+    assert(html.includes('PUTTING GREEN') || html.includes('Putting Green'), 'C: group/title reads as a putting green');
+    assert(money(cardPrices(c0)[0]) === 150*12 + 150*3.50, 'C: COGS = PG labor 1800 + PG turf 525 = 2325');
+  }
+
+  // ── D. Alt turf + PG → separate base & alt groups ──
+  {
+    const { cards, html } = qEnv({ project: baseProject({ turf:[
+      tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }),
+      tRow({ product:'WT Pacific Reserve', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'alt-turf' }),
+      tRow({ product:'WT PDX Putt 85', installedSqFt:150, sqFtToOrder:150, orderedSqFt:150, role:'putting-green' }),
+    ] }) });
+    assert(cards.length === 4, 'D: 2 turf groups × (No-PG + With-PG) = 4 cards');
+    assert(html.includes('WT Pacific Reserve'), 'D: alt turf group header present');
+    // Alt With-PG card: alt material 1500*3.00 instead of base 2.50
+    const altWithPg = cards.find(c => c.includes('Putting Green — WT PDX Putt 85') && money(cardPrices(c)[0]) === 1350*8 + 150*12 + 1500*3.00 + 150*3.50);
+    assert(altWithPg, 'D: alt With-PG COGS uses alt turf material (1500*3.00) = 17625');
+  }
+
+  // ── E. Tiered standard AND tiered putting, by own area ──
+  {
+    const TIER_CREW = [{ id:'crew_main', name:'Main', items:[
+      { id:'r_standard', name:'Standard Turf Install', unit:'per sq ft', key:'standard', tiers:[ {upTo:1000, rate:9}, {upTo:null, rate:8} ] },
+      { id:'r_putting',  name:'Putting Green Install',  unit:'per sq ft', key:'putting',  tiers:[ {upTo:100, rate:14}, {upTo:null, rate:12} ] },
+    ]}];
+    const { cards } = qEnv({ crews: TIER_CREW, project: baseProject({ turf:[
+      tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }),
+      tRow({ product:'WT PDX Putt 85', installedSqFt:150, sqFtToOrder:150, orderedSqFt:150, role:'putting-green' }),
+    ] }) });
+    const withPg = findCard(cards, 'Putting Green — WT PDX Putt 85');
+    // std area 1350 > 1000 → $8; PG area 150 > 100 → $12
+    assert(withPg.includes('Standard yard install ($8/sqft tiered'), 'E: standard area 1350 resolves to the $8 bracket');
+    assert(withPg.includes('Putting green install ($12/sqft tiered'), 'E: PG area 150 resolves to the $12 bracket');
+    assert(money(cardPrices(withPg)[0]) === 1350*8 + 150*12 + 1500*2.50 + 150*3.50, 'E: tiered COGS correct');
+  }
+
+  // ── E2. BOUNDARY: standard tier cap is inclusive (1000 → $9, 1001 → $8) ──
+  {
+    const TIER_CREW = [{ id:'crew_main', name:'Main', items:[
+      { id:'r_standard', name:'Standard Turf Install', unit:'per sq ft', key:'standard', tiers:[ {upTo:1000, rate:9}, {upTo:null, rate:8} ] },
+      { id:'r_putting',  name:'Putting Green Install',  unit:'per sq ft', key:'putting',  rate:'12' },
+    ]}];
+    const at1000 = qEnv({ crews: TIER_CREW, project: baseProject({ turf:[ tRow({ product:'WT Willamette Lush', installedSqFt:1000, sqFtToOrder:1000, orderedSqFt:1000, role:'base' }) ] }) });
+    assert(at1000.cards[0].includes('Turf install ($9/sqft tiered'), 'E2: exactly 1000 sqft → $9 (cap inclusive)');
+    const at1001 = qEnv({ crews: TIER_CREW, project: baseProject({ turf:[ tRow({ product:'WT Willamette Lush', installedSqFt:1001, sqFtToOrder:1001, orderedSqFt:1005, role:'base' }) ] }) });
+    assert(at1001.cards[0].includes('Turf install ($8/sqft tiered'), 'E2: 1001 sqft → $8 (next bracket)');
+  }
+
+  // ── F. Misc items broken out per line, split by role ──
+  {
+    const { cards } = qEnv({ project: baseProject({
+      turf:[
+        tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }),
+        tRow({ product:'WT PDX Putt 85', installedSqFt:150, sqFtToOrder:150, orderedSqFt:150, role:'putting-green' }),
+      ],
+      miscItems:[
+        { name:'Seam Tape', price:50, qty:1, role:'base' },
+        { name:'Adhesive',  price:30, qty:2, role:'base' },
+        { name:'Cup Set',   price:40, qty:1, role:'putting-green' },
+      ],
+    }) });
+    const noPg = findCard(cards, 'No Putting Green');
+    const withPg = findCard(cards, 'Putting Green — WT PDX Putt 85');
+    assert(!withPg.includes('Misc items'), 'F: no lumped "Misc items" line');
+    assert(money(lineAmt(withPg, 'Seam Tape')) === 50, 'F: Seam Tape its own line = $50');
+    assert(withPg.includes('Adhesive (2 × $30.00)') && money(lineAmt(withPg, 'Adhesive')) === 60, 'F: Adhesive shows qty × price = $60');
+    assert(money(lineAmt(withPg, 'Cup Set')) === 40, 'F: PG misc "Cup Set" on the With-PG card');
+    assert(!noPg.includes('Cup Set'), 'F: PG misc NOT on the No-PG card');
+    assert(noPg.includes('Seam Tape'), 'F: base misc on the No-PG card');
+  }
+
+  // ── G. Margin: Cost / Margin$ / Price; margin $ = price − cost ──
+  {
+    const withMargin = qEnv({ margin:40, project: baseProject({ turf:[ tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }) ] }) });
+    const p = cardPrices(withMargin.cards[0]).map(money);
+    assert(p.length === 3, 'G: margin card shows three figures (cost, margin, price)');
+    const [cost, marginAmt, price] = p;
+    assert(cost === 15750, 'G: cost = COGS 15750');
+    assert(Math.abs(price - 15750/0.6) < 0.01, 'G: 40% margin → price = cost/0.6 = 26250');
+    assert(Math.abs(marginAmt - (price - cost)) < 0.01, 'G: margin dollars = price − cost = 10500');
+    const noMargin = qEnv({ margin:0, project: baseProject({ turf:[ tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }) ] }) });
+    assert(cardPrices(noMargin.cards[0]).length === 1, 'G: 0% margin → single price figure');
+  }
+
+  // ── H. BOUNDARY: PG turf material uses roll-rounded order (100 → 105) ──
+  {
+    const { cards } = qEnv({ project: baseProject({ turf:[
+      tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }),
+      tRow({ product:'WT PDX Putt 85', installedSqFt:100, sqFtToOrder:100, orderedSqFt:100, role:'putting-green' }),
+    ] }) });
+    const withPg = findCard(cards, 'Putting Green — WT PDX Putt 85');
+    // ceil(100/15)*15 = 105 → 105 * 3.50 = 367.50 (not 100*3.50)
+    assert(money(lineAmt(withPg, 'Putting green turf')) === Math.ceil(100/15)*15 * 3.50, 'H: PG turf material rounds the order to a whole roll (105 × $3.50 = $367.50)');
+  }
+
+  // ── I. BOUNDARY: margin clamps at 99% ──
+  {
+    const env = qEnv({ margin:150, project: baseProject({ turf:[ tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }) ] }) });
+    const p = cardPrices(env.cards[0]).map(money);
+    // applyMargin clamps to 99% → price = cost / (1 - 0.99) = cost * 100
+    assert(Math.abs(p[p.length-1] - 15750*100) < 0.01, 'I: margin clamps at 99% → price = cost × 100');
+  }
+
+  // ── NEGATIVE 1: empty project (no turf) → one $0 card, no crash, no NaN ──
+  {
+    const { cards, html } = qEnv({ project: baseProject({ turf:[] }) });
+    assert(typeof html === 'string', 'N1: empty project renders without throwing');
+    assert(!html.includes('NaN'), 'N1: no NaN in output');
+    assert(cards.length === 0 || money(cardPrices(cards[0])[0]) === 0, 'N1: empty project → no card or a $0 card');
+  }
+
+  // ── NEGATIVE 2: zero-sqft rows are filtered out ──
+  {
+    const { cards, html } = qEnv({ project: baseProject({ turf:[
+      tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }),
+      tRow({ product:'WT Pacific Reserve', installedSqFt:0, sqFtToOrder:0, orderedSqFt:0, role:'alt-turf' }),
+    ] }) });
+    assert(!html.includes('WT Pacific Reserve'), 'N2: a 0-sqft alt row produces no card');
+    assert(cards.length === 1, 'N2: only the non-zero base card renders');
+  }
+
+  // ── NEGATIVE 3: garbage labor rate → $0 labor, no NaN ──
+  {
+    const BAD_CREW = [{ id:'crew_main', name:'Main', items:[
+      { id:'r_standard', name:'Standard Turf Install', unit:'per sq ft', key:'standard', rate:'abc' },
+      { id:'r_putting',  name:'Putting Green Install',  unit:'per sq ft', key:'putting',  rate:'' },
+    ]}];
+    const { cards, html } = qEnv({ crews: BAD_CREW, project: baseProject({ turf:[ tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }) ] }) });
+    assert(!html.includes('NaN'), 'N3: garbage rate does not produce NaN');
+    assert(money(cardPrices(cards[0])[0]) === 1500*2.50, 'N3: labor falls to $0, COGS = turf material only (3750)');
+  }
+
+  // ── NEGATIVE 4: $0-priced misc item shows no line ──
+  {
+    const { cards } = qEnv({ project: baseProject({
+      turf:[ tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }) ],
+      miscItems:[ { name:'Freebie', price:0, qty:1, role:'base' } ],
+    }) });
+    assert(!cards[0].includes('Freebie'), 'N4: a $0 misc item renders no line');
+  }
+
+  // ── NEGATIVE 5: PG infill but no PG turf row → no PG card, no PG infill line ──
+  {
+    const { cards, html } = qEnv({ project: baseProject({
+      turf:[ tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }) ],
+      infill:[ { product:'GD Putting Sand', tier:'putting-green', bags:6, costPerBag:12, role:'base' } ],
+    }) });
+    assert(!html.includes('Putting Green —'), 'N5: no putting-green card without a PG turf row');
+    assert(!html.includes('Putting green infill'), 'N5: PG infill not billed when there is no PG area');
+    assert(cards.length === 1, 'N5: only the base card renders');
+  }
+
+  // ── NEGATIVE 6: negative margin is treated as no margin (single price) ──
+  {
+    const env = qEnv({ margin:-25, project: baseProject({ turf:[ tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }) ] }) });
+    assert(cardPrices(env.cards[0]).length === 1, 'N6: negative margin → single price figure (no margin block)');
   }
 }
 
