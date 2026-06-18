@@ -1781,6 +1781,9 @@
       <div style="font-size:12px;color:var(--text-light);margin-bottom:10px;line-height:1.45;background:var(--bg-alt);padding:8px 10px;border-radius:6px;">
         This line is charged at the rate of the single bracket its <strong>own installed area</strong> falls into (not a blend across brackets) — Standard Install tiers off the standard turf area, Putting Green Install off the putting green area. Each row below is a sqft range and its $/sqft; the box at the bottom covers everything above the largest limit.
       </div>
+      <div style="font-size:11px;color:var(--text-mid);margin-bottom:6px;">
+        Type the <strong>upper sqft limit</strong> of each tier and its price. The lower limit (grey chip) fills in automatically from the tier above, so tiers never overlap. Example: enter 500, then 1,000, then 1,500 to get 0–500, 501–1,000, 1,001–1,500. The box at the bottom covers anything larger.
+      </div>
       <div id="tierRows"></div>
       <button class="btn btn-ghost btn-sm" style="margin:2px 0 12px;" onclick="tierAddBracket()">＋ Add bracket</button>
       <div class="field-group" style="border-top:1px solid var(--border);padding-top:10px;">
@@ -4220,13 +4223,18 @@ function openTierModal(index) {
       else brackets.push({ upTo: t.upTo, rate: t.rate });
     });
   }
-  if (!brackets.length) brackets = [{ upTo:'', rate:'' }];
+  if (!brackets.length) brackets = [{ upTo:500, rate:'' }];
   window._wtTierEdit = { index, brackets, aboveRate };
 
   document.getElementById('tierModalTitle').textContent = 'Tiered Pricing — ' + (item.name || 'Line item');
   const crew = getActiveCrew();
+  const appliesTo = item.key === 'putting'
+    ? 'These brackets apply ONLY to turf rows whose Role is Putting Green, charged on the putting-green area.'
+    : item.key === 'standard'
+      ? 'These brackets apply to the Standard install area — Base Yard and Alt Turf rows (everything except putting greens).'
+      : 'These brackets apply to this line\u2019s installed sqft.';
   document.getElementById('tierModalSub').textContent =
-    'Crew: ' + (crew ? crew.name : '—') + '. The $/sqft for this line varies by the job\u2019s installed sqft.';
+    'Crew: ' + (crew ? crew.name : '—') + '. ' + appliesTo + ' The role is set per turf row on the Quote Builder tab — tiers themselves aren\u2019t tagged with a role.';
   const enabled = itemIsTiered(item);
   document.getElementById('tierEnabled').checked = enabled;
   document.getElementById('tierAboveRate').value = aboveRate;
@@ -4242,14 +4250,15 @@ function renderTierRows() {
   const wrap = document.getElementById('tierRows');
   const b = window._wtTierEdit ? window._wtTierEdit.brackets : [];
   wrap.innerHTML = b.map((row,i)=>`
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-      <span class="tier-from" data-i="${i}" style="font-size:12px;color:var(--text-mid);white-space:nowrap;min-width:74px;">From 0</span>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
+      <span style="font-size:11px;color:var(--text-light);min-width:40px;">Tier ${i+1}</span>
+      <span class="tier-from" data-i="${i}" title="Lower limit — fills in automatically from the tier above; not editable" style="font-size:12px;font-weight:600;color:var(--text-mid);background:var(--bg-alt);border:1px solid var(--border);border-radius:5px;padding:4px 7px;white-space:nowrap;min-width:40px;text-align:center;">0</span>
       <span style="font-size:12px;color:var(--text-mid);">to</span>
-      <input type="number" value="${row.upTo}" step="1" min="0" placeholder="sqft" class="manual-input tier-up" data-i="${i}" oninput="updateTierRangeLabels()" style="width:84px;padding:5px 8px;">
-      <span style="font-size:12px;color:var(--text-mid);">sqft &rarr; $</span>
-      <input type="number" value="${row.rate}" step="0.01" min="0" placeholder="0.00" class="manual-input tier-rate" data-i="${i}" style="width:74px;padding:5px 8px;">
+      <input type="number" value="${row.upTo}" step="1" min="1" placeholder="e.g. 500" class="manual-input tier-up" data-i="${i}" oninput="updateTierRangeLabels()" title="Type this tier's upper sqft limit" style="width:90px;padding:5px 8px;">
+      <span style="font-size:12px;color:var(--text-mid);">sqft = $</span>
+      <input type="number" value="${row.rate}" step="0.01" min="0" placeholder="0.00" class="manual-input tier-rate" data-i="${i}" title="Price per sqft for this tier" style="width:74px;padding:5px 8px;">
       <span style="font-size:12px;color:var(--text-light);">/sqft</span>
-      <button class="btn-delete" style="margin-left:auto;" onclick="tierRemoveBracket(${i})" title="Remove bracket">✕</button>
+      <button class="btn-delete" style="margin-left:auto;" onclick="tierRemoveBracket(${i})" title="Remove this tier">✕</button>
     </div>`).join('');
   updateTierRangeLabels();
 }
@@ -4267,7 +4276,7 @@ function updateTierRangeLabels() {
       const below = caps.filter(c => c < cap);
       lower = below.length ? Math.max(...below) + 1 : 0; // non-overlapping whole-sqft ranges
     }
-    span.textContent = 'From ' + lower.toLocaleString();
+    span.textContent = lower.toLocaleString();
   });
   const aboveLabel = document.getElementById('tierAboveLabel');
   if (aboveLabel) {
@@ -4288,13 +4297,17 @@ function tierReadInputs() {
 }
 function tierAddBracket() {
   tierReadInputs();
-  window._wtTierEdit.brackets.push({ upTo:'', rate:'' });
+  // Pre-fill the new tier's upper limit so it's never a confusing blank/0 row —
+  // 500 above the current highest limit. The user can change it freely.
+  const caps = window._wtTierEdit.brackets.map(b => parseFloat(b.upTo)).filter(v => !isNaN(v));
+  const next = caps.length ? Math.max(...caps) + 500 : 500;
+  window._wtTierEdit.brackets.push({ upTo: next, rate:'' });
   renderTierRows();
 }
 function tierRemoveBracket(i) {
   tierReadInputs();
   window._wtTierEdit.brackets.splice(i,1);
-  if (!window._wtTierEdit.brackets.length) window._wtTierEdit.brackets.push({ upTo:'', rate:'' });
+  if (!window._wtTierEdit.brackets.length) window._wtTierEdit.brackets.push({ upTo:500, rate:'' });
   renderTierRows();
 }
 function saveTierModal() {

@@ -5,6 +5,34 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd, 16) — Tier editor: clearer range entry, pre-filled tiers
+
+Fixes the confusion where adding a tier showed a "From 0" that couldn't be edited
+and new tiers appeared blank/0. The lower bound was always an auto-derived value
+(by design, so tiers can't overlap) — it just looked like a stuck, broken field.
+
+### Changes (UI only — no change to resolution math or stored data)
+- **New tiers pre-fill** their upper limit (highest existing limit + 500, or 500
+  for the first) instead of rendering blank, so every tier shows a real, editable
+  number. `tierAddBracket` / the first-bracket default updated.
+- **Lower bound is now a clearly static grey chip** (bordered pill, tooltip "fills
+  in automatically… not editable") instead of looking like an input, so it's
+  obvious you type the *upper* limit and the bottom fills itself in.
+- Each row is labeled **Tier 1, Tier 2, …** with a one-line instruction above the
+  rows: type the upper sqft limit + price; enter 500, 1,000, 1,500 → 0–500,
+  501–1,000, 1,001–1,500; the bottom box covers anything larger.
+- Standard vs putting green is unchanged and already correct: a turf row's **Role**
+  (Base Yard / Alt Turf Option / Putting Green) decides it — Putting-Green-role
+  sqft bills at the Putting Green Install rate/tiers, everything else at Standard.
+  The tier modal now states plainly which role/area its brackets apply to (tiers
+  are role-bound by which labor line they live on, not by a per-bracket role field).
+
+### Tests
+- No new pure functions; resolution + range logic unchanged and still covered by
+  section 46. **Total remains 597, all passing.**
+
+---
+
 ## 2026-06-17 (cont'd, 15) — Tiered pricing: non-overlapping whole-sqft ranges
 
 ### Brackets now read as clean integer ranges
