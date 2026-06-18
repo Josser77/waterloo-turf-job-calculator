@@ -5,6 +5,31 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd, 18) — Fix: putting green infill not affecting quote pricing
+
+### Bug
+Setting an infill row's Tier to **Putting Green** didn't re-derive that row's sqft.
+The tier `onchange` only stored the new tier + recalced the quote; it never refilled
+sqft from the putting-green area or recomputed bags. A row switched to Putting Green
+kept its old/empty sqft → 0 bags → $0, so the putting green infill never showed up in
+quote pricing.
+
+### Fix
+- New `infillAreaForTier(proj, tier)` helper (putting-green tier → PG area; else base
+  yard area), used by both `autoPopulateInfill` and the tier change.
+- `updateInfillField` now, on a tier change, re-derives the row's sqft from the right
+  area, recomputes bags/line cost, and re-renders the row.
+- Quote cards now show **Putting green infill** as its own breakdown line (separate
+  from yard infill) so its contribution is visible. (Totals unchanged — it was always
+  meant to be in COGS; it just wasn't being computed.)
+
+### Tests
+- Section 46: `infillAreaForTier` — PG tier → putting green sqft, standard/upgraded →
+  base yard sqft (alt-turf excluded), no PG row → 0.
+- **Total: 607 tests, all passing** (603 prior + 4 new).
+
+---
+
 ## 2026-06-17 (cont'd, 17) — Fix: editing/renaming a labor line wiped its tiered pricing
 
 ### Bug

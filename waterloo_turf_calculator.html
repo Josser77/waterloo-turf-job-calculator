@@ -1969,7 +1969,7 @@
         </div>
 
         <div class="docs-h3">2. Infill</div>
-        <p>Each row is an infill product. <strong>SqFt auto-populates</strong> from turf installed sqft based on the Tier — Standard and Upgraded infill get the base yard sqft, Putting Green infill gets the putting green sqft. You can override any sqft manually.</p>
+        <p>Each row is an infill product. <strong>SqFt auto-populates</strong> from turf installed sqft based on the Tier — Standard and Upgraded infill get the base yard sqft, Putting Green infill gets the putting green sqft. Changing a row's Tier re-derives its sqft (and bags) for the new area automatically, so switching a row to Putting Green immediately picks up the putting-green sqft. You can override any sqft manually. In quote cards, putting green infill shows as its own line so you can see its contribution.</p>
         <p>Enter <strong>Lbs per SqFt</strong> (how dense the infill is) and <strong>Cost per Bag</strong> (pre-filled from Settings if set). <strong>Bags ↑</strong> and <strong>Line Cost ↑</strong> calculate automatically (50 lbs per bag).</p>
         <p>The <strong>Tier</strong> dropdown controls how this infill appears in quote options:</p>
         <div style="background:var(--surface2);border-radius:8px;padding:12px 16px;margin:10px 0;font-size:12px;">
@@ -3033,15 +3033,23 @@ function calcTurfRow(i) {
   updateMaterialsSummary();
 }
 
-function autoPopulateInfill() {
-  const proj = getCurrentProject(); if(!proj) return;
-
+// The installed area an infill row covers, by tier: putting-green tier → the
+// putting green area; anything else → the base yard area.
+function infillAreaForTier(proj, tier) {
   const baseSqFt = (proj.turf||[])
     .filter(r => (r.role||'base') === 'base')
     .reduce((s,r)=>s+(parseFloat(r.installedSqFt)||0),0);
   const pgSqFt = (proj.turf||[])
     .filter(r => r.role === 'putting-green')
     .reduce((s,r)=>s+(parseFloat(r.installedSqFt)||0),0);
+  return (tier === 'putting-green') ? pgSqFt : baseSqFt;
+}
+
+function autoPopulateInfill() {
+  const proj = getCurrentProject(); if(!proj) return;
+
+  const baseSqFt = infillAreaForTier(proj, 'standard');
+  const pgSqFt = infillAreaForTier(proj, 'putting-green');
 
   if (!baseSqFt && !pgSqFt) return;
 
@@ -3208,7 +3216,18 @@ function makeInfillRow(row, i) {
 
 function updateInfillField(i, field, val) {
   const proj = getCurrentProject(); if(!proj) return;
-  proj.infill[i][field] = val; save();
+  proj.infill[i][field] = val;
+  // Changing a row's tier changes WHICH area it covers, so re-derive its sqft
+  // (putting-green tier → putting green area; otherwise the base yard area) and
+  // recompute bags. Without this, a row switched to Putting Green keeps its old
+  // (or empty) sqft, so it computes 0 bags and adds $0 to the quote.
+  if (field === 'tier') {
+    proj.infill[i].sqFt = infillAreaForTier(proj, val) || '';
+    calcInfillRow(i);            // recompute bags + line cost, save, refresh quote
+    renderInfillRows(proj);      // reflect the new sqft in the row's input
+    return;
+  }
+  save();
 }
 
 function updateInfillSqFt(i, input) {
@@ -3635,7 +3654,8 @@ function calcQuote() {
         if (turfMatCost) breakdown += `<div class="opt-line"><span>Turf materials</span><span>${fmt(turfMatCost)}</span></div>`;
         if (scenarioFringeCost) breakdown += `<div class="opt-line"><span>PG Fringe (${fringeSqFt.toLocaleString(undefined,{maximumFractionDigits:1})} sqft)</span><span>${fmt(scenarioFringeCost)}</span></div>`;
         if (edgeCost) breakdown += `<div class="opt-line"><span>Edging</span><span>${fmt(edgeCost)}</span></div>`;
-        if (scenarioInfillCost) breakdown += `<div class="opt-line"><span>Infill${infillTiers.length > 1 ? ' ('+infillTier+')' : ''}</span><span>${fmt(scenarioInfillCost)}</span></div>`;
+        if (tierInfillCost) breakdown += `<div class="opt-line"><span>Infill${infillTiers.length > 1 ? ' ('+infillTier+')' : ''}</span><span>${fmt(tierInfillCost)}</span></div>`;
+        if (pgSqFt > 0 && pgInfillCost) breakdown += `<div class="opt-line"><span>Putting green infill</span><span>${fmt(pgInfillCost)}</span></div>`;
         if (scenarioMiscCost) breakdown += `<div class="opt-line"><span>Misc items</span><span>${fmt(scenarioMiscCost)}</span></div>`;
 
         const priceBlock = marginPct > 0

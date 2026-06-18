@@ -3350,6 +3350,21 @@ section('46. Tiered labor pricing');
     const fresh = c.buildEditedLaborItem(null, { name: 'New Line', desc: '', unit: 'per sq ft', rate: '8' });
     assert(fresh.tiers === undefined && fresh.key === '' && fresh.rate === 8, 'new item starts clean with parsed rate');
   }
+
+  // ── infillAreaForTier: putting-green tier → PG area; else base yard area ──
+  {
+    const c = tierCtx();
+    const proj = { turf: [
+      { role:'base',          installedSqFt: 800 },
+      { role:'base',          installedSqFt: 200 },   // base sums to 1000
+      { role:'alt-turf',      installedSqFt: 950 },   // alt is NOT base, excluded
+      { role:'putting-green', installedSqFt: 300 },
+    ] };
+    assert(c.infillAreaForTier(proj, 'putting-green') === 300, 'putting-green infill area = putting green sqft');
+    assert(c.infillAreaForTier(proj, 'standard') === 1000, 'standard infill area = base yard sqft (alt excluded)');
+    assert(c.infillAreaForTier(proj, 'upgraded') === 1000, 'upgraded infill area = base yard sqft too');
+    assert(c.infillAreaForTier({ turf: [{role:'base',installedSqFt:500}] }, 'putting-green') === 0, 'no PG row → putting-green area is 0');
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════
