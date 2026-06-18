@@ -2422,14 +2422,16 @@ section('37. Putting green fringe: layer mode, config persistence, and quote cos
     const html = inputs.quoteOptionsContainer.innerHTML;
     const cards = html.split('quote-option').slice(1); // crude split per card
     const noPgCard = cards.find(c => c.includes('No Putting Green'));
-    const withPgCard = cards.find(c => c.includes('With WT PDX Putt 85'));
+    const withPgCard = cards.find(c => c.includes('WT PDX Putt 85'));
     assert(noPgCard && !noPgCard.includes('PG Fringe'), '"No Putting Green" card has no PG Fringe line');
     assert(withPgCard && withPgCard.includes('PG Fringe'), '"With Putting Green" card includes a PG Fringe line');
     assert(withPgCard.includes('$304.00'), '"With Putting Green" card shows fringe cost $304.00');
+    assert(withPgCard.includes('Putting green turf'), '"With Putting Green" card shows the green\'s turf material line');
 
     // Sanity: total COGS for the PG card includes fringe cost as an additive component
-    // Standard yard: 1600 sqft * $8 = $12800; PG: 200 * $12 = $2400; turf mat: 1800*2.50=$4500; fringe: $272
-    const expectedCogs = 1600*8 + 200*12 + 1800*2.50 + 304;
+    // Std yard: 1600*$8=$12800; PG labor: 200*$12=$2400; base turf mat: 1800*2.50=$4500;
+    // PG turf mat: order rounds to a whole roll → ceil(200/15)*15=210, ×$3.50=$735; fringe: $304
+    const expectedCogs = 1600*8 + 200*12 + 1800*2.50 + (Math.ceil(200/15)*15)*3.50 + 304;
     const priceMatch = withPgCard.match(/opt-price\">(\$[\d,]+\.\d\d)<\/div>/);
     assert(priceMatch, 'PG card has a price figure');
     const actualCogs = parseFloat(priceMatch[1].replace(/[$,]/g,''));

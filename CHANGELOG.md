@@ -5,6 +5,28 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd, 20) — Putting green quote cards: turf material, label, no empty standard line
+
+Fixes three issues on putting-green quote cards (seen on a PG-only job):
+
+- **Putting green turf material was never counted.** Turf material cost came only
+  from the base/alt rows; the green's own turf product was ignored. Cards now include
+  `pgTurfMatCost` (the PG row's roll-rounded ordered sqft × its $/sqft) in COGS and
+  show it as a **Putting green turf** line.
+- **Empty "Standard yard … × 0 sqft" line** no longer renders when there's no
+  standard area (stdSqFt = 0).
+- **Card now reads as a putting green** — title shows "Putting Green — <product>
+  (<n> sqft)" instead of "With <product>", and a putting-green-only job's group
+  header is "Putting Green" instead of "Base Quote".
+
+### Tests
+- Section 37c (end-to-end fringe/quote) updated: asserts the **Putting green turf**
+  line is present and that COGS now includes the green's roll-rounded turf material
+  (ceil(200/15)*15 × $3.50 = $735).
+- **Total: 615 tests, all passing** (614 prior + 1 new assertion).
+
+---
+
 ## 2026-06-17 (cont'd, 19) — Quote cards: roomier layout, margin $ line, no empty PG-only card
 
 ### Margin dollar amount

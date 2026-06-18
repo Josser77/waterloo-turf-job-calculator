@@ -3587,8 +3587,10 @@ function calcQuote() {
 
   // Build scenarios:
   // Turf combos: base alone, then base + each alt-turf (mutually exclusive)
+  const baseComboLabel = effectiveBase.map(r=>r.product||'Turf').join(' + ')
+    || (pgRows.length ? 'Putting Green' : 'Base Quote');
   const turfCombos = [
-    { label: effectiveBase.map(r=>r.product||'Turf').join(' + ') || 'Base Quote', sqFt: baseSqFt, rows: effectiveBase, isAlt: false },
+    { label: baseComboLabel, sqFt: baseSqFt, rows: effectiveBase, isAlt: false },
     ...altRows.map(r => ({
       label: r.product || 'Alt Turf',
       sqFt: baseSqFt,
@@ -3604,10 +3606,11 @@ function calcQuote() {
   // no PG rows at all (that single combo IS the normal, no-green job).
   const includeNoPg = shouldIncludeNoPgCombo(baseSqFt, pgRows.length);
   const pgCombos = [
-    ...(includeNoPg ? [{ label: '', pgSqFt: 0 }] : []),
+    ...(includeNoPg ? [{ label: '', pgSqFt: 0, row: null }] : []),
     ...pgRows.map(r => ({
       label: r.product || 'Putting Green',
-      pgSqFt: parseFloat(r.installedSqFt)||0
+      pgSqFt: parseFloat(r.installedSqFt)||0,
+      row: r
     }))
   ];
 
@@ -3648,23 +3651,29 @@ function calcQuote() {
         const laborStd  = stdSqFt * stdRate;
         const laborPg   = pgSqFt * pgRate;
         const turfMatCost = turfMaterialCost(tc.rows);
+        // Putting green turf material — the green's own turf product, which isn't
+        // part of the base/alt turf combo. Included whenever this scenario has a green.
+        const pgTurfMatCost = (pgSqFt > 0 && pg.row) ? turfMaterialCost([pg.row]) : 0;
         const scenarioInfillCost = tierInfillCost + (pgSqFt > 0 ? pgInfillCost : 0);
         const scenarioMiscCost = baseMiscCost + (pgSqFt > 0 ? pgMiscCost : 0);
         const scenarioFringeCost = pgSqFt > 0 ? fringeCost : 0;
-        const cogs = laborStd + laborPg + edgeCost + turfMatCost + scenarioInfillCost + scenarioMiscCost + scenarioFringeCost;
+        const cogs = laborStd + laborPg + edgeCost + turfMatCost + pgTurfMatCost + scenarioInfillCost + scenarioMiscCost + scenarioFringeCost;
         const sellPrice = applyMargin(cogs, marginPct);
 
         const cardLabel = letters[cardIdx % 26];
-        const pgLabel = pg.pgSqFt ? `With ${pg.label} (${pgSqFt.toLocaleString()} sqft)` : 'No Putting Green';
+        const pgLabel = pg.pgSqFt
+          ? `Putting Green${pg.label ? ' — ' + pg.label : ''} (${pgSqFt.toLocaleString()} sqft)`
+          : 'No Putting Green';
 
         let breakdown = '';
         if (pgSqFt) {
-          breakdown += `<div class="opt-line"><span>Standard yard ($${stdRate}/sqft${stdTieredNote} × ${stdSqFt.toLocaleString()} sqft)</span><span>${fmt(laborStd)}</span></div>`;
+          if (stdSqFt > 0) breakdown += `<div class="opt-line"><span>Standard yard ($${stdRate}/sqft${stdTieredNote} × ${stdSqFt.toLocaleString()} sqft)</span><span>${fmt(laborStd)}</span></div>`;
           breakdown += `<div class="opt-line"><span>Putting green ($${pgRate}/sqft${pgTieredNote} × ${pgSqFt.toLocaleString()} sqft)</span><span>${fmt(laborPg)}</span></div>`;
         } else {
           breakdown += `<div class="opt-line"><span>Labor ($${stdRate}/sqft${stdTieredNote} × ${totalSqFt.toLocaleString()} sqft)</span><span>${fmt(laborStd)}</span></div>`;
         }
         if (turfMatCost) breakdown += `<div class="opt-line"><span>Turf materials</span><span>${fmt(turfMatCost)}</span></div>`;
+        if (pgTurfMatCost) breakdown += `<div class="opt-line"><span>Putting green turf</span><span>${fmt(pgTurfMatCost)}</span></div>`;
         if (scenarioFringeCost) breakdown += `<div class="opt-line"><span>PG Fringe (${fringeSqFt.toLocaleString(undefined,{maximumFractionDigits:1})} sqft)</span><span>${fmt(scenarioFringeCost)}</span></div>`;
         if (edgeCost) breakdown += `<div class="opt-line"><span>Edging</span><span>${fmt(edgeCost)}</span></div>`;
         if (tierInfillCost) breakdown += `<div class="opt-line"><span>Infill${infillTiers.length > 1 ? ' ('+infillTier+')' : ''}</span><span>${fmt(tierInfillCost)}</span></div>`;
