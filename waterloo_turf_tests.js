@@ -159,6 +159,80 @@ section('4. parseLayoutCsv');
   let threw = false;
   try { ctx.parseLayoutCsv('"A","B"\n"1","2"'); } catch(e) { threw = true; }
   assert(threw, 'throws on missing X/Y columns');
+
+  // ── Elevation (Z) column: parsed into an elevation summary (min/max/range) ──
+  {
+    const h = '"Layer","Path","Point","X:ft","Y:ft","Z:ft","Layer-Name","Point-Type","Area:ft²",';
+    const r = (p, x, y, z) => `"1","1","${p}","${x}","${y}","${z}","Base","Default","100.00"`;
+    const csvZ = [ h, r(1,0,0, 2.5), r(2,10,0, 5.0), r(3,10,10, 1.0), r(4,0,10, 3.0) ].join('\n');
+    const res = ctx.parseLayoutCsv(csvZ);
+    assert(res.elevation != null, 'elevation summary present when a Z column exists');
+    assert(near(res.elevation.min, 1.0) && near(res.elevation.max, 5.0), 'elevation min/max read from Z values (1.0 → 5.0)');
+    assert(near(res.elevation.range, 4.0), 'elevation range = max - min (5.0 - 1.0 = 4.0)');
+    assert(res.elevation.unit === 'ft', 'elevation unit read from the Z:ft header');
+    assert(res.shapes[0].elevation != null && near(res.shapes[0].elevation.range, 4.0), 'per-shape elevation summary computed too');
+    assert(res.points[0].z === 2.5, 'parsed points carry their z value');
+  }
+
+  // ── No Z column → no elevation data (feature reports "none", never fabricates) ──
+  {
+    const h = '"Layer","Path","Point","X:ft","Y:ft","Layer-Name","Point-Type","Area:ft²",';
+    const r = (p, x, y) => `"1","1","${p}","${x}","${y}","Base","Default","100.00"`;
+    const csvNoZ = [ h, r(1,0,0), r(2,10,0), r(3,10,10), r(4,0,10) ].join('\n');
+    const res = ctx.parseLayoutCsv(csvNoZ);
+    assert(res.elevation == null, 'no elevation summary when the CSV has no Z/elevation column');
+    assert(res.points.every(p => p.z === undefined), 'points carry no z when the CSV has none');
+  }
+
+  // ── Elevation column under an alternate header ("Elevation") is recognized ──
+  {
+    assert(ctx.findElevationColumn(['layer','x:ft','y:ft','elevation']) === 3, 'findElevationColumn recognizes an "elevation" header');
+    assert(ctx.findElevationColumn(['x:ft','y:ft','height:ft']) === 2, 'findElevationColumn recognizes a "height:ft" header');
+    assert(ctx.findElevationColumn(['x:ft','y:ft','area:ft²']) === -1, 'findElevationColumn returns -1 when no elevation column exists');
+  }
+
+  // ── Multi-layer Z: each layer keeps its OWN fall; overall spans both layers ──
+  // (mirrors a real Moasure export where a raised sub-layer sits above the base)
+  {
+    const h = '"Layer","Path","Point","X:ft","Y:ft","Z:ft","Layer-Name","Point-Type","Area:ft²",';
+    const r = (layer, p, x, y, z, name) => `"${layer}","1","${p}","${x}","${y}","${z}","${name}","Default","100.00"`;
+    const csv = [ h,
+      r(1,1, 0,0, 0.0, 'Base Layer'), r(1,2, 10,0, -0.5, 'Base Layer'), r(1,3, 10,10, 0.3, 'Base Layer'), r(1,4, 0,10, 0.1, 'Base Layer'),
+      r(2,1, 2,2, 1.0, 'Sub Layer 1'), r(2,2, 6,2, 1.4, 'Sub Layer 1'), r(2,3, 6,6, 1.2, 'Sub Layer 1'),
+    ].join('\n');
+    const res = ctx.parseLayoutCsv(csv);
+    assert(res.shapes.length === 2, 'two layers parsed');
+    const base = res.shapes.find(s => s.name === 'Base Layer');
+    const sub  = res.shapes.find(s => s.name === 'Sub Layer 1');
+    assert(base && near(base.elevation.range, 0.8), 'base layer fall = its own range (0.3 - (-0.5) = 0.8)');
+    assert(sub && near(sub.elevation.range, 0.4), 'sub layer fall = its own range (1.4 - 1.0 = 0.4)');
+    assert(near(res.elevation.range, 1.9), 'overall span covers BOTH layers (1.4 - (-0.5) = 1.9), not any single layer\'s fall');
+    assert(res.elevation.max > sub.elevation.min && sub.elevation.min > base.elevation.max,
+      'the sub layer sits entirely ABOVE the base layer (a raised surface), so the overall range overstates either layer\'s grade');
+    assert(base.elevation.mean != null && sub.elevation.mean != null, 'each layer carries a mean height for offset math');
+  }
+
+  // ── elevationLayerOffsets: each non-base layer's mean offset from the base ──
+  {
+    const layers = [
+      { name:'Base',  primary:true,  elevation:{ min:-0.5, max:0.5, range:1.0, mean:0.0, count:4 } },
+      { name:'Raised',primary:false, elevation:{ min:0.8,  max:1.2, range:0.4, mean:1.0, count:3 } },
+      { name:'Sunken',primary:false, elevation:{ min:-1.4, max:-1.0,range:0.4, mean:-1.2,count:3 } },
+    ];
+    const r = ctx.elevationLayerOffsets(layers);
+    const byName = Object.fromEntries(r.map(L => [L.name, L]));
+    assert(byName['Base'].offset === null, 'the base layer has no offset (it is the reference)');
+    assert(near(byName['Raised'].offset, 1.0), 'a raised layer reports +mean offset above the base (1.0)');
+    assert(near(byName['Sunken'].offset, -1.2), 'a sunken layer reports a negative offset below the base (-1.2)');
+
+    // No primary flag → first layer with elevation becomes the reference.
+    const r2 = ctx.elevationLayerOffsets(layers.map(L => ({ ...L, primary:false })));
+    assert(r2[0].offset === null && near(r2[1].offset, 1.0), 'without a primary flag, the first measured layer is the reference');
+
+    // A layer lacking height data is carried through with a null offset.
+    const r3 = ctx.elevationLayerOffsets([ layers[0], { name:'NoZ', primary:false, elevation:null } ]);
+    assert(r3.find(L=>L.name==='NoZ').offset === null, 'a layer with no height data gets a null offset (not a crash)');
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -200,34 +274,32 @@ section('5. computeRollLayout');
     }
   });
 
-  // Nesting: a real 2D fit. The `narrowtab` shape rolled at 30° leaves a slanted
-  // leftover big enough to hold another piece (eligibility is a genuine 2D fit,
-  // not just area). Find a fitting pair and confirm the nest lowers Ordered SqFt.
-  const nestShape = [{x:0,y:0},{x:30,y:0},{x:30,y:6},{x:12,y:6},{x:12,y:20},{x:0,y:20}];
+  // Nesting: an L-shape produces strips with very different waste profiles —
+  // a small strip can fit inside a larger strip's leftover (waste) area.
+  const lShape = [{x:0,y:0},{x:30,y:0},{x:30,y:8},{x:5,y:8},{x:5,y:30},{x:0,y:30}];
   const nestOpts = {...opts, nesting:{}};
-  const nBase = ctx.computeRollLayout(nestShape, 30, 0, nestOpts);
-  const nUnits = []; nBase.strips.forEach(s => (s.pieces||[s]).forEach(u => nUnits.push(u)));
-  let nSrc=null, nTgt=null;
-  outerNest: for (const t of nUnits) for (const s of nUnits) {
-    if (s.key===t.key) continue;
-    if (ctx.findNestFit(s, t, null)) { nSrc=s; nTgt=t; break outerNest; }
-  }
-  if (nSrc && nTgt) {
-    const optsNested = {...opts, nesting:{ [nSrc.key]: nTgt.key }};
-    const nNested = ctx.computeRollLayout(nestShape, 30, 0, optsNested);
-    assert(nNested.totalOrdered < nBase.totalOrdered, 'nesting reduces totalOrdered');
-    assert(nNested.totalSaved > 0, 'totalSaved > 0 when nesting');
+  const lNestBase = ctx.computeRollLayout(lShape, 0, 0, nestOpts);
+  const smallStrip = lNestBase.strips.find(s => s.purchasedArea > 0.5 && s.wasteArea < 1);
+  const bigStrip   = lNestBase.strips.find(s => s.index !== (smallStrip||{}).index && s.wasteArea >= (smallStrip||{purchasedArea:9999}).purchasedArea);
+  if (smallStrip && bigStrip) {
+    // Nesting is keyed by stable strip .key (geometric band position), not array index
+    const optsNested = {...opts, nesting:{ [smallStrip.key]: bigStrip.key }};
+    const lNested = ctx.computeRollLayout(lShape, 0, 0, optsNested);
+    assert(lNested.totalOrdered < lNestBase.totalOrdered, 'nesting reduces totalOrdered');
+    assert(lNested.totalSaved > 0, 'totalSaved > 0 when nesting');
 
-    // Stable across repeated computes with the same params.
-    const nNestedSame = ctx.computeRollLayout(nestShape, 30, 0, optsNested);
-    assert(near(nNestedSame.totalOrdered, nNested.totalOrdered, 0.01), 'nesting is stable across repeated computes with same params');
+    // Nesting survives a translation change: as long as a strip still exists
+    // at the same .key (band position), the nesting still applies.
+    const lNestedSameT = ctx.computeRollLayout(lShape, 0, 0, optsNested);
+    assert(near(lNestedSameT.totalOrdered, lNested.totalOrdered, 0.01), 'nesting is stable across repeated computes with same params');
 
-    // A nonexistent source key has no effect (doesn't throw, doesn't misapply).
-    const optsStale = {...opts, nesting:{ 'y9999.00': nTgt.key }};
-    const nStale = ctx.computeRollLayout(nestShape, 30, 0, optsStale);
-    assert(near(nStale.totalOrdered, nBase.totalOrdered, 0.01), 'nesting with a nonexistent source key has no effect');
+    // Nesting at a stale/nonexistent key has no effect (doesn't throw, doesn't misapply)
+    const optsStale = {...opts, nesting:{ 'y9999.00': bigStrip.key }};
+    const lStale = ctx.computeRollLayout(lShape, 0, 0, optsStale);
+    assert(near(lStale.totalOrdered, lNestBase.totalOrdered, 0.01), 'nesting with a nonexistent source key has no effect');
   } else {
-    console.log('  (nesting test skipped — no fitting strip pair found)');
+    // Shape doesn't produce nestable strips at this config — skip gracefully
+    console.log('  (nesting test skipped — no suitable strip pair found)');
   }
 
   // Rotation preserves shape area
@@ -912,12 +984,28 @@ section('17. Multi-layer CSV parsing & secondary shapes');
     assert(near(ctxA.getCurrentProject().turf[0].installedSqFt, 1450), 'Apply Area → BASE row = whole yard incl. green (1500 - 50 hole = 1450)');
 
     applyTarget = '1';
+    const altBefore = ctxA.getCurrentProject().turf[1].installedSqFt;
     ctxA.applyLayoutAreaToTurf();
-    assert(near(ctxA.getCurrentProject().turf[1].installedSqFt, 1450), 'Apply Area → ALT-TURF row also = whole yard incl. green (1450)');
+    assert(near(ctxA.getCurrentProject().turf[1].installedSqFt, altBefore || 0),
+      'Apply Area → ALT-TURF row is blocked (priced on base yard area; its installedSqFt is left unchanged)');
 
     applyTarget = '2';
     ctxA.applyLayoutAreaToTurf();
     assert(near(ctxA.getCurrentProject().turf[2].installedSqFt, 1300), 'Apply Area → PUTTING-GREEN row does NOT add the green back (1300)');
+
+    // ── computeApplyAreaForRow (pure, role-aware): the decision the DOM wrapper uses ──
+    {
+      const projH = { layout:{ secondaryShapes:[{area:20,points:rect(0,0,4,5)}], secondaryShapeModes:{0:'putting-green'} } };
+      const layH = { adjustedShapeArea: 480 };
+      const baseRes = ctxA.computeApplyAreaForRow(projH, layH, { role:'base' });
+      assert(baseRes.ok && near(baseRes.area, 500), 'computeApplyAreaForRow: base adds the green back (480 + 20 = 500)');
+      const pgRes = ctxA.computeApplyAreaForRow(projH, layH, { role:'putting-green' });
+      assert(pgRes.ok && near(pgRes.area, 480), 'computeApplyAreaForRow: putting-green uses the adjusted area as-is (480)');
+      const altRes = ctxA.computeApplyAreaForRow(projH, layH, { role:'alt-turf' });
+      assert(!altRes.ok && altRes.reason === 'alt-turf-priced-on-base', 'computeApplyAreaForRow: alt-turf is blocked (priced on base yard area)');
+      const zeroRes = ctxA.computeApplyAreaForRow({ layout:{} }, { adjustedShapeArea:0, shapeArea:0 }, { role:'base' });
+      assert(!zeroRes.ok && zeroRes.reason === 'no-area', 'computeApplyAreaForRow: a zero-area layout is blocked (no-area)');
+    }
   }
 
   // ── Real John_yard.csv fixture (if available): 2 layers, primary ≈ 726.65, secondary ≈ 157 ──
@@ -1011,18 +1099,11 @@ section('19. Turf rows render with editable values on project load');
 section('20. Nesting keyed by stable position, not array index');
 {
   const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{} };
-  // A shape + roll angle that yields a genuine 2D-fitting nest (so nestedInto
-  // actually applies and we can verify it survives a recompute by stable key).
-  const nestShape = [{x:0,y:0},{x:30,y:0},{x:30,y:6},{x:12,y:6},{x:12,y:20},{x:0,y:20}];
-  const ROT = 30;
+  const lShape = [{x:0,y:0},{x:30,y:0},{x:30,y:8},{x:5,y:8},{x:5,y:30},{x:0,y:30}];
 
-  const base = ctx.computeRollLayout(nestShape, ROT, 0, opts);
-  const bUnits = []; base.strips.forEach(s => (s.pieces||[s]).forEach(u => bUnits.push(u)));
-  let small=null, big=null;
-  outer20: for (const t of bUnits) for (const s of bUnits) {
-    if (s.key===t.key) continue;
-    if (ctx.findNestFit(s, t, null)) { small=s; big=t; break outer20; }
-  }
+  const base = ctx.computeRollLayout(lShape, 0, 0, opts);
+  const small = base.strips.find(s => s.purchasedArea > 0.5 && s.wasteArea < 1);
+  const big   = base.strips.find(s => s.index !== (small||{}).index && s.wasteArea >= (small||{purchasedArea:9999}).purchasedArea);
 
   if (small && big) {
     // Each strip's .key is derived from its y0 band position
@@ -1034,19 +1115,19 @@ section('20. Nesting keyed by stable position, not array index');
     // Recompute. As long as the same bands still exist (same y0 values), nesting
     // keyed by position should still apply.
     const opts2 = { ...opts, nesting };
-    const recomputed = ctx.computeRollLayout(nestShape, ROT, 0, opts2);
-    const recomputedSmall = recomputed.strips.map(s=>s.pieces||[s]).flat().find(s => s.key === small.key);
+    const recomputed = ctx.computeRollLayout(lShape, 0, 0, opts2);
+    const recomputedSmall = recomputed.strips.find(s => s.key === small.key);
     assert(recomputedSmall && recomputedSmall.nestedInto != null, 'nesting still applies after recompute when band positions unchanged');
     assert(recomputed.totalSaved > 0, 'totalSaved > 0 after recompute with position-based nesting');
 
     // A nesting entry for a key that no longer exists is silently ignored — no
     // crash, no misapplied nesting onto an unrelated strip.
     const optsShifted = { ...opts, nesting: { 'y999.00': big.key } };
-    const shifted = ctx.computeRollLayout(nestShape, ROT, 0, optsShifted);
+    const shifted = ctx.computeRollLayout(lShape, 0, 0, optsShifted);
     const anyNested = shifted.strips.some(s => s.nestedInto != null);
     assert(!anyNested, 'nesting entry for a nonexistent key does not get misapplied to a different strip');
   } else {
-    console.log('  (section 20 skipped — no fitting strip pair found for this shape)');
+    console.log('  (section 20 skipped — no suitable strip pair found for this shape)');
   }
 }
 
@@ -1458,9 +1539,7 @@ section('25. Manual cuts (butt seams) and piece-level nesting');
     assert(cut.totalOrdered > base.totalOrdered, 'splitting a strip increases totalOrdered (extra cutting margin for the new seam)');
   }
 
-  // ── Piece-level nesting: a cut piece participates in nesting, gated by a real
-  //    2D fit (cut pieces are full roll-width, so they fit only where there's a
-  //    full-width clear length-slot ≥ the piece's length) ──
+  // ── Piece-level nesting: a small cut piece can nest into a different strip's waste ──
   {
     const shape = [{x:0,y:0},{x:30,y:0},{x:30,y:15},{x:10,y:15},{x:10,y:22},{x:0,y:22}];
     const opts0 = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{}, manualCuts:{} };
@@ -1475,21 +1554,15 @@ section('25. Manual cuts (butt seams) and piece-level nesting');
       const cutS0 = cut.strips.find(s=>s.key===strip0.key);
       const smallPiece = cutS0.pieces.find(p=>p.length < 10);
       assert(smallPiece, 'small piece (5ft) exists after cutting at 25');
-      assert(smallPiece.key.indexOf('y0.00') === 0, 'the cut piece carries a stable, strip-derived key');
 
       const nestOpts = {...cutOpts, nesting: { [smallPiece.key]: strip1.key }};
       const nested = ctx.computeRollLayout(shape, 0, 0, nestOpts);
       const nestedS0 = nested.strips.find(s=>s.key===strip0.key);
       const nestedPiece = nestedS0.pieces.find(p=>p.key===smallPiece.key);
 
-      // Resolution must agree with the 2D fit test on the same geometry.
-      const fits = ctx.findNestFit(smallPiece, strip1, null) != null;
-      assert((nestedPiece.nestedInto != null) === fits, 'cut-piece nesting applies exactly when the piece 2D-fits the target');
-      if (fits) {
-        assert(near(nested.totalSaved, smallPiece.purchasedArea), 'totalSaved equals the nested piece\'s purchasedArea when it fits');
-      } else {
-        assert(near(nested.totalOrdered, cut.totalOrdered), 'no phantom savings: an impossible cut-piece nest leaves Ordered SqFt unchanged');
-      }
+      assert(nestedPiece.nestedIntoKey === strip1.key, 'manually-cut piece nests into another strip\'s waste by key');
+      assert(near(nested.totalSaved, smallPiece.purchasedArea), 'totalSaved equals the nested piece\'s purchasedArea');
+      assert(near(nested.totalOrdered, cut.totalOrdered - smallPiece.purchasedArea), 'totalOrdered drops by the nested piece\'s purchasedArea');
     }
   }
 
@@ -3311,22 +3384,18 @@ section('45. Nesting: per-piece Put back');
   {
     const c = unnestCtx();
     const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{} };
-    const nestShape = [{x:0,y:0},{x:30,y:0},{x:30,y:6},{x:12,y:6},{x:12,y:20},{x:0,y:20}];
-    const base = c.computeRollLayout(nestShape, 30, 0, opts);
-    const units = []; base.strips.forEach(s => (s.pieces||[s]).forEach(u => units.push(u)));
-    let small=null, big=null;
-    outerPB: for (const t of units) for (const s of units) {
-      if (s.key===t.key) continue;
-      if (c.findNestFit(s, t, null)) { small=s; big=t; break outerPB; }
-    }
+    const lShape = [{x:0,y:0},{x:30,y:0},{x:30,y:8},{x:5,y:8},{x:5,y:30},{x:0,y:30}];
+    const base = c.computeRollLayout(lShape, 0, 0, opts);
+    const small = base.strips.find(s => s.purchasedArea > 0.5 && s.wasteArea < 1);
+    const big   = base.strips.find(s => s.index !== (small||{}).index && s.wasteArea >= (small||{purchasedArea:9999}).purchasedArea);
     if (small && big) {
-      const nested = c.computeRollLayout(nestShape, 30, 0, { ...opts, nesting:{ [small.key]: big.key } });
+      const nested = c.computeRollLayout(lShape, 0, 0, { ...opts, nesting:{ [small.key]: big.key } });
       assert(nested.totalOrdered < base.totalOrdered, 'nesting a piece lowers Ordered SqFt');
       // "Put back" = remove that key → recompute → back to baseline
-      const putBack = c.computeRollLayout(nestShape, 30, 0, { ...opts, nesting:{} });
+      const putBack = c.computeRollLayout(lShape, 0, 0, { ...opts, nesting:{} });
       assert(near(putBack.totalOrdered, base.totalOrdered, 0.01), 'removing the nesting key (Put back) restores Ordered SqFt to baseline');
     } else {
-      console.log('  (compute-level restore check skipped — no fitting strip pair)');
+      console.log('  (compute-level restore check skipped — no suitable strip pair)');
     }
   }
 }
@@ -3537,24 +3606,20 @@ section('47. Nesting: honor drop point');
   {
     const c = nestCtx();
     const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{} };
-    const nestShape = [{x:0,y:0},{x:30,y:0},{x:30,y:6},{x:12,y:6},{x:12,y:20},{x:0,y:20}];
-    const base = c.computeRollLayout(nestShape, 30, 0, opts);
-    const units = []; base.strips.forEach(s => (s.pieces||[s]).forEach(u => units.push(u)));
-    let small=null, big=null;
-    outerAnchor: for (const t of units) for (const s of units) {
-      if (s.key===t.key) continue;
-      if (c.findNestFit(s, t, null)) { small=s; big=t; break outerAnchor; }
-    }
+    const lShape = [{x:0,y:0},{x:30,y:0},{x:30,y:8},{x:5,y:8},{x:5,y:30},{x:0,y:30}];
+    const base = c.computeRollLayout(lShape, 0, 0, opts);
+    const small = base.strips.find(s => s.purchasedArea > 0.5 && s.wasteArea < 1);
+    const big   = base.strips.find(s => s.index !== (small||{}).index && s.wasteArea >= (small||{purchasedArea:9999}).purchasedArea);
     if (small && big) {
       const anchor = { rfX: 12.5, rfY: big.rfY0 };
-      const withPos = c.computeRollLayout(nestShape, 30, 0, { ...opts, nesting:{ [small.key]: big.key }, nestPos:{ [small.key]: anchor } });
+      const withPos = c.computeRollLayout(lShape, 0, 0, { ...opts, nesting:{ [small.key]: big.key }, nestPos:{ [small.key]: anchor } });
       const nestedUnit = [].concat(...withPos.strips.map(s => s.pieces || [s])).find(u => u.nestedIntoKey === big.key);
       assert(nestedUnit && nestedUnit.nestPos && nestedUnit.nestPos.rfX === 12.5, 'nested unit carries the drop anchor (nestPos)');
-      const noPos = c.computeRollLayout(nestShape, 30, 0, { ...opts, nesting:{ [small.key]: big.key } });
+      const noPos = c.computeRollLayout(lShape, 0, 0, { ...opts, nesting:{ [small.key]: big.key } });
       const nestedNoPos = [].concat(...noPos.strips.map(s => s.pieces || [s])).find(u => u.nestedIntoKey === big.key);
       assert(nestedNoPos && nestedNoPos.nestPos == null, 'without a drop anchor, nested unit nestPos is null (auto-place path)');
     } else {
-      console.log('  (compute nestPos check skipped — no fitting strip pair)');
+      console.log('  (compute nestPos check skipped — no suitable strip pair)');
     }
   }
 }
@@ -3610,32 +3675,29 @@ section('48. Nesting: snap off turf');
     assert(x2 >= 600 - 1e-6, 'clears both the turf and an occupied piece');
   }
 
-  // ── assignNestPlacements: two pieces in the same roll never overlap (2D) ──
+  // ── assignNestPlacements: two pieces in the same roll never overlap ──
   {
     const c = clearCtx();
-    const r = (x0,y0,x1,y1)=>[{x:x0,y:y0},{x:x1,y:y0},{x:x1,y:y1},{x:x0,y:y1}];
     const target = { key:'T', rfX0:0, rfX1:1000, rfY0:0, rfY1:15, clipped:[], nestedInto:null };
-    const p1 = { key:'P1', rfX0:0, rfX1:100, rfY0:0, rfY1:15, clipped:r(0,0,100,15), nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:50, rfY:7.5} };
-    const p2 = { key:'P2', rfX0:0, rfX1:100, rfY0:0, rfY1:15, clipped:r(0,0,100,15), nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:60, rfY:7.5} };
+    const p1 = { key:'P1', rfX0:0, rfX1:100, rfY0:0, rfY1:15, nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:50} };
+    const p2 = { key:'P2', rfX0:0, rfX1:100, rfY0:0, rfY1:15, nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:60} };
     const layout = { strips:[ { pieces:[target, p1, p2] } ] };
     c.assignNestPlacements(layout);
     assert(p1._nestX != null && p2._nestX != null, 'both nested pieces get an assigned x');
-    // Placed footprints must not overlap along the roll (full-width pieces).
-    const a0=p1._nestX, a1=p1._nestX+100, b0=p2._nestX, b1=p2._nestX+100;
-    assert(a1 <= b0 + 1e-6 || b1 <= a0 + 1e-6, 'two pieces nested in the same roll do not overlap');
+    assert(Math.abs(p1._nestX - p2._nestX) >= 100 - 1e-6, 'two pieces nested in the same roll do not overlap (gap ≥ piece width)');
     assert(p1._nestX >= 0 && p2._nestX + 100 <= 1000 + 1e-6, 'both placed pieces stay within the target rectangle');
   }
 }
 
 // ════════════════════════════════════════════════════════════════════════
-//  49. NESTING — 2D fit eligibility + honor-the-drop placement
-//  Eligibility is a genuine 2D fit: the piece's actual shape must sit inside the
-//  target's purchased rectangle clear of its turf (and of pieces already nested
-//  there). This replaces the old area-only test, which over-reported and jammed
-//  impossible nests onto turf. findNestFit returns the bbox-min origin to place
-//  the piece (honoring the drop point), or null when it can't fit anywhere.
+//  49. NESTING — honor-the-drop placement + turf-overlap flag
+//  The piece lands exactly where the user dropped it (centroid at the drop,
+//  clamped into the target rectangle, nudged only to avoid stacking on another
+//  nested piece). It is NEVER relocated off the turf; instead, if the dropped
+//  position overlaps the target's installed turf, `_nestOverlapsTurf` is set so
+//  the piece can be outlined red as an honest "this won't fit here" cue.
 // ════════════════════════════════════════════════════════════════════════
-section('49. Nesting: 2D fit eligibility + honor-the-drop placement');
+section('49. Nesting: honor-the-drop placement + turf-overlap flag');
 {
   function intCtx() {
     const c = {
@@ -3647,118 +3709,87 @@ section('49. Nesting: 2D fit eligibility + honor-the-drop placement');
     vm.runInNewContext(scriptSrc, c);
     return c;
   }
-  const c = intCtx();
   const r = (x0,y0,x1,y1)=>[{x:x0,y:y0},{x:x1,y:y0},{x:x1,y:y1},{x:x0,y:y1}];
 
-  // ── findNestFit unit cases (controlled geometry) ──
-  // Target rect [0,20]x[0,15] with turf filling the bottom 10 → a 5-tall band of
-  // width-waste across the top.
-  const tgtWidth = { rfX0:0, rfX1:20, rfY0:0, rfY1:15, clipped:r(0,0,20,10) };
-  const narrow  = { rfX0:0, rfX1:5,  rfY0:0, rfY1:4,  clipped:r(0,0,5,4) };
-  const fitW = c.findNestFit(narrow, tgtWidth, null);
-  assert(fitW != null, 'width-fit: a short piece fits in a strip\'s width-waste');
-  assert(fitW.y >= 10 - 1e-6, 'width-fit lands in the clear band (y ≥ turf top)');
-
-  const tall = { rfX0:0, rfX1:5, rfY0:0, rfY1:12, clipped:r(0,0,5,12) };
-  assert(c.findNestFit(tall, tgtWidth, null) == null, 'a piece taller than the clear band does NOT fit');
-
-  // Target with real leftover LENGTH (turf fills first 15 of length-20).
-  const tgtLen = { rfX0:0, rfX1:20, rfY0:0, rfY1:15, clipped:r(0,0,15,15) };
-  const lenPiece = { rfX0:0, rfX1:4, rfY0:0, rfY1:15, clipped:r(0,0,4,15) };
-  const fitL = c.findNestFit(lenPiece, tgtLen, null);
-  assert(fitL != null && fitL.x >= 14 - 1e-6, 'length-fit: a short full-width piece fits in the end-of-roll leftover');
-
-  const tooBig = { rfX0:0, rfX1:25, rfY0:0, rfY1:15, clipped:r(0,0,25,15) };
-  assert(c.findNestFit(tooBig, tgtWidth, null) == null, 'a piece larger than the target rectangle does NOT fit');
-
-  // Honor the drop point: same width-fit, dropped near (15, 12.5).
-  const fitDrop = c.findNestFit(narrow, tgtWidth, { rfX:15, rfY:12.5 });
-  assert(fitDrop != null && Math.abs((fitDrop.x + 2.5) - 15) < 0.6, 'fit honors the dropped x (centroid near the drop)');
-
-  // Obstacle: a piece already placed blocks the same spot, forcing a shift.
-  const obstacle = r(0,10,5,14); // occupies the clear band where `narrow` would go
-  const fitObs = c.findNestFit(narrow, tgtWidth, { rfX:2.5, rfY:12 }, [obstacle]);
-  assert(fitObs == null || fitObs.x >= 5 - 1e-6, 'an already-placed piece is avoided (shift or refuse)');
-
-  // ── placement: a clear target honors the drop, clamped into the rect ──
+  // ── the dropped piece lands centered on the drop x, clamped into the rect ──
   {
+    const c = intCtx();
     const target = { key:'T', rfX0:0, rfX1:1000, rfY0:0, rfY1:15, clipped:[], nestedInto:null };
-    const piece  = { key:'P', rfX0:0, rfX1:120, rfY0:0, rfY1:15, clipped:r(0,0,120,15), nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:500, rfY:7.5} };
+    const piece = { key:'P', rfX0:0, rfX1:120, rfY0:0, rfY1:15, nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:500, rfY:7.5} };
     c.assignNestPlacements({ strips:[{ pieces:[target, piece] }] });
-    assert(piece._nestX != null, 'piece placed on a clear target');
-    assert(Math.abs(piece._nestX - 440) < 1e-6, 'piece centroid lands on the dropped x (drop 500, half-length 60 → origin 440)');
+    assert(piece._nestX != null, 'piece is placed (never refused) when dropped on waste');
+    assert(Math.abs(piece._nestX - (500 - 60)) < 1e-6, 'piece is centered on the dropped x (drop 500, half-length 60 → left edge 440)');
     assert(piece._nestX >= 0 && piece._nestX + 120 <= 1000 + 1e-6, 'placement stays within the target rectangle');
   }
 
   // ── a drop near the edge is clamped so the whole piece stays on the roll ──
   {
+    const c = intCtx();
     const target = { key:'T', rfX0:0, rfX1:1000, rfY0:0, rfY1:15, clipped:[], nestedInto:null };
-    const piece  = { key:'P', rfX0:0, rfX1:120, rfY0:0, rfY1:15, clipped:r(0,0,120,15), nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:990, rfY:7.5} };
+    const piece = { key:'P', rfX0:0, rfX1:120, rfY0:0, rfY1:15, nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:990, rfY:7.5} };
     c.assignNestPlacements({ strips:[{ pieces:[target, piece] }] });
     assert(Math.abs(piece._nestX - 880) < 1e-6, 'drop near the right edge clamps the piece to maxX (1000-120=880)');
   }
 
-  // ── a full-width piece dropped on a target whose turf leaves no clear band is
-  //    REFUSED (not jammed onto turf) — the bug the 2D gate fixes ──
+  // ── two pieces dropped in the same roll still do not stack on each other ──
   {
-    const turf = r(0,0,1000,15); // turf fills the entire rectangle → no room
-    const target = { key:'T', rfX0:0, rfX1:1000, rfY0:0, rfY1:15, clipped:turf, nestedInto:null };
-    const piece  = { key:'P', rfX0:0, rfX1:120, rfY0:0, rfY1:15, clipped:r(0,0,120,15), nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:500, rfY:7.5} };
-    c.assignNestPlacements({ strips:[{ pieces:[target, piece] }] });
-    assert(piece._nestX == null, 'a piece with nowhere clear to go is refused, not jammed onto turf');
-  }
-
-  // ── two pieces in the same roll never overlap (2D) ──
-  {
+    const c = intCtx();
     const target = { key:'T', rfX0:0, rfX1:1000, rfY0:0, rfY1:15, clipped:[], nestedInto:null };
-    const p1 = { key:'P1', rfX0:0, rfX1:100, rfY0:0, rfY1:15, clipped:r(0,0,100,15), nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:200,rfY:7.5} };
-    const p2 = { key:'P2', rfX0:0, rfX1:100, rfY0:0, rfY1:15, clipped:r(0,0,100,15), nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:230,rfY:7.5} };
+    const p1 = { key:'P1', rfX0:0, rfX1:100, rfY0:0, rfY1:15, nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:200,rfY:7.5} };
+    const p2 = { key:'P2', rfX0:0, rfX1:100, rfY0:0, rfY1:15, nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:230,rfY:7.5} };
     c.assignNestPlacements({ strips:[{ pieces:[target, p1, p2] }] });
-    const a0=p1._nestX, a1=p1._nestX+100, b0=p2._nestX, b1=p2._nestX+100;
-    assert(p1._nestX!=null && p2._nestX!=null && (a1<=b0+1e-6 || b1<=a0+1e-6), 'two pieces dropped close together do not overlap');
+    assert(Math.abs(p1._nestX - p2._nestX) >= 100 - 1e-6, 'two pieces dropped close together are nudged apart (no stacking)');
   }
 
-  // ── INTEGRATION: real computeRollLayout geometry with a genuine 2D fit ──
-  // The `narrowtab` shape rolled at 30° produces strips whose slanted leftover
-  // can actually hold another piece — a real nest that lowers Ordered SqFt.
+  // ── an asymmetric (triangle) piece lands with its CENTROID at the drop ──
   {
-    const shape = [{x:0,y:0},{x:30,y:0},{x:30,y:6},{x:12,y:6},{x:12,y:20},{x:0,y:20}];
-    const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{} };
-    const base = c.computeRollLayout(shape, 30, 0, opts);
-    const units = []; base.strips.forEach(s => (s.pieces||[s]).forEach(u => units.push(u)));
-    // Find a real fitting pair.
-    let src=null, tgt=null;
-    outer: for (const t of units) for (const s of units) {
-      if (s.key===t.key) continue;
-      if (c.findNestFit(s, t, null)) { src=s; tgt=t; break outer; }
-    }
-    assert(src && tgt, 'narrowtab@30 yields a genuinely fitting nest pair');
-    if (src && tgt) {
-      const nested = c.computeRollLayout(shape, 30, 0, { ...opts, nesting:{ [src.key]: tgt.key } });
-      assert(nested.totalOrdered < base.totalOrdered - 1e-6, 'a real 2D-fitting nest lowers Ordered SqFt');
-      const nu = nested.strips.map(s=>s.pieces||[s]).flat().find(u=>u.key===src.key);
-      assert(nu && nu.nestedIntoKey === tgt.key, 'the fitting source records its target');
-      c.assignNestPlacements(nested);
-      const np = nested.strips.map(s=>s.pieces||[s]).flat().find(u=>u.key===src.key);
-      assert(np._nestX != null && np._nestY != null, 'the fitting nested piece is placed (x and y)');
-    }
+    const c = intCtx();
+    const tri = [{x:0,y:0},{x:4,y:0},{x:0,y:3}]; // centroid (1.333, 1.0)
+    const cx = (0+4+0)/3, cy = (0+0+3)/3;
+    const target = { key:'T', rfX0:0, rfX1:1000, rfY0:0, rfY1:15, clipped:[], nestedInto:null };
+    const piece = { key:'P', rfX0:0, rfX1:4, rfY0:0, rfY1:3, clipped:tri, nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:500, rfY:7.5} };
+    c.assignNestPlacements({ strips:[{ pieces:[target, piece] }] });
+    const placedCx = cx + (piece._nestX - piece.rfX0);
+    const placedCy = cy + (piece._nestY - piece.rfY0);
+    assert(Math.abs(placedCx - 500) < 1e-6 && Math.abs(placedCy - 7.5) < 1e-6,
+      'triangle piece lands with its centroid exactly at the drop point (not bbox-centered)');
   }
 
-  // ── a nest that does NOT fit in 2D is refused end-to-end (no phantom savings) ──
+  // ── turf-overlap flag: a piece dropped ONTO the target's turf is flagged, a
+  //    piece dropped in clear waste is not (placement honored either way) ──
   {
-    // Same shape at 0°: bands are full-width, no slanted leftover → no fit.
-    const shape = [{x:0,y:0},{x:30,y:0},{x:30,y:6},{x:12,y:6},{x:12,y:20},{x:0,y:20}];
+    const c = intCtx();
+    // Target rect [0,1000]x[0,15] with turf filling [0,500] along the roll.
+    const target = { key:'T', rfX0:0, rfX1:1000, rfY0:0, rfY1:15, clipped:r(0,0,500,15), nestedInto:null };
+    // Dropped on turf (centroid at 200): overlaps → flagged.
+    const onTurf = { key:'A', rfX0:0, rfX1:100, rfY0:0, rfY1:15, clipped:r(0,0,100,15), nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:200, rfY:7.5} };
+    c.assignNestPlacements({ strips:[{ pieces:[target, onTurf] }] });
+    assert(onTurf._nestX != null, 'piece dropped on turf is still placed where dropped (not refused)');
+    assert(onTurf._nestOverlapsTurf === true, 'a piece dropped onto turf is flagged (red outline)');
+    // Dropped in the clear leftover (centroid at 750): no overlap → not flagged.
+    const clear = { key:'B', rfX0:0, rfX1:100, rfY0:0, rfY1:15, clipped:r(0,0,100,15), nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:750, rfY:7.5} };
+    c.assignNestPlacements({ strips:[{ pieces:[target, clear] }] });
+    assert(clear._nestOverlapsTurf === false, 'a piece dropped in clear leftover is NOT flagged');
+  }
+
+  // ── INTEGRATION: real computeRollLayout geometry, honor-drop placement ──
+  {
+    const c = intCtx();
+    const shape = [{x:0,y:0},{x:10,y:0},{x:10,y:25},{x:0,y:25}];
     const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{} };
-    const base = c.computeRollLayout(shape, 0, 0, opts);
-    const units = []; base.strips.forEach(s => (s.pieces||[s]).forEach(u => units.push(u)));
-    const big = units.slice().sort((a,b)=>b.wasteArea-a.wasteArea)[0];
-    const small = units.filter(u=>u.key!==big.key && u.purchasedArea>0.5 && u.purchasedArea<=big.wasteArea).sort((a,b)=>a.purchasedArea-b.purchasedArea)[0];
-    if (small && big && !c.findNestFit(small, big, null)) {
-      const nested = c.computeRollLayout(shape, 0, 0, { ...opts, nesting:{ [small.key]: big.key } });
-      assert(Math.abs(nested.totalOrdered - base.totalOrdered) < 1e-6, 'an area-fits-but-2D-impossible nest does NOT lower Ordered SqFt (no phantom savings)');
-      const nu = nested.strips.map(s=>s.pieces||[s]).flat().find(u=>u.key===small.key);
-      assert(nu && nu.nestedInto == null, 'the impossible nest is not recorded');
-    }
+    const layout = c.computeRollLayout(shape, 0, 0, opts);
+    const units = [];
+    layout.strips.forEach(s => (s.pieces || [s]).forEach(u => units.push(u)));
+    const real = units.filter(u => u.clipped && u.clipped.length && u.rfX0 != null);
+    assert(real.length >= 2, 'real layout yields at least two strips with clipped geometry');
+    const tgt = real[0], src = real[1];
+    src.nestedInto = 0; src.nestedIntoKey = tgt.key; src.nestPos = { rfX: tgt.rfX0 + 0.5, rfY: tgt.rfY0 + 0.5 };
+    c.assignNestPlacements(layout);
+    const placed = units.find(u => u.nestedIntoKey === tgt.key);
+    assert(placed && placed._nestX != null && placed._nestY != null, 'nested piece on real geometry is placed (x and y)');
+    const pw = placed.rfX1 - placed.rfX0, ph = placed.rfY1 - placed.rfY0;
+    assert(placed._nestX >= tgt.rfX0 - 1e-6 && placed._nestX + pw <= tgt.rfX1 + 1e-6, 'placed piece stays within target rect (x)');
+    assert(placed._nestY >= tgt.rfY0 - 1e-6 && placed._nestY + ph <= tgt.rfY1 + 1e-6, 'placed piece stays within target rect (y)');
   }
 }
 
@@ -4459,17 +4490,13 @@ section('55. Phase 3b inc 2: layer-aware nestable-unit enumeration');
   // ── Drop resolution at the data layer: a PREFIXED nesting entry must resolve
   // within a secondary layer's computeRollLayout (proving the drop handler can
   // write 'L0_...' keys and have them take effect on that layer's roll plan).
-  const nestShape = [{x:0,y:0},{x:30,y:0},{x:30,y:6},{x:12,y:6},{x:12,y:20},{x:0,y:20}];
-  const baseL0 = ctx.computeRollLayout(nestShape, 30, 0, { ...opts, keyPrefix:'L0_' });
-  const l0units = []; baseL0.strips.forEach(s => (s.pieces||[s]).forEach(u => l0units.push(u)));
-  let small=null, big=null;
-  outer55: for (const t of l0units) for (const s of l0units) {
-    if (s.key===t.key) continue;
-    if (ctx.findNestFit(s, t, null)) { small=s; big=t; break outer55; }
-  }
+  const lShape = [{x:0,y:0},{x:30,y:0},{x:30,y:8},{x:5,y:8},{x:5,y:30},{x:0,y:30}];
+  const baseL0 = ctx.computeRollLayout(lShape, 0, 0, { ...opts, keyPrefix:'L0_' });
+  const small = baseL0.strips.find(s => s.purchasedArea > 0.5 && s.wasteArea < 1);
+  const big   = baseL0.strips.find(s => s.index !== (small||{}).index && s.wasteArea >= (small||{purchasedArea:9999}).purchasedArea);
   if (small && big) {
     assert(small.key.indexOf('L0_') === 0 && big.key.indexOf('L0_') === 0, 'secondary-layer strip keys are prefixed');
-    const nestedL0 = ctx.computeRollLayout(nestShape, 30, 0, { ...opts, keyPrefix:'L0_', nesting:{ [small.key]: big.key } });
+    const nestedL0 = ctx.computeRollLayout(lShape, 0, 0, { ...opts, keyPrefix:'L0_', nesting:{ [small.key]: big.key } });
     assert(nestedL0.totalOrdered < baseL0.totalOrdered, 'prefixed nesting reduces a secondary layer\u2019s totalOrdered');
     const nestedUnit = nestedL0.strips.map(s=>s.pieces||[s]).flat().find(s => s.key === small.key);
     assert(nestedUnit && nestedUnit.nestedIntoKey === big.key, 'secondary nested unit records its (same-layer, prefixed) target key');
@@ -4477,10 +4504,10 @@ section('55. Phase 3b inc 2: layer-aware nestable-unit enumeration');
     // Cross-layer guard: a primary-keyed (unprefixed) target must NOT resolve
     // inside the secondary layer (keys don't collide → inert, never misapplied).
     const crossKey = big.key.replace('L0_', '');
-    const crossL0 = ctx.computeRollLayout(nestShape, 30, 0, { ...opts, keyPrefix:'L0_', nesting:{ [small.key]: crossKey } });
+    const crossL0 = ctx.computeRollLayout(lShape, 0, 0, { ...opts, keyPrefix:'L0_', nesting:{ [small.key]: crossKey } });
     assert(near(crossL0.totalOrdered, baseL0.totalOrdered, 0.01), 'a cross-layer (unprefixed) target does not resolve inside the secondary layer');
   } else {
-    console.log('  (secondary-nesting data test skipped — no fitting strip pair)');
+    console.log('  (secondary-nesting data test skipped — no suitable strip pair)');
   }
 
   // ── assignNestPlacements must place a nested SECONDARY-layer piece (Edit 1).

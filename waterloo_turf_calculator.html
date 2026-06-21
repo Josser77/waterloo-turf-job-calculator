@@ -1273,6 +1273,13 @@
                   <input type="text" id="layoutArea" class="auto-filled" readonly>
                 </div>
                 <div class="field-group">
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;">
+                    <input type="checkbox" id="layoutShowElevation" onchange="toggleLayoutElevation()" style="margin:0;width:auto;">
+                    Show elevation change (from CSV)
+                  </label>
+                  <div id="layoutElevationOut" style="display:none;font-size:12px;color:var(--text-light);margin-top:4px;line-height:1.4;"></div>
+                </div>
+                <div class="field-group">
                   <label>Apply to → Installed SqFt</label>
                   <select id="layoutApplyTarget" style="width:100%;margin-bottom:6px;"></select>
                   <button class="btn btn-primary btn-sm" style="width:100%;" onclick="applyLayoutAreaToTurf()">Apply Area</button>
@@ -2010,6 +2017,7 @@
 
         <div class="docs-h3">Importing</div>
         <p>Click "↑ Import CSV" — either in the New Project modal (pre-fills Installed SqFt for all turf rows) or in the Layout tab after project creation. The shape is drawn on the canvas with roll strips overlaid immediately. "Installed Area" shows the polygon-computed area; use "Apply Area" to push it into a turf row's Installed SqFt.</p>
+        <p><strong>Show elevation change (from CSV):</strong> Moasure measures in 3D, so some exports include a height/Z column for each measured point. Tick this opt-in box in the Layout sidebar to see the elevation change across the yard — the total range (low → high) and the number of measured points it's based on. It reads the height column from the imported CSV (common headers like <em>Z:ft</em>, <em>Elevation</em>, or <em>Height</em>), and the unit follows the column header. <strong>When a file has more than one measured layer, each layer's own fall is broken out</strong> below the total, and each non-base layer also shows how far its <em>mean height</em> sits above or below the base layer (e.g. "sits 1.2 ft above the base") — because a raised sub-layer (a bed or step-up) sits at a different base height, so the whole-import range would otherwise overstate the grade of any single surface. If your CSV has no height data, the box says so plainly rather than guessing — re-import a Moasure file that includes elevation to populate it. This is purely informational (a grading/slope reference); it does not change area, rolls, or pricing.</p>
 
         <div class="docs-h3">Multi-Layer CSVs (Layers)</div>
         <p>Moasure files can contain more than one measured layer — for example, the main yard outline plus a separate shape for a planter bed, tree well, or putting green cutout inside it. When you import a CSV with multiple layers, the largest shape becomes the <strong>primary layer</strong> (the main boundary used for roll calculations), and any other shapes appear below it under <strong>"Layers"</strong> on the right.</p>
@@ -2022,7 +2030,7 @@
           <li><strong>Putting Green (used for fringe calculation)</strong> — subtracts that shape's area from the primary's Installed Area like Exclude, AND marks it as the putting green outline for the Fringe feature (see below). Drawn as a solid green shape. Only one layer can be the putting green at a time — selecting it on a different layer demotes the previous one back to Install.</li>
         </ul>
         <p>Note: because Install is now the default, a multi-layer file treats every sub-layer as turf to install unless you change it. If a sub-layer is actually a cutout, set it to Exclude.</p>
-        <p>"Installed Area" shows the adjusted total (after exclusions), with the pre-exclusion total in parentheses if anything was excluded. The roll plan's scrap calculation uses the adjusted total. <strong>"Apply Area" is role-aware:</strong> applied to a <strong>Base Yard</strong> or <strong>Alt Turf</strong> row it pushes the whole yard <em>including</em> the putting-green footprint (the green's area is added back), since base/alt turf covers that spot and the green is laid there as its own row — true <strong>Exclude</strong> holes are still subtracted. Applied to a Putting Green row it uses the adjusted total as-is. This keeps base Installed SqFt consistent with how the quote splits labor (standard yard = total minus the green) so the green isn't subtracted twice. Note that hiding a layer (visibility checkbox) is independent from its exclude/ignore/putting-green mode — a hidden layer can still be excluded from the area total, and a visible layer can be set to "ignore."</p>
+        <p>"Installed Area" shows the adjusted total (after exclusions), with the pre-exclusion total in parentheses if anything was excluded. The roll plan's scrap calculation uses the adjusted total. <strong>"Apply Area" is role-aware:</strong> applied to a <strong>Base Yard</strong> row it pushes the whole yard <em>including</em> the putting-green footprint (the green's area is added back), since the base turf covers that spot and the green is laid there as its own row — true <strong>Exclude</strong> holes are still subtracted. Applied to a Putting Green row it uses the adjusted total as-is. <strong>Alt Turf rows don't take an applied area</strong>: an Alt Turf option is priced on the <em>base yard</em> area (it covers the same yard as the base, just a different product), so its own Installed SqFt field is intentionally left blank and Apply Area will explain this and point you to the Base Yard row instead. This keeps base Installed SqFt consistent with how the quote splits labor (standard yard = total minus the green) so the green isn't subtracted twice. Note that hiding a layer (visibility checkbox) is independent from its exclude/ignore/putting-green mode — a hidden layer can still be excluded from the area total, and a visible layer can be set to "ignore."</p>
 
         <div class="docs-h3">Putting Green Fringe</div>
         <p>Once a layer is set to <strong>Putting Green</strong>, a "Putting Green Fringe" section appears below the Layers list. Check <strong>"Add a fringe border around the putting green"</strong> to enable it, then choose a <strong>Fringe Turf Product</strong> from your catalog and set the <strong>Fringe Width</strong> (in feet) — the border strip's width all the way around the green.</p>
@@ -2084,12 +2092,12 @@
         <p>A table listing every individual piece that will be cut for this job — each row shows its <strong>Roll N / Piece M</strong> label, <strong>Length</strong> (its ordered length along the roll), <strong>Width</strong> (the roll width), and resulting <strong>SqFt</strong>. This is the cut sheet for your installers: it tells them exactly how long to cut each piece from the roll, and the total linear footage at the bottom helps you sanity-check how many rolls to bring and plan seam placement to minimize butt seams. Pieces created by Manual Cuts or that have been nested into another roll's waste show a note (e.g. "cut from Roll N / Piece M waste"). If a Putting Green Fringe is configured, the fringe pieces ("Fringe 1", "Fringe 2", ...) are listed too, with their own length/width/sqft.</p>
 
         <div class="docs-h3">Drag-and-Drop Nesting</div>
-        <p>With "Show purchased roll rectangles" on, drag a roll's colored shape (the installed piece) onto another roll's hatched waste area to indicate it can be cut from that roll's offcut rather than ordered separately. Valid drop targets highlight with a green dashed border while dragging. On a successful drop the piece is redrawn relocated into the target roll's waste area, outlined in orange and labeled "from Roll N / Piece M waste," and its area is removed from Ordered SqFt. A piece can be nested into another roll's waste whenever its actual shape fits — clear of that roll's installed turf and of any piece already nested there — somewhere in that roll's purchased rectangle (a genuine 2D fit, checking both leftover length and leftover width). It's drawn where you drop it along that roll, snapped as needed to sit clear of the turf, and you can drop it again to move it elsewhere. If you drop a piece on a roll whose leftover can't actually hold its shape, the nest is refused and a brief notice explains why — rather than the piece being jammed on top of turf. To undo a move, use the piece's <strong>"↩ Put back"</strong> button in the Nested Pieces list — that's the reliable way; you can also drag the orange piece fully off every waste area onto open space, but that gesture is fiddly. You can move several pieces independently and put any one of them back without affecting the others. Works whether or not Cut Mode is active — in Cut Mode a quick click still toggles a cut, while a press-and-drag on a piece nests it. Disabled only in Edit Shape and Move Layers modes. <strong>On a multi-layer job each install layer nests independently:</strong> you can drag a piece within any install layer onto another roll's waste in that same layer, and it relocates and reduces that layer's Ordered SqFt. Nesting is same-layer only — a piece can't be tucked into a different layer's roll, since each layer is rolled on its own plan.</p>
+        <p>With "Show purchased roll rectangles" on, drag a roll's colored shape (the installed piece) onto another roll's hatched waste area to indicate it can be cut from that roll's offcut rather than ordered separately. Valid drop targets highlight with a green dashed border while dragging. On a successful drop the piece is redrawn relocated to the target roll's waste area, outlined in orange and labeled "from Roll N / Piece M waste," and its area is removed from Ordered SqFt. <strong>The piece lands exactly where you drop it</strong> — its centroid goes to the drop point, clamped only so the whole piece stays within that roll's purchased rectangle (and nudged just enough to not stack on another piece already nested there). The tool does not relocate or refuse the piece: you place it manually, the way you'd lay it out in the yard. If where you dropped it overlaps that roll's installed turf, the piece is outlined <strong>red</strong> (instead of orange) and its label adds "— overlaps turf," so you can see at a glance that it won't actually fit there and drag it to a clear spot. Drop it again to move it elsewhere. To undo a move, use the piece's <strong>"↩ Put back"</strong> button in the Nested Pieces list — that's the reliable way; you can also drag the orange piece fully off every waste area onto open space, but that gesture is fiddly. You can move several pieces independently and put any one of them back without affecting the others. Works whether or not Cut Mode is active — in Cut Mode a quick click still toggles a cut, while a press-and-drag on a piece nests it. Disabled only in Edit Shape and Move Layers modes. <strong>On a multi-layer job each install layer nests independently:</strong> you can drag a piece within any install layer onto another roll's waste in that same layer, and it relocates and reduces that layer's Ordered SqFt. Nesting is same-layer only — a piece can't be tucked into a different layer's roll, since each layer is rolled on its own plan.</p>
         <p>Placements are tied to each roll's position in the shape, so they persist across saves/reloads. If you later change roll direction, seam offset, roll width, or side trim enough that the rolls reflow into different bands, a placement tied to a band that no longer exists is simply dropped — it won't jump onto an unrelated roll. Re-check nesting after making significant roll-setting changes.</p>
         <p>A <strong>"Nested Pieces"</strong> list appears in Roll Results whenever any piece is nested, showing each one as "Roll N / Piece M → nested in …" with a <strong>"↩ Put back"</strong> button. Clicking it reverts that single placement — the piece returns to its own ordered length and its area is added back into Ordered SqFt. This is the discoverable equivalent of dragging the orange piece back off the waste area on the canvas.</p>
 
         <div class="docs-h3">Known Limitations</div>
-        <p>Nesting feasibility is now checked as a genuine 2D fit: the tool verifies that the piece's actual shape can sit inside another roll's purchased rectangle clear of that roll's installed turf (and of any piece already nested there), considering both leftover length and leftover width. A piece that only fits "by area" but has nowhere clear to physically go is refused rather than counted as savings. The fit test samples the piece's footprint, so for very thin slivers or tight tolerances, confirm visually before finalizing. Roll strips currently don't split further within a strip for very irregular shapes — treat scrap % as a useful planning number, not a guarantee.</p>
+        <p>Nesting eligibility is area-based: a piece can be dropped into another roll's waste when its area fits within that roll's leftover (waste) area. Placement then honors your drop exactly — the tool no longer relocates or refuses a piece based on a strict 2D fit, because in practice you (the installer) are the one judging whether a leftover can hold a piece. To keep the estimate honest, a nested piece whose dropped position overlaps the target roll's installed turf is outlined <strong>red</strong> and flagged "overlaps turf," so an impossible placement is obvious on the diagram rather than hidden. Treat the orange/red outline as your visual confirmation, and scrap % as a useful planning number, not a guarantee. Roll strips currently don't split further within a strip for very irregular shapes.</p>
       </div>
 
       <!-- MATERIALS -->
@@ -4765,6 +4773,30 @@ function deleteMiscItem(i) {
 //  LAYOUT (Moasure CSV Import) — Phase 1
 // ═══════════════════════════════════════════════════════
 
+// Find an elevation/Z column in a (lowercased) CSV header row. Moasure is a 3D
+// measuring tool, so its exports may carry a height column — but only some do,
+// and the exact header varies. Recognize the common spellings; return -1 when no
+// elevation column is present (the feature then reports "no elevation data").
+function findElevationColumn(header) {
+  const exact = ['z:ft','z:m','z','elevation:ft','elevation:m','elevation','height:ft','height:m','height','altitude:ft','altitude'];
+  for (const name of exact) { const i = header.indexOf(name); if (i >= 0) return i; }
+  for (let i = 0; i < header.length; i++) {
+    const h = header[i];
+    if (/^z\s*[:(]/.test(h) || h === 'z' || h.includes('elevation') || h.includes('height') || h.includes('altitude')) return i;
+  }
+  return -1;
+}
+
+// Min / max / range of the z values present in a list of points. Returns null
+// when no point carries a finite z (i.e. the CSV had no elevation data).
+function elevationSummary(points) {
+  const zs = (points || []).map(p => p.z).filter(z => typeof z === 'number' && isFinite(z));
+  if (!zs.length) return null;
+  const min = Math.min(...zs), max = Math.max(...zs);
+  const mean = zs.reduce((s, z) => s + z, 0) / zs.length;
+  return { min, max, range: max - min, mean, count: zs.length };
+}
+
 function parseLayoutCsv(text) {
   const lines = text.split(/\r?\n/).filter(l => l.trim().length);
   if (lines.length < 2) throw new Error('Empty CSV');
@@ -4784,13 +4816,21 @@ function parseLayoutCsv(text) {
     y: header.indexOf('y:ft'),
     pointType: header.indexOf('point-type'),
     area: header.indexOf('area:ft²'),
+    z: findElevationColumn(header),
   };
   if (idx.x < 0 || idx.y < 0) throw new Error('CSV missing X/Y columns');
+  // Elevation unit, read from the column header (e.g. "z:ft" → "ft", "z:m" → "m").
+  let zUnit = 'ft';
+  if (idx.z >= 0) {
+    const m = header[idx.z].match(/[:(]\s*([a-z]+)/);
+    if (m) zUnit = m[1];
+  }
 
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
     const f = parseLine(lines[i]);
     if (f.length < header.length - 1) continue;
+    const zVal = idx.z >= 0 ? parseFloat(f[idx.z]) : NaN;
     rows.push({
       layer: idx.layer >= 0 ? f[idx.layer] : '1',
       layerName: idx.layerName >= 0 ? f[idx.layerName] : '',
@@ -4798,6 +4838,7 @@ function parseLayoutCsv(text) {
       point: parseInt(f[idx.point], 10),
       x: parseFloat(f[idx.x]),
       y: parseFloat(f[idx.y]),
+      z: isFinite(zVal) ? zVal : null,
       pointType: idx.pointType >= 0 ? f[idx.pointType] : 'Default',
       area: idx.area >= 0 ? parseFloat(f[idx.area]) : null,
     });
@@ -4821,7 +4862,9 @@ function parseLayoutCsv(text) {
         .forEach(r => {
           const last = points[points.length-1];
           if (!last || Math.abs(last.x-r.x) > 1e-6 || Math.abs(last.y-r.y) > 1e-6) {
-            points.push({ x: r.x, y: r.y });
+            const pt = { x: r.x, y: r.y };
+            if (r.z != null) pt.z = r.z;
+            points.push(pt);
           }
         });
     });
@@ -4835,11 +4878,16 @@ function parseLayoutCsv(text) {
       const points = buildPolygon(layerRows);
       const area = layerRows.find(r => r.area != null && !isNaN(r.area))?.area || null;
       const layerName = layerRows.find(r => r.layerName)?.layerName || `Layer ${layerKey}`;
-      return { layer: layerKey, name: layerName, points, area };
+      return { layer: layerKey, name: layerName, points, area, elevation: elevationSummary(points) };
     })
     .filter(s => s.points.length >= 3);
 
   if (!shapes.length) throw new Error('No valid shapes found in CSV');
+
+  // Overall elevation across every shape's points (null when the CSV had no Z).
+  const allPoints = shapes.reduce((acc, s) => acc.concat(s.points), []);
+  const overallElevation = elevationSummary(allPoints);
+  if (overallElevation) overallElevation.unit = zUnit;
 
   // Primary shape = the largest by area (typically the main yard outline / Layer 1)
   let primaryIdx = 0;
@@ -4852,7 +4900,7 @@ function parseLayoutCsv(text) {
   const secondary = shapes.filter((_,i) => i !== primaryIdx);
 
   // Back-compat: top-level points/area = the primary shape
-  return { points: primary.points, area: primary.area, shapes, primaryLayer: primary.layer, secondaryShapes: secondary };
+  return { points: primary.points, area: primary.area, shapes, primaryLayer: primary.layer, secondaryShapes: secondary, elevation: overallElevation, elevationUnit: zUnit };
 }
 
 function getCurrentProjectLayout() {
@@ -4873,9 +4921,10 @@ function importLayoutCsv(input) {
   };
   reader.onload = e => {
     try {
-      const { points, area, secondaryShapes } = parseLayoutCsv(e.target.result);
+      const parsed = parseLayoutCsv(e.target.result);
+      const { points, area, secondaryShapes } = parsed;
       if (points.length < 3) throw new Error('Could not find a valid shape in this CSV.');
-      proj.layout = { points, area, secondaryShapes: secondaryShapes || [], fileName: file.name, imported: Date.now(), viewCentroid: centroidOf(points) };
+      proj.layout = { points, area, secondaryShapes: secondaryShapes || [], fileName: file.name, imported: Date.now(), viewCentroid: centroidOf(points), elevation: parsed.elevation || null, elevationUnit: parsed.elevationUnit || 'ft', elevationLayers: (parsed.shapes || []).map(s => ({ name: s.name, elevation: s.elevation, primary: String(s.layer) === String(parsed.primaryLayer) })) };
       save();
       renderLayoutTab();
     } catch (err) {
@@ -6041,32 +6090,23 @@ function computeRollLayout(basePoints, rotationDeg, translation, opts) {
   }
 
   const nestPos = opts.nestPos || {};
-  const placedByTarget = {}; // targetKey -> [translated polygons already placed]
   Object.keys(nesting).forEach(srcKey => {
     const targetKey = nesting[srcKey];
     const src = byKey[srcKey];
     const target = byKey[targetKey];
     if (!src || !target || src.key === target.key || targetKey == null) return;
     if (target.nestedInto != null) return; // can't nest into a unit that's itself nested
-    // Eligibility is a genuine 2D fit: the piece's shape must sit inside the
-    // target's purchased rectangle clear of its turf (and of pieces already
-    // nested there). Replaces the old area-only test, which over-reported and
-    // let impossible nests through.
-    const obstacles = placedByTarget[targetKey] || [];
-    const fit = findNestFit(src, target, nestPos[srcKey] || null, obstacles);
-    if (fit) {
+    // Eligibility is area-based: the piece's area must fit within the target's
+    // leftover (waste) area. Placement (assignNestPlacements) then puts the piece
+    // exactly where the user dropped it, and flags it red if that overlaps turf —
+    // the tool no longer relocates or refuses the piece, so manual placement is
+    // never overridden.
+    if (src.purchasedArea <= target.wasteArea + 1e-6) {
       src.nestedInto = target.index;
       src.nestedIntoKey = target.key;
       src.nestedIntoLabel = nestTargetLabel(target.key);
       src.nestPos = nestPos[srcKey] || null; // roll-frame drop anchor, if the user placed it
-      src._nestFit = fit;                     // reused at draw time (assignNestPlacements)
       target.nestHost.push(src.index);
-      const dx = fit.x - src.rfX0, dy = fit.y - src.rfY0;
-      if (src.clipped && src.clipped.length >= 3) {
-        (placedByTarget[targetKey] = placedByTarget[targetKey] || []).push(
-          src.clipped.map(p => ({ x: p.x + dx, y: p.y + dy }))
-        );
-      }
     }
   });
 
@@ -6189,67 +6229,10 @@ function polySamplePoints(poly) {
   return pts;
 }
 
-// 2D nesting fit. Find a roll-frame placement for the source piece — returned as
-// the (x,y) the piece's bbox MIN corner (rfX0,rfY0) should move to — such that
-// the source's ACTUAL shape lies inside the target's purchased rectangle and
-// clear of the target's installed turf and any already-placed nested pieces
-// (`obstacles`). Prefers the placement nearest the user's drop point. Returns
-// {x,y} or null if the piece can't be placed clear anywhere.
-//
-// This replaces the old area-only test (`srcArea <= targetWaste`). Area alone
-// over-reported: on an irregular install shape the "waste" is unused roll WIDTH
-// and shape gaps, not necessarily contiguous room the piece's shape can occupy.
-// The fit is genuinely 2D, so it correctly allows a narrow piece tucked into a
-// strip's width-waste AND rejects a full-width piece dropped where there's no
-// clear room (which the old check jammed onto turf).
-function findNestFit(src, target, preferredRf, obstacles) {
-  const poly = (src && src.clipped && src.clipped.length>=3) ? src.clipped : null;
-  if (!poly || !target) return null;
-  const sMinX=src.rfX0, sMaxX=src.rfX1, sMinY=src.rfY0, sMaxY=src.rfY1;
-  const w=sMaxX-sMinX, h=sMaxY-sMinY;
-  const RX0=target.rfX0, RX1=target.rfX1, RY0=target.rfY0, RY1=target.rfY1;
-  if (w<=1e-6 || h<=1e-6) return null;
-  if (w>(RX1-RX0)+1e-6 || h>(RY1-RY0)+1e-6) return null; // bbox can't fit the rect at all
-  const turf = (target.clipped && target.clipped.length>=3) ? target.clipped : null;
-  const obs = (obstacles||[]).filter(o=>o && o.length>=3);
-  // Source footprint samples, expressed relative to the bbox min corner.
-  const samples = polySamplePoints(poly).map(p=>({x:p.x - sMinX, y:p.y - sMinY}));
-  // Source centroid relative to bbox min (for honoring the drop point).
-  const cx = poly.reduce((a,p)=>a+p.x,0)/poly.length - sMinX;
-  const cy = poly.reduce((a,p)=>a+p.y,0)/poly.length - sMinY;
-  // Origin (bbox-min) ranges that keep the bbox inside the rect.
-  const xLo=RX0, xHi=RX1-w, yLo=RY0, yHi=RY1-h;
-  // Preferred origin so the piece centroid lands on the drop point, clamped in.
-  let px=(xLo+xHi)/2, py=(yLo+yHi)/2;
-  if (preferredRf && preferredRf.rfX!=null) px = preferredRf.rfX - cx;
-  if (preferredRf && preferredRf.rfY!=null) py = preferredRf.rfY - cy;
-  px=Math.max(xLo,Math.min(px,xHi)); py=Math.max(yLo,Math.min(py,yHi));
-  const isClear=(ox,oy)=>{
-    for (const s of samples){
-      const X=ox+s.x, Y=oy+s.y;
-      if (turf && pointInPoly({x:X,y:Y}, turf)) return false;
-      for (const o of obs){ if (pointInPoly({x:X,y:Y}, o)) return false; }
-    }
-    return true;
-  };
-  if (isClear(px,py)) return {x:px, y:py};
-  const stepX=Math.max(0.5, (xHi-xLo)/30);
-  const stepY=Math.max(0.5, (yHi-yLo)/30);
-  let best=null, bestD=Infinity;
-  for (let ox=xLo; ox<=xHi+1e-9; ox+=stepX){
-    for (let oy=yLo; oy<=yHi+1e-9; oy+=stepY){
-      if (!isClear(ox,oy)) continue;
-      const d=Math.hypot(ox-px, oy-py);
-      if (d<bestD){ bestD=d; best={x:ox, y:oy}; }
-    }
-  }
-  return best;
-}
-
-// Assign a non-overlapping roll-frame x to every nested piece. Pieces nested
-// into the same target are placed one at a time (in drop-x order) so each
-// avoids the target's turf AND the pieces already placed there. The chosen x is
-// stashed on the unit as `_nestX` for nestedPieceOffset to use at draw time.
+// Assign a roll-frame placement to every nested piece, honoring the user's drop.
+// The chosen position is stashed on the unit as `_nestX`/`_nestY` for
+// nestedPieceOffset to use at draw time, and `_nestOverlapsTurf` flags (for a red
+// outline) when the dropped position sits on the target's installed turf.
 function assignNestPlacements(layout) {
   const units = [];
   layout.strips.forEach(s => { (s.pieces || [s]).forEach(u => units.push(u)); });
@@ -6261,7 +6244,7 @@ function assignNestPlacements(layout) {
     if (id === 'primary' || !L) return;
     (L.strips || []).forEach(s => { (s.pieces || [s]).forEach(u => units.push(u)); });
   });
-  const byKey = {}; units.forEach(u => { byKey[u.key] = u; u._nestX = null; u._nestY = null; });
+  const byKey = {}; units.forEach(u => { byKey[u.key] = u; u._nestX = null; u._nestY = null; u._nestOverlapsTurf = false; });
   const groups = {};
   units.forEach(u => {
     if (u.nestedInto != null && u.nestedIntoKey) {
@@ -6271,9 +6254,8 @@ function assignNestPlacements(layout) {
   Object.keys(groups).forEach(targetKey => {
     const target = byKey[targetKey];
     if (!target || target.rfX0 == null) return;
-    // Place pieces in drop-x order, each clearing the target's turf and the
-    // pieces already placed before it (true 2D placement, honoring the drop).
-    const placed = []; // translated polygons of pieces already placed here
+    const rectX0 = target.rfX0, rectX1 = target.rfX1, rectY0 = target.rfY0, rectY1 = target.rfY1;
+    const occupied = []; // x-intervals of pieces already nested here (avoid stacking)
     const ordered = groups[targetKey].slice().sort((a,b) => {
       const pa = (a.nestPos && a.nestPos.rfX != null) ? a.nestPos.rfX : a.rfX0;
       const pb = (b.nestPos && b.nestPos.rfX != null) ? b.nestPos.rfX : b.rfX0;
@@ -6281,19 +6263,54 @@ function assignNestPlacements(layout) {
     });
     ordered.forEach(u => {
       if (u.rfX0 == null) return;
-      // Reuse the fit computed during resolution when this is the only piece in
-      // the target; recompute (honoring already-placed pieces) when stacking.
-      let fit = (placed.length === 0 && u._nestFit) ? u._nestFit
-                                                    : findNestFit(u, target, u.nestPos || null, placed);
-      if (!fit) return; // shouldn't happen (resolution gates on a fit), but be safe
-      u._nestX = fit.x;
-      u._nestY = fit.y;
-      const dx = fit.x - u.rfX0, dy = fit.y - u.rfY0;
-      if (u.clipped && u.clipped.length >= 3) {
-        placed.push(u.clipped.map(p => ({ x: p.x + dx, y: p.y + dy })));
+      const pieceW = u.rfX1 - u.rfX0;
+      // The piece lands where the user DROPPED it: its centroid goes to the drop
+      // point (matching the drag ghost, which tracks the centroid). We clamp only
+      // so the whole piece stays on the roll, and nudge only to avoid stacking on
+      // another nested piece — we do NOT relocate it off the target's turf. If the
+      // drop overlaps turf, that's flagged visually (red) so the user can move it,
+      // rather than the tool silently teleporting the piece somewhere else.
+      const clip = (u.clipped && u.clipped.length) ? u.clipped : null;
+      const cxP = clip ? clip.reduce((s,p)=>s+p.x,0)/clip.length : (u.rfX0 + u.rfX1)/2;
+      const cyP = clip ? clip.reduce((s,p)=>s+p.y,0)/clip.length : (u.rfY0 + u.rfY1)/2;
+      let tx, ty;
+      if (u.nestPos && u.nestPos.rfX != null) {
+        tx = u.nestPos.rfX - cxP;
+        ty = (u.nestPos.rfY != null ? u.nestPos.rfY : cyP) - cyP;
+      } else {
+        tx = rectX0 - u.rfX0; // no drop point → tuck to the target's top-left
+        ty = rectY0 - u.rfY0;
       }
+      // Clamp so the whole piece stays within the target's purchased rectangle.
+      tx = Math.max(rectX0 - u.rfX0, Math.min(tx, rectX1 - u.rfX1));
+      ty = Math.max(rectY0 - u.rfY0, Math.min(ty, rectY1 - u.rfY1));
+      let x = u.rfX0 + tx;
+      x = nearestClearX(x, pieceW, rectX0, rectX1, [], rectY0, rectY1, occupied);
+      const finalY = u.rfY0 + ty;
+      u._nestX = x;
+      u._nestY = finalY;
+      occupied.push([x, x + pieceW]);
+      // Honest visual cue: does the piece, where it was dropped, sit on the
+      // target's installed turf? (Sampling-based; thin slivers may be missed.)
+      u._nestOverlapsTurf = placedOverlapsTurf(u, x, finalY, target);
     });
   });
+}
+
+// Whether the piece `u`, placed with its bbox-min at (placedX, placedY) in roll
+// frame, overlaps the target's installed turf — sampled across the piece's shape.
+// Used only as a non-blocking warning (red outline); placement still honors the
+// user's drop.
+function placedOverlapsTurf(u, placedX, placedY, target) {
+  const poly = (u.clipped && u.clipped.length >= 3) ? u.clipped : null;
+  const turf = (target.clipped && target.clipped.length >= 3) ? target.clipped : null;
+  if (!poly || !turf) return false;
+  const dx = placedX - u.rfX0, dy = placedY - u.rfY0;
+  const samples = polySamplePoints(poly);
+  for (const s of samples) {
+    if (pointInPoly({ x: s.x + dx, y: s.y + dy }, turf)) return true;
+  }
+  return false;
 }
 
 // Returns the roll layout for every "install" layer: the primary shape (always
@@ -6491,6 +6508,88 @@ function renderRollLayout() {
   renderPieceList(layout, proj);
   document.getElementById('layoutArea').value = `${layout.adjustedShapeArea.toLocaleString(undefined,{maximumFractionDigits:2})} ft²`
     + (layout.adjustedShapeArea !== layout.shapeArea ? ` (${layout.shapeArea.toLocaleString(undefined,{maximumFractionDigits:2})} ft² before exclusions)` : '');
+  renderLayoutElevation(proj);
+}
+
+// Opt-in elevation readout. The checkbox state lives on the layout so it sticks
+// per project. When on, show the elevation change parsed from the CSV (or a clear
+// "no elevation data" note when the import had no Z column).
+function toggleLayoutElevation() {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  const cb = document.getElementById('layoutShowElevation');
+  proj.layout.showElevation = !!(cb && cb.checked);
+  save();
+  renderLayoutElevation(proj);
+}
+
+function formatElevation(elev) {
+  if (!elev) return null;
+  const u = elev.unit || 'ft';
+  const f = n => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return `Elevation change: <strong>${f(elev.range)} ${u}</strong> `
+    + `(low ${f(elev.min)} ${u} → high ${f(elev.max)} ${u}, ${elev.count} measured points)`;
+}
+
+// One layer's elevation as a list row: its own fall (range), the height band it
+// sits in, and — for non-base layers — how far its mean height sits above/below
+// the base layer, so a raised surface reads as raised rather than inflating the total.
+function formatElevationLayer(name, elev, unit, offset) {
+  const u = (elev && elev.unit) || unit || 'ft';
+  const f = n => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  if (!elev) return `<li><strong>${name}:</strong> no height data</li>`;
+  let s = `<li><strong>${name}:</strong> ${f(elev.range)} ${u} fall (${f(elev.min)} → ${f(elev.max)} ${u})`;
+  if (offset != null && Math.abs(offset) >= 0.005) {
+    const dir = offset > 0 ? 'above' : 'below';
+    s += ` — sits <strong>${f(Math.abs(offset))} ${u} ${dir}</strong> the base`;
+  } else if (offset != null) {
+    s += ` — level with the base`;
+  }
+  return s + `</li>`;
+}
+
+// Pure: given the per-layer elevation list, attach each layer's mean-height offset
+// from the base (primary) layer. Returns a new array of { name, elevation, primary,
+// offset } where offset is null for the base layer (or when a layer/base has no
+// height data). The base reference is the layer flagged `primary`, else the first
+// layer that carries elevation.
+function elevationLayerOffsets(layers) {
+  const list = (layers || []).map(L => ({ name: L.name, elevation: L.elevation, primary: !!L.primary, offset: null }));
+  let base = list.find(L => L.primary && L.elevation);
+  if (!base) base = list.find(L => L.elevation);
+  if (!base || !base.elevation || base.elevation.mean == null) return list;
+  list.forEach(L => {
+    if (L === base || !L.elevation || L.elevation.mean == null) return;
+    L.offset = L.elevation.mean - base.elevation.mean;
+  });
+  return list;
+}
+
+function renderLayoutElevation(proj) {
+  const cb  = document.getElementById('layoutShowElevation');
+  const out = document.getElementById('layoutElevationOut');
+  if (!cb || !out || !proj || !proj.layout) return;
+  const on = !!proj.layout.showElevation;
+  cb.checked = on;
+  if (!on) { out.style.display = 'none'; out.innerHTML = ''; return; }
+  out.style.display = '';
+  const elev = proj.layout.elevation;
+  if (!elev) {
+    out.innerHTML = `No elevation data found in the imported CSV. Re-import a Moasure file that includes a height/Z column to see the elevation change.`;
+    return;
+  }
+  const u = elev.unit || 'ft';
+  const withOffsets = elevationLayerOffsets(proj.layout.elevationLayers || []).filter(L => L.elevation);
+  let html = formatElevation(elev);
+  // When more than one measured layer carries height, break it out per layer —
+  // the whole-import range can span separate surfaces at different base heights
+  // (e.g. a raised bed), which would overstate the grade of any single surface.
+  if (withOffsets.length > 1) {
+    html += `<div style="margin-top:4px;">Per layer:</div>`
+      + `<ul style="margin:2px 0 0 0;padding-left:16px;">`
+      + withOffsets.map(L => formatElevationLayer(L.primary ? L.name + ' (base)' : L.name, L.elevation, u, L.offset)).join('')
+      + `</ul>`;
+  }
+  out.innerHTML = html;
 }
 
 function renderNestingControls(layout, proj) {
@@ -6695,12 +6794,13 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       const units = s.pieces || [s];
       units.forEach(u => {
         if (u.nestedInto != null) {
-          // Draw this piece relocated into its target's waste area, outlined
-          // in orange to show it's cut from that roll's leftover.
+          // Draw this piece relocated to where it was dropped. Outline orange when
+          // it sits clear in the leftover, RED when it overlaps the roll's turf
+          // (so the user can see it won't actually fit there and move it).
           const off = nestedPieceOffset(u);
           const movedClipped = translatePoly(u.displayClipped, off.dx, off.dy);
           drawPoly(movedClipped, color, 'rgba(0,0,0,0.25)');
-          drawPoly(movedClipped, null, '#f4a822');
+          drawPoly(movedClipped, null, u._nestOverlapsTurf ? '#e53935' : '#f4a822');
           u._displayClippedMoved = movedClipped; // stash for label placement below
         } else if (showRects && u.displayRect && u.displayRect.length) {
           drawHatched(u.displayRect, 'rgba(244,67,54,0.35)');       // waste hatching across the whole rectangle
@@ -6736,12 +6836,12 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
           const us = st.pieces || [st];
           us.forEach(u => {
             if (u.nestedInto != null) {
-              // Drawn relocated into its (same-layer) target's waste, outlined
-              // orange — mirrors the primary nested-piece draw.
+              // Drawn relocated to where it was dropped; orange when clear, RED
+              // when it overlaps this layer's turf — mirrors the primary draw.
               const off = nestedPieceOffset(u);
               const movedClipped = translatePoly(u.displayClipped, off.dx, off.dy);
               drawPoly(movedClipped, fill, 'rgba(0,0,0,0.25)');
-              drawPoly(movedClipped, null, '#f4a822');
+              drawPoly(movedClipped, null, u._nestOverlapsTurf ? '#e53935' : '#f4a822');
               u._displayClippedMoved = movedClipped;
             } else {
               if (showRects && u.displayRect && u.displayRect.length) {
@@ -6886,7 +6986,9 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
         const c = toCanvas(mid);
         const rp = rollPieceLabels.get(u) || {roll: i+1, piece: pi+1};
         const baseLabel = `Roll ${rp.roll} / Piece ${rp.piece}`;
-        const label = u.nestedInto != null ? `${baseLabel} (from ${u.nestedIntoLabel} waste)` : baseLabel;
+        const label = u.nestedInto != null
+          ? `${baseLabel} (from ${u.nestedIntoLabel} waste${u._nestOverlapsTurf ? ' — overlaps turf' : ''})`
+          : baseLabel;
         const tw = ctx.measureText(label).width;
         const lx = Math.min(Math.max(c.x - tw/2, pad+2), w - pad - tw - 2);
         const ly = Math.min(Math.max(c.y, pad+12), h - pad - 4);
@@ -6923,7 +7025,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       // Highlight valid same-layer waste target areas in green
       srcGroup.units.forEach(u => {
         if (u.key===dragUnitKey || !u.displayRect || !u.displayRect.length) return;
-        if (u.nestedInto==null && window._wtDragValidTargets && window._wtDragValidTargets.has(u.key)) {
+        if (u.nestedInto==null && u.wasteArea+1e-6 >= srcUnit.purchasedArea) {
           ctx.save();
           ctx.beginPath();
           u.displayRect.forEach((p,i)=>{ const c=toCanvas(p); if(i===0)ctx.moveTo(c.x,c.y);else ctx.lineTo(c.x,c.y); });
@@ -7358,27 +7460,19 @@ function startDragNesting(evt) {
     ...groups.filter(g => g.layerId !== 'primary'),
     ...groups.filter(g => g.layerId === 'primary'),
   ];
-  let hitUnit = null, hitGroup = null;
+  let hitUnit = null;
   for (const g of searchOrder) {
     hitUnit = g.units.find(u =>
       (u._displayClippedMoved && u._displayClippedMoved.length && pointInPoly(dataPt, u._displayClippedMoved)) ||
       (u.displayClipped && u.displayClipped.length && pointInPoly(dataPt, u.displayClipped))
     );
-    if (hitUnit) { hitGroup = g; break; }
+    if (hitUnit) break;
   }
   if (!hitUnit) return;
   evt.preventDefault();
   window._wtDragNestKey = hitUnit.key;
   window._wtDragNestStart = { canvasX: pos.canvasX, canvasY: pos.canvasY };
   window._wtDragNestPos = { canvasX: pos.canvasX, canvasY: pos.canvasY };
-  // Precompute which same-layer targets this piece can actually fit into (a 2D
-  // fit, not just area) ONCE, so the per-frame highlight during the drag is cheap.
-  const valid = new Set();
-  (hitGroup ? hitGroup.units : []).forEach(u => {
-    if (u.key === hitUnit.key) return;
-    if (findNestFit(hitUnit, u, null)) valid.add(u.key);
-  });
-  window._wtDragValidTargets = valid;
 }
 
 function moveDragNesting(evt) {
@@ -7448,17 +7542,14 @@ function endDragNesting(evt) {
   }
 
   // Check if dropped on another same-layer unit's waste area (displayRect but
-  // NOT displayClipped), and whether the piece actually fits there in 2D.
+  // NOT displayClipped). Eligibility is area-based; placement honors the drop.
   let targetKey = null;
-  let droppedOnWasteOf = null;
   if (srcGroup && srcUnit) {
     for (const u of srcGroup.units) {
       if (u.key === srcKey) continue;
       if (!u.displayRect || !u.displayRect.length) continue;
       if (pointInPoly(dataPt, u.displayRect) && !pointInPoly(dataPt, u.displayClipped)) {
-        droppedOnWasteOf = u;
-        // Genuine 2D fit, not just "area fits".
-        if (findNestFit(srcUnit, u, null)) {
+        if (srcUnit.purchasedArea <= u.wasteArea + 1e-6) {
           targetKey = u.key;
         }
         break;
@@ -7471,21 +7562,15 @@ function endDragNesting(evt) {
 
   if (targetKey != null && srcUnit) {
     const rollPt = displayPointToRollFrame(dataPt, srcGroup);
-    // Store the drop point so the piece is drawn where the user put it. Keys are
-    // already layer-prefixed, so this writes into the correct layer's namespace.
+    // Store the drop point so the piece is drawn exactly where the user put it.
+    // Keys are already layer-prefixed, so this writes into the correct layer.
     proj.layout.nesting[srcUnit.key] = targetKey;
     proj.layout.nestPos[srcUnit.key] = { rfX: rollPt.x, rfY: rollPt.y };
   } else if (srcUnit) {
-    // Dropped outside any valid target — reset nesting for this unit. If the user
-    // dropped on a roll's waste that can't actually hold this piece, say so
-    // rather than silently snapping it back.
+    // Dropped outside any waste area — reset nesting for this unit.
     delete proj.layout.nesting[srcUnit.key];
     delete proj.layout.nestPos[srcUnit.key];
-    if (droppedOnWasteOf) {
-      showLayoutToast("That piece doesn't fit in this roll's leftover — there's no clear space its shape can occupy.");
-    }
   }
-  window._wtDragValidTargets = null;
   save();
   renderRollLayout();
 }
@@ -7884,29 +7969,47 @@ function applyRollLayoutToTurf() {
   alert(`Applied ${orderedTotal.toLocaleString(undefined,{maximumFractionDigits:0})} ft² (${totalRolls} roll(s)${pieceNote}, ${linearTotal.toFixed(1)} linear ft)${layerNote} to ${proj.turf[i].product || 'turf row '+(i+1)}.`);
 }
 
+// Decide what "Apply Area" should push into a given turf row. Pure (no DOM) so
+// it's unit-testable. Returns { ok, area?, reason? }.
+//  - base row:          whole yard INCLUDING the putting-green footprint (PG added back)
+//  - putting-green row:  the adjusted area as-is (green-only)
+//  - alt-turf row:       BLOCKED — alt turf is priced on the base yard area, so its
+//                        own Installed SqFt is never used; "applying" it would write
+//                        a value nothing reads. Caller should explain, not pretend.
+function computeApplyAreaForRow(proj, layout, row) {
+  const role = (row && row.role) || 'base';
+  if (role === 'alt-turf') return { ok:false, reason:'alt-turf-priced-on-base' };
+  let area = layout ? (layout.adjustedShapeArea != null ? layout.adjustedShapeArea : layout.shapeArea)
+                    : getAdjustedShapeArea(proj, (proj.layout && proj.layout.area) || 0);
+  if (role === 'base') area += getPuttingGreenShapeArea(proj);
+  if (!area) return { ok:false, reason:'no-area' };
+  return { ok:true, area: Math.round(area * 100) / 100 };
+}
+
 function applyLayoutAreaToTurf() {
   const proj = getCurrentProject(); if (!proj || !proj.layout) return;
   const sel = document.getElementById('layoutApplyTarget');
   const i = parseInt(sel.value, 10);
   if (isNaN(i) || !proj.turf[i]) { alert('No turf row selected.'); return; }
   const row = proj.turf[i];
-  const layout = window._wtCurrentRollLayout;
-  let area = layout ? (layout.adjustedShapeArea != null ? layout.adjustedShapeArea : layout.shapeArea) : getAdjustedShapeArea(proj, proj.layout.area || 0);
-  // Base and alt turf cover the whole yard INCLUDING the putting-green footprint —
-  // you buy base turf for that spot and the green is laid there as its own row. The
-  // adjusted area subtracts the green like a cutout, so add it back for base/alt
-  // rows. True 'exclude' holes stay subtracted; putting-green rows keep their own
-  // green-only area.
-  if ((row.role || 'base') === 'base' || row.role === 'alt-turf') {
-    area += getPuttingGreenShapeArea(proj);
+  const res = computeApplyAreaForRow(proj, window._wtCurrentRollLayout, row);
+  if (!res.ok) {
+    if (res.reason === 'alt-turf-priced-on-base') {
+      alert(`Turf Row ${i+1} is an Alt Turf option. Alt Turf is priced on the base yard `
+        + `area (it covers the same yard as the base), so it doesn't take its own `
+        + `Installed SqFt — that field is intentionally left blank. Apply this area to `
+        + `your Base Yard row instead.\n\nIf you need this alt turf to cover a DIFFERENT `
+        + `area than the base yard, that's a separate feature — let me know and I'll add it.`);
+    } else {
+      alert('This layout has no area value.');
+    }
+    return;
   }
-  if (!area) { alert('This layout has no area value.'); return; }
-  area = Math.round(area * 100) / 100;
-  row.installedSqFt = area;
+  row.installedSqFt = res.area;
   save();
   calcTurfRow(i);
   renderTurfRows(proj);
-  alert(`Applied ${area.toLocaleString(undefined,{maximumFractionDigits:2})} ft² to ${row.product || 'turf row '+(i+1)}.`);
+  alert(`Applied ${res.area.toLocaleString(undefined,{maximumFractionDigits:2})} ft² to ${row.product || 'turf row '+(i+1)}.`);
 }
 
 // ═══════════════════════════════════════════════════════

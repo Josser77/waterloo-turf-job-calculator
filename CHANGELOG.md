@@ -5,6 +5,140 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-21 (cont'd, 32) — Nesting honors the drop (reverted the 2D auto-fit); Apply-Area alt-turf fix; opt-in elevation from CSV
+
+Three changes this session. Test suite: **764** (sandbox 721).
+
+### 1. Nesting now lands exactly where you drop it (reverted the 2D auto-fit gate)
+
+The previous entry's `findNestFit` gate had the opposite problem from the one it
+fixed: when the exact drop point wasn't clear, it **relocated** the piece to the
+nearest clear spot — so the piece jumped away from the cursor. That's the recurring
+"the moved piece still doesn't get placed where I drop it" complaint. Root cause: the
+tool was acting as an automatic fit-arbiter when what's wanted is a **manual
+placement tool** — the installer judges the fit, the tool should honor the placement.
+
+- **Removed `findNestFit` entirely.** Eligibility is back to area-based
+  (`pieceArea ≤ rollWaste`) in resolution, the drop handler, and the drag highlight.
+- **`assignNestPlacements` rewritten to honor the drop literally:** the piece's
+  centroid lands on the drop point, clamped only so the whole piece stays in the
+  target's purchased rectangle, and nudged only to avoid stacking on another nested
+  piece. It is **never** relocated off turf and **never** refused.
+- **Honest visual cue instead of refusal:** new `placedOverlapsTurf(u, x, y, target)`
+  samples the placed piece against the target's installed turf. When the dropped
+  position overlaps turf, the piece outlines **red** (`#e53935`) instead of orange and
+  its label appends "— overlaps turf," so an impossible placement is obvious on the
+  diagram rather than hidden — without the tool overriding you.
+- Savings stay area-based (the documented "confirm visually" model). Per-layer nesting
+  (Phase 3b inc 2) is unchanged.
+- Verified honor-the-drop placement against the real 1-project export geometry, not
+  just synthetic fixtures.
+
+### 2. Apply Area on an Alt Turf row no longer silently no-ops
+
+Alt Turf options are priced on the **base yard** area (line: `sqFt: baseSqFt`), so an
+alt-turf row's own Installed SqFt is never read and its field is readonly. "Apply
+Area" was writing that ignored field and popping a false "Applied X ft²." Extracted a
+pure, testable **`computeApplyAreaForRow(proj, layout, row)`** that returns the
+role-aware area for base (whole yard incl. green) and putting-green (adjusted as-is),
+and **blocks alt-turf** with reason `alt-turf-priced-on-base`. The DOM wrapper now
+explains this and points to the Base Yard row instead of faking success. (A separate
+"alt turf covers a different area than base" feature remains a deliberate non-change.)
+
+### 3. Opt-in: show elevation change from the CSV import
+
+Moasure measures in 3D, so some exports carry a height/Z column. `parseLayoutCsv` now
+detects an elevation column (`findElevationColumn` recognizes `Z:ft`, `Elevation`,
+`Height`, `Altitude`, with/without units), carries `z` onto each point, and computes an
+**elevation summary** (`min`/`max`/`range`/`count`, plus `unit` from the header) per
+shape and overall (`elevationSummary`). Import stores it on `proj.layout.elevation`.
+A new opt-in checkbox **"Show elevation change (from CSV)"** in the Layout sidebar
+(`toggleLayoutElevation` / `renderLayoutElevation`, state on `layout.showElevation`)
+shows the range when present and a plain "no elevation data found" note otherwise —
+**no fabrication** when the CSV lacks a Z column. Purely informational; does not affect
+area, rolls, or pricing.
+
+**Verified against a real Moasure export (`Backyard.csv`):** header is `Z:ft`, parsed
+correctly — Base Layer 0.83 ft fall (−0.63 → 0.20), Sub Layer 1 0.43 ft fall (0.78 →
+1.21), whole-import span 1.84 ft over 25 points. Because that real file revealed a
+raised sub-layer, the readout now **breaks elevation out per layer** (`elevationLayers`
+stored at import, `formatElevationLayer`): each surface shows its own fall, since the
+combined low→high range spans separate surfaces at different base heights and would
+otherwise overstate the grade of any single one. Each non-base layer also reports its
+**mean-height offset from the base layer** (`elevationLayerOffsets`, pure/testable;
+`elevationSummary` now carries `mean`; the base layer is the one flagged primary, else
+the first measured layer) — e.g. on `Backyard.csv`, "Sub Layer 1 sits 1.2 ft above the
+base."
+
+### Tests
+- Reverted all `findNestFit`/`narrowtab@30` nesting tests back to area-based `lShape`
+  fixtures (sections 5, 20, 22, 45 put-back, 48, nestPos anchor, 55 prefixed).
+- Section 49 rewritten for honor-the-drop placement: centered-on-drop, edge-clamp,
+  nudge-apart, triangle-centroid, **turf-overlap flag** (on-turf → flagged, clear →
+  not), and a real-geometry integration placement.
+- New `computeApplyAreaForRow` unit cases (base / putting-green / alt-turf blocked /
+  no-area) and updated the end-to-end Apply test (alt-turf row now unchanged).
+- New `parseLayoutCsv` elevation cases (Z column → summary, no Z → null, alternate
+  headers via `findElevationColumn`, and a multi-layer case proving each layer keeps
+  its own fall while the overall range spans both), plus `elevationLayerOffsets` cases
+  (above/below the base, primary-vs-first reference, and a no-height layer).
+
+---
+
+## 2026-06-21 (cont'd, 31) — Nesting eligibility is now a genuine 2D fit (no more phantom savings / turf-jamming)
+
+Replaces the old **area-only** nesting test (`pieceArea ≤ rollWaste`) with a real
+2D fit. The area test over-reported badly on irregular yards: a roll's "waste area"
+is mostly unused roll **width** and shape gaps, not contiguous room a piece can be
+cut from. So a piece could pass the area check, get counted as savings, and then be
+drawn **jammed on top of the installed turf** in a corner — the bug seen on a real
+multi-layer job (a small primary strip needing ~5 ft of length "nested" into a roll
+with ~1.25 ft of leftover length).
+
+New helper **`findNestFit(src, target, preferredRf, obstacles)`** searches for a
+placement where the piece's **actual shape** sits inside the target's purchased
+rectangle, clear of the target's turf and of any piece already nested there. It
+honors the user's drop point (piece centroid lands on the drop when that spot is
+clear, otherwise the nearest clear spot), and returns `null` when nothing fits. The
+fit is genuinely two-dimensional, so it correctly **allows** a narrow piece tucked
+into a roll's width-waste **and** **rejects** a full-width piece dropped where there's
+no clear room. Footprint overlap is tested by sampling the piece's shape (fast enough
+to run per-frame at drag start), so very thin slivers should still be confirmed
+visually — noted in the in-app docs.
+
+The same function now gates all four nesting touch-points, so eligibility, savings,
+placement and the drag highlight can never disagree:
+
+1. **Resolution** (`computeRollLayout`) — the Ordered-SqFt reducer. A nest only
+   applies (and only lowers Ordered SqFt) when `findNestFit` succeeds; the fit is
+   stashed on the unit (`_nestFit`) and the placed polygon is accumulated per target
+   so a second piece nested into the same roll avoids the first.
+2. **Placement** (`assignNestPlacements`) — rewritten to position each piece via the
+   fit (reusing the resolution fit for a single piece, recomputing with obstacles
+   when stacking) instead of the old centroid-clamp-and-nudge math.
+3. **Drop** (`endDragNesting`) — accepts the drop only on a real 2D fit; if you drop
+   on a roll whose leftover can't hold the piece, it's refused and a toast explains
+   why instead of snapping back silently.
+4. **Highlight** — the green valid-target borders now come from a fit set computed
+   once at drag start (`window._wtDragValidTargets`), so the per-frame draw stays cheap.
+
+Docs + tests:
+- In-app Help: the "area-based only / does not verify geometric fit" caveat and the
+  drag-to-nest walkthrough were rewritten to describe the 2D fit and the refusal.
+- Test suite: corrected the old fixtures that asserted **phantom** nests (L-shapes
+  whose strips have ~1 ft leftover — they never physically fit). Added a `narrowtab`
+  shape rolled at 30° that produces a genuinely fitting nest for the
+  "nesting lowers Ordered SqFt" integration paths, plus a full set of `findNestFit`
+  unit cases (width-fit, length-fit, too-tall, too-big, honor-the-drop, obstacle) and
+  an "area-fits-but-2D-impossible → refused, no phantom savings" case. Suite green at
+  **742** (699 in the headless sandbox).
+
+Needs visual confirmation in-app (canvas draw isn't unit-testable): that a piece
+which can't fit now refuses with a toast, that a legitimate nest still lands where you
+drop it, and that secondary-layer nesting is unaffected.
+
+---
+
 ## 2026-06-20 (cont'd, 30) — Per-layer nesting works end-to-end (Phase 3b inc 2)
 
 Fixes the off-target nesting drop on multi-install-layer jobs: a piece dragged
