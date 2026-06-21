@@ -5,6 +5,113 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-20 (cont'd, 29) — Layer-aware nestable-unit enumeration (Phase 3b inc 2, scaffolding)
+
+Groundwork for fixing the nesting drop-placement bug (a piece dropped over a
+**secondary** install layer's waste lands off-target, because the drop handler
+converts the drop point in the **primary's** roll frame). This session lands only
+the safe, fully-tested core; it does **not** yet change any drop/draw behavior.
+
+Added two functions:
+- **`getNestableUnitsByLayer(layout)`** — returns one group per install layer
+  (primary + each secondary `install` layer), each carrying that layer's own
+  `rotationDeg` / `cx` / `cy` and its units. The shared `getNestableUnits` and its
+  other consumers (drag-ghost highlight, Piece List cut sheet, Nested Pieces list)
+  are **left untouched on purpose**, so no user-facing list silently changes as a
+  side effect of the nesting work.
+- **`displayPointToRollFrame(dataPt, layerGroup)`** — converts a display point into
+  a given layer's roll frame. For the primary group it reproduces the legacy inline
+  conversion exactly (behavior-preserving); for a secondary layer it uses that
+  layer's transform — the seam the drop handler needs to stop landing pieces in the
+  wrong place.
+
+The data layer was already ready for this (Phase 3b inc 1 key-prefixing means each
+install layer's `computeRollLayout` resolves its own `nesting`/`nestPos`). What
+remains for the bug to actually disappear — and is **not** in this session — is the
+canvas glue, which must land together (data-correct-but-drawn-wrong is worse than
+unstarted): the drop handler writing the prefixed key with the per-layer frame;
+`assignNestPlacements` spanning all layers; `nestedPieceOffset` using the per-layer
+rotation + a per-layer unit lookup; and the install-layers draw loop relocating
+nested pieces. Those are partly un-unit-testable (pure canvas draw), so they want
+the app open for visual confirmation.
+
+### Tests
+- New **section 55** (16 tests): group-per-layer enumeration, primary group matches
+  `getNestableUnits` exactly, per-layer transforms carried correctly, primary-frame
+  equivalence to the legacy conversion, secondary layer converting the same drop
+  point to a *different* frame (the bug's root cause), round-trip inverse, and the
+  no-install-layers degenerate case.
+- Suite: **729** (sandbox 686), up from 713.
+
+### Still pending (canvas-heavy — needs the app open)
+- Wire the four drop/draw edits above so secondary-layer nesting works end-to-end.
+- Open decision: should the Piece List cut sheet include secondary-layer pieces
+  (currently primary-only)? Affects a real installer artifact — confirm before flipping.
+- Per-layer cut-click routing, then label the Manual Cuts / Nested Pieces lists by layer.
+- Primary **shape** rotation (render + hit-testing together).
+
+
+
+For parity with secondary layers, the primary shape's row in the Layers list now
+has **Roll dir** and **Seam off** controls (previously only on the global sliders at
+the top of the roll panel). They write the same model fields (`proj.layout.rotation`
+/ `.translation`) and sync the top sliders, and use the same drag-safe pattern (live
+input updates the canvas only; the list rebuilds on drag end).
+
+`setPrimaryRollDirection` / `setPrimarySeamOffset` added.
+
+### Still pending (canvas-heavy — needs a dedicated session)
+- Rotating the **primary shape's orientation** (only sub-layers can spin today;
+  the primary supports move + edit but not rotation — needs a rotation offset in
+  `renderRollLayout` plus matching hit-testing).
+- **Nesting drop-placement bug**, now diagnosed: `getNestableUnits` only walks the
+  primary layer's strips, and the drop handler converts the drop point with the
+  *primary's* rotation/centroid — so secondary install layers (which roll at their
+  own angle per Phase 3a) aren't valid/correct nest targets. This is Phase 3b
+  increment 2 (per-layer transform routing).
+
+### Tests
+- Section 54: `setPrimaryRollDirection` / `setPrimarySeamOffset` write the model,
+  wrap mod 180, and are drag-safe.
+- **Total: 713 tests, all passing** (707 prior + 6 new).
+
+---
+
+## 2026-06-17 (cont'd, 27) — Fix: per-layer Roll dir / Seam off sliders now drag
+
+The per-layer **Roll dir** and **Seam off** sliders in the Layers list could only
+be clicked, not dragged. Cause: their `oninput` handlers called
+`setLayerRollDirection` / `setLayerSeamOffset`, which rebuilt the entire Layers
+list on every input event — destroying the slider being dragged after the first
+tick. (The Rotate slider was unaffected because `setLayerRotation` never rebuilt
+the list.)
+
+Fix: the live `oninput` path now updates the model + canvas only (drag-safe); the
+list rebuild — which refreshes the "matches primary / Match primary" indicator — is
+deferred to `onchange` (drag end), running once.
+
+### Tests
+- Section 54: `setLayerRollDirection` / `setLayerSeamOffset` update the model on
+  the live path without rebuilding the list, and rebuild exactly once on drag end.
+- **Total: 707 tests, all passing** (701 prior + 6 new).
+
+---
+
+## 2026-06-17 (cont'd, 26) — Refactor: single source of truth for effective roll width
+
+No behavior change. The usable-roll-width-after-trim formula
+(`Math.max(0.01, rollWidth − sideTrim)`) was copy-pasted at five sites. Extracted
+to `effectiveRollWidth(opts)` and routed all five through it, so the trim rule
+lives in one place and can't drift.
+
+### Tests
+- Section 54: `effectiveRollWidth` — normal, 6in trim, missing-opts defaults, and
+  the 0.01 floor when trim exceeds width.
+- **Total: 701 tests, all passing** (697 prior + 4 new). Full suite re-run confirms
+  the roll-layout math is unchanged.
+
+---
+
 ## 2026-06-17 (cont'd, 25) — Phase 3b (increment 1): per-layer cut/nest key namespacing
 
 Foundation for per-layer manual cuts and nesting, plus a fix for a latent

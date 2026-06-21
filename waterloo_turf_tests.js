@@ -4265,6 +4265,125 @@ section('54. Phase 3b: per-layer cut/nest key namespacing');
     assert(realStrip(layers[0].layout).key.indexOf('y') === 0, 'primary layer keeps bare key');
     assert(realStrip(layers[1].layout).key.indexOf('L0_') === 0, 'secondary install layer key is prefixed with its id');
   }
+
+  // effectiveRollWidth: single source of truth for usable roll width after trim
+  assert(ctx54.effectiveRollWidth({ rollWidth:15, sideTrim:0 }) === 15, 'effW: 15 roll, 0 trim → 15');
+  assert(Math.abs(ctx54.effectiveRollWidth({ rollWidth:15, sideTrim:6 }) - 14.5) < 1e-9, 'effW: 15 roll, 6in trim → 14.5 ft');
+  assert(ctx54.effectiveRollWidth({}) === 15, 'effW: missing opts default to 15 roll, 0 trim');
+  assert(ctx54.effectiveRollWidth({ rollWidth:1, sideTrim:240 }) === 0.01, 'effW: floored at 0.01 when trim exceeds width (1ft − 20ft → 0.01)');
+
+  // Per-layer roll-dir / seam sliders must be drag-safe: the live oninput path
+  // (skipList=true) updates the model + canvas but must NOT rebuild the layers
+  // list (which would destroy the slider mid-drag). The drag-end onchange path
+  // rebuilds it once.
+  {
+    let listCalls = 0;
+    ctx54.renderLayersList = () => { listCalls++; };
+    ctx54.renderRollLayout = () => {};
+    ctx54.save = () => {};
+    const proj = { layout: { layerRoll: {} } };
+    ctx54.getCurrentProject = () => proj;
+
+    listCalls = 0;
+    ctx54.setLayerRollDirection(0, 45, true);
+    assert(proj.layout.layerRoll[0].rotation === 45, 'roll dir: model updates on live input');
+    assert(listCalls === 0, 'roll dir: live input does NOT rebuild the layers list (drag-safe)');
+    ctx54.setLayerRollDirection(0, 90);
+    assert(listCalls === 1, 'roll dir: drag-end rebuilds the list exactly once');
+
+    listCalls = 0;
+    ctx54.setLayerSeamOffset(0, 5, true);
+    assert(proj.layout.layerRoll[0].translation === 5, 'seam offset: model updates on live input');
+    assert(listCalls === 0, 'seam offset: live input does NOT rebuild the layers list (drag-safe)');
+    ctx54.setLayerSeamOffset(0, 3);
+    assert(listCalls === 1, 'seam offset: drag-end rebuilds the list exactly once');
+  }
+
+  // Primary roll dir / seam offset (Layers-list parity): writes the global
+  // rotation/translation, syncs the top slider input, and is drag-safe.
+  {
+    let listCalls = 0;
+    ctx54.renderLayersList = () => { listCalls++; };
+    ctx54.renderRollLayout = () => {};
+    ctx54.save = () => {};
+    const proj = { layout: {} };
+    ctx54.getCurrentProject = () => proj;
+    // getElementById returns a fresh mock each call here, so just assert model + list behavior.
+    listCalls = 0;
+    ctx54.setPrimaryRollDirection(95, true);
+    assert(proj.layout.rotation === 95, 'primary roll dir writes proj.layout.rotation');
+    assert(listCalls === 0, 'primary roll dir: live input is drag-safe (no list rebuild)');
+    ctx54.setPrimaryRollDirection(200); // wraps mod 180 → 20
+    assert(proj.layout.rotation === 20, 'primary roll dir wraps mod 180');
+    assert(listCalls === 1, 'primary roll dir: drag-end rebuilds list once');
+
+    listCalls = 0;
+    ctx54.setPrimarySeamOffset(2.5, true);
+    assert(proj.layout.translation === 2.5, 'primary seam offset writes proj.layout.translation');
+    assert(listCalls === 0, 'primary seam offset: live input is drag-safe');
+  }
+}
+
+section('55. Phase 3b inc 2: layer-aware nestable-unit enumeration');
+{
+  const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0 };
+  const primaryPts  = rect(0, 0, 30, 15);   // primary, centroid ~ (15, 7.5)
+  const secondaryPts = rect(0, 40, 30, 15);  // install layer B, centroid ~ (15, 47.5)
+
+  // Build a layout that carries install layers the way renderRollLayout does:
+  // top-level layout = primary, plus layout._installLayers from
+  // computeInstallLayerLayouts. Give the secondary its own roll rotation so the
+  // per-layer frame conversion has something to differ on.
+  const primaryLayout = ctx.computeRollLayout(primaryPts, 0, 0, opts);
+  const proj = { layout: { secondaryShapeModes: { 0:'install' }, layerRoll: { 0: { rotation: 30 } } } };
+  const secondaryShapes = [{ name:'Install B', points: secondaryPts }];
+  primaryLayout._installLayers = ctx.computeInstallLayerLayouts(proj, primaryLayout, secondaryShapes, 0, 0, opts);
+
+  const groups = ctx.getNestableUnitsByLayer(primaryLayout);
+
+  // One group for the primary + one per secondary install layer.
+  assert(groups.length === 2, 'enumerator returns one group per install layer (primary + 1 secondary)');
+  assert(groups[0].layerId === 'primary', 'first group is the primary layer');
+  assert(groups[1].layerId === 0, 'second group is secondary install layer (id 0)');
+
+  // Primary group reproduces exactly what getNestableUnits returns (no drift).
+  const flat = ctx.getNestableUnits(primaryLayout);
+  assert(groups[0].units.length === flat.length, 'primary group unit count matches getNestableUnits');
+  assert(groups[0].units.every((u, i) => u.key === flat[i].key), 'primary group units match getNestableUnits by key/order');
+
+  // Each group carries that layer's OWN transform (not the primary's).
+  assert(groups[0].rotationDeg === primaryLayout.rotationDeg, 'primary group rotationDeg = primary layout rotationDeg');
+  assert(groups[0].cx === primaryLayout.cx && groups[0].cy === primaryLayout.cy, 'primary group centroid = primary layout centroid');
+  const secLayout = primaryLayout._installLayers[1].layout;
+  assert(groups[1].rotationDeg === secLayout.rotationDeg, 'secondary group rotationDeg = its own layout rotationDeg');
+  assert(groups[1].rotationDeg === 30, 'secondary group rotationDeg reflects its per-layer roll override (30)');
+  assert(groups[1].cx === secLayout.cx && groups[1].cy === secLayout.cy, 'secondary group centroid = its own centroid');
+  assert(groups[1].cy !== groups[0].cy, 'secondary centroid differs from primary (distinct frames)');
+  assert(groups[1].units.length > 0, 'secondary install layer contributes nestable units');
+
+  // displayPointToRollFrame on the primary group reproduces the legacy inline
+  // conversion the drop handler has always used — behavior-preserving.
+  const dataPt = { x: 12, y: 9 };
+  const legacy = ctx.rotateAround([dataPt], -(primaryLayout.rotationDeg || 0), primaryLayout.cx, primaryLayout.cy)[0];
+  const viaHelper = ctx.displayPointToRollFrame(dataPt, groups[0]);
+  assert(near(viaHelper.x, legacy.x) && near(viaHelper.y, legacy.y), 'displayPointToRollFrame(primary) == legacy inline conversion');
+
+  // Same display point converts to DIFFERENT roll-frame coords under the
+  // secondary layer's transform — this is exactly the off-target bug's root
+  // cause, now addressable per layer.
+  const secFrame = ctx.displayPointToRollFrame(dataPt, groups[1]);
+  assert(!(near(secFrame.x, viaHelper.x) && near(secFrame.y, viaHelper.y)),
+    'secondary layer converts the same drop point to a different roll frame');
+
+  // Round-trip: forward-rotating the converted point back about the layer's
+  // centroid returns the original display point (helper is a true inverse).
+  const back = ctx.rotateAround([secFrame], (groups[1].rotationDeg || 0), groups[1].cx, groups[1].cy)[0];
+  assert(near(back.x, dataPt.x) && near(back.y, dataPt.y), 'roll-frame conversion round-trips back to the display point');
+
+  // Degenerate input: a layout with no install layers yields just the primary.
+  const solo = ctx.computeRollLayout(primaryPts, 0, 0, opts);
+  const soloGroups = ctx.getNestableUnitsByLayer(solo);
+  assert(soloGroups.length === 1 && soloGroups[0].layerId === 'primary', 'no _installLayers → single primary group');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

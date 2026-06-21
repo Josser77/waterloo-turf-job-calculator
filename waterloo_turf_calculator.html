@@ -5004,27 +5004,30 @@ function setLayerRotation(layerIndex, degrees) {
 }
 
 // ── Per-layer roll direction / seam offset (Phase 3a) ──────────────────────
-function setLayerRollDirection(layerId, deg) {
+function setLayerRollDirection(layerId, deg, skipList) {
   const proj = getCurrentProject(); if (!proj || !proj.layout) return;
   if (!proj.layout.layerRoll) proj.layout.layerRoll = {};
   const cur = proj.layout.layerRoll[layerId] || {};
   proj.layout.layerRoll[layerId] = { ...cur, rotation: ((parseFloat(deg)||0) % 180 + 180) % 180 };
   save();
   renderRollLayout();
-  renderLayersList(proj);
+  // Skip the layers-list rebuild during a live slider drag (oninput) — rebuilding
+  // the list destroys the slider mid-drag. The drag-end (onchange) call rebuilds
+  // it once, refreshing the "matches primary / Match primary" indicator.
+  if (!skipList) renderLayersList(proj);
 }
-function setLayerSeamOffset(layerId, ft) {
+function setLayerSeamOffset(layerId, ft, skipList) {
   const proj = getCurrentProject(); if (!proj || !proj.layout) return;
   if (!proj.layout.layerRoll) proj.layout.layerRoll = {};
   const opts = getRollOpts(proj);
-  const effW = Math.max(0.01, (parseFloat(opts.rollWidth)||15) - (parseFloat(opts.sideTrim)||0)/12);
+  const effW = effectiveRollWidth(opts);
   let v = parseFloat(ft) || 0;
   v = Math.max(0, Math.min(v, effW));
   const cur = proj.layout.layerRoll[layerId] || {};
   proj.layout.layerRoll[layerId] = { ...cur, translation: v };
   save();
   renderRollLayout();
-  renderLayersList(proj);
+  if (!skipList) renderLayersList(proj);
 }
 function clearLayerRollOverride(layerId) {
   const proj = getCurrentProject(); if (!proj || !proj.layout || !proj.layout.layerRoll) return;
@@ -5032,6 +5035,30 @@ function clearLayerRollOverride(layerId) {
   save();
   renderRollLayout();
   renderLayersList(proj);
+}
+// Primary layer roll direction / seam offset, surfaced in the Layers list for
+// parity with secondary layers. These ARE the global roll sliders (the primary's
+// roll is the global rotation/translation), so they write the same model fields
+// and keep the top sliders in sync. skipList defers the list rebuild during a
+// live drag (same drag-safety pattern as the per-layer setters).
+function setPrimaryRollDirection(deg, skipList) {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  const v = ((parseFloat(deg)||0) % 180 + 180) % 180;
+  proj.layout.rotation = v;
+  const inp = document.getElementById('rollRotationInput'); if (inp) inp.value = v;
+  save();
+  renderRollLayout();
+  if (!skipList) renderLayersList(proj);
+}
+function setPrimarySeamOffset(ft, skipList) {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  const effW = effectiveRollWidth(getRollOpts(proj));
+  const v = Math.max(0, Math.min(parseFloat(ft)||0, effW));
+  proj.layout.translation = v;
+  const inp = document.getElementById('rollTranslationInput'); if (inp) inp.value = v;
+  save();
+  renderRollLayout();
+  if (!skipList) renderLayersList(proj);
 }
 // Per-layer auto-minimize: sweep roll direction + seam offset on this layer's
 // own (positioned) display points and store the lowest-ordered combination.
@@ -5042,7 +5069,7 @@ function autoRotateLayer(layerId) {
   const s = layoutNow && layoutNow.secondaryShapes && layoutNow.secondaryShapes[layerId];
   const pts = (s && (s.displayPoints || s.points));
   if (!pts || pts.length < 3) return;
-  const effW = Math.max(0.01, (parseFloat(opts.rollWidth)||15) - (parseFloat(opts.sideTrim)||0)/12);
+  const effW = effectiveRollWidth(opts);
   let best = null;
   for (let deg = 0; deg < 180; deg += 1) {
     for (let ti = 0; ti < 8; ti++) {
@@ -5079,7 +5106,10 @@ function renderLayersList(proj) {
 
   const rows = [];
 
-  // Primary shape — visibility only, no exclude/ignore mode (it IS the shape)
+  // Primary shape — visibility + roll direction / seam offset (its roll is the
+  // global rotation/translation; surfaced here for parity with secondary layers).
+  const primaryRotNow = Math.round(((proj.layout && proj.layout.rotation) || 0) % 180);
+  const primaryTransNow = (+((proj.layout && proj.layout.translation) || 0)).toFixed(1);
   rows.push(`
     <div style="border:1px solid var(--border);border-radius:6px;padding:6px 8px;margin-bottom:6px;">
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--text-mid);">
@@ -5087,6 +5117,26 @@ function renderLayersList(proj) {
         ${primaryName} — ${primaryArea.toLocaleString(undefined,{maximumFractionDigits:1})} ft²
         ${resetBtn('primary')}
       </label>
+      <div style="border-top:1px dashed var(--border);margin-top:5px;padding-top:5px;">
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:3px;">
+          <span style="color:var(--text-light);white-space:nowrap;">Roll dir</span>
+          <input type="range" min="0" max="179" step="1" value="${primaryRotNow}" style="flex:1;"
+            oninput="this.nextElementSibling.textContent=this.value+'°'; setPrimaryRollDirection(this.value, true)"
+            onchange="setPrimaryRollDirection(this.value)">
+          <span style="min-width:30px;text-align:right;color:var(--text-light);">${primaryRotNow}°</span>
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:3px;">
+          <button class="btn btn-ghost" style="padding:2px 7px;font-size:10px;" onclick="setPrimaryRollDirection(0)">Horizontal</button>
+          <button class="btn btn-ghost" style="padding:2px 7px;font-size:10px;" onclick="setPrimaryRollDirection(90)">Vertical</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
+          <span style="color:var(--text-light);white-space:nowrap;">Seam off</span>
+          <input type="range" min="0" max="14.9" step="0.1" value="${primaryTransNow}" style="flex:1;"
+            oninput="this.nextElementSibling.textContent=(+this.value).toFixed(1)+' ft'; setPrimarySeamOffset(this.value, true)"
+            onchange="setPrimarySeamOffset(this.value)">
+          <span style="min-width:40px;text-align:right;color:var(--text-light);">${primaryTransNow} ft</span>
+        </div>
+      </div>
     </div>`);
 
   // Secondary shapes — visibility, rotation, + exclude/ignore mode
@@ -5108,7 +5158,8 @@ function renderLayersList(proj) {
           <div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:3px;">
             <span style="color:var(--text-light);white-space:nowrap;">Roll dir</span>
             <input type="range" min="0" max="179" step="1" value="${rsRot}" style="flex:1;"
-              oninput="this.nextElementSibling.textContent=this.value+'°'; setLayerRollDirection(${i}, this.value)">
+              oninput="this.nextElementSibling.textContent=this.value+'°'; setLayerRollDirection(${i}, this.value, true)"
+              onchange="setLayerRollDirection(${i}, this.value)">
             <span style="min-width:30px;text-align:right;color:var(--text-light);">${rsRot}°</span>
           </div>
           <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:3px;">
@@ -5122,7 +5173,8 @@ function renderLayersList(proj) {
           <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
             <span style="color:var(--text-light);white-space:nowrap;">Seam off</span>
             <input type="range" min="0" max="14.9" step="0.1" value="${rsTrans}" style="flex:1;"
-              oninput="this.nextElementSibling.textContent=(+this.value).toFixed(1)+' ft'; setLayerSeamOffset(${i}, this.value)">
+              oninput="this.nextElementSibling.textContent=(+this.value).toFixed(1)+' ft'; setLayerSeamOffset(${i}, this.value, true)"
+              onchange="setLayerSeamOffset(${i}, this.value)">
             <span style="min-width:40px;text-align:right;color:var(--text-light);">${rsTrans} ft</span>
           </div>
         </div>`;
@@ -5801,7 +5853,7 @@ function computeRollLayout(basePoints, rotationDeg, translation, opts) {
   const widthDim = maxY - minY;   // perpendicular to roll run
   const lengthDim = maxX - minX;  // direction roll runs
 
-  const effW = Math.max(0.01, rollWidth - sideTrim); // usable width per roll after S-seam trim
+  const effW = effectiveRollWidth(opts); // usable width per roll after S-seam trim
 
   // Translation shifts where seam lines fall (mod effW), which can change
   // how many strips are needed to cover widthDim.
@@ -6037,6 +6089,13 @@ function getRollOpts(proj) {
   };
 }
 
+// Usable width of one roll after the S-seam side trim (inches → feet), floored at
+// a hair above zero so downstream divisions never blow up. Single source of truth:
+// every place that needs "effective roll width" routes through here.
+function effectiveRollWidth(opts) {
+  return Math.max(0.01, (parseFloat(opts.rollWidth)||15) - (parseFloat(opts.sideTrim)||0)/12);
+}
+
 // Where a nested piece should sit along the target roll's length when the user
 // dropped it at roll-frame x = dropRfX: center the piece on the drop point,
 // clamped so the whole piece stays within the target's purchased rectangle.
@@ -6244,7 +6303,7 @@ function renderRollLayout() {
   const basePoints = (primaryOffset.dx || primaryOffset.dy)
     ? basePointsRaw.map(p => ({ x: p.x + primaryOffset.dx, y: p.y + primaryOffset.dy }))
     : basePointsRaw;
-  const effW = Math.max(0.01, (parseFloat(opts.rollWidth)||15) - (parseFloat(opts.sideTrim)||0)/12);
+  const effW = effectiveRollWidth(opts);
   document.getElementById('rollTranslationInput').max = effW.toFixed(2);
 
   const layout = computeRollLayout(basePoints, rotation, translation, opts);
@@ -6360,7 +6419,7 @@ function autoRotateRollLayout() {
 
   const opts = getRollOpts(proj);
   const basePoints = getBaseLayoutPoints(proj);
-  const effW = Math.max(0.01, (parseFloat(opts.rollWidth)||15) - (parseFloat(opts.sideTrim)||0)/12);
+  const effW = effectiveRollWidth(opts);
 
   let best = null;
   for (let deg = 0; deg < 180; deg += 1) {
@@ -7067,6 +7126,54 @@ function getNestableUnits(layout) {
     else units.push(s);
   });
   return units;
+}
+
+// Layer-aware enumeration of nestable units. Unlike getNestableUnits (which
+// walks only the PRIMARY layer's strips), this returns one group per install
+// layer — the primary plus every secondary 'install' layer — each carrying the
+// transform needed to convert a canvas/display point into THAT layer's roll
+// frame (rotationDeg about its own cx,cy). Phase 3a gave each install layer its
+// own roll rotation/centroid, so a piece dropped over a secondary layer's waste
+// must be converted in that layer's frame, not the primary's. The drag/drop and
+// nesting-draw machinery uses this; getNestableUnits and its other consumers
+// (piece list, nested-pieces list) are intentionally left untouched so their
+// user-facing output doesn't change as a side effect of the nesting fix.
+function getNestableUnitsByLayer(layout) {
+  function collect(L) {
+    const us = [];
+    (L.strips || []).forEach(s => { (s.pieces || [s]).forEach(u => us.push(u)); });
+    return us;
+  }
+  const groups = [{
+    layerId: 'primary',
+    layout: layout,
+    rotationDeg: layout.rotationDeg || 0,
+    cx: layout.cx, cy: layout.cy,
+    units: collect(layout),
+  }];
+  (layout._installLayers || []).forEach(({ id, layout: L }) => {
+    if (id === 'primary' || !L) return;
+    groups.push({
+      layerId: id,
+      layout: L,
+      rotationDeg: L.rotationDeg || 0,
+      cx: L.cx, cy: L.cy,
+      units: collect(L),
+    });
+  });
+  return groups;
+}
+
+// Convert a display-frame point (data coords, after view rotation) into a given
+// layer's roll frame, so a drop point can be stored as that layer's roll-frame
+// anchor (rfX/rfY). Mirrors the conversion the primary drop handler has always
+// done inline — rotateAround([pt], -(rotationDeg), cx, cy) — but parameterized
+// by the layer group's own rotation/centroid instead of hardcoding the
+// primary's. For the primary group it returns an identical result to the legacy
+// inline math (behavior-preserving); for a secondary layer it uses that layer's
+// transform, which is what fixes the off-target nesting drop.
+function displayPointToRollFrame(dataPt, layerGroup) {
+  return rotateAround([dataPt], -(layerGroup.rotationDeg || 0), layerGroup.cx, layerGroup.cy)[0];
 }
 
 // Assign global "Roll N / Piece M" labels across the whole layout. All strips
