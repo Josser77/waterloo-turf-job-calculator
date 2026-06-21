@@ -5,7 +5,65 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-20 (cont'd, 29) — Layer-aware nestable-unit enumeration (Phase 3b inc 2, scaffolding)
+## 2026-06-20 (cont'd, 30) — Per-layer nesting works end-to-end (Phase 3b inc 2)
+
+Fixes the off-target nesting drop on multi-install-layer jobs: a piece dragged
+within a **secondary** install layer now nests into another roll's waste **in that
+same layer**, lands where you drop it, and reduces that layer's Ordered SqFt. Before
+this, the drag machinery only saw the primary layer's pieces, and any drop point was
+converted in the **primary's** roll frame — so secondary-layer pieces either couldn't
+be picked up or landed in the wrong place. The data layer was already correct (Phase
+3b inc 1 key-prefixing); this session wired the canvas glue, all routed through the
+new `getNestableUnitsByLayer` so the shared `getNestableUnits` (and the Piece List cut
+sheet it feeds) is untouched.
+
+Seven coordinated changes, primary draw path left byte-identical:
+- **Pickup** (`startDragNesting`) enumerates units across all install layers,
+  secondary-first to match the on-canvas z-order.
+- **Drop** (`endDragNesting`) resolves the dragged piece's layer, restricts valid
+  targets to that **same** layer, and converts the drop point with that layer's
+  transform via `displayPointToRollFrame` (identical math to the old inline code for
+  the primary). Keys written are already layer-prefixed.
+- **Placement** (`assignNestPlacements`) now spans all install layers, so a nested
+  secondary piece gets a non-overlapping `_nestX/_nestY`.
+- **Relocation draw** — `allUnitsByKey` and a new per-unit rotation map span all
+  layers; `nestedPieceOffset` uses the piece's **own** layer rotation; and the
+  secondary install-layer draw loop now iterates units and redraws a nested piece
+  relocated into its target's waste (orange), stashing `_displayClippedMoved`.
+- **Drag feedback** — the green valid-target highlight + drag ghost now follow the
+  dragged piece's own layer (no longer gated on the primary being visible).
+- **Undo** — the Nested Pieces "↩ Put back" list includes secondary-layer nests,
+  tagged with the layer name; `unnestPiece` already works by (prefixed) key.
+
+Nesting is **same-layer only** by design — each layer resolves its own prefixed
+nesting keys, so a cross-layer target is silently inert (never misapplied). A test
+locks this in.
+
+### Needs your eyes (canvas draw isn't unit-testable here)
+Open the app on a multi-install-layer job and confirm: a secondary piece drags and
+drops onto a same-layer roll's waste; it draws where you dropped it (orange); the
+green highlight only lights same-layer targets; "↩ Put back" reverts it. The primary
+layer's nesting should behave exactly as before.
+
+### Tests
+- Section 55 extended (+6, 22 total): prefixed nesting reduces a secondary layer's
+  totalOrdered; the nested unit records its same-layer prefixed target; a cross-layer
+  (unprefixed) target does **not** resolve; `assignNestPlacements` places a secondary
+  nested piece within its target's rectangle.
+- Updated one section-49 fixture (drag-nest pickup now enumerates by layer, so the
+  test unit lives on a strip).
+- Suite: **735** (sandbox 692), up from 729.
+
+### Still pending
+- Per-layer **cut-click** routing (manual cuts are still primary-only), then label the
+  Manual Cuts / Nested Pieces lists by layer.
+- Open decision: should the Piece List cut sheet include secondary-layer pieces
+  (currently primary-only)? Still unanswered — affects a real installer artifact.
+- Per-piece "Roll N / Piece M" labels for nested **secondary** pieces on the canvas
+  (they relocate and draw orange, but the on-canvas text label is primary-only for now).
+- Primary **shape** rotation (render + hit-testing together).
+
+
 
 Groundwork for fixing the nesting drop-placement bug (a piece dropped over a
 **secondary** install layer's waste lands off-target, because the drop handler

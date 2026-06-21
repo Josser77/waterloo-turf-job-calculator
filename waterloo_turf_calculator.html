@@ -2016,7 +2016,7 @@
         <p>Every layer — including the primary one — has a checkbox. Uncheck it to hide that layer on the canvas; this is purely visual and doesn't affect any calculations. This is useful for decluttering the view when a file has several overlapping shapes, or for focusing on one layer while editing.</p>
         <p>Each layer has a dropdown that controls how it's treated:</p>
         <ul class="docs-list">
-          <li><strong>Install — its own turf + rolls</strong> — default. The layer is its own turf area: it gets rolled independently and its Ordered SqFt, Linear Ft, rolls, and waste are <strong>summed into the combined totals</strong> shown in Roll Results. Use this when a Moasure file captures the yard as several separate pieces (e.g. a front yard measured in sections). A per-layer breakdown is listed under the totals (with each layer's roll direction), and "Apply" sends the combined Ordered SqFt to the chosen turf row. Each install layer's <strong>roll plan is drawn on the canvas at its position</strong> (its installed strips, plus purchased rectangles + waste hatch when "Show purchased roll rectangles" is on), labeled with the layer name and its Ordered SqFt. Position each layer with "✋ Move Layers" and the per-layer Rotate slider. <strong>Each install layer also has its own Roll direction + Seam offset</strong> in the Layers list (with Horizontal / Vertical / Auto buttons) so a multi-section yard can roll each section the way that minimizes its waste; until you change them, a layer "matches primary" (uses the main roll-direction sliders), and "↺ Match primary" clears an override. <em>(Per-layer cuts/nesting are still shared on the primary and planned next.)</em></li>
+          <li><strong>Install — its own turf + rolls</strong> — default. The layer is its own turf area: it gets rolled independently and its Ordered SqFt, Linear Ft, rolls, and waste are <strong>summed into the combined totals</strong> shown in Roll Results. Use this when a Moasure file captures the yard as several separate pieces (e.g. a front yard measured in sections). A per-layer breakdown is listed under the totals (with each layer's roll direction), and "Apply" sends the combined Ordered SqFt to the chosen turf row. Each install layer's <strong>roll plan is drawn on the canvas at its position</strong> (its installed strips, plus purchased rectangles + waste hatch when "Show purchased roll rectangles" is on), labeled with the layer name and its Ordered SqFt. Position each layer with "✋ Move Layers" and the per-layer Rotate slider. <strong>Each install layer also has its own Roll direction + Seam offset</strong> in the Layers list (with Horizontal / Vertical / Auto buttons) so a multi-section yard can roll each section the way that minimizes its waste; until you change them, a layer "matches primary" (uses the main roll-direction sliders), and "↺ Match primary" clears an override. <strong>Nesting now works within each install layer</strong> — drag a piece onto another roll's waste in the same layer and it relocates there (and gets its own "↩ Put back" entry); pieces can't be nested across different layers. <em>(Per-layer manual cuts are still primary-only and planned next.)</em></li>
           <li><strong>Exclude from Installed Area (hole/cutout)</strong> — subtracts that shape's area from the primary's Installed Area, and draws it as a hatched red region — turf doesn't go there.</li>
           <li><strong>Ignore (informational only)</strong> — no effect on any total. Drawn as a dashed blue outline for reference.</li>
           <li><strong>Putting Green (used for fringe calculation)</strong> — subtracts that shape's area from the primary's Installed Area like Exclude, AND marks it as the putting green outline for the Fringe feature (see below). Drawn as a solid green shape. Only one layer can be the putting green at a time — selecting it on a different layer demotes the previous one back to Install.</li>
@@ -2084,7 +2084,7 @@
         <p>A table listing every individual piece that will be cut for this job — each row shows its <strong>Roll N / Piece M</strong> label, <strong>Length</strong> (its ordered length along the roll), <strong>Width</strong> (the roll width), and resulting <strong>SqFt</strong>. This is the cut sheet for your installers: it tells them exactly how long to cut each piece from the roll, and the total linear footage at the bottom helps you sanity-check how many rolls to bring and plan seam placement to minimize butt seams. Pieces created by Manual Cuts or that have been nested into another roll's waste show a note (e.g. "cut from Roll N / Piece M waste"). If a Putting Green Fringe is configured, the fringe pieces ("Fringe 1", "Fringe 2", ...) are listed too, with their own length/width/sqft.</p>
 
         <div class="docs-h3">Drag-and-Drop Nesting</div>
-        <p>With "Show purchased roll rectangles" on, drag a roll's colored shape (the installed piece) onto another roll's hatched waste area to indicate it can be cut from that roll's offcut rather than ordered separately. Valid drop targets highlight with a green dashed border while dragging. On a successful drop the piece is redrawn relocated into the target roll's waste area, outlined in orange and labeled "from Roll N / Piece M waste," and its area is removed from Ordered SqFt. A piece can be nested into another roll's waste whenever its area fits within that roll's leftover (waste) area. It's drawn where you drop it along that roll — clamped to stay on the roll, and nudged only so it doesn't stack on top of another piece already nested there — and you can drop it again to move it elsewhere. To undo a move, use the piece's <strong>"↩ Put back"</strong> button in the Nested Pieces list — that's the reliable way; you can also drag the orange piece fully off every waste area onto open space, but that gesture is fiddly. You can move several pieces independently and put any one of them back without affecting the others. Works whether or not Cut Mode is active — in Cut Mode a quick click still toggles a cut, while a press-and-drag on a piece nests it. Disabled only in Edit Shape and Move Layers modes.</p>
+        <p>With "Show purchased roll rectangles" on, drag a roll's colored shape (the installed piece) onto another roll's hatched waste area to indicate it can be cut from that roll's offcut rather than ordered separately. Valid drop targets highlight with a green dashed border while dragging. On a successful drop the piece is redrawn relocated into the target roll's waste area, outlined in orange and labeled "from Roll N / Piece M waste," and its area is removed from Ordered SqFt. A piece can be nested into another roll's waste whenever its area fits within that roll's leftover (waste) area. It's drawn where you drop it along that roll — clamped to stay on the roll, and nudged only so it doesn't stack on top of another piece already nested there — and you can drop it again to move it elsewhere. To undo a move, use the piece's <strong>"↩ Put back"</strong> button in the Nested Pieces list — that's the reliable way; you can also drag the orange piece fully off every waste area onto open space, but that gesture is fiddly. You can move several pieces independently and put any one of them back without affecting the others. Works whether or not Cut Mode is active — in Cut Mode a quick click still toggles a cut, while a press-and-drag on a piece nests it. Disabled only in Edit Shape and Move Layers modes. <strong>On a multi-layer job each install layer nests independently:</strong> you can drag a piece within any install layer onto another roll's waste in that same layer, and it relocates and reduces that layer's Ordered SqFt. Nesting is same-layer only — a piece can't be tucked into a different layer's roll, since each layer is rolled on its own plan.</p>
         <p>Placements are tied to each roll's position in the shape, so they persist across saves/reloads. If you later change roll direction, seam offset, roll width, or side trim enough that the rolls reflow into different bands, a placement tied to a band that no longer exists is simply dropped — it won't jump onto an unrelated roll. Re-check nesting after making significant roll-setting changes.</p>
         <p>A <strong>"Nested Pieces"</strong> list appears in Roll Results whenever any piece is nested, showing each one as "Roll N / Piece M → nested in …" with a <strong>"↩ Put back"</strong> button. Clicking it reverts that single placement — the piece returns to its own ordered length and its area is added back into Ordered SqFt. This is the discoverable equivalent of dragging the orange piece back off the waste area on the canvas.</p>
 
@@ -6161,6 +6161,14 @@ function nearestClearX(preferredX, pieceWidth, rectX0, rectX1, targetClip, rectY
 function assignNestPlacements(layout) {
   const units = [];
   layout.strips.forEach(s => { (s.pieces || [s]).forEach(u => units.push(u)); });
+  // Secondary install layers nest within themselves too; include their units so
+  // a nested secondary piece gets a non-overlapping placement (_nestX/_nestY).
+  // Keys are globally unique (per-layer prefixed), so grouping by nestedIntoKey
+  // keeps each nest paired with its own layer's target.
+  (layout._installLayers || []).forEach(({ id, layout: L }) => {
+    if (id === 'primary' || !L) return;
+    (L.strips || []).forEach(s => { (s.pieces || [s]).forEach(u => units.push(u)); });
+  });
   const byKey = {}; units.forEach(u => { byKey[u.key] = u; u._nestX = null; u._nestY = null; });
   const groups = {};
   units.forEach(u => {
@@ -6542,12 +6550,23 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   const showRects = document.getElementById('showRectanglesToggle') && document.getElementById('showRectanglesToggle').checked;
   const primaryVisible = layout.layerVisibility.primary !== false;
 
-  // Build a lookup of all units by key, needed to compute where a nested
-  // piece should visually relocate to (its target's waste area).
+  // Build a lookup of all units by key (across every install layer), needed to
+  // compute where a nested piece should visually relocate to (its target's
+  // waste area). Also record each unit's own layer rotation, so a nested
+  // secondary piece is relocated in ITS layer's frame, not the primary's.
   const allUnitsByKey = {};
-  layout.strips.forEach(s => {
-    const us = s.pieces || [s];
-    us.forEach(u => { allUnitsByKey[u.key] = u; });
+  const unitRotByKey = {};
+  function _indexLayerUnits(L) {
+    const r = L.rotationDeg || 0;
+    (L.strips || []).forEach(s => {
+      const us = s.pieces || [s];
+      us.forEach(u => { allUnitsByKey[u.key] = u; unitRotByKey[u.key] = r; });
+    });
+  }
+  _indexLayerUnits(layout);
+  (layout._installLayers || []).forEach(({ id, layout: L }) => {
+    if (id === 'primary' || !L) return;
+    _indexLayerUnits(L);
   });
 
   // For a nested unit, compute a translation that moves its shape into the
@@ -6576,10 +6595,12 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     const rfDx = rfTargetX - u.rfX0;
     const rfDy = rfTargetY - u.rfY0;
 
-    // Rotate this translation VECTOR (not a point) by rotationDeg to convert
-    // from roll-frame to display-frame — rotateAround rotates about (cx,cy),
-    // but for a pure vector we only need the rotation component.
-    const rad = layout.rotationDeg * Math.PI / 180;
+    // Rotate this translation VECTOR (not a point) by the unit's OWN layer
+    // rotation to convert from roll-frame to display-frame. For primary units
+    // unitRotByKey === layout.rotationDeg, so this is unchanged; for a secondary
+    // layer it uses that layer's roll rotation (the fix for off-target nesting).
+    const rotDeg = (unitRotByKey[u.key] != null) ? unitRotByKey[u.key] : layout.rotationDeg;
+    const rad = rotDeg * Math.PI / 180;
     const cos = Math.cos(rad), sin = Math.sin(rad);
     return { dx: rfDx*cos - rfDy*sin, dy: rfDx*sin + rfDy*cos };
   }
@@ -6635,11 +6656,24 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       const stroke = '#2e7d32';
       if (il && il.layout && il.layout.strips && il.layout.strips.length) {
         il.layout.strips.forEach(st => {
-          if (showRects && st.displayRect) {
-            drawHatched(st.displayRect, 'rgba(244,67,54,0.18)');
-            drawPoly(st.displayRect, null, 'rgba(0,0,0,0.18)');
-          }
-          if (st.displayClipped) drawPoly(st.displayClipped, fill, stroke);
+          const us = st.pieces || [st];
+          us.forEach(u => {
+            if (u.nestedInto != null) {
+              // Drawn relocated into its (same-layer) target's waste, outlined
+              // orange — mirrors the primary nested-piece draw.
+              const off = nestedPieceOffset(u);
+              const movedClipped = translatePoly(u.displayClipped, off.dx, off.dy);
+              drawPoly(movedClipped, fill, 'rgba(0,0,0,0.25)');
+              drawPoly(movedClipped, null, '#f4a822');
+              u._displayClippedMoved = movedClipped;
+            } else {
+              if (showRects && u.displayRect && u.displayRect.length) {
+                drawHatched(u.displayRect, 'rgba(244,67,54,0.18)');
+                drawPoly(u.displayRect, null, 'rgba(0,0,0,0.18)');
+              }
+              if (u.displayClipped) drawPoly(u.displayClipped, fill, stroke);
+            }
+          });
         });
       } else {
         drawPoly(s.displayPoints, 'rgba(46,125,50,0.10)', stroke);
@@ -6788,15 +6822,29 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     });
   }
 
-  // Drag-nesting: highlight valid waste drop zones and draw ghost of dragged piece
-  if (primaryVisible && dragUnitKey != null && dragPos) {
-    const units = getNestableUnits(layout);
-    const srcUnit = units.find(u => u.key === dragUnitKey);
+  // Drag-nesting: highlight valid waste drop zones and draw ghost of dragged
+  // piece. The dragged unit may live in the primary OR any secondary install
+  // layer; valid targets are restricted to the SAME layer (nesting can't cross
+  // layers — each layer's roll plan resolves its own nesting keys).
+  if (dragUnitKey != null && dragPos) {
+    const groups = getNestableUnitsByLayer(layout);
+    let srcGroup = null, srcUnit = null;
+    for (const g of groups) {
+      const u = g.units.find(u => u.key === dragUnitKey);
+      if (u) { srcGroup = g; srcUnit = u; break; }
+    }
     if (srcUnit) {
-      // Determine which strip this unit belongs to, for ghost color
-      const parentStripIdx = layout.strips.findIndex(s => s.key === dragUnitKey || (s.pieces && s.pieces.some(p=>p.key===dragUnitKey)));
-      // Highlight valid waste target areas in green
-      units.forEach(u => {
+      // Ghost color: the dragged piece's layer fill (primary → its strip color;
+      // secondary → that layer's fill, matching the draw loop above).
+      let ghostColorIdx;
+      if (srcGroup.layerId === 'primary') {
+        const psi = layout.strips.findIndex(s => s.key === dragUnitKey || (s.pieces && s.pieces.some(p=>p.key===dragUnitKey)));
+        ghostColorIdx = psi >= 0 ? psi : 0;
+      } else {
+        ghostColorIdx = (srcGroup.layerId + 1);
+      }
+      // Highlight valid same-layer waste target areas in green
+      srcGroup.units.forEach(u => {
         if (u.key===dragUnitKey || !u.displayRect || !u.displayRect.length) return;
         if (u.nestedInto==null && u.wasteArea+1e-6 >= srcUnit.purchasedArea) {
           ctx.save();
@@ -6824,7 +6872,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
         ctx.beginPath();
         srcUnit.displayClipped.forEach((p,i)=>{ const c=toCanvas(p); if(i===0)ctx.moveTo(c.x,c.y);else ctx.lineTo(c.x,c.y); });
         ctx.closePath();
-        ctx.fillStyle = STRIP_COLORS[(parentStripIdx >= 0 ? parentStripIdx : 0) % STRIP_COLORS.length];
+        ctx.fillStyle = STRIP_COLORS[ghostColorIdx % STRIP_COLORS.length];
         ctx.fill();
         ctx.strokeStyle = '#f4a822';
         ctx.lineWidth = 2;
@@ -7223,15 +7271,24 @@ function startDragNesting(evt) {
   const t = window._wtCanvasTransform; if (!t) return;
   const dataPt = { x: t.minX + (pos.canvasX - t.pad) / t.scale, y: t.minY + (t.h - t.pad - pos.canvasY) / t.scale };
 
-  // Find which unit's (strip's or piece's) shape was pressed. A nested piece is
-  // drawn relocated into its target's waste (orange), so prefer its moved shape
-  // (_displayClippedMoved) when present — that's where the user sees it — and
-  // fall back to the piece's original clipped shape.
-  const units = getNestableUnits(layout);
-  const hitUnit = units.find(u =>
-    (u._displayClippedMoved && u._displayClippedMoved.length && pointInPoly(dataPt, u._displayClippedMoved)) ||
-    (u.displayClipped.length && pointInPoly(dataPt, u.displayClipped))
-  );
+  // Find which unit's (strip's or piece's) shape was pressed, across ALL install
+  // layers. Secondary layers draw on top of the primary, so check them first to
+  // match the visual z-order. A nested piece is drawn relocated into its target's
+  // waste (orange), so prefer its moved shape (_displayClippedMoved) when present
+  // — that's where the user sees it — and fall back to the original clipped shape.
+  const groups = getNestableUnitsByLayer(layout);
+  const searchOrder = [
+    ...groups.filter(g => g.layerId !== 'primary'),
+    ...groups.filter(g => g.layerId === 'primary'),
+  ];
+  let hitUnit = null;
+  for (const g of searchOrder) {
+    hitUnit = g.units.find(u =>
+      (u._displayClippedMoved && u._displayClippedMoved.length && pointInPoly(dataPt, u._displayClippedMoved)) ||
+      (u.displayClipped && u.displayClipped.length && pointInPoly(dataPt, u.displayClipped))
+    );
+    if (hitUnit) break;
+  }
   if (!hitUnit) return;
   evt.preventDefault();
   window._wtDragNestKey = hitUnit.key;
@@ -7293,19 +7350,31 @@ function endDragNesting(evt) {
 
   const dataPt = { x: t.minX + (pos.canvasX - t.pad) / t.scale, y: t.minY + (t.h - t.pad - pos.canvasY) / t.scale };
 
-  // Check if dropped on another unit's waste area (displayRect but NOT displayClipped)
-  const units = getNestableUnits(layout);
-  const srcUnit = units.find(u => u.key === srcKey);
+  // Resolve which install layer the dragged piece belongs to. Nesting is
+  // same-layer only (each layer's roll plan resolves its own prefixed keys), so
+  // the drop target must be a unit in the SAME layer, and the drop point must be
+  // converted to roll-frame using THAT layer's transform — using the primary's
+  // frame for a secondary piece is what landed pieces off-target.
+  const groups = getNestableUnitsByLayer(layout);
+  let srcGroup = null, srcUnit = null;
+  for (const g of groups) {
+    const u = g.units.find(u => u.key === srcKey);
+    if (u) { srcGroup = g; srcUnit = u; break; }
+  }
+
+  // Check if dropped on another same-layer unit's waste area (displayRect but
+  // NOT displayClipped).
   let targetKey = null;
-  for (const u of units) {
-    if (u.key === srcKey) continue;
-    if (!u.displayRect || !u.displayRect.length) continue;
-    if (pointInPoly(dataPt, u.displayRect) && !pointInPoly(dataPt, u.displayClipped)) {
-      // Dropped in waste area of unit u
-      if (srcUnit && srcUnit.purchasedArea <= u.wasteArea + 1e-6) {
-        targetKey = u.key;
+  if (srcGroup && srcUnit) {
+    for (const u of srcGroup.units) {
+      if (u.key === srcKey) continue;
+      if (!u.displayRect || !u.displayRect.length) continue;
+      if (pointInPoly(dataPt, u.displayRect) && !pointInPoly(dataPt, u.displayClipped)) {
+        if (srcUnit.purchasedArea <= u.wasteArea + 1e-6) {
+          targetKey = u.key;
+        }
+        break;
       }
-      break;
     }
   }
 
@@ -7313,9 +7382,10 @@ function endDragNesting(evt) {
   if (!proj.layout.nestPos) proj.layout.nestPos = {};
 
   if (targetKey != null && srcUnit) {
-    const rollPt = rotateAround([dataPt], -(layout.rotationDeg || 0), layout.cx, layout.cy)[0];
+    const rollPt = displayPointToRollFrame(dataPt, srcGroup);
     // Eligibility is by area (checked above when picking targetKey). Store the
-    // drop point so the piece is drawn where the user put it.
+    // drop point so the piece is drawn where the user put it. Keys are already
+    // layer-prefixed, so this writes into the correct layer's namespace.
     proj.layout.nesting[srcUnit.key] = targetKey;
     proj.layout.nestPos[srcUnit.key] = { rfX: rollPt.x, rfY: rollPt.y };
   } else if (srcUnit) {
@@ -7556,15 +7626,23 @@ function renderNestedPiecesList(layout, proj) {
   if (!group || !list) return;
 
   const rollPieceLabels = assignRollPieceLabels(layout);
-  const units = getNestableUnits(layout);
-  const nested = units.filter(u => u.nestedInto != null);
+  const groups = getNestableUnitsByLayer(layout);
+  const layerName = {};
+  (layout._installLayers || []).forEach(e => { layerName[e.id] = e.name; });
+
+  const nested = [];
+  groups.forEach(g => { g.units.forEach(u => { if (u.nestedInto != null) nested.push({ u, group: g }); }); });
 
   if (!nested.length) { group.style.display = 'none'; list.innerHTML = ''; return; }
 
   group.style.display = '';
-  list.innerHTML = nested.map(u => {
-    const rp = rollPieceLabels.get(u);
-    const srcLabel = rp ? `Roll ${rp.roll} / Piece ${rp.piece}` : 'Piece';
+  list.innerHTML = nested.map(({ u, group: g }) => {
+    const rp = (g.layerId === 'primary') ? rollPieceLabels.get(u) : null;
+    let srcLabel = rp ? `Roll ${rp.roll} / Piece ${rp.piece}` : 'Piece';
+    if (g.layerId !== 'primary') {
+      const nm = layerName[g.layerId] || `Layer ${g.layerId}`;
+      srcLabel = `${nm}: ${srcLabel}`;
+    }
     const hostLabel = u.nestedIntoLabel || 'another roll';
     return `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--border);border-radius:6px;padding:6px 8px;margin-bottom:6px;">

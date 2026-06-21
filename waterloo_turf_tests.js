@@ -3213,11 +3213,12 @@ section('44. Cut Mode drag-to-nest routing');
   {
     const c = cutCtx();
     c.getCurrentProject = () => ({ layout: {} });
-    c.getNestableUnits = () => ([{ key:'u1', displayClipped:[{x:0,y:0},{x:10,y:0},{x:10,y:10},{x:0,y:10}] }]);
     c.pointInPoly = () => true; // force the hit regardless of transform math
     c.canvasEventToData = () => ({ canvasX: 50, canvasY: 50 });
     c.document.getElementById = (id) => (id === 'showRectanglesToggle' ? { checked:true } : cutMockEl());
-    c.window._wtCurrentRollLayout = { strips: [] };
+    // Pickup now enumerates nestable units per layer from layout.strips, so the
+    // unit must live on a strip (getNestableUnitsByLayer walks strips/pieces).
+    c.window._wtCurrentRollLayout = { strips: [{ key:'u1', displayClipped:[{x:0,y:0},{x:10,y:0},{x:10,y:10},{x:0,y:10}] }] };
     c.window._wtCanvasTransform = { minX:0, minY:0, pad:0, scale:1, h:100 };
     c.window._wtMoveLayersMode = false;
     c.window._wtCutMode = true; // the case that used to bail
@@ -4384,6 +4385,49 @@ section('55. Phase 3b inc 2: layer-aware nestable-unit enumeration');
   const solo = ctx.computeRollLayout(primaryPts, 0, 0, opts);
   const soloGroups = ctx.getNestableUnitsByLayer(solo);
   assert(soloGroups.length === 1 && soloGroups[0].layerId === 'primary', 'no _installLayers → single primary group');
+
+  // ── Drop resolution at the data layer: a PREFIXED nesting entry must resolve
+  // within a secondary layer's computeRollLayout (proving the drop handler can
+  // write 'L0_...' keys and have them take effect on that layer's roll plan).
+  const lShape = [{x:0,y:0},{x:30,y:0},{x:30,y:8},{x:5,y:8},{x:5,y:30},{x:0,y:30}];
+  const baseL0 = ctx.computeRollLayout(lShape, 0, 0, { ...opts, keyPrefix:'L0_' });
+  const small = baseL0.strips.find(s => s.purchasedArea > 0.5 && s.wasteArea < 1);
+  const big   = baseL0.strips.find(s => s.index !== (small||{}).index && s.wasteArea >= (small||{purchasedArea:9999}).purchasedArea);
+  if (small && big) {
+    assert(small.key.indexOf('L0_') === 0 && big.key.indexOf('L0_') === 0, 'secondary-layer strip keys are prefixed');
+    const nestedL0 = ctx.computeRollLayout(lShape, 0, 0, { ...opts, keyPrefix:'L0_', nesting:{ [small.key]: big.key } });
+    assert(nestedL0.totalOrdered < baseL0.totalOrdered, 'prefixed nesting reduces a secondary layer\u2019s totalOrdered');
+    const nestedUnit = nestedL0.strips.find(s => s.key === small.key);
+    assert(nestedUnit && nestedUnit.nestedIntoKey === big.key, 'secondary nested unit records its (same-layer, prefixed) target key');
+
+    // Cross-layer guard: a primary-keyed target must NOT resolve inside the
+    // secondary layer (keys don't collide → the nest is silently inert, never
+    // misapplied to the wrong roll).
+    const crossKey = big.key.replace('L0_', '');
+    const crossL0 = ctx.computeRollLayout(lShape, 0, 0, { ...opts, keyPrefix:'L0_', nesting:{ [small.key]: crossKey } });
+    assert(near(crossL0.totalOrdered, baseL0.totalOrdered, 0.01), 'a cross-layer (unprefixed) target does not resolve inside the secondary layer');
+  } else {
+    console.log('  (secondary-nesting data test skipped — no suitable strip pair)');
+  }
+
+  // ── assignNestPlacements must place a nested SECONDARY-layer piece (Edit 1).
+  // Hand-build a layout whose only nested unit lives in an install layer; before
+  // the fix, assignNestPlacements walked the primary only and left _nestX null.
+  {
+    const tgt = { key:'L0_t', rfX0:0, rfX1:100, rfY0:0, rfY1:15, clipped:[], nestedInto:null, nestedIntoKey:null };
+    const src = { key:'L0_s', rfX0:0, rfX1:20, rfY0:0, rfY1:15, clipped:[], nestedInto:0, nestedIntoKey:'L0_t', nestPos:{ rfX:50, rfY:0 } };
+    const layoutWithSecondaryNest = {
+      strips: [],
+      _installLayers: [
+        { id:'primary', layout:{ strips:[] } },
+        { id:0, layout:{ rotationDeg:0, strips:[ { pieces:[tgt, src] } ] } },
+      ],
+    };
+    ctx.assignNestPlacements(layoutWithSecondaryNest);
+    assert(src._nestX != null && src._nestY != null, 'assignNestPlacements places a nested secondary-layer piece');
+    assert(src._nestX >= tgt.rfX0 - 1e-9 && (src._nestX + (src.rfX1 - src.rfX0)) <= tgt.rfX1 + 1e-9,
+      'placed secondary piece stays within its target\u2019s purchased rectangle');
+  }
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
