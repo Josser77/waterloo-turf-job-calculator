@@ -5,9 +5,9 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 32) — Nesting honors the drop (reverted the 2D auto-fit); Apply-Area alt-turf fix; opt-in elevation from CSV
+## 2026-06-21 (cont'd, 32) — Nesting honors the drop (reverted the 2D auto-fit); Apply-Area alt-turf fix; opt-in elevation + grade overlay from CSV
 
-Three changes this session. Test suite: **764** (sandbox 721).
+Four changes this session. Test suite: **773** (sandbox 730).
 
 ### 1. Nesting now lands exactly where you drop it (reverted the 2D auto-fit gate)
 
@@ -70,6 +70,25 @@ otherwise overstate the grade of any single one. Each non-base layer also report
 the first measured layer) — e.g. on `Backyard.csv`, "Sub Layer 1 sits 1.2 ft above the
 base."
 
+### 4. Opt-in: grade overlay (color the shape by height)
+
+A second opt-in box, **"Show grade overlay (color the shape by height),"** paints each
+imported shape's outline by measured elevation — blue (low) → green → red (high),
+Moasure's palette — with a per-corner elevation label and a low→high color key, drawn
+on the layout canvas. New pure/testable helpers `elevationColorRamp(t)` (5-stop ramp,
+clamped) and `gradeBoundarySegments(points, zMin, zMax)` (midpoint-colored edge
+segments, skipping edges with an unmeasured vertex). The canvas overlay (end of
+`drawRollLayoutCanvas`) recovers each drawn vertex's `z` by index from the source
+layout points and is fully wrapped in try/catch so a grade draw can never break the
+roll plan. State on `layout.showGrade`; `toggleLayoutGrade` / `renderLayoutGradeNote`.
+
+**Honesty note baked into the UI and docs:** a Moasure CSV records only the boundary
+points it traced around each shape's edge, not interior surface points (verified on
+`Backyard.csv` — every row is a `Dot2Dot`/`LastLeg` perimeter vertex). So the overlay
+colors the outline and corners (real data) but draws no interior contour lines — the
+in-app contours come from Moasure's full 3D capture, which the export doesn't include.
+The note tells the user to walk a path across an interior dip/hump if they need its grade.
+
 ### Tests
 - Reverted all `findNestFit`/`narrowtab@30` nesting tests back to area-based `lShape`
   fixtures (sections 5, 20, 22, 45 put-back, 48, nestPos anchor, 55 prefixed).
@@ -82,6 +101,9 @@ base."
   headers via `findElevationColumn`, and a multi-layer case proving each layer keeps
   its own fall while the overall range spans both), plus `elevationLayerOffsets` cases
   (above/below the base, primary-vs-first reference, and a no-height layer).
+- New `elevationColorRamp` cases (blue/green/red dominance, clamping) and
+  `gradeBoundarySegments` cases (midpoint elevation per segment, distinct low/high
+  colors, edges skipped at an unmeasured vertex).
 
 ---
 

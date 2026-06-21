@@ -1280,6 +1280,13 @@
                   <div id="layoutElevationOut" style="display:none;font-size:12px;color:var(--text-light);margin-top:4px;line-height:1.4;"></div>
                 </div>
                 <div class="field-group">
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;">
+                    <input type="checkbox" id="layoutShowGrade" onchange="toggleLayoutGrade()" style="margin:0;width:auto;">
+                    Show grade overlay (color the shape by height)
+                  </label>
+                  <div id="layoutGradeNote" style="display:none;font-size:12px;color:var(--text-light);margin-top:4px;line-height:1.4;"></div>
+                </div>
+                <div class="field-group">
                   <label>Apply to → Installed SqFt</label>
                   <select id="layoutApplyTarget" style="width:100%;margin-bottom:6px;"></select>
                   <button class="btn btn-primary btn-sm" style="width:100%;" onclick="applyLayoutAreaToTurf()">Apply Area</button>
@@ -2018,6 +2025,7 @@
         <div class="docs-h3">Importing</div>
         <p>Click "↑ Import CSV" — either in the New Project modal (pre-fills Installed SqFt for all turf rows) or in the Layout tab after project creation. The shape is drawn on the canvas with roll strips overlaid immediately. "Installed Area" shows the polygon-computed area; use "Apply Area" to push it into a turf row's Installed SqFt.</p>
         <p><strong>Show elevation change (from CSV):</strong> Moasure measures in 3D, so some exports include a height/Z column for each measured point. Tick this opt-in box in the Layout sidebar to see the elevation change across the yard — the total range (low → high) and the number of measured points it's based on. It reads the height column from the imported CSV (common headers like <em>Z:ft</em>, <em>Elevation</em>, or <em>Height</em>), and the unit follows the column header. <strong>When a file has more than one measured layer, each layer's own fall is broken out</strong> below the total, and each non-base layer also shows how far its <em>mean height</em> sits above or below the base layer (e.g. "sits 1.2 ft above the base") — because a raised sub-layer (a bed or step-up) sits at a different base height, so the whole-import range would otherwise overstate the grade of any single surface. If your CSV has no height data, the box says so plainly rather than guessing — re-import a Moasure file that includes elevation to populate it. This is purely informational (a grading/slope reference); it does not change area, rolls, or pricing.</p>
+        <p><strong>Show grade overlay (color the shape by height):</strong> a second opt-in box that paints the imported shape's outline by measured height — blue (low) through green to red (high), the same palette Moasure uses — with an elevation label at each measured corner and a low→high color key. It's drawn on the layout canvas over the roll plan; toggle it off to go back to the plain plan. Use it to read fall and slope direction across the yard for drainage. <strong>Important honesty note:</strong> a Moasure CSV export records only the points traced around the <em>edge</em> of each shape (the boundary), not a grid of interior surface points. So this overlay colors the outline and corners — which is the real measured data — but does not draw interior contour lines across the middle of the yard, because the export contains no height data there. The colorful contour lines you see inside a shape in the Moasure app come from its full 3D capture, which isn't in the CSV. For an interior dip or hump that matters to drainage, walk a Moasure path across that spot so it becomes an edge of a measured shape.</p>
 
         <div class="docs-h3">Multi-Layer CSVs (Layers)</div>
         <p>Moasure files can contain more than one measured layer — for example, the main yard outline plus a separate shape for a planter bed, tree well, or putting green cutout inside it. When you import a CSV with multiple layers, the largest shape becomes the <strong>primary layer</strong> (the main boundary used for roll calculations), and any other shapes appear below it under <strong>"Layers"</strong> on the right.</p>
@@ -4797,6 +4805,42 @@ function elevationSummary(points) {
   return { min, max, range: max - min, mean, count: zs.length };
 }
 
+// Map a normalized elevation t∈[0,1] to a blue(low)→cyan→green→amber→red(high)
+// color, matching Moasure's grade palette. Pure; returns a #rrggbb string.
+function elevationColorRamp(t) {
+  t = Math.max(0, Math.min(1, isFinite(t) ? t : 0));
+  const stops = [
+    [0.00, [33, 118, 243]],  // blue  (lowest)
+    [0.25, [0, 188, 212]],   // cyan
+    [0.50, [76, 175, 80]],   // green
+    [0.75, [255, 193, 7]],   // amber
+    [1.00, [229, 57, 53]],   // red   (highest)
+  ];
+  let i = 0;
+  while (i < stops.length - 1 && t > stops[i + 1][0]) i++;
+  const [t0, c0] = stops[i], [t1, c1] = stops[Math.min(i + 1, stops.length - 1)];
+  const f = t1 > t0 ? (t - t0) / (t1 - t0) : 0;
+  const ch = k => Math.round(c0[k] + (c1[k] - c0[k]) * f).toString(16).padStart(2, '0');
+  return '#' + ch(0) + ch(1) + ch(2);
+}
+
+// Build colored boundary segments for a closed polygon whose vertices may carry a
+// `z`. Each segment is colored by its midpoint elevation, normalized across
+// [zMin,zMax]. Segments touching a vertex with no z are skipped. Pure (no canvas).
+function gradeBoundarySegments(points, zMin, zMax) {
+  const segs = [];
+  const n = (points || []).length;
+  if (n < 2) return segs;
+  const span = (zMax - zMin) || 1;
+  for (let i = 0; i < n; i++) {
+    const a = points[i], b = points[(i + 1) % n];
+    if (typeof a.z !== 'number' || typeof b.z !== 'number' || !isFinite(a.z) || !isFinite(b.z)) continue;
+    const zmid = (a.z + b.z) / 2;
+    segs.push({ a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y }, z: zmid, color: elevationColorRamp((zmid - zMin) / span) });
+  }
+  return segs;
+}
+
 function parseLayoutCsv(text) {
   const lines = text.split(/\r?\n/).filter(l => l.trim().length);
   if (lines.length < 2) throw new Error('Empty CSV');
@@ -6509,6 +6553,7 @@ function renderRollLayout() {
   document.getElementById('layoutArea').value = `${layout.adjustedShapeArea.toLocaleString(undefined,{maximumFractionDigits:2})} ft²`
     + (layout.adjustedShapeArea !== layout.shapeArea ? ` (${layout.shapeArea.toLocaleString(undefined,{maximumFractionDigits:2})} ft² before exclusions)` : '');
   renderLayoutElevation(proj);
+  renderLayoutGradeNote(proj);
 }
 
 // Opt-in elevation readout. The checkbox state lives on the layout so it sticks
@@ -6590,6 +6635,31 @@ function renderLayoutElevation(proj) {
       + `</ul>`;
   }
   out.innerHTML = html;
+}
+
+// Opt-in grade overlay: color the imported shape's outline by measured height
+// (blue low → red high) with per-vertex elevation labels, drawn on the layout
+// canvas. State lives on the layout so it sticks per project.
+function toggleLayoutGrade() {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  const cb = document.getElementById('layoutShowGrade');
+  proj.layout.showGrade = !!(cb && cb.checked);
+  save();
+  renderRollLayout();      // redraw the canvas with/without the overlay
+  renderLayoutGradeNote(proj);
+}
+
+function renderLayoutGradeNote(proj) {
+  const cb   = document.getElementById('layoutShowGrade');
+  const note = document.getElementById('layoutGradeNote');
+  if (!cb || !note || !proj || !proj.layout) return;
+  const on = !!proj.layout.showGrade;
+  cb.checked = on;
+  if (!on) { note.style.display = 'none'; note.innerHTML = ''; return; }
+  note.style.display = '';
+  note.innerHTML = proj.layout.elevation
+    ? `Outline is colored by measured height (blue = low, red = high) with elevation labels at each corner. These are the points Moasure traced around the edge — good for reading fall/slope across the yard. The interior between edges isn't measured in the CSV, so no interior contours are drawn.`
+    : `No elevation data in this CSV — re-import a Moasure file that includes a height/Z column to color the shape by grade.`;
 }
 
 function renderNestingControls(layout, proj) {
@@ -7085,6 +7155,72 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       if (layout.layerVisibility && layout.layerVisibility[idx] === false) return;
       if (s.displayPoints && s.displayPoints.length >= 3) drawHandles(s.displayPoints, idx, '#1565c0');
     });
+  }
+
+  // ── Grade overlay (opt-in): color each shape's outline by measured height and
+  // label the corners. Additive and fully guarded — any failure here must never
+  // break the roll-plan render. Z is recovered by vertex index from the source
+  // layout points (display transforms preserve order). ──
+  try {
+    const gProj = getCurrentProject();
+    if (gProj && gProj.layout && gProj.layout.showGrade && gProj.layout.elevation) {
+      const unit = gProj.layout.elevationUnit || gProj.layout.elevation.unit || 'ft';
+      const zMin = gProj.layout.elevation.min, zMax = gProj.layout.elevation.max;
+      // Pair display vertices with their source z by index.
+      const withZ = (disp, srcPts) => (disp && srcPts && disp.length === srcPts.length)
+        ? disp.map((p, i) => ({ x: p.x, y: p.y, z: (srcPts[i] && typeof srcPts[i].z === 'number') ? srcPts[i].z : undefined }))
+        : null;
+      const shapes = [];
+      const primZ = withZ(layout.basePoints, gProj.layout.points);
+      if (primZ && (!layout.layerVisibility || layout.layerVisibility.primary !== false)) shapes.push(primZ);
+      (layout.secondaryShapes || []).forEach((s, idx) => {
+        if (layout.layerVisibility && layout.layerVisibility[idx] === false) return;
+        const sp = (gProj.layout.secondaryShapes || [])[idx];
+        const z = withZ(s.displayPoints, sp && sp.points);
+        if (z) shapes.push(z);
+      });
+      const fmtZ = n => `${n.toLocaleString(undefined, { maximumFractionDigits: 1 })}${unit}`;
+      // Colored outline segments.
+      ctx.save();
+      ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      shapes.forEach(pts => {
+        gradeBoundarySegments(pts, zMin, zMax).forEach(seg => {
+          const a = toCanvas(seg.a), b = toCanvas(seg.b);
+          ctx.strokeStyle = seg.color;
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        });
+      });
+      // Per-vertex elevation labels (skip near-duplicates to reduce clutter).
+      ctx.font = '11px -apple-system, system-ui, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const placed = [];
+      shapes.forEach(pts => {
+        pts.forEach(p => {
+          if (typeof p.z !== 'number' || !isFinite(p.z)) return;
+          const c = toCanvas(p);
+          if (placed.some(q => Math.hypot(q.x - c.x, q.y - c.y) < 22)) return;
+          placed.push(c);
+          const label = fmtZ(p.z);
+          const tw = ctx.measureText(label).width;
+          ctx.fillStyle = 'rgba(0,0,0,0.72)';
+          ctx.fillRect(c.x - tw / 2 - 3, c.y - 8, tw + 6, 16);
+          ctx.fillStyle = elevationColorRamp((p.z - zMin) / ((zMax - zMin) || 1));
+          ctx.fillText(label, c.x, c.y);
+        });
+      });
+      // Legend: a low→high color bar with end values.
+      const lw = 12, lh = 90, lx = w - pad - lw - 52, ly = pad + 6;
+      for (let k = 0; k <= lh; k++) {
+        ctx.fillStyle = elevationColorRamp(1 - k / lh);
+        ctx.fillRect(lx, ly + k, lw, 1);
+      }
+      ctx.fillStyle = '#333'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(fmtZ(zMax) + ' (high)', lx + lw + 4, ly + 4);
+      ctx.fillText(fmtZ(zMin) + ' (low)', lx + lw + 4, ly + lh - 4);
+      ctx.restore();
+    }
+  } catch (err) {
+    console.warn('grade overlay skipped:', err);
   }
 }
 

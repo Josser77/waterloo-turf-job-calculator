@@ -233,6 +233,30 @@ section('4. parseLayoutCsv');
     const r3 = ctx.elevationLayerOffsets([ layers[0], { name:'NoZ', primary:false, elevation:null } ]);
     assert(r3.find(L=>L.name==='NoZ').offset === null, 'a layer with no height data gets a null offset (not a crash)');
   }
+
+  // ── elevationColorRamp: blue (low) → green (mid) → red (high), clamped ──
+  {
+    const lo = ctx.elevationColorRamp(0), mid = ctx.elevationColorRamp(0.5), hi = ctx.elevationColorRamp(1);
+    const rgb = h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+    assert(/^#[0-9a-f]{6}$/.test(lo) && /^#[0-9a-f]{6}$/.test(hi), 'ramp returns #rrggbb');
+    assert(rgb(lo)[2] > rgb(lo)[0], 'low end is blue-dominant (B > R)');
+    assert(rgb(hi)[0] > rgb(hi)[2], 'high end is red-dominant (R > B)');
+    assert(rgb(mid)[1] >= rgb(mid)[0] && rgb(mid)[1] >= rgb(mid)[2], 'mid is green-dominant');
+    assert(ctx.elevationColorRamp(-5) === lo && ctx.elevationColorRamp(5) === hi, 'ramp clamps out-of-range t');
+  }
+
+  // ── gradeBoundarySegments: closed outline colored by midpoint height ──
+  {
+    const sq = [ {x:0,y:0,z:0}, {x:10,y:0,z:1}, {x:10,y:10,z:2}, {x:0,y:10,z:3} ];
+    const segs = ctx.gradeBoundarySegments(sq, 0, 3);
+    assert(segs.length === 4, 'a closed 4-vertex outline yields 4 colored segments');
+    assert(near(segs[0].z, 0.5) && near(segs[1].z, 1.5), 'each segment carries its midpoint elevation');
+    assert(segs[0].color !== segs[2].color, 'a low segment and a high segment get different colors');
+    // A vertex missing z drops the two segments touching it.
+    const partial = [ {x:0,y:0,z:0}, {x:10,y:0}, {x:10,y:10,z:2}, {x:0,y:10,z:3} ];
+    const segs2 = ctx.gradeBoundarySegments(partial, 0, 3);
+    assert(segs2.length === 2, 'the two segments touching the unmeasured vertex are skipped, leaving the other two edges');
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════
