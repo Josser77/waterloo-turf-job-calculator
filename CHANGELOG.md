@@ -5,6 +5,99 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-06-17 (cont'd, 25) — Phase 3b (increment 1): per-layer cut/nest key namespacing
+
+Foundation for per-layer manual cuts and nesting, plus a fix for a latent
+cross-layer bleed.
+
+**The bug:** manual cuts and nesting are stored in `proj.layout.manualCuts` /
+`.nesting` / `.nestPos`, all keyed by **strip key** (`'y'+y0`), which is local to a
+layer's roll frame — not unique across layers. `computeInstallLayerLayouts` passed
+the same global maps to every install layer, so a cut on the primary's strip at a
+given y-position would bleed onto any secondary install layer with a strip at the
+same position. Latent only because there's no per-layer cut UI yet.
+
+**The fix:** `computeRollLayout` now takes `opts.keyPrefix`. The primary uses `''`
+(existing cuts/nesting keyed by bare `'y<pos>'` keep working — no migration); each
+secondary install layer gets `'L<id>_'`. Piece keys (`key+'_pN'`) and nesting keys
+derive from the strip key, so they inherit the prefix automatically. Single-layer
+jobs are completely unchanged.
+
+**Not in this increment (next sessions):** (2) canvas hit-testing for cut clicks
+and nest drags must resolve which install layer's strip/piece is under the cursor
+and address it by its prefixed key — the fragile drag-machinery work, and where the
+paused drop-placement bug lives; (3) per-layer labels in the cut/nest UI lists.
+
+### Tests
+- Section 54: prefix namespacing, piece keys inherit the prefix, back-compat for
+  un-prefixed primary cuts, both bleed directions blocked, and
+  `computeInstallLayerLayouts` assigning distinct prefixes per layer.
+- **Total: 697 tests, all passing** (687 prior + 10 new).
+
+---
+
+## 2026-06-17 (cont'd, 24) — Alt Turf option no longer gated on a field it ignores
+
+An Alt Turf option is priced on the **base yard** area (`sqFt: baseSqFt`), so the
+alt row's own Installed SqFt was ignored for labor — yet it silently gated whether
+the option appeared at all (`allRows` filters `installedSqFt > 0`). Blank alt sqft
+→ the whole option vanished from the quote with no warning; a wrong value had no
+pricing effect.
+
+### Fix
+Alt rows are now pulled from the full turf list and shown whenever they have a
+**product** (or, for legacy rows, an installed area) — not gated on their own
+Installed SqFt. Labor still prices on the base area; material still comes from the
+alt row's own Sqft to Order. The alt row's Installed SqFt field is now a read-only
+"= base yard" hint in both the Quote Builder and the New Project modal (with a
+tooltip), the role dropdown re-renders the row live, and CSV prefill skips the
+hint field.
+
+### Tests
+- D2: alt with blank installed sqft still appears and prices labor on the base area
+  (1,500) with its own material ($3.00) → COGS 16,500.
+- D3: an alt row with no product and no area produces no card.
+- N2 updated: the zero-sqft filter still holds for base/PG rows (alt is gated on
+  product by design).
+- **Total: 687 tests, all passing** (681 prior + 6 new).
+
+### Note
+This assumes an Alt Turf option always covers the same area as the base yard. If an
+alt ever needs a different area, that's a separate change (alt would need its own
+labor area).
+
+---
+
+## 2026-06-17 (cont'd, 23) — "Apply Area" is role-aware (base/alt include the green)
+
+Closes a latent inverse of the PG-material question. The Layout tab subtracts a
+putting-green layer from the primary's Installed Area (like an Exclude hole), and
+"Apply Area" used that subtracted total for every row. So applying a PG-marked
+layout's area to the **base** turf row produced a green-*excluded* base sqft, which
+then fed `stdSqFt = base − pg` and subtracted the green twice — silently
+under-counting both standard labor and base material by the full green area.
+
+### Fix
+New `getPuttingGreenShapeArea(proj)`. `applyLayoutAreaToTurf` is now role-aware:
+for a **Base Yard** or **Alt Turf** target it adds the putting-green area back
+(base/alt cover the whole yard including the green spot, which is laid as its own
+row), while true **Exclude** holes stay subtracted. A **Putting Green** target is
+unchanged. The roll-plan scrap number and fringe outline are untouched — only the
+value pushed into a base/alt row changes.
+
+### Tests
+- `getPuttingGreenShapeArea` sums only PG shapes; the apply-area math identity
+  (adjusted + PG = primary − true holes); and an end-to-end `applyLayoutAreaToTurf`
+  run asserting base/alt rows get the whole yard (1450 = 1500 − 50 hole) while a
+  PG row does not (1300).
+- **Total: 681 tests, all passing** (674 prior + 7 new).
+
+### Note
+This only affects the value "Apply Area" writes. If you type base Installed SqFt
+manually from the Moasure whole-yard total, behavior is unchanged.
+
+---
+
 ## 2026-06-17 (cont'd, 22) — End-to-end quote regression suite
 
 Adds section 53: a reusable harness (`qEnv`) that renders real quote cards through

@@ -1964,7 +1964,7 @@
         </ul>
         <div style="background:var(--surface2);border-radius:8px;padding:12px 16px;margin:10px 0;font-size:12px;">
           <div style="margin-bottom:6px;"><strong>Base Yard</strong> — the standard turf product. Always included in quote totals. Infill and rock calculations are based on this sqft.</div>
-          <div style="margin-bottom:6px;"><strong>Alt Turf Option</strong> — an alternative turf product (e.g. a premium upgrade). Same install area as the base yard but a different product and price. Creates separate quote option cards so the customer can compare.</div>
+          <div style="margin-bottom:6px;"><strong>Alt Turf Option</strong> — an alternative turf product (e.g. a premium upgrade). Same install area as the base yard but a different product and price. Creates separate quote option cards so the customer can compare. Because it's priced on the <em>base yard</em> area, an alt row's Installed SqFt isn't needed (the field shows "= base yard" and is skipped) — just give it a product and a Sqft to Order for its material. The option appears as soon as it has a product, so a blank installed sqft no longer hides it.</div>
           <div><strong>Putting Green</strong> — a putting green area. If the customer chooses this, its sqft is subtracted from the base yard for crew pay purposes (since putting green pays at a higher rate). Creates separate quote combos with and without the putting green.</div>
         </div>
 
@@ -2022,7 +2022,7 @@
           <li><strong>Putting Green (used for fringe calculation)</strong> — subtracts that shape's area from the primary's Installed Area like Exclude, AND marks it as the putting green outline for the Fringe feature (see below). Drawn as a solid green shape. Only one layer can be the putting green at a time — selecting it on a different layer demotes the previous one back to Install.</li>
         </ul>
         <p>Note: because Install is now the default, a multi-layer file treats every sub-layer as turf to install unless you change it. If a sub-layer is actually a cutout, set it to Exclude.</p>
-        <p>"Installed Area" shows the adjusted total (after exclusions), with the pre-exclusion total in parentheses if anything was excluded. "Apply Area" and the roll plan's scrap calculation both use the adjusted total. Note that hiding a layer (visibility checkbox) is independent from its exclude/ignore/putting-green mode — a hidden layer can still be excluded from the area total, and a visible layer can be set to "ignore."</p>
+        <p>"Installed Area" shows the adjusted total (after exclusions), with the pre-exclusion total in parentheses if anything was excluded. The roll plan's scrap calculation uses the adjusted total. <strong>"Apply Area" is role-aware:</strong> applied to a <strong>Base Yard</strong> or <strong>Alt Turf</strong> row it pushes the whole yard <em>including</em> the putting-green footprint (the green's area is added back), since base/alt turf covers that spot and the green is laid there as its own row — true <strong>Exclude</strong> holes are still subtracted. Applied to a Putting Green row it uses the adjusted total as-is. This keeps base Installed SqFt consistent with how the quote splits labor (standard yard = total minus the green) so the green isn't subtracted twice. Note that hiding a layer (visibility checkbox) is independent from its exclude/ignore/putting-green mode — a hidden layer can still be excluded from the area total, and a visible layer can be set to "ignore."</p>
 
         <div class="docs-h3">Putting Green Fringe</div>
         <p>Once a layer is set to <strong>Putting Green</strong>, a "Putting Green Fringe" section appears below the Layers list. Check <strong>"Add a fringe border around the putting green"</strong> to enable it, then choose a <strong>Fringe Turf Product</strong> from your catalog and set the <strong>Fringe Width</strong> (in feet) — the border strip's width all the way around the green.</p>
@@ -2720,9 +2720,11 @@ function updateTurfSqftFields() {
     return `
       <div class="modal-turf-row" data-id="${id}" style="display:grid;grid-template-columns:1fr 0.7fr 0.7fr 1fr;gap:8px;margin-bottom:8px;align-items:center;">
         <div style="font-size:12px;font-weight:500;color:var(--text-mid);padding:9px 0;">${name}</div>
-        <input type="number" data-field="installedSqFt" value="${prev.installedSqFt||''}" placeholder="0" class="manual-input" style="margin:0;" oninput="checkCreateBtn()">
+        ${role === 'alt-turf'
+          ? `<input type="number" data-field="installedSqFt" value="" placeholder="= base yard" class="auto-filled" readonly style="margin:0;" title="Alt Turf options are priced on the base yard area; this field isn't used.">`
+          : `<input type="number" data-field="installedSqFt" value="${prev.installedSqFt||''}" placeholder="0" class="manual-input" style="margin:0;" oninput="checkCreateBtn()">`}
         <input type="number" data-field="sqFtToOrder" value="${prev.sqFtToOrder||''}" placeholder="0" class="manual-input" style="margin:0;" oninput="checkCreateBtn()">
-        <select data-field="role" style="font-size:12px;padding:6px 8px;margin:0;">
+        <select data-field="role" onchange="updateTurfSqftFields()" style="font-size:12px;padding:6px 8px;margin:0;">
           <option value="base"          ${role==='base'          ? 'selected':''}>Base Yard</option>
           <option value="alt-turf"      ${role==='alt-turf'      ? 'selected':''}>Alt Turf Option</option>
           <option value="putting-green" ${role==='putting-green' ? 'selected':''}>Putting Green</option>
@@ -2795,7 +2797,7 @@ function prefillTurfSqftFromCsv() {
   const area = window._wtNewProjCsv.area || polygonArea(window._wtNewProjCsv.points);
   document.querySelectorAll('#turfSqftRows .modal-turf-row').forEach(row => {
     const instEl = row.querySelector('[data-field="installedSqFt"]');
-    if (instEl && !instEl.value) instEl.value = Math.round(area * 100) / 100;
+    if (instEl && !instEl.readOnly && !instEl.value) instEl.value = Math.round(area * 100) / 100;
   });
   checkCreateBtn();
 }
@@ -2975,7 +2977,9 @@ function makeTurfRow(row, i) {
       </select>
     </div>
     <div class="field-group">
-      <input type="number" value="${row.installedSqFt||''}" placeholder="0" class="manual-input" oninput="updateTurfCalc(${i},this)">
+      ${(row.role||'base')==='alt-turf'
+        ? `<input type="text" value="= base yard" class="auto-filled" readonly title="Alt Turf options are priced on the base yard area. This field isn't used for labor; the alt's material comes from its own SqFt to Order.">`
+        : `<input type="number" value="${row.installedSqFt||''}" placeholder="0" class="manual-input" oninput="updateTurfCalc(${i},this)">`}
     </div>
     <div class="field-group">
       <input type="number" value="${row.sqFtToOrder||''}" placeholder="0" class="manual-input" oninput="updateTurfOrderEntry(${i},this)">
@@ -2987,7 +2991,7 @@ function makeTurfRow(row, i) {
       <input type="number" value="${row.orderedSqFt||''}" placeholder="—" class="auto-filled" readonly>
     </div>
     <div class="field-group">
-      <select onchange="updateTurfField(${i},'role',this.value);autoPopulateInfill();autoPopulateRock();calcTurfTotals();calcQuote();updateMaterialsSummary();" style="font-size:12px;padding:6px 8px;">
+      <select onchange="updateTurfField(${i},'role',this.value);renderTurfRows(getCurrentProject());autoPopulateInfill();autoPopulateRock();calcTurfTotals();calcQuote();updateMaterialsSummary();" style="font-size:12px;padding:6px 8px;">
         <option value="base"         ${(row.role||'base')==='base'         ? 'selected':''}>Base Yard</option>
         <option value="alt-turf"     ${(row.role||'')==='alt-turf'         ? 'selected':''}>Alt Turf Option</option>
         <option value="putting-green"${(row.role||'')==='putting-green'    ? 'selected':''}>Putting Green</option>
@@ -3594,7 +3598,14 @@ function calcQuote() {
 
   // Separate rows by role
   const baseRows = allRows.filter(r => r.role === 'base');
-  const altRows  = allRows.filter(r => r.role === 'alt-turf');
+  // Alt-turf options are priced on the BASE yard area (see turfCombos below: each
+  // alt combo uses sqFt: baseSqFt). The alt row's own Installed SqFt is ignored for
+  // labor, so it must NOT gate whether the option appears — otherwise a blank alt
+  // sqft silently drops the whole option. Pull alt rows from the full turf list
+  // (not installed-sqft-filtered allRows): show the option whenever it has a
+  // product (or, for legacy rows, an installed area). Material still comes from the
+  // alt row's own order.
+  const altRows  = (proj.turf||[]).filter(r => r.role === 'alt-turf' && ((r.product||'').trim() || parseFloat(r.installedSqFt) > 0));
   const pgRows   = allRows.filter(r => r.role === 'putting-green');
 
   // If nothing is marked base, treat all non-pg rows as base
@@ -4930,6 +4941,20 @@ function getAdjustedShapeArea(proj, baseArea) {
   return Math.max(0, area);
 }
 
+// Total area of secondary shapes marked as the putting green. Base/alt turf cover
+// the whole yard INCLUDING the green footprint (you buy base turf for that spot),
+// so "Apply Area" adds this back for those rows even though getAdjustedShapeArea
+// subtracts it like a cutout.
+function getPuttingGreenShapeArea(proj) {
+  const secondary = (proj.layout && proj.layout.secondaryShapes) || [];
+  let pg = 0;
+  secondary.forEach((s, i) => {
+    const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'install';
+    if (mode === 'putting-green') pg += getSecondaryShapeArea(s);
+  });
+  return pg;
+}
+
 function setSecondaryShapeMode(i, mode) {
   const proj = getCurrentProject(); if (!proj || !proj.layout) return;
   if (!proj.layout.secondaryShapeModes) proj.layout.secondaryShapeModes = {};
@@ -5761,6 +5786,11 @@ function computeRollLayout(basePoints, rotationDeg, translation, opts) {
   const rollLength = parseFloat(opts.rollLength) || 100;
   const sideTrim = (parseFloat(opts.sideTrim) || 0) / 12;   // in -> ft
   const cuttingMargin = (parseFloat(opts.cuttingMargin) || 0) / 12; // in -> ft
+  // Per-layer namespace for strip keys (and the piece/nesting keys derived from
+  // them). The primary layer uses '' so existing cuts/nesting keyed by bare
+  // 'y<pos>' keep working with no migration; each secondary install layer passes
+  // its own prefix so its cuts/nesting can't collide with another layer's.
+  const keyPrefix = opts.keyPrefix || '';
 
   const { cx, cy } = centroidOf(basePoints);
   // Rotate into "roll frame": rolls run along X, stack along Y
@@ -5852,7 +5882,7 @@ function computeRollLayout(basePoints, rotationDeg, translation, opts) {
     // Stable identity based on this strip's geometric band position, independent
     // of array index — survives roll-direction/translation/width changes as long
     // as a strip still occupies (roughly) the same band.
-    const stripKey = 'y' + y0.toFixed(2);
+    const stripKey = keyPrefix + 'y' + y0.toFixed(2);
     strips.push({ index: i, key: stripKey, y0, y1, clipped: clippedForDisplay, clippedArea, neededLength, orderedLength, numSegments, purchasedArea, usableArea, wasteArea, displayClipped, displayLine0, displayLine1, displayRect, sMinX, rfX0: sMinX, rfX1: sMinX + orderedLength, rfY0: y0, rfY1: y1, occupiedX0: sMinX, occupiedX1: sMinX + neededLength, nestedInto: null, nestedIntoKey: null, nestHost: [], pieces: null });
   }
 
@@ -6159,7 +6189,7 @@ function computeInstallLayerLayouts(proj, primaryLayout, secondaryShapes, rotati
     out.push({
       id: i,
       name: s.name,
-      layout: computeRollLayout(pts, rs.rotation, rs.translation, opts),
+      layout: computeRollLayout(pts, rs.rotation, rs.translation, { ...opts, keyPrefix: 'L' + i + '_' }),
       rollRotation: rs.rotation,
       rollTranslation: rs.translation,
       rollOverridden: rs.overridden,
@@ -7581,14 +7611,24 @@ function applyLayoutAreaToTurf() {
   const sel = document.getElementById('layoutApplyTarget');
   const i = parseInt(sel.value, 10);
   if (isNaN(i) || !proj.turf[i]) { alert('No turf row selected.'); return; }
+  const row = proj.turf[i];
   const layout = window._wtCurrentRollLayout;
-  const area = layout ? (layout.adjustedShapeArea != null ? layout.adjustedShapeArea : layout.shapeArea) : getAdjustedShapeArea(proj, proj.layout.area || 0);
+  let area = layout ? (layout.adjustedShapeArea != null ? layout.adjustedShapeArea : layout.shapeArea) : getAdjustedShapeArea(proj, proj.layout.area || 0);
+  // Base and alt turf cover the whole yard INCLUDING the putting-green footprint —
+  // you buy base turf for that spot and the green is laid there as its own row. The
+  // adjusted area subtracts the green like a cutout, so add it back for base/alt
+  // rows. True 'exclude' holes stay subtracted; putting-green rows keep their own
+  // green-only area.
+  if ((row.role || 'base') === 'base' || row.role === 'alt-turf') {
+    area += getPuttingGreenShapeArea(proj);
+  }
   if (!area) { alert('This layout has no area value.'); return; }
-  proj.turf[i].installedSqFt = Math.round(area * 100) / 100;
+  area = Math.round(area * 100) / 100;
+  row.installedSqFt = area;
   save();
   calcTurfRow(i);
   renderTurfRows(proj);
-  alert(`Applied ${area.toLocaleString(undefined,{maximumFractionDigits:2})} ft² to ${proj.turf[i].product || 'turf row '+(i+1)}.`);
+  alert(`Applied ${area.toLocaleString(undefined,{maximumFractionDigits:2})} ft² to ${row.product || 'turf row '+(i+1)}.`);
 }
 
 // ═══════════════════════════════════════════════════════

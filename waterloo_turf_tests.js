@@ -845,6 +845,79 @@ section('17. Multi-layer CSV parsing & secondary shapes');
     assert(ctx.getSecondaryShapeArea(shapeWithArea) === 99, 'getSecondaryShapeArea uses .area field when present');
   }
 
+  // ── getPuttingGreenShapeArea: sums only putting-green shapes ──
+  {
+    const proj = { layout: { secondaryShapes: [
+      { name:'Green',  area: 150, points: rect(0,0,5,5) },
+      { name:'Hole',   area: 50,  points: rect(0,0,5,5) },
+      { name:'Info',   area: 20,  points: rect(0,0,5,5) },
+      { name:'Green2', area: 30,  points: rect(0,0,5,5) },
+    ], secondaryShapeModes: { 0:'putting-green', 1:'exclude', 2:'ignore', 3:'putting-green' } } };
+    assert(near(ctx.getPuttingGreenShapeArea(proj), 180), 'getPuttingGreenShapeArea sums only PG shapes (150 + 30 = 180)');
+    assert(ctx.getPuttingGreenShapeArea({ layout: {} }) === 0, 'no secondary shapes → PG area 0');
+  }
+
+  // ── Apply Area math identity: adjusted + PG = primary minus true holes only ──
+  {
+    const proj = { layout: { secondaryShapes: [
+      { name:'Green', area: 150, points: rect(0,0,5,5) },
+      { name:'Hole',  area: 50,  points: rect(0,0,5,5) },
+    ], secondaryShapeModes: { 0:'putting-green', 1:'exclude' } } };
+    const adjusted = ctx.getAdjustedShapeArea(proj, 1500); // 1500 - 150 - 50
+    const baseApply = adjusted + ctx.getPuttingGreenShapeArea(proj);
+    assert(near(adjusted, 1300), 'adjusted subtracts green(150) + hole(50) = 1300');
+    assert(near(baseApply, 1450), 'base apply adds green back → 1500 - 50 hole = 1450');
+  }
+
+  // ── applyLayoutAreaToTurf end-to-end: base row gets whole yard incl. green ──
+  {
+    const stored = {};
+    const mockLS = { getItem:k=>stored[k]||null, setItem:(k,v)=>{stored[k]=v;}, removeItem:k=>{delete stored[k];} };
+    stored['wt_catalog_v2'] = JSON.stringify({ turf:[], infill:[], rock:[] });
+    stored['wt_projects_v4'] = JSON.stringify([{
+      id:'p1', name:'T', created:1000, edging:{}, miscItems:[],
+      turf:[
+        { product:'Base', installedSqFt:0, sqFtToOrder:0, orderedSqFt:0, role:'base' },
+        { product:'Alt',  installedSqFt:0, sqFtToOrder:0, orderedSqFt:0, role:'alt-turf' },
+        { product:'Putt', installedSqFt:0, sqFtToOrder:0, orderedSqFt:0, role:'putting-green' },
+      ],
+      infill:[], rock:[],
+      layout:{
+        points: rect(0,0,40,40), area: 1500,
+        secondaryShapes:[ { name:'Green', area:150, points: rect(0,0,10,15) }, { name:'Hole', area:50, points: rect(20,20,5,10) } ],
+        secondaryShapeModes:{ 0:'putting-green', 1:'exclude' },
+        rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, rotation:0, translation:0,
+      },
+    }]);
+    let applyTarget = '0';
+    function mEl(){ return { checked:false, value:'', style:{}, classList:{add:()=>{},remove:()=>{}}, addEventListener:()=>{}, querySelector:()=>null, querySelectorAll:()=>[], innerHTML:'', appendChild:()=>{}, replaceChildren:()=>{} }; }
+    const inputs = { layoutApplyTarget:{ get value(){ return applyTarget; } }, quoteOptionsContainer:{innerHTML:''}, turfRows:{innerHTML:'',appendChild:()=>{}}, infillRows:{innerHTML:'',appendChild:()=>{}}, fringeSummary:{innerHTML:''}, fringeGroup:{style:{}}, fringeConfigFields:{style:{}}, fringeEnabled:{checked:false}, fringeTurfProduct:{innerHTML:'',value:''}, fringeWidth:{value:''}, layoutLayersList:{innerHTML:''}, quoteMiscRows:{innerHTML:'',appendChild:()=>{}}, rockRows:{innerHTML:'',appendChild:()=>{}} };
+    const m2d = { clearRect:()=>{},beginPath:()=>{},moveTo:()=>{},lineTo:()=>{},closePath:()=>{},fill:()=>{},stroke:()=>{},save:()=>{},restore:()=>{},setLineDash:()=>{},arc:()=>{},fillRect:()=>{},fillText:()=>{},measureText:()=>({width:10}),translate:()=>{},rect:()=>{},clip:()=>{} };
+    inputs.rollLayoutCanvas = { width:700,height:350,getContext:()=>m2d,getBoundingClientRect:()=>({left:0,top:0,width:700,height:350}),addEventListener:()=>{},style:{},classList:{add:()=>{},remove:()=>{}},textContent:'' };
+    inputs.layoutCanvasWrap = { clientWidth:700, scrollLeft:0, scrollTop:0, addEventListener:()=>{} };
+    const ctxA = {
+      window:{onload:null,_wtLayoutZoom:1,_wtEditMode:false,_wtSelectedProjects:null,innerHeight:900,_wtCurrentRollLayout:null},
+      document:{ getElementById:id=>inputs[id]||mEl(), querySelectorAll:()=>[], querySelector:()=>({classList:{add:()=>{},remove:()=>{}}}), addEventListener:()=>{}, createElement:()=>mEl() },
+      localStorage: mockLS, alert:()=>{}, confirm:()=>true, console,
+      ResizeObserver:function(){return{observe:()=>{}};},
+    };
+    vm.runInNewContext(scriptSrc, ctxA);
+    ctxA.loadProject('p1');
+    ctxA.window._wtCurrentRollLayout = null; // force the getAdjustedShapeArea fallback path
+
+    applyTarget = '0';
+    ctxA.applyLayoutAreaToTurf();
+    assert(near(ctxA.getCurrentProject().turf[0].installedSqFt, 1450), 'Apply Area → BASE row = whole yard incl. green (1500 - 50 hole = 1450)');
+
+    applyTarget = '1';
+    ctxA.applyLayoutAreaToTurf();
+    assert(near(ctxA.getCurrentProject().turf[1].installedSqFt, 1450), 'Apply Area → ALT-TURF row also = whole yard incl. green (1450)');
+
+    applyTarget = '2';
+    ctxA.applyLayoutAreaToTurf();
+    assert(near(ctxA.getCurrentProject().turf[2].installedSqFt, 1300), 'Apply Area → PUTTING-GREEN row does NOT add the green back (1300)');
+  }
+
   // ── Real John_yard.csv fixture (if available): 2 layers, primary ≈ 726.65, secondary ≈ 157 ──
   try {
     const realCsv = fs.readFileSync(path.join(__dirname, 'John_yard.csv'), 'utf8');
@@ -3963,6 +4036,30 @@ section('53. End-to-end quote scenarios');
     assert(altWithPg, 'D: alt With-PG COGS uses alt turf material (1500*3.00) = 17625');
   }
 
+  // ── D2. Alt turf with BLANK installed sqft still appears, priced on base area ──
+  {
+    const { cards, html } = qEnv({ project: baseProject({ turf:[
+      tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }),
+      tRow({ product:'WT Pacific Reserve', installedSqFt:0, sqFtToOrder:1500, orderedSqFt:1500, role:'alt-turf' }),
+    ] }) });
+    assert(html.includes('WT Pacific Reserve'), 'D2: alt option appears even with blank installed sqft (no longer gated on it)');
+    assert(cards.length === 2, 'D2: base card + alt card');
+    assert(html.includes('Turf install ($8/sqft × 1,500 sqft)'), 'D2: labor priced on base yard area (1,500), not alt installed (0)');
+    // Each card's own COGS (first opt-price in its chunk); base uses 2.50 material, alt uses 3.00.
+    const prices = cards.map(c => money(cardPrices(c)[0])).sort((a,b)=>a-b);
+    assert(prices[0] === 1500*8 + 1500*2.50, 'D2: base card COGS = 15750');
+    assert(prices[1] === 1500*8 + 1500*3.00, 'D2: alt card COGS = base-area labor 12000 + alt material 4500 = 16500');
+  }
+
+  // ── D3. Alt row with no product and no area does NOT appear ──
+  {
+    const { cards } = qEnv({ project: baseProject({ turf:[
+      tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }),
+      tRow({ product:'', installedSqFt:0, sqFtToOrder:0, orderedSqFt:0, role:'alt-turf' }),
+    ] }) });
+    assert(cards.length === 1, 'D3: empty alt row (no product, no area) produces no card');
+  }
+
   // ── E. Tiered standard AND tiered putting, by own area ──
   {
     const TIER_CREW = [{ id:'crew_main', name:'Main', items:[
@@ -4055,13 +4152,14 @@ section('53. End-to-end quote scenarios');
     assert(cards.length === 0 || money(cardPrices(cards[0])[0]) === 0, 'N1: empty project → no card or a $0 card');
   }
 
-  // ── NEGATIVE 2: zero-sqft rows are filtered out ──
+  // ── NEGATIVE 2: zero-sqft base/PG rows are still filtered out ──
+  // (Alt-turf is intentionally gated on product, not installed sqft — see D2/D3.)
   {
     const { cards, html } = qEnv({ project: baseProject({ turf:[
       tRow({ product:'WT Willamette Lush', installedSqFt:1500, sqFtToOrder:1500, orderedSqFt:1500, role:'base' }),
-      tRow({ product:'WT Pacific Reserve', installedSqFt:0, sqFtToOrder:0, orderedSqFt:0, role:'alt-turf' }),
+      tRow({ product:'WT PDX Putt 85', installedSqFt:0, sqFtToOrder:0, orderedSqFt:0, role:'putting-green' }),
     ] }) });
-    assert(!html.includes('WT Pacific Reserve'), 'N2: a 0-sqft alt row produces no card');
+    assert(!html.includes('Putting Green —'), 'N2: a 0-sqft putting-green row produces no PG card');
     assert(cards.length === 1, 'N2: only the non-zero base card renders');
   }
 
@@ -4103,6 +4201,71 @@ section('53. End-to-end quote scenarios');
   }
 }
 
+
+
+// ════════════════════════════════════════════════════════════════════════
+//  54. Phase 3b (increment 1): per-layer cut/nest key namespacing
+//  Strip keys (and the piece/nesting keys derived from them) can be namespaced
+//  per install layer via opts.keyPrefix. Primary uses '' (back-compat); each
+//  secondary install layer uses 'L<id>_'. This stops a primary cut from bleeding
+//  onto a secondary install layer that happens to share a strip position.
+// ════════════════════════════════════════════════════════════════════════
+section('54. Phase 3b: per-layer cut/nest key namespacing');
+{
+  function mEl(){ return { checked:false, value:'', style:{}, classList:{add(){},remove(){}}, addEventListener(){}, querySelector:()=>null, querySelectorAll:()=>[], innerHTML:'', appendChild(){}, replaceChildren(){} }; }
+  const ctx54 = {
+    window:{onload:null,_wtLayoutZoom:1,innerHeight:900},
+    document:{ getElementById:()=>mEl(), querySelectorAll:()=>[], querySelector:()=>mEl(), addEventListener(){}, createElement:()=>mEl() },
+    localStorage:{ _s:{}, getItem(k){return this._s[k]||null;}, setItem(k,v){this._s[k]=v;}, removeItem(k){delete this._s[k];} },
+    alert(){}, confirm:()=>true, console, ResizeObserver:function(){return{observe(){}};},
+  };
+  vm.runInNewContext(scriptSrc, ctx54);
+
+  const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0 };
+  const pts = rect(0, 0, 30, 15); // 30 ft long × 15 ft wide
+  // The grid can include an empty off-shape strip; operate on the real one.
+  const realStrip = L => L.strips.reduce((a,b)=> b.clippedArea > a.clippedArea ? b : a);
+  const stripByKey = (L, key) => L.strips.find(s => s.key === key);
+
+  // Baseline (primary): no prefix → bare 'y<pos>' key
+  const L0 = ctx54.computeRollLayout(pts, 0, 0, opts);
+  const k = realStrip(L0).key;
+  assert(k.indexOf('y') === 0, 'primary strip key is un-prefixed (starts with "y")');
+
+  // Prefixed layer: key is namespaced
+  const Lp = ctx54.computeRollLayout(pts, 0, 0, { ...opts, keyPrefix:'L1_' });
+  const kp = realStrip(Lp).key;
+  assert(kp === 'L1_' + k, 'prefixed layer strip key = prefix + base key');
+
+  // Piece keys inherit the prefix when the strip is cut
+  const LpCut = ctx54.computeRollLayout(pts, 0, 0, { ...opts, keyPrefix:'L1_', manualCuts: { [kp]: [10] } });
+  const spCut = stripByKey(LpCut, kp);
+  assert(spCut.pieces && spCut.pieces.length === 2, 'prefixed cut splits the prefixed-layer strip into 2 pieces');
+  assert(spCut.pieces[0].key.indexOf('L1_') === 0, 'piece keys inherit the layer prefix');
+
+  // Back-compat: an un-prefixed cut still splits the primary strip
+  const Lbc = ctx54.computeRollLayout(pts, 0, 0, { ...opts, manualCuts: { [k]: [10] } });
+  assert(stripByKey(Lbc, k).pieces && stripByKey(Lbc, k).pieces.length === 2, 'back-compat: un-prefixed cut splits the primary strip');
+
+  // Anti-bleed: a primary-keyed cut must NOT apply to a prefixed layer
+  const Lbleed = ctx54.computeRollLayout(pts, 0, 0, { ...opts, keyPrefix:'L1_', manualCuts: { [k]: [10] } });
+  assert(!stripByKey(Lbleed, kp).pieces, 'primary-keyed cut does NOT bleed onto a prefixed layer');
+
+  // And the reverse: a prefixed-keyed cut must NOT apply to the primary
+  const Lbleed2 = ctx54.computeRollLayout(pts, 0, 0, { ...opts, manualCuts: { [kp]: [10] } });
+  assert(!stripByKey(Lbleed2, k).pieces, 'prefixed-keyed cut does NOT bleed onto the un-prefixed primary');
+
+  // computeInstallLayerLayouts assigns distinct prefixes per install layer
+  {
+    const primaryLayout = ctx54.computeRollLayout(pts, 0, 0, opts);
+    const secondaryShapes = [{ name:'Install B', points: rect(0, 40, 30, 15) }];
+    const proj = { layout: { secondaryShapeModes: { 0:'install' }, layerRoll: {} } };
+    const layers = ctx54.computeInstallLayerLayouts(proj, primaryLayout, secondaryShapes, 0, 0, opts);
+    assert(layers.length === 2, 'two install layers (primary + secondary)');
+    assert(realStrip(layers[0].layout).key.indexOf('y') === 0, 'primary layer keeps bare key');
+    assert(realStrip(layers[1].layout).key.indexOf('L0_') === 0, 'secondary install layer key is prefixed with its id');
+  }
+}
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
