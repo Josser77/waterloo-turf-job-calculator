@@ -1268,87 +1268,30 @@
                 </div>
               </div>
               <div id="layoutSidebar" style="overflow-y:auto;padding-right:2px;">
-                <div class="field-group">
-                  <label>Installed Area</label>
-                  <input type="text" id="layoutArea" class="auto-filled" readonly>
-                </div>
-                <div class="field-group">
-                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;">
-                    <input type="checkbox" id="layoutShowElevation" onchange="toggleLayoutElevation()" style="margin:0;width:auto;">
-                    Show elevation change (from CSV)
-                  </label>
-                  <div id="layoutElevationOut" style="display:none;font-size:12px;color:var(--text-light);margin-top:4px;line-height:1.4;"></div>
-                </div>
-                <div class="field-group">
-                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;">
-                    <input type="checkbox" id="layoutShowGrade" onchange="toggleLayoutGrade()" style="margin:0;width:auto;">
-                    Show grade overlay (color the shape by height)
-                  </label>
-                  <div id="layoutGradeNote" style="display:none;font-size:12px;color:var(--text-light);margin-top:4px;line-height:1.4;"></div>
-                </div>
-                <div class="field-group">
-                  <label>Apply to → Installed SqFt</label>
-                  <select id="layoutApplyTarget" style="width:100%;margin-bottom:6px;"></select>
-                  <button class="btn btn-primary btn-sm" style="width:100%;" onclick="applyLayoutAreaToTurf()">Apply Area</button>
-                </div>
-
-                <div class="field-group" id="layoutLayersGroup">
-                  <label>Layers</label>
-                  <div id="layoutLayersList" style="font-size:11px;"></div>
-                </div>
-
-                <div class="field-group" id="fringeGroup" style="display:none;">
-                  <label>Putting Green Fringe</label>
-                  <label style="display:flex;align-items:center;gap:6px;font-weight:500;margin-bottom:6px;">
-                    <input type="checkbox" id="fringeEnabled" onchange="updateFringeConfig()" style="width:auto;margin:0;">
-                    Add a fringe border around the putting green
-                  </label>
-                  <div id="fringeConfigFields" style="display:none;">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px;">
-                      <div>
-                        <label style="font-size:11px;">Fringe Turf Product</label>
-                        <select id="fringeTurfProduct" onchange="updateFringeConfig()" style="width:100%;font-size:12px;padding:6px 8px;"></select>
-                      </div>
-                      <div>
-                        <label style="font-size:11px;">Fringe Width (ft)</label>
-                        <input type="number" id="fringeWidth" min="0.5" step="0.5" onchange="updateFringeConfig()" style="width:100%;">
-                      </div>
-                    </div>
-                    <label style="display:flex;align-items:center;gap:6px;font-weight:500;margin-bottom:6px;font-size:12px;">
-                      <input type="checkbox" id="fringePiecesVisible" checked onchange="updateFringeConfig()" style="width:auto;margin:0;">
-                      Show fringe pieces on canvas (uncheck for just the outline)
-                    </label>
-                    <div id="fringeSummary" style="font-size:11px;color:var(--text-light);background:var(--bg-alt);border-radius:6px;padding:6px 8px;"></div>
+                <!-- KEY METRICS — always visible at the top -->
+                <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:var(--bg-alt);">
+                  <div class="field-group" style="margin-bottom:8px;">
+                    <label>Installed SqFt</label>
+                    <input type="text" id="layoutArea" class="auto-filled" readonly>
                   </div>
-                </div>
-                <div class="field-group">
-                  <label>View Rotation (°)</label>
-                  <input type="range" id="viewRotationInput" min="0" max="359" step="1" value="0" oninput="onViewRotationChange()" style="width:100%;">
-                  <div style="font-size:11px;color:var(--text-light);">
-                    <span id="viewRotationValue">0°</span> — rotates the drawing only, to match how you're viewing the yard. Doesn't affect area or roll calculations.
+                  <div class="field-group" style="margin-bottom:8px;">
+                    <label>Ordered SqFt</label>
+                    <input type="text" id="rollOrderedOut" class="auto-filled" readonly>
+                  </div>
+                  <div class="field-group" style="margin-bottom:8px;">
+                    <label>Ordered Linear Ft</label>
+                    <input type="text" id="rollLinearOut" class="auto-filled" readonly>
+                  </div>
+                  <div class="field-group" style="margin-bottom:0;">
+                    <label>Perimeter (linear ft)</label>
+                    <input type="text" id="layoutPerimeterOut" class="auto-filled" readonly>
                   </div>
                 </div>
 
                 <details open style="margin-top:6px;">
-                  <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:6px 0;">Roll Settings</summary>
+                  <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:6px 0;">Roll Direction &amp; Seam</summary>
                   <div style="padding-top:8px;">
-                    <div class="field-group">
-                      <label>Roll Width (ft)</label>
-                      <input type="number" id="rollWidthInput" value="15" min="1" step="0.5" class="manual-input" oninput="renderRollLayout()">
-                    </div>
-                    <div class="field-group">
-                      <label>Max Roll Length (ft)</label>
-                      <input type="number" id="rollLengthInput" value="100" min="1" step="1" class="manual-input" oninput="renderRollLayout()">
-                    </div>
-                    <div class="field-group">
-                      <label>S-Seam Side Trim (in)</label>
-                      <input type="number" id="sideTrimInput" value="4" min="0" step="0.5" class="manual-input" oninput="renderRollLayout()">
-                    </div>
-                    <div class="field-group" style="background:var(--yellow);border:1px solid var(--yellow-border);border-left:4px solid var(--yellow-border);border-radius:8px;padding:10px 12px;margin-top:4px;">
-                      <label style="color:var(--text);">⚠ Cutting Margin (in)</label>
-                      <input type="number" id="cuttingMarginInput" value="4" min="0" step="0.5" class="manual-input" oninput="renderRollLayout()">
-                      <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Extra length added to <strong>every cut piece</strong> before rounding up to the next whole foot. This is the main lever for how much buffer gets ordered — increase it if your crew needs more trim room, decrease it to order tighter.</div>
-                    </div>
+                    <div style="font-size:11px;color:var(--text-light);margin-bottom:8px;">Roll dimensions (width, length, trim, cutting margin) now live under the <strong>⚙ Settings</strong> tab → Roll Settings.</div>
                     <div class="field-group">
                       <label>Roll Direction (°)</label>
                       <input type="range" id="rollRotationInput" min="0" max="179" step="1" value="0" oninput="renderRollLayout()" style="width:100%;">
@@ -1370,16 +1313,85 @@
                 </details>
 
                 <details open style="margin-top:6px;">
+                  <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:6px 0;">Apply area to a turf row</summary>
+                  <div class="field-group" style="padding-top:8px;">
+                    <label>Apply to → Installed SqFt</label>
+                    <select id="layoutApplyTarget" style="width:100%;margin-bottom:6px;"></select>
+                    <button class="btn btn-primary btn-sm" style="width:100%;" onclick="applyLayoutAreaToTurf()">Apply Area</button>
+                  </div>
+                </details>
+
+                <details style="margin-top:6px;">
+                  <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:6px 0;">Display &amp; overlays</summary>
+                  <div style="padding-top:8px;">
+                    <div class="field-group">
+                      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;">
+                        <input type="checkbox" id="layoutShowElevation" onchange="toggleLayoutElevation()" style="margin:0;width:auto;">
+                        Show elevation change (from CSV)
+                      </label>
+                      <div id="layoutElevationOut" style="display:none;font-size:12px;color:var(--text-light);margin-top:4px;line-height:1.4;"></div>
+                    </div>
+                    <div class="field-group">
+                      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;">
+                        <input type="checkbox" id="layoutShowGrade" onchange="toggleLayoutGrade()" style="margin:0;width:auto;">
+                        Show grade overlay (color the shape by height)
+                      </label>
+                      <div id="layoutGradeNote" style="display:none;font-size:12px;color:var(--text-light);margin-top:4px;line-height:1.4;"></div>
+                    </div>
+                    <div class="field-group">
+                      <label>View Rotation (°)</label>
+                      <input type="range" id="viewRotationInput" min="0" max="359" step="1" value="0" oninput="onViewRotationChange()" style="width:100%;">
+                      <div style="font-size:11px;color:var(--text-light);">
+                        <span id="viewRotationValue">0°</span> — rotates the drawing only, to match how you're viewing the yard. Doesn't affect area or roll calculations.
+                      </div>
+                    </div>
+                  </div>
+                </details>
+
+                <details open style="margin-top:6px;">
+                  <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:6px 0;">Layers</summary>
+                  <div class="field-group" id="layoutLayersGroup" style="padding-top:8px;">
+                    <div id="layoutLayersList" style="font-size:11px;"></div>
+                  </div>
+                </details>
+
+                <details id="fringeGroup" open style="display:none;margin-top:6px;">
+                  <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:6px 0;">Putting Green Fringe</summary>
+                  <div class="field-group" style="padding-top:8px;">
+                    <label style="display:flex;align-items:center;gap:6px;font-weight:500;margin-bottom:6px;">
+                      <input type="checkbox" id="fringeEnabled" onchange="updateFringeConfig()" style="width:auto;margin:0;">
+                      Add a fringe border around the putting green
+                    </label>
+                    <div id="fringeConfigFields" style="display:none;">
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px;">
+                        <div>
+                          <label style="font-size:11px;">Fringe Turf Product</label>
+                          <select id="fringeTurfProduct" onchange="updateFringeConfig()" style="width:100%;font-size:12px;padding:6px 8px;"></select>
+                        </div>
+                        <div>
+                          <label style="font-size:11px;">Fringe Width (ft)</label>
+                          <input type="number" id="fringeWidth" min="0.5" step="0.5" onchange="updateFringeConfig()" style="width:100%;">
+                        </div>
+                      </div>
+                      <label style="display:flex;align-items:center;gap:6px;font-weight:500;margin-bottom:6px;font-size:12px;">
+                        <input type="checkbox" id="fringePiecesVisible" checked onchange="updateFringeConfig()" style="width:auto;margin:0;">
+                        Show fringe pieces on canvas (uncheck for just the outline)
+                      </label>
+                      <div id="fringeSummary" style="font-size:11px;color:var(--text-light);background:var(--bg-alt);border-radius:6px;padding:6px 8px;"></div>
+                    </div>
+                  </div>
+                </details>
+
+
+
+
+                <details open style="margin-top:6px;">
                   <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:6px 0;">Roll Results</summary>
                   <div style="padding-top:8px;">
                     <!-- BASIC: the numbers a standard install needs -->
                     <div class="field-group">
                       <label>Rolls / Pieces</label>
                       <input type="text" id="rollStripsOut" class="auto-filled" readonly>
-                    </div>
-                    <div class="field-group">
-                      <label>Ordered SqFt</label>
-                      <input type="text" id="rollOrderedOut" class="auto-filled" readonly>
                     </div>
                     <div id="rollLayerBreakdown" style="display:none;font-size:11px;margin-top:6px;padding:6px 8px;background:var(--bg-alt);border-radius:6px;"></div>
                     <div class="field-group">
@@ -1403,10 +1415,6 @@
                         <div class="field-group">
                           <label>Usable SqFt</label>
                           <input type="text" id="rollUsableOut" class="auto-filled" readonly>
-                        </div>
-                        <div class="field-group">
-                          <label>Linear Ft</label>
-                          <input type="text" id="rollLinearOut" class="auto-filled" readonly>
                         </div>
                         <div class="field-group">
                           <label>Scrap</label>
@@ -1489,6 +1497,33 @@
            TAB: SETTINGS
       ══════════════════════════════════════ -->
       <div class="tab-panel" id="panel-settings">
+
+        <!-- ROLL SETTINGS (per-project; drives the Layout roll plan) -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Roll Settings</div>
+          </div>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">These drive the roll plan on the <strong>Layout</strong> tab. They're saved <strong>per project</strong>, so they reflect whichever project is currently open (and are blank until you open one).</p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;max-width:760px;">
+            <div class="field-group">
+              <label>Roll Width (ft)</label>
+              <input type="number" id="rollWidthInput" value="15" min="1" step="0.5" class="manual-input" oninput="renderRollLayout()">
+            </div>
+            <div class="field-group">
+              <label>Max Roll Length (ft)</label>
+              <input type="number" id="rollLengthInput" value="100" min="1" step="1" class="manual-input" oninput="renderRollLayout()">
+            </div>
+            <div class="field-group">
+              <label>S-Seam Side Trim (in)</label>
+              <input type="number" id="sideTrimInput" value="4" min="0" step="0.5" class="manual-input" oninput="renderRollLayout()">
+            </div>
+            <div class="field-group" style="background:var(--yellow);border:1px solid var(--yellow-border);border-left:4px solid var(--yellow-border);border-radius:8px;padding:10px 12px;">
+              <label style="color:var(--text);">⚠ Cutting Margin (in)</label>
+              <input type="number" id="cuttingMarginInput" value="4" min="0" step="0.5" class="manual-input" oninput="renderRollLayout()">
+              <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Extra length added to <strong>every cut piece</strong> before rounding up to the next whole foot. The main lever for how much buffer gets ordered.</div>
+            </div>
+          </div>
+        </div>
 
         <!-- TURF CATALOG -->
         <div class="card">
@@ -2032,7 +2067,7 @@
         <p>Every layer — including the primary one — has a checkbox. Uncheck it to hide that layer on the canvas; this is purely visual and doesn't affect any calculations. This is useful for decluttering the view when a file has several overlapping shapes, or for focusing on one layer while editing.</p>
         <p>Each layer has a dropdown that controls how it's treated:</p>
         <ul class="docs-list">
-          <li><strong>Install — its own turf + rolls</strong> — default. The layer is its own turf area: it gets rolled independently and its Ordered SqFt, Linear Ft, rolls, and waste are <strong>summed into the combined totals</strong> shown in Roll Results. Use this when a Moasure file captures the yard as several separate pieces (e.g. a front yard measured in sections). A per-layer breakdown is listed under the totals (with each layer's roll direction), and "Apply" sends the combined Ordered SqFt to the chosen turf row. Each install layer's <strong>roll plan is drawn on the canvas at its position</strong> (its installed strips, plus purchased rectangles + waste hatch when "Show purchased roll rectangles" is on), labeled with the layer name and its Ordered SqFt. Position each layer with "✋ Move Layers" and the per-layer Rotate slider. <strong>Each install layer also has its own Roll direction + Seam offset</strong> in the Layers list (with Horizontal / Vertical / Auto buttons) so a multi-section yard can roll each section the way that minimizes its waste; until you change them, a layer "matches primary" (uses the main roll-direction sliders), and "↺ Match primary" clears an override. <strong>Nesting now works within each install layer</strong> — drag a piece onto another roll's waste in the same layer and it relocates there (and gets its own "↩ Put back" entry); pieces can't be nested across different layers. <em>(Per-layer manual cuts are still primary-only and planned next.)</em></li>
+          <li><strong>Install — its own turf + rolls</strong> — default. The layer is its own turf area: it gets rolled independently and its Ordered SqFt, Linear Ft, rolls, and waste are <strong>summed into the combined totals</strong> shown in Roll Results. Use this when a Moasure file captures the yard as several separate pieces (e.g. a front yard measured in sections). A per-layer breakdown is listed under the totals (with each layer's roll direction), and "Apply" sends the combined Ordered SqFt to the chosen turf row. Each install layer's <strong>roll plan is drawn on the canvas at its position</strong> (its installed strips, plus purchased rectangles + waste hatch when "Show purchased roll rectangles" is on), labeled with the layer name and its Ordered SqFt. Position each layer with "✋ Move Layers" and the per-layer Rotate slider. <strong>Each install layer also has its own Roll direction + Seam offset</strong> in the Layers list (with Horizontal / Vertical / Auto buttons) so a multi-section yard can roll each section the way that minimizes its waste; until you change them, a layer "matches primary" (uses the main roll-direction sliders), and "↺ Match primary" clears an override. <strong>Nesting now works within each install layer</strong> — drag a piece onto another roll's waste in the same layer and it relocates there (and gets its own "↩ Put back" entry); pieces can't be nested across different layers. <strong>Manual cuts also work on every install layer</strong> — in Cut Mode, clicking a sub-layer's strip adds a butt-seam there just like on the primary, routed to that layer's own roll plan.</li>
           <li><strong>Exclude from Installed Area (hole/cutout)</strong> — subtracts that shape's area from the primary's Installed Area, and draws it as a hatched red region — turf doesn't go there.</li>
           <li><strong>Ignore (informational only)</strong> — no effect on any total. Drawn as a dashed blue outline for reference.</li>
           <li><strong>Putting Green (used for fringe calculation)</strong> — subtracts that shape's area from the primary's Installed Area like Exclude, AND marks it as the putting green outline for the Fringe feature (see below). Drawn as a solid green shape. Only one layer can be the putting green at a time — selecting it on a different layer demotes the previous one back to Install.</li>
@@ -2052,7 +2087,7 @@
         <p>A layer that's been moved and/or rotated shows a "↺ Reset position" button in the Layers list to snap it back to its original (imported) position and orientation.</p>
 
         <div class="docs-h3">Manual Cuts (Butt Seams)</div>
-        <p>Click <strong>"✂ Cut Mode"</strong> to enter cut mode. Click anywhere along a roll to add a butt-seam cut at that point — this splits the roll into separate pieces, each with its own cutting margin, labeled "Roll N.1", "Roll N.2", etc. with a red seam line marking the cut. You can add multiple cuts to the same roll to create 3 or more pieces. Click an existing cut line again to remove it. Click "✓ Done Cutting" to exit — Cut Mode is mutually exclusive with Edit Shape and Move Layers modes.</p>
+        <p>Click <strong>"✂ Cut Mode"</strong> to enter cut mode. Click anywhere along a roll to add a butt-seam cut at that point — this splits the roll into separate pieces, each with its own cutting margin, labeled "Roll N.1", "Roll N.2", etc. with a red seam line marking the cut. You can add multiple cuts to the same roll to create 3 or more pieces. Click an existing cut line again to remove it. Click "✓ Done Cutting" to exit — Cut Mode is mutually exclusive with Edit Shape and Move Layers modes. <strong>On a multi-layer job, cuts work on any install layer:</strong> clicking a sub-layer's strip routes the cut to that layer's own roll plan (each layer can roll in a different direction, and the cut position is measured in that layer's frame). Hidden layers can't be cut.</p>
         <p>A <strong>"Manual Cuts (Butt Seams)"</strong> list appears in Roll Results whenever any roll has cuts, showing each cut's position with a "✕" to remove it individually, or a "Clear all cuts on this roll" button — a precise alternative to clicking the (sometimes thin) seam line on canvas. If roll settings change such that a saved cut position no longer falls within that roll's current length, it's shown as "cuts not currently applied" with a button to clear it — so it never becomes invisible/stuck.</p>
         <p>Each piece behaves like its own roll for nesting purposes: with "Show purchased roll rectangles" on, press-and-drag any piece onto another roll's (or another piece's) hatched waste area to nest it there — exactly like whole-roll nesting. This works with Cut Mode either on or off: in Cut Mode a quick click toggles a cut while a drag moves a piece, so you can split off a small leftover piece and immediately tuck it into another roll's offcut without switching modes. To put a moved piece back, use its <strong>"↩ Put back"</strong> button in the Nested Pieces list (see below) — this undoes only the move and keeps your cuts. (Note: clearing or removing a cut is a different action — it un-cuts the roll and merges the pieces back together.)</p>
         <p>Cut positions are stored as a distance along the roll's length, so like nesting placements, they're tied to that roll's band position and persist across saves/reloads. If a major roll-setting change (direction, seam offset, width) causes that band to no longer exist, the cuts for it are simply dropped.</p>
@@ -2076,8 +2111,8 @@
         <div class="docs-h3">Shape Rotation (view)</div>
         <p>Rotates the drawing to match how you're viewing the yard on-site. Purely cosmetic — does not affect area, roll counts, or any calculations.</p>
 
-        <div class="docs-h3">Roll Settings</div>
-        <p>Collapsible section. Parameters that drive the roll plan:</p>
+        <div class="docs-h3">Roll Settings &amp; the Layout key metrics</div>
+        <p>The four roll <strong>dimensions</strong> now live under the <strong>⚙ Settings</strong> tab → <em>Roll Settings</em> (they're still saved per project — they reflect whichever project is open). The <strong>Layout</strong> sidebar leads with a fixed <strong>key-metrics</strong> block that's always visible: <strong>Installed SqFt</strong>, <strong>Ordered SqFt</strong>, <strong>Ordered Linear Ft</strong>, and <strong>Perimeter (linear ft)</strong> of the shape outline. Below that, every section is a collapsible twistie — <em>Roll Direction &amp; Seam</em> first (the day-to-day controls), then <em>Apply area</em>, <em>Display &amp; overlays</em>, <em>Layers</em>, fringe, and the detailed <em>Roll Results</em>. The roll dimensions themselves:</p>
         <ul class="docs-list">
           <li><strong>Roll Width</strong> — width of the turf roll as purchased.</li>
           <li><strong>Roll Length</strong> — maximum length of a single piece; longer runs are split, each adding a Cutting Margin.</li>
@@ -2089,7 +2124,7 @@
         <p>Each roll strip only orders the length it actually needs based on where it intersects the shape — strips don't all buy the full bounding-box length. Ordered length is rounded up to the next whole foot, since turf is sold in Roll Width × 1ft increments. This produces accurate per-strip quantities and more realistic scrap percentages.</p>
 
         <div class="docs-h3">Roll Results</div>
-        <p>Roll Results is split into <strong>Basic</strong> and <strong>Advanced</strong> so a standard install isn't cluttered. The Basic view (always shown) is the rolls/piece count, <strong>Ordered SqFt</strong> (what you'd purchase, rounded to whole-foot increments), and "Apply Sqft to Order," which pushes Ordered SqFt directly into a turf row. The installed area itself is shown at the top of the sidebar.</p>
+        <p>Roll Results is split into <strong>Basic</strong> and <strong>Advanced</strong> so a standard install isn't cluttered. The Basic view (always shown) is the rolls/piece count and "Apply Sqft to Order," which pushes Ordered SqFt directly into a turf row. <strong>Installed SqFt, Ordered SqFt, Ordered Linear Ft, and Perimeter</strong> all live in the always-visible key-metrics block at the very top of the sidebar.</p>
         <p>Open <strong>"⚙ Advanced details &amp; tools"</strong> for the rest: the purchased-rectangles toggle, Usable SqFt (after side trim), Linear Ft, Scrap (Ordered minus shape area, with %), the manual-cuts and nested-pieces lists, and the per-piece list. Entering Cut Mode opens this section automatically so the cut/nest tools are visible.</p>
         <p>The roll/piece count shows just <strong>"N rolls"</strong> when the number of rolls to purchase equals the number of installed pieces — the normal case. It shows <strong>"N rolls / M pieces"</strong> only when these differ.</p>
         <p><strong>Pieces</strong> = total separately-installed pieces across the whole job: one per band/strip normally, more if a strip is manually cut into butt-seamed sections, or if a single strip is longer than Max Roll Length (which forces an inherent seam even without a manual cut).</p>
@@ -2100,9 +2135,9 @@
         <p>A table listing every individual piece that will be cut for this job — each row shows its <strong>Roll N / Piece M</strong> label, <strong>Length</strong> (its ordered length along the roll), <strong>Width</strong> (the roll width), and resulting <strong>SqFt</strong>. This is the cut sheet for your installers: it tells them exactly how long to cut each piece from the roll, and the total linear footage at the bottom helps you sanity-check how many rolls to bring and plan seam placement to minimize butt seams. Pieces created by Manual Cuts or that have been nested into another roll's waste show a note (e.g. "cut from Roll N / Piece M waste"). If a Putting Green Fringe is configured, the fringe pieces ("Fringe 1", "Fringe 2", ...) are listed too, with their own length/width/sqft.</p>
 
         <div class="docs-h3">Drag-and-Drop Nesting</div>
-        <p>With "Show purchased roll rectangles" on, drag a roll's colored shape (the installed piece) onto another roll's hatched waste area to indicate it can be cut from that roll's offcut rather than ordered separately. Valid drop targets highlight with a green dashed border while dragging. On a successful drop the piece is redrawn relocated to the target roll's waste area, outlined in orange and labeled "from Roll N / Piece M waste," and its area is removed from Ordered SqFt. <strong>The piece lands exactly where you drop it</strong> — its centroid goes to the drop point, clamped only so the whole piece stays within that roll's purchased rectangle (and nudged just enough to not stack on another piece already nested there). The tool does not relocate or refuse the piece: you place it manually, the way you'd lay it out in the yard. If where you dropped it overlaps that roll's installed turf, the piece is outlined <strong>red</strong> (instead of orange) and its label adds "— overlaps turf," so you can see at a glance that it won't actually fit there and drag it to a clear spot. Drop it again to move it elsewhere. To undo a move, use the piece's <strong>"↩ Put back"</strong> button in the Nested Pieces list — that's the reliable way; you can also drag the orange piece fully off every waste area onto open space, but that gesture is fiddly. You can move several pieces independently and put any one of them back without affecting the others. Works whether or not Cut Mode is active — in Cut Mode a quick click still toggles a cut, while a press-and-drag on a piece nests it. Disabled only in Edit Shape and Move Layers modes. <strong>On a multi-layer job each install layer nests independently:</strong> you can drag a piece within any install layer onto another roll's waste in that same layer, and it relocates and reduces that layer's Ordered SqFt. Nesting is same-layer only — a piece can't be tucked into a different layer's roll, since each layer is rolled on its own plan.</p>
+        <p>With "Show purchased roll rectangles" on, drag a roll's colored shape (the installed piece) onto another roll's hatched waste area to indicate it can be cut from that roll's offcut rather than ordered separately. Valid drop targets highlight with a green dashed border while dragging. On a successful drop the piece is redrawn relocated to the target roll's waste area, outlined in orange and labeled "from Roll N / Piece M waste," and its area is removed from Ordered SqFt. <strong>The piece lands exactly where you drop it</strong> — its centroid goes to the drop point, clamped only so the whole piece stays within that roll's purchased rectangle (and nudged just enough to not stack on another piece already nested there). The tool does not relocate or refuse the piece: you place it manually, the way you'd lay it out in the yard. If where you dropped it overlaps that roll's installed turf, the piece is outlined <strong>red</strong> (instead of orange) and its label adds "— overlaps turf," so you can see at a glance that it won't actually fit there and drag it to a clear spot. Drop it again to move it elsewhere. To undo a move, use the piece's <strong>"↩ Put back"</strong> button in the Nested Pieces list — that's the reliable way; you can also drag the orange piece fully off every waste area onto open space, but that gesture is fiddly. You can move several pieces independently and put any one of them back without affecting the others. Works whether or not Cut Mode is active — in Cut Mode a quick click still toggles a cut, while a press-and-drag on a piece nests it. Disabled only in Edit Shape and Move Layers modes. <strong>Nesting reduces what you order:</strong> a nested piece is cut from another roll's already-purchased waste, so it drops out of Linear Ft and the roll count (not just the Ordered SqFt figure) — it still counts as an installed piece. You can also nest a cut piece into the <strong>same roll's</strong> own leftover (drop it on a sibling piece's waste), which shortens that roll. Eligibility is based on the piece's <em>installed</em> turf area fitting the leftover, so a piece tucks in whenever its actual shape (not its full 15ft rectangle) fits. <strong>On a multi-layer job each install layer nests independently:</strong> you can drag a piece within any install layer onto another roll's waste in that same layer, and it relocates and reduces that layer's Ordered SqFt. Nesting is same-layer only — a piece can't be tucked into a different layer's roll, since each layer is rolled on its own plan.</p>
         <p>Placements are tied to each roll's position in the shape, so they persist across saves/reloads. If you later change roll direction, seam offset, roll width, or side trim enough that the rolls reflow into different bands, a placement tied to a band that no longer exists is simply dropped — it won't jump onto an unrelated roll. Re-check nesting after making significant roll-setting changes.</p>
-        <p>A <strong>"Nested Pieces"</strong> list appears in Roll Results whenever any piece is nested, showing each one as "Roll N / Piece M → nested in …" with a <strong>"↩ Put back"</strong> button. Clicking it reverts that single placement — the piece returns to its own ordered length and its area is added back into Ordered SqFt. This is the discoverable equivalent of dragging the orange piece back off the waste area on the canvas.</p>
+        <p>A <strong>"Nested Pieces"</strong> list appears in Roll Results whenever any piece is nested, showing each one as "Roll N / Piece M → nested in …" with a <strong>"↩ Put back"</strong> button. Clicking it reverts that single placement — the piece returns to its own ordered length and its area is added back into Ordered SqFt. This is the discoverable equivalent of dragging the orange piece back off the waste area on the canvas. Each row also has a <strong>"⟳ 90°"</strong> button that rotates that nested piece a quarter turn, so it runs the grain the other way to fit a leftover that's longer across the roll than along it (the row shows "(rotated 90°)" when active; the piece re-clamps to stay inside the roll). Turf has a pile direction, so a rotated piece's grain runs perpendicular to the rest — fine for a hidden or small piece, visible on an open lawn, so it's your call per piece.</p>
 
         <div class="docs-h3">Known Limitations</div>
         <p>Nesting eligibility is area-based: a piece can be dropped into another roll's waste when its area fits within that roll's leftover (waste) area. Placement then honors your drop exactly — the tool no longer relocates or refuses a piece based on a strict 2D fit, because in practice you (the installer) are the one judging whether a leftover can hold a piece. To keep the estimate honest, a nested piece whose dropped position overlaps the target roll's installed turf is outlined <strong>red</strong> and flagged "overlaps turf," so an impossible placement is obvious on the diagram rather than hidden. Treat the orange/red outline as your visual confirmation, and scrap % as a useful planning number, not a guarantee. Roll strips currently don't split further within a strip for very irregular shapes.</p>
@@ -5912,10 +5947,12 @@ function countRollsAndPieces(layout) {
   layout.strips.forEach(strip => {
     if (strip.clippedArea <= 1e-9) return;
     if (strip.pieces) {
-      strip.pieces.forEach(p => { totalLinearFt += p.orderedLength; });
+      // A nested piece is re-used from another roll's waste, so it adds no roll
+      // length — but it's still a separately-installed piece.
+      strip.pieces.forEach(p => { if (p.nestedInto == null) totalLinearFt += p.orderedLength; });
       totalPieces += strip.pieces.length;
     } else {
-      totalLinearFt += strip.orderedLength;
+      if (strip.nestedInto == null) totalLinearFt += strip.orderedLength;
       // A strip longer than Max Roll Length is inherently split into
       // numSegments physical pieces, even without a manual cut.
       totalPieces += Math.max(1, strip.numSegments);
@@ -6140,16 +6177,20 @@ function computeRollLayout(basePoints, rotationDeg, translation, opts) {
     const target = byKey[targetKey];
     if (!src || !target || src.key === target.key || targetKey == null) return;
     if (target.nestedInto != null) return; // can't nest into a unit that's itself nested
-    // Eligibility is area-based: the piece's area must fit within the target's
-    // leftover (waste) area. Placement (assignNestPlacements) then puts the piece
-    // exactly where the user dropped it, and flags it red if that overlaps turf —
-    // the tool no longer relocates or refuses the piece, so manual placement is
-    // never overridden.
-    if (src.purchasedArea <= target.wasteArea + 1e-6) {
+    // Eligibility compares the piece's INSTALLED turf area (clippedArea) against
+    // the target's leftover (waste) area — that's what physically has to fit in the
+    // waste. (Using purchasedArea was too strict: it required the piece's whole
+    // 15ft rectangle, incl. its own internal waste, to fit — which blocked nesting
+    // a piece back into the SAME roll's leftover.) Placement (assignNestPlacements)
+    // then puts the piece where the user dropped it and flags it red if it overlaps
+    // turf, so manual placement is never overridden.
+    const srcFitArea = (src.clippedArea != null ? src.clippedArea : src.purchasedArea);
+    if (srcFitArea <= target.wasteArea + 1e-6) {
       src.nestedInto = target.index;
       src.nestedIntoKey = target.key;
       src.nestedIntoLabel = nestTargetLabel(target.key);
       src.nestPos = nestPos[srcKey] || null; // roll-frame drop anchor, if the user placed it
+      src.nestRot = (opts.nestRot && opts.nestRot[srcKey]) ? 90 : 0; // 90° = run the grain the other way
       target.nestHost.push(src.index);
     }
   });
@@ -6159,8 +6200,13 @@ function computeRollLayout(basePoints, rotationDeg, translation, opts) {
     if (u.nestedInto != null) {
       totalOrdered -= u.purchasedArea;
       totalSaved += u.purchasedArea;
+      // A nested piece is cut from another roll's already-purchased waste, so it
+      // is NOT ordered as its own roll length — drop it from the linear footage
+      // (and therefore the roll count). It's still an installed piece.
+      totalLinearFt -= (u.orderedLength || 0);
     }
   });
+  if (totalLinearFt < 0) totalLinearFt = 0;
 
   const scrap = totalOrdered - shapeArea;
 
@@ -6183,6 +6229,7 @@ function getRollOpts(proj) {
     cuttingMargin: document.getElementById('cuttingMarginInput').value,
     nesting: (proj && proj.layout && proj.layout.nesting) || {},
     nestPos: (proj && proj.layout && proj.layout.nestPos) || {},
+    nestRot: (proj && proj.layout && proj.layout.nestRot) || {},
     manualCuts: (proj && proj.layout && proj.layout.manualCuts) || {},
   };
 }
@@ -6307,49 +6354,58 @@ function assignNestPlacements(layout) {
     });
     ordered.forEach(u => {
       if (u.rfX0 == null) return;
-      const pieceW = u.rfX1 - u.rfX0;
-      // The piece lands where the user DROPPED it: its centroid goes to the drop
-      // point (matching the drag ghost, which tracks the centroid). We clamp only
-      // so the whole piece stays on the roll, and nudge only to avoid stacking on
-      // another nested piece — we do NOT relocate it off the target's turf. If the
-      // drop overlaps turf, that's flagged visually (red) so the user can move it,
-      // rather than the tool silently teleporting the piece somewhere else.
-      const clip = (u.clipped && u.clipped.length) ? u.clipped : null;
-      const cxP = clip ? clip.reduce((s,p)=>s+p.x,0)/clip.length : (u.rfX0 + u.rfX1)/2;
-      const cyP = clip ? clip.reduce((s,p)=>s+p.y,0)/clip.length : (u.rfY0 + u.rfY1)/2;
+      // Working geometry = the piece, optionally rotated 90° about its OWN centroid
+      // (rotation preserves the centroid, so the drop point still lands on it; only
+      // the bounding extents swap, which is what lets a piece tuck in the other way).
+      let wclip = (u.clipped && u.clipped.length) ? u.clipped : null;
+      const cxP = wclip ? wclip.reduce((s,p)=>s+p.x,0)/wclip.length : (u.rfX0 + u.rfX1)/2;
+      const cyP = wclip ? wclip.reduce((s,p)=>s+p.y,0)/wclip.length : (u.rfY0 + u.rfY1)/2;
+      if (u.nestRot === 90 && wclip) wclip = rotateAround(wclip, 90, cxP, cyP);
+      let wX0, wX1, wY0, wY1;
+      if (wclip) {
+        const xs = wclip.map(p=>p.x), ys = wclip.map(p=>p.y);
+        wX0 = Math.min(...xs); wX1 = Math.max(...xs); wY0 = Math.min(...ys); wY1 = Math.max(...ys);
+      } else { wX0 = u.rfX0; wX1 = u.rfX1; wY0 = u.rfY0; wY1 = u.rfY1; }
+      const pieceW = wX1 - wX0, pieceH = wY1 - wY0;
+      // The piece lands where the user DROPPED it (centroid on the drop), clamped so
+      // the whole (rotated) piece stays in the target rectangle, nudged only to avoid
+      // stacking on another nested piece — never relocated off turf, never refused.
       let tx, ty;
       if (u.nestPos && u.nestPos.rfX != null) {
         tx = u.nestPos.rfX - cxP;
         ty = (u.nestPos.rfY != null ? u.nestPos.rfY : cyP) - cyP;
       } else {
-        tx = rectX0 - u.rfX0; // no drop point → tuck to the target's top-left
-        ty = rectY0 - u.rfY0;
+        tx = rectX0 - wX0; ty = rectY0 - wY0;
       }
-      // Clamp so the whole piece stays within the target's purchased rectangle.
-      tx = Math.max(rectX0 - u.rfX0, Math.min(tx, rectX1 - u.rfX1));
-      ty = Math.max(rectY0 - u.rfY0, Math.min(ty, rectY1 - u.rfY1));
-      let x = u.rfX0 + tx;
-      x = nearestClearX(x, pieceW, rectX0, rectX1, [], rectY0, rectY1, occupied);
-      const finalY = u.rfY0 + ty;
+      let placedX0 = wX0 + tx, placedY0 = wY0 + ty;
+      placedX0 = Math.max(rectX0, Math.min(placedX0, rectX1 - pieceW));
+      placedY0 = Math.max(rectY0, Math.min(placedY0, rectY1 - pieceH));
+      const x = nearestClearX(placedX0, pieceW, rectX0, rectX1, [], rectY0, rectY1, occupied);
       u._nestX = x;
-      u._nestY = finalY;
+      u._nestY = placedY0;
+      u._nestRfX0 = wX0;          // (rotated) bbox-min in roll frame, for the draw offset
+      u._nestRfY0 = wY0;
+      u._nestRot = u.nestRot || 0;
+      u._nestClipRoll = wclip;    // (rotated) roll-frame footprint, for the overlap check
       occupied.push([x, x + pieceW]);
       // Honest visual cue: does the piece, where it was dropped, sit on the
       // target's installed turf? (Sampling-based; thin slivers may be missed.)
-      u._nestOverlapsTurf = placedOverlapsTurf(u, x, finalY, target);
+      u._nestOverlapsTurf = placedOverlapsTurf(u, x, placedY0, target);
     });
   });
 }
 
-// Whether the piece `u`, placed with its bbox-min at (placedX, placedY) in roll
-// frame, overlaps the target's installed turf — sampled across the piece's shape.
-// Used only as a non-blocking warning (red outline); placement still honors the
-// user's drop.
+// Whether the piece `u`, placed with its (possibly rotated) bbox-min at
+// (placedX, placedY) in roll frame, overlaps the target's installed turf —
+// sampled across the piece's shape. Non-blocking warning only (red outline).
 function placedOverlapsTurf(u, placedX, placedY, target) {
-  const poly = (u.clipped && u.clipped.length >= 3) ? u.clipped : null;
+  const poly = (u._nestClipRoll && u._nestClipRoll.length >= 3) ? u._nestClipRoll
+             : ((u.clipped && u.clipped.length >= 3) ? u.clipped : null);
   const turf = (target.clipped && target.clipped.length >= 3) ? target.clipped : null;
   if (!poly || !turf) return false;
-  const dx = placedX - u.rfX0, dy = placedY - u.rfY0;
+  const bx0 = (u._nestRfX0 != null) ? u._nestRfX0 : u.rfX0;
+  const by0 = (u._nestRfY0 != null) ? u._nestRfY0 : u.rfY0;
+  const dx = placedX - bx0, dy = placedY - by0;
   const samples = polySamplePoints(poly);
   for (const s of samples) {
     if (pointInPoly({ x: s.x + dx, y: s.y + dy }, turf)) return true;
@@ -6552,6 +6608,15 @@ function renderRollLayout() {
   renderPieceList(layout, proj);
   document.getElementById('layoutArea').value = `${layout.adjustedShapeArea.toLocaleString(undefined,{maximumFractionDigits:2})} ft²`
     + (layout.adjustedShapeArea !== layout.shapeArea ? ` (${layout.shapeArea.toLocaleString(undefined,{maximumFractionDigits:2})} ft² before exclusions)` : '');
+  const perimEl = document.getElementById('layoutPerimeterOut');
+  if (perimEl) {
+    // Perimeter of the primary shape outline (rotation/translation-invariant).
+    const perimPts = (layout.basePoints && layout.basePoints.length >= 3)
+      ? layout.basePoints
+      : ((proj.layout && proj.layout.points) || []);
+    const perim = perimPts.length >= 3 ? polygonPerimeter(perimPts) : 0;
+    perimEl.value = perim ? `${perim.toLocaleString(undefined,{maximumFractionDigits:1})} ft` : '—';
+  }
   renderLayoutElevation(proj);
   renderLayoutGradeNote(proj);
 }
@@ -6837,9 +6902,13 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     const rfTargetX = (u._nestX != null) ? u._nestX : rectX0;
     const rfTargetY = (u._nestY != null) ? u._nestY : rectY0;
 
-    // Roll-frame translation needed to move this piece's bounding box to (rfTargetX, rfTargetY)
-    const rfDx = rfTargetX - u.rfX0;
-    const rfDy = rfTargetY - u.rfY0;
+    // Roll-frame translation needed to move this piece's bounding box to
+    // (rfTargetX, rfTargetY). When the piece is rotated for nesting, its bbox-min
+    // is the rotated bbox-min (_nestRfX0/_nestRfY0), matching _nestX/_nestY.
+    const baseX0 = (u._nestRfX0 != null) ? u._nestRfX0 : u.rfX0;
+    const baseY0 = (u._nestRfY0 != null) ? u._nestRfY0 : u.rfY0;
+    const rfDx = rfTargetX - baseX0;
+    const rfDy = rfTargetY - baseY0;
 
     // Rotate this translation VECTOR (not a point) by the unit's OWN layer
     // rotation to convert from roll-frame to display-frame. For primary units
@@ -6855,6 +6924,20 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     return poly.map(p => ({ x: p.x + dx, y: p.y + dy }));
   }
 
+  // The display polygon for a nested piece, rotated 90° about its own centroid
+  // when the user flipped its grain. Rotating displayClipped about its centroid
+  // matches rotating the roll-frame footprint (orientation is frame-independent),
+  // so it stays consistent with the placement math in assignNestPlacements.
+  function nestedDisplayClip(u) {
+    let disp = u.displayClipped;
+    if (u._nestRot && disp && disp.length) {
+      const cxd = disp.reduce((s,p)=>s+p.x,0)/disp.length;
+      const cyd = disp.reduce((s,p)=>s+p.y,0)/disp.length;
+      disp = rotateAround(disp, u._nestRot, cxd, cyd);
+    }
+    return disp;
+  }
+
   // Each strip's purchased rectangle (hatched = waste) and/or real installed shape, color-coded.
   // If a strip has been manually cut, draw each piece separately (each can be
   // independently nested/highlighted) instead of the whole strip.
@@ -6868,7 +6951,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
           // it sits clear in the leftover, RED when it overlaps the roll's turf
           // (so the user can see it won't actually fit there and move it).
           const off = nestedPieceOffset(u);
-          const movedClipped = translatePoly(u.displayClipped, off.dx, off.dy);
+          const movedClipped = translatePoly(nestedDisplayClip(u), off.dx, off.dy);
           drawPoly(movedClipped, color, 'rgba(0,0,0,0.25)');
           drawPoly(movedClipped, null, u._nestOverlapsTurf ? '#e53935' : '#f4a822');
           u._displayClippedMoved = movedClipped; // stash for label placement below
@@ -6909,7 +6992,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
               // Drawn relocated to where it was dropped; orange when clear, RED
               // when it overlaps this layer's turf — mirrors the primary draw.
               const off = nestedPieceOffset(u);
-              const movedClipped = translatePoly(u.displayClipped, off.dx, off.dy);
+              const movedClipped = translatePoly(nestedDisplayClip(u), off.dx, off.dy);
               drawPoly(movedClipped, fill, 'rgba(0,0,0,0.25)');
               drawPoly(movedClipped, null, u._nestOverlapsTurf ? '#e53935' : '#f4a822');
               u._displayClippedMoved = movedClipped;
@@ -7095,7 +7178,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       // Highlight valid same-layer waste target areas in green
       srcGroup.units.forEach(u => {
         if (u.key===dragUnitKey || !u.displayRect || !u.displayRect.length) return;
-        if (u.nestedInto==null && u.wasteArea+1e-6 >= srcUnit.purchasedArea) {
+        if (u.nestedInto==null && u.wasteArea+1e-6 >= (srcUnit.clippedArea != null ? srcUnit.clippedArea : srcUnit.purchasedArea)) {
           ctx.save();
           ctx.beginPath();
           u.displayRect.forEach((p,i)=>{ const c=toCanvas(p); if(i===0)ctx.moveTo(c.x,c.y);else ctx.lineTo(c.x,c.y); });
@@ -7685,7 +7768,7 @@ function endDragNesting(evt) {
       if (u.key === srcKey) continue;
       if (!u.displayRect || !u.displayRect.length) continue;
       if (pointInPoly(dataPt, u.displayRect) && !pointInPoly(dataPt, u.displayClipped)) {
-        if (srcUnit.purchasedArea <= u.wasteArea + 1e-6) {
+        if ((srcUnit.clippedArea != null ? srcUnit.clippedArea : srcUnit.purchasedArea) <= u.wasteArea + 1e-6) {
           targetKey = u.key;
         }
         break;
@@ -7958,12 +8041,27 @@ function renderNestedPiecesList(layout, proj) {
       srcLabel = `${nm}: ${srcLabel}`;
     }
     const hostLabel = u.nestedIntoLabel || 'another roll';
+    const rotated = !!(proj.layout.nestRot && proj.layout.nestRot[u.key]);
     return `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--border);border-radius:6px;padding:6px 8px;margin-bottom:6px;">
-        <div style="color:var(--text-mid);"><strong>${srcLabel}</strong> → nested in ${hostLabel}</div>
-        <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;white-space:nowrap;" onclick="unnestPiece('${u.key}')" title="Move this piece back out of the waste area">↩ Put back</button>
+        <div style="color:var(--text-mid);"><strong>${srcLabel}</strong> → nested in ${hostLabel}${rotated ? ' <span style="color:var(--text-light);">(rotated 90°)</span>' : ''}</div>
+        <div style="display:flex;gap:6px;white-space:nowrap;">
+          <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;${rotated ? 'color:var(--accent);border-color:var(--accent);' : ''}" onclick="toggleNestRotation('${u.key}')" title="Rotate this piece 90° (run the grain the other way)">⟳ 90°</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;" onclick="unnestPiece('${u.key}')" title="Move this piece back out of the waste area">↩ Put back</button>
+        </div>
       </div>`;
   }).join('');
+}
+
+// Toggle a nested piece's 90° rotation (grain direction). Persisted on the layout
+// so it sticks; cleared when the piece is put back.
+function toggleNestRotation(srcKey) {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  if (!proj.layout.nestRot) proj.layout.nestRot = {};
+  if (proj.layout.nestRot[srcKey]) delete proj.layout.nestRot[srcKey];
+  else proj.layout.nestRot[srcKey] = 90;
+  save();
+  renderRollLayout();
 }
 
 // Revert a single nesting placement: the piece returns to its own ordered
@@ -7972,8 +8070,37 @@ function unnestPiece(srcKey) {
   const proj = getCurrentProject(); if (!proj || !proj.layout || !proj.layout.nesting) return;
   delete proj.layout.nesting[srcKey];
   if (proj.layout.nestPos) delete proj.layout.nestPos[srcKey];
+  if (proj.layout.nestRot) delete proj.layout.nestRot[srcKey];
   save();
   renderRollLayout();
+}
+
+// Which strip (and in which layer's roll frame) does a display-frame click land
+// in? Searches the primary layer plus every visible secondary install layer, each
+// with its own frame. Returns { strip, frame } or null. Pure (no DOM) so the
+// per-layer cut routing is unit-testable.
+function findCutTarget(layout, dataPt) {
+  const vis = layout.layerVisibility || {};
+  const frames = [];
+  if (vis.primary !== false) {
+    frames.push({ strips: layout.strips || [], rotationDeg: layout.rotationDeg, cx: layout.cx, cy: layout.cy });
+  }
+  (layout._installLayers || []).forEach(({ id, layout: L }) => {
+    if (id === 'primary' || !L) return;
+    if (vis[id] === false) return;
+    frames.push({ strips: L.strips || [], rotationDeg: L.rotationDeg, cx: L.cx, cy: L.cy });
+  });
+  for (const fr of frames) {
+    for (const s of fr.strips) {
+      if (s.pieces) {
+        const piece = s.pieces.find(p => p.displayClipped && p.displayClipped.length && pointInPoly(dataPt, p.displayClipped));
+        if (piece) return { strip: s, frame: fr };
+      } else if (s.displayClipped && s.displayClipped.length && pointInPoly(dataPt, s.displayClipped)) {
+        return { strip: s, frame: fr };
+      }
+    }
+  }
+  return null;
 }
 
 function startCut(evt) {
@@ -7984,24 +8111,19 @@ function startCut(evt) {
   const t = window._wtCanvasTransform; if (!t) return;
   const dataPt = { x: t.minX + (pos.canvasX - t.pad) / t.scale, y: t.minY + (t.h - t.pad - pos.canvasY) / t.scale };
 
-  // Find which strip (by its un-cut, full clipped shape) was clicked.
-  // Hit-test against each strip's pieces if present (so clicks land correctly
-  // on an already-cut strip too), else the whole strip.
-  let hitStrip = null, hitUnit = null;
-  for (const s of layout.strips) {
-    if (s.pieces) {
-      const piece = s.pieces.find(p => p.displayClipped.length && pointInPoly(dataPt, p.displayClipped));
-      if (piece) { hitStrip = s; hitUnit = piece; break; }
-    } else if (s.displayClipped.length && pointInPoly(dataPt, s.displayClipped)) {
-      hitStrip = s; hitUnit = s; break;
-    }
-  }
-  if (!hitStrip) return;
+  // Find which strip was clicked — across the primary layer AND every visible
+  // secondary install layer (each rolled on its own plan/frame). Pure helper so
+  // it's unit-testable. Strip keys are layer-prefixed, so the cut is stored on the
+  // right layer and that layer's computeRollLayout (which receives manualCuts)
+  // splits the strip.
+  const hit = findCutTarget(layout, dataPt);
+  if (!hit) return;
   evt.preventDefault();
+  const hitStrip = hit.strip, hitFrame = hit.frame;
 
-  // Convert dataPt (display frame) back to the roll frame by inverting the
-  // rotation applied when building displayClipped/displayRect.
-  const inv = rotateAround([dataPt], -layout.rotationDeg, layout.cx, layout.cy)[0];
+  // Convert dataPt (display frame) back to the HIT layer's roll frame by inverting
+  // that layer's rotation (not always the primary's).
+  const inv = rotateAround([dataPt], -hitFrame.rotationDeg, hitFrame.cx, hitFrame.cy)[0];
   const cutPos = inv.x - hitStrip.sMinX; // feet from strip start
 
   if (cutPos <= 0.01 || cutPos >= hitStrip.neededLength - 0.01) return; // ignore clicks at the very ends

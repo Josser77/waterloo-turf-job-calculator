@@ -5,9 +5,9 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 32) — Nesting honors the drop (reverted the 2D auto-fit); Apply-Area alt-turf fix; opt-in elevation + grade overlay from CSV
+## 2026-06-21 (cont'd, 32) — Nesting honors the drop; Apply-Area alt-turf fix; elevation + grade overlay; per-layer cuts; nesting reduces rolls + same-roll + 90° rotation; Layout sidebar cleanup
 
-Four changes this session. Test suite: **773** (sandbox 730).
+Seven changes this session. Test suite: **795** (sandbox 752).
 
 ### 1. Nesting now lands exactly where you drop it (reverted the 2D auto-fit gate)
 
@@ -89,6 +89,64 @@ colors the outline and corners (real data) but draws no interior contour lines �
 in-app contours come from Moasure's full 3D capture, which the export doesn't include.
 The note tells the user to walk a path across an interior dip/hump if they need its grade.
 
+### 5. Manual cuts now work on sub-layers (per-layer cut routing)
+
+`startCut` only ever searched the primary layer's strips and inverted clicks in the
+primary frame, so clicking a secondary install layer's strip hit nothing — you couldn't
+cut sub-layers at all. Extracted a pure, testable **`findCutTarget(layout, dataPt)`**
+that searches the primary plus every *visible* install layer and returns the hit strip
+**with that layer's own roll frame** (rotation/centroid); `startCut` then inverts the
+click in the correct frame and stores the cut under the strip's already-prefixed key
+(`L0_…`), which that layer's `computeRollLayout` (already fed `manualCuts`) splits. Net:
+cuts land on whichever layer you click, measured in that layer's direction. Hidden
+layers aren't cut-targetable. (Same-layer nesting of the resulting pieces already
+worked via `getNestableUnitsByLayer`; cross-*layer* nesting remains intentionally
+unsupported — each layer rolls on its own plan.)
+
+### 6. Nesting actually reduces rolls; same-roll nesting; 90° rotation
+
+Three connected upgrades so nesting does what it claims (cut a piece, drop it in a
+roll's leftover, order less roll):
+
+- **Reduces Linear Ft + roll count, not just Ordered SqFt.** A nested unit's
+  `orderedLength` is now subtracted from `totalLinearFt` in `computeRollLayout`, and
+  `countRollsAndPieces` skips nested units' length (it still counts them as installed
+  pieces). Previously nesting lowered only the area figure while Linear Ft/rolls — what
+  you actually buy — stayed put. Verified: on the test L-shape, a nest now drops Linear
+  Ft (e.g. 35→30) and can drop the roll count when it crosses a roll boundary.
+- **Same-roll nesting.** Eligibility now gates on the piece's INSTALLED (clipped) area
+  vs the target's waste, not its full purchased rectangle. The purchased-area gate was
+  too strict — it required the piece's whole 15ft rect (incl. its own internal waste) to
+  fit, which blocked nesting a cut piece back into its own roll's leftover. Now a cut
+  piece can nest into a sibling piece's waste on the same roll. (Savings/length stay
+  based on purchased area / ordered length.)
+- **90° rotation.** A nested piece can be flipped a quarter turn to run the grain the
+  other way and fit a leftover that's longer across the roll than along it. State on
+  `layout.nestRot` (per piece key), plumbed via `getRollOpts`/resolution. Placement
+  (`assignNestPlacements`) rotates the piece's footprint about its centroid, swaps the
+  bbox, re-clamps to the roll, and the overlap check + draw (`nestedDisplayClip`,
+  `nestedPieceOffset` via `_nestRfX0/_nestRfY0`) use the rotated geometry consistently.
+  UI: a "⟳ 90°" button per row in the Nested Pieces list (`toggleNestRotation`);
+  cleared on "Put back."
+
+### 7. Layout sidebar cleanup — key metrics on top, twisties, roll dimensions to Settings
+
+- **Always-visible key metrics** at the top of the Layout sidebar: Installed SqFt,
+  Ordered SqFt, Ordered Linear Ft, and **Perimeter (linear ft)** of the shape outline
+  (new readout `layoutPerimeterOut`, populated in `renderRollLayout` via the existing
+  `polygonPerimeter`). Ordered SqFt and Linear Ft were relocated up from Roll
+  Results/Advanced (same element IDs, so population is unchanged — no duplicate IDs).
+- **Roll dimensions** (Roll Width, Max Roll Length, S-Seam Side Trim, Cutting Margin)
+  moved to a new **Roll Settings** card under the ⚙ Settings tab. They remain
+  per-project (same IDs, still loaded/saved from `proj.layout`), just relocated —
+  flagged in-app as per-project. (Roll Direction & Seam stay on Layout, since they're
+  day-to-day controls you watch update live.)
+- **Every sidebar section is now a collapsible twistie**, reordered so Roll Direction &
+  Seam sits right under the key metrics, then Apply area, Display & overlays
+  (elevation + grade + view rotation), Layers, fringe, and detailed Roll Results.
+- Verified: no duplicate element IDs, `<details>` tags balanced (7/7), layout panel
+  `<div>` balance intact (62/62).
+
 ### Tests
 - Reverted all `findNestFit`/`narrowtab@30` nesting tests back to area-based `lShape`
   fixtures (sections 5, 20, 22, 45 put-back, 48, nestPos anchor, 55 prefixed).
@@ -104,6 +162,17 @@ The note tells the user to walk a path across an interior dip/hump if they need 
 - New `elevationColorRamp` cases (blue/green/red dominance, clamping) and
   `gradeBoundarySegments` cases (midpoint elevation per segment, distinct low/high
   colors, edges skipped at an unmeasured vertex).
+- New section 56: `findCutTarget` routing — clicks resolve to primary vs sub-layer
+  strips with the correct per-layer frame, hidden layers excluded, already-cut strips
+  resolve to the right strip, empty space returns null.
+- New section 57: nesting reduces Linear Ft by the nested unit's orderedLength;
+  `countRollsAndPieces` drops a re-used piece's length (roll count falls across a
+  boundary) while still counting it as a piece; whole nested strip adds no length;
+  same-roll nesting via the installed-area gate.
+- New section 49 case: 90° rotation swaps the placed bbox (40×5 → 5×40), records the
+  flag, and keeps the centroid on the drop.
+- Geometry section: `polygonPerimeter` cases (square = 40, 3-4-5 triangle = 12) for the
+  new Layout perimeter metric.
 
 ---
 

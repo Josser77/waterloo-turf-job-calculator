@@ -80,6 +80,10 @@ section('1. polygonArea');
   const ccw = rect(0,0,10,10);
   const cw  = [...ccw].reverse();
   assert(near(ctx.polygonArea(ccw), ctx.polygonArea(cw)), 'area winding-order invariant');
+
+  // Perimeter (used by the Layout "Perimeter (linear ft)" key metric)
+  assert(near(ctx.polygonPerimeter(rect(0,0,10,10)), 40), '10×10 square perimeter = 40');
+  assert(near(ctx.polygonPerimeter([{x:0,y:0},{x:3,y:0},{x:0,y:4}]), 12), '3-4-5 right triangle perimeter = 12');
   // Degenerate (collinear points) = 0
   assert(near(ctx.polygonArea([{x:0,y:0},{x:5,y:0},{x:10,y:0}]), 0), 'collinear = 0');
 }
@@ -3779,6 +3783,23 @@ section('49. Nesting: honor-the-drop placement + turf-overlap flag');
       'triangle piece lands with its centroid exactly at the drop point (not bbox-centered)');
   }
 
+  // ── 90° rotation: the piece's bbox swaps width/height, centroid stays on drop ──
+  {
+    const c = intCtx();
+    const r = (x0,y0,x1,y1)=>[{x:x0,y:y0},{x:x1,y:y0},{x:x1,y:y1},{x:x0,y:y1}];
+    const target = { key:'T', rfX0:0, rfX1:1000, rfY0:0, rfY1:60, clipped:[], nestedInto:null };
+    const mk = rot => { const p = { key:'P', rfX0:0, rfX1:40, rfY0:0, rfY1:5, clipped:r(0,0,40,5), nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:500, rfY:30}, nestRot:rot }; c.assignNestPlacements({ strips:[{ pieces:[target, p] }] }); return p; };
+    const p0 = mk(0), p90 = mk(90);
+    const bw = u => Math.max(...u._nestClipRoll.map(p=>p.x)) - Math.min(...u._nestClipRoll.map(p=>p.x));
+    const bh = u => Math.max(...u._nestClipRoll.map(p=>p.y)) - Math.min(...u._nestClipRoll.map(p=>p.y));
+    assert(Math.abs(bw(p0)-40) < 1e-6 && Math.abs(bh(p0)-5) < 1e-6, 'unrotated piece bbox is 40×5');
+    assert(Math.abs(bw(p90)-5) < 1e-6 && Math.abs(bh(p90)-40) < 1e-6, 'rotated piece bbox swaps to 5×40');
+    assert(p90._nestRot === 90, 'rotation flag recorded on the placed piece');
+    // centroid still lands on the drop x (500): centroid of the rotated footprint at placed position
+    const cxPlaced = (p90._nestClipRoll.reduce((s,p)=>s+p.x,0)/p90._nestClipRoll.length) + (p90._nestX - p90._nestRfX0);
+    assert(Math.abs(cxPlaced - 500) < 1e-6, 'rotated piece centroid still lands on the dropped x');
+  }
+
   // ── turf-overlap flag: a piece dropped ONTO the target's turf is flagged, a
   //    piece dropped in clear waste is not (placement honored either way) ──
   {
@@ -4552,6 +4573,114 @@ section('55. Phase 3b inc 2: layer-aware nestable-unit enumeration');
     assert(src._nestX != null && src._nestY != null, 'assignNestPlacements places a nested secondary-layer piece');
     assert(src._nestX >= tgt.rfX0 - 1e-9 && (src._nestX + (src.rfX1 - src.rfX0)) <= tgt.rfX1 + 1e-9,
       'placed secondary piece stays within its target\u2019s purchased rectangle');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  56. Per-layer cut routing — findCutTarget hits sub-layer strips
+//  A cut click must resolve against the primary layer AND every visible secondary
+//  install layer, returning that layer's own frame so the cut position is computed
+//  correctly. (Fixes: "can't make cuts to sub layers.")
+// ════════════════════════════════════════════════════════════════════════
+section('56. Per-layer cut routing (findCutTarget)');
+{
+  const sq = (x0,y0,x1,y1) => [{x:x0,y:y0},{x:x1,y:y0},{x:x1,y:y1},{x:x0,y:y1}];
+  // Primary strip occupies x[0,10]; a secondary install-layer strip occupies x[20,30].
+  const primStrip = { key:'y0.00', displayClipped: sq(0,0,10,10), sMinX:0, neededLength:10 };
+  const subStrip  = { key:'L0_y0.00', displayClipped: sq(20,0,30,10), sMinX:0, neededLength:10 };
+  const layout = {
+    strips: [primStrip],
+    rotationDeg: 0, cx: 5, cy: 5,
+    layerVisibility: {},
+    _installLayers: [
+      { id:'primary', layout:null },
+      { id:0, layout:{ strips:[subStrip], rotationDeg: 90, cx: 25, cy: 5 } },
+    ],
+  };
+
+  const hitPrim = ctx.findCutTarget(layout, { x:5, y:5 });
+  assert(hitPrim && hitPrim.strip.key === 'y0.00', 'a click in the primary strip resolves to the primary strip');
+  assert(hitPrim.frame.rotationDeg === 0, 'primary hit carries the primary frame');
+
+  const hitSub = ctx.findCutTarget(layout, { x:25, y:5 });
+  assert(hitSub && hitSub.strip.key === 'L0_y0.00', 'a click in the SUB-LAYER strip resolves to the sub-layer strip (was previously missed)');
+  assert(hitSub.frame.rotationDeg === 90 && hitSub.frame.cx === 25, 'sub-layer hit carries the SUB-LAYER frame (its own rotation/centroid), not the primary\'s');
+
+  // A click in empty space hits nothing.
+  assert(ctx.findCutTarget(layout, { x:50, y:50 }) === null, 'a click outside every strip returns null');
+
+  // Hiding the sub-layer makes its strips un-cuttable (you can't cut what you can't see).
+  const hidden = { ...layout, layerVisibility: { 0:false } };
+  assert(ctx.findCutTarget(hidden, { x:25, y:5 }) === null, 'a hidden install layer is not cut-targetable');
+
+  // Already-cut strips expose pieces; a click resolves to the specific piece.
+  const cutSub = { key:'L0_y0.00', pieces:[
+    { key:'L0_y0.00_p0', displayClipped: sq(20,0,25,10) },
+    { key:'L0_y0.00_p1', displayClipped: sq(25,0,30,10) },
+  ], sMinX:0, neededLength:10 };
+  const layout2 = { ...layout, _installLayers:[ {id:'primary',layout:null}, {id:0, layout:{ strips:[cutSub], rotationDeg:90, cx:25, cy:5 }} ] };
+  const hitPiece = ctx.findCutTarget(layout2, { x:27, y:5 });
+  assert(hitPiece && hitPiece.strip.key === 'L0_y0.00', 'a click on an already-cut sub-layer strip still resolves to that strip');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  57. Nesting reduces Linear Ft + roll count (not just Ordered SqFt)
+//  A nested piece is re-used from another roll's waste, so it drops out of the
+//  linear footage and the roll count — while still counting as an installed piece.
+// ════════════════════════════════════════════════════════════════════════
+section('57. Nesting reduces Linear Ft + rolls');
+{
+  // ── compute-level: nesting lowers linearFt by the nested unit's orderedLength ──
+  const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{} };
+  const lShape = [{x:0,y:0},{x:30,y:0},{x:30,y:8},{x:5,y:8},{x:5,y:30},{x:0,y:30}];
+  const base = ctx.computeRollLayout(lShape, 0, 0, opts);
+  const small = base.strips.find(s => s.purchasedArea > 0.5 && s.wasteArea < 1);
+  const big   = base.strips.find(s => s.index !== (small||{}).index && s.wasteArea >= (small||{purchasedArea:9999}).purchasedArea);
+  if (small && big) {
+    const nested = ctx.computeRollLayout(lShape, 0, 0, { ...opts, nesting:{ [small.key]: big.key } });
+    assert(near(nested.linearFt, base.linearFt - small.orderedLength), 'nesting drops linearFt by the nested unit\'s orderedLength');
+    assert(nested.linearFt < base.linearFt, 'nesting lowers Linear Ft (what you order), not just Ordered SqFt');
+  }
+
+  // ── countRollsAndPieces: nested piece excluded from length, still a piece, and
+  //    the roll count drops when the remaining length crosses a roll boundary ──
+  {
+    const mk = (nested) => ({ rollLength: 30, strips: [ { clippedArea: 100, pieces: [
+      { orderedLength: 20, nestedInto: null },
+      { orderedLength: 15, nestedInto: nested ? 0 : null },
+    ] } ] });
+    const without = ctx.countRollsAndPieces(mk(false)); // 20 + 15 = 35 ft → 2 rolls
+    const withNest = ctx.countRollsAndPieces(mk(true));  // 20 ft (15 re-used) → 1 roll
+    assert(without.totalRolls === 2 && without.totalPieces === 2, 'before nesting: 35 ft needs 2 rolls / 2 pieces');
+    assert(withNest.totalRolls === 1, 'after nesting: the re-used piece drops the order to 1 roll');
+    assert(withNest.totalPieces === 2, 'the nested piece is still counted as an installed piece');
+  }
+
+  // ── a whole (uncut) strip nested wholesale adds no length either ──
+  {
+    const layout = { rollLength: 100, strips: [
+      { clippedArea: 50, orderedLength: 40, numSegments: 1, nestedInto: null, pieces: null },
+      { clippedArea: 30, orderedLength: 25, numSegments: 1, nestedInto: 0, pieces: null }, // nested whole strip
+    ] };
+    const r = ctx.countRollsAndPieces(layout);
+    assert(near(r.totalRolls, 1) , 'a nested whole strip adds no roll length (40 ft → 1 roll, not 65)');
+  }
+
+  // ── SAME-ROLL nesting: a cut piece nests into a sibling piece's waste on the
+  //    SAME roll, gated by INSTALLED (clipped) area, not the full purchased rect ──
+  {
+    const shape = [{x:0,y:0},{x:40,y:0},{x:40,y:4},{x:0,y:4}]; // narrow shape → big width-waste
+    const o = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{}, manualCuts:{ 'y0.00':[20] } };
+    const cut = ctx.computeRollLayout(shape, 0, 0, o);
+    const cs = cut.strips.find(s => s.key === 'y0.00');
+    const [p0, p1] = cs.pieces;
+    // The piece's PURCHASED area exceeds the sibling's waste, but its INSTALLED area fits.
+    assert(p1.purchasedArea > p0.wasteArea && p1.clippedArea <= p0.wasteArea,
+      'fixture: piece purchased-area > sibling waste, but installed-area fits (the case the old gate wrongly blocked)');
+    const nested = ctx.computeRollLayout(shape, 0, 0, { ...o, nesting:{ [p1.key]: p0.key } });
+    const np1 = nested.strips.find(s => s.key === 'y0.00').pieces.find(p => p.key === p1.key);
+    assert(np1.nestedInto != null, 'a cut piece nests into a SIBLING piece on the same roll (installed-area gate)');
+    assert(nested.linearFt < cut.linearFt, 'same-roll nesting reduces Linear Ft (fewer feet to order)');
   }
 }
 
