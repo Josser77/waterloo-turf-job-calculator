@@ -5,7 +5,34 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 40) — Roll Settings: real input alignment + neutral Cutting Margin
+## 2026-06-21 (cont'd, 41) — Cross-layer nesting (drop a piece into another layer's roll waste)
+
+A piece can now be nested into a **different** install layer's roll waste, not just
+its own. Test suite: **846** (sandbox 803), +14 (new section 61).
+
+- **Drop handler** (`endDragNesting`): the target search now spans every install
+  layer (secondary-first, matching draw z-order), and the drop anchor is stored in the
+  **target** layer's roll frame — so the piece records where it lands in the layer whose
+  waste it's tucked into.
+- **Resolution** (`resolveCrossLayerNesting`, new): `computeRollLayout` resolves nesting
+  per-layer, so a cross-layer target is invisible to it. A new pass runs after all layers
+  are rolled (before summing): for each cross-layer nest that fits the target's waste, it
+  marks the piece nested and **drops it from its own layer's order** (Ordered SqFt, Linear
+  Ft, roll count) — the piece is cut from the other layer's already-bought roll waste. The
+  target layer's order is unchanged; only its scrap falls. Combined Ordered SqFt falls by
+  the piece while installed area is unchanged, so combined scrap falls — verified headless.
+- **Draw**: a cross-layer nested piece is rendered in the target layer's waste by mapping
+  its roll-frame footprint through the target's purchased rectangle
+  (`rollPointToDisplayViaRect` / `nestedCrossLayerDisplayPoly`), since the source piece's
+  own display transform belongs to a different layer and can't be reused directly.
+- **Known limits (v1):** cross-layer placement is approximate — the piece lands in the
+  target's waste near the drop point, clamped inside the rectangle; and the red
+  "overlaps turf" check samples across frames, so it's a rough cue cross-layer. Both want
+  a visual pass in the `file://` build.
+
+---
+
+
 
 Two small fixes. Test suite: **832** (sandbox 789), unchanged (UI only).
 

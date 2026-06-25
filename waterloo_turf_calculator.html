@@ -2080,7 +2080,7 @@
         <p>Each layer has a dropdown that controls how it's treated:</p>
         <ul class="docs-list">
           <li><strong>Measure only — not added</strong> — the <strong>default</strong> for every secondary shape. The layer is drawn and labeled on the canvas but does <strong>not</strong> change Installed SqFt or the quote (use it for sub-areas of the same yard, reference outlines, or elevation sub-regions). You opt a layer into counting by choosing one of the modes below.</li>
-          <li><strong>Install — ADD as separate turf</strong> — the layer is its own turf area: it's rolled independently and its area, Ordered SqFt, Linear Ft, rolls, and waste are <strong>added to the combined totals</strong>. Use this only when a shape is a genuinely separate piece (e.g. a detached side yard) — <strong>not</strong> for a sub-region that overlaps the main yard, which would double-count. A per-layer breakdown is listed under the totals (with each layer's roll direction), and "Apply" sends the combined Ordered SqFt to the chosen turf row. Each install layer's <strong>roll plan is drawn on the canvas at its position</strong> (its installed strips, plus purchased rectangles + waste hatch when "Show purchased roll rectangles" is on), labeled with the layer name and its area. Position each layer with "✋ Move Layers" and the per-layer Rotate slider. <strong>Each install layer also has its own Roll direction + Seam offset</strong> in the Layers list (with Horizontal / Vertical / Auto buttons); until you change them, a layer "matches primary," and "↺ Match primary" clears an override. <strong>Nesting and manual cuts work within each install layer.</strong> <strong>Rename any layer</strong> by typing in its name field at the top of its card; the name shows on the canvas, the breakdown, and the Nested Pieces list. <strong>Installed SqFt and Perimeter</strong> sum the primary plus every Install layer. <strong>Roll grouping (multiple layers ≠ multiple rolls):</strong> when there's more than one install layer, each gets a "Rolls" selector — <em>Share rolls with other layers</em> (default) pools that layer's linear footage so they're cut from the same physical rolls, while <em>Roll on its own</em> counts the layer's rolls independently. Grouping only changes the <strong>roll count</strong> — Ordered SqFt and Linear Ft are identical either way.</li>
+          <li><strong>Install — ADD as separate turf</strong> — the layer is its own turf area: it's rolled independently and its area, Ordered SqFt, Linear Ft, rolls, and waste are <strong>added to the combined totals</strong>. Use this only when a shape is a genuinely separate piece (e.g. a detached side yard) — <strong>not</strong> for a sub-region that overlaps the main yard, which would double-count. A per-layer breakdown is listed under the totals (with each layer's roll direction), and "Apply" sends the combined Ordered SqFt to the chosen turf row. Each install layer's <strong>roll plan is drawn on the canvas at its position</strong> (its installed strips, plus purchased rectangles + waste hatch when "Show purchased roll rectangles" is on), labeled with the layer name and its area. Position each layer with "✋ Move Layers" and the per-layer Rotate slider. <strong>Each install layer also has its own Roll direction + Seam offset</strong> in the Layers list (with Horizontal / Vertical / Auto buttons); until you change them, a layer "matches primary," and "↺ Match primary" clears an override. <strong>Nesting and manual cuts work within each install layer, and a piece can now be nested across layers</strong> (dropped onto a different layer's roll waste). <strong>Rename any layer</strong> by typing in its name field at the top of its card; the name shows on the canvas, the breakdown, and the Nested Pieces list. <strong>Installed SqFt and Perimeter</strong> sum the primary plus every Install layer. <strong>Roll grouping (multiple layers ≠ multiple rolls):</strong> when there's more than one install layer, each gets a "Rolls" selector — <em>Share rolls with other layers</em> (default) pools that layer's linear footage so they're cut from the same physical rolls, while <em>Roll on its own</em> counts the layer's rolls independently. Grouping only changes the <strong>roll count</strong> — Ordered SqFt and Linear Ft are identical either way.</li>
           <li><strong>Overlay — installed, cut from existing roll waste</strong> — for layer overlays: the shape <strong>counts toward Installed SqFt</strong> (it's real turf going down) but is cut from an existing roll's leftover, so it adds <strong>nothing</strong> to the order — no extra rolls, no Ordered SqFt. Use it when an overlapping/stacked layer's turf comes from material you're already buying. It's drawn in violet with a dotted outline and labeled "(overlay, from waste)". If the overlay area is larger than the roll waste actually available, a warning appears under Installed SqFt — beyond that point it isn't entirely free and you'd need extra turf.</li>
           <li><strong>Exclude from Installed Area (hole/cutout)</strong> — subtracts that shape's area from the primary's Installed Area, and draws it as a hatched red region — turf doesn't go there.</li>
           <li><strong>Ignore (informational only)</strong> — no effect on any total. Drawn as a dashed blue outline for reference.</li>
@@ -2149,7 +2149,7 @@
         <p>A table listing every individual piece that will be cut for this job — each row shows its <strong>Roll N / Piece M</strong> label, <strong>Length</strong> (its ordered length along the roll), <strong>Width</strong> (the roll width), and resulting <strong>SqFt</strong>. This is the cut sheet for your installers: it tells them exactly how long to cut each piece from the roll, and the total linear footage at the bottom helps you sanity-check how many rolls to bring and plan seam placement to minimize butt seams. Pieces created by Manual Cuts or that have been nested into another roll's waste show a note (e.g. "cut from Roll N / Piece M waste"). If a Putting Green Fringe is configured, the fringe pieces ("Fringe 1", "Fringe 2", ...) are listed too, with their own length/width/sqft.</p>
 
         <div class="docs-h3">Drag-and-Drop Nesting</div>
-        <p>With "Show purchased roll rectangles" on, drag a roll's colored shape (the installed piece) onto another roll's hatched waste area to indicate it can be cut from that roll's offcut rather than ordered separately. Valid drop targets highlight with a green dashed border while dragging. On a successful drop the piece is redrawn relocated to the target roll's waste area, outlined in orange and labeled "from Roll N / Piece M waste," and its area is removed from Ordered SqFt. <strong>The piece lands exactly where you drop it</strong> — its centroid goes to the drop point, clamped only so the whole piece stays within that roll's purchased rectangle (and nudged just enough to not stack on another piece already nested there). The tool does not relocate or refuse the piece: you place it manually, the way you'd lay it out in the yard. If where you dropped it overlaps that roll's installed turf, the piece is outlined <strong>red</strong> (instead of orange) and its label adds "— overlaps turf," so you can see at a glance that it won't actually fit there and drag it to a clear spot. Drop it again to move it elsewhere. To undo a move, use the piece's <strong>"↩ Put back"</strong> button in the Nested Pieces list — that's the reliable way; you can also drag the orange piece fully off every waste area onto open space, but that gesture is fiddly. You can move several pieces independently and put any one of them back without affecting the others. Works whether or not Cut Mode is active — in Cut Mode a quick click still toggles a cut, while a press-and-drag on a piece nests it. Disabled only in Edit Shape and Move Layers modes. <strong>Nesting reduces what you order:</strong> a nested piece is cut from another roll's already-purchased waste, so it drops out of Linear Ft and the roll count (not just the Ordered SqFt figure) — it still counts as an installed piece. You can also nest a cut piece into the <strong>same roll's</strong> own leftover (drop it on a sibling piece's waste), which shortens that roll. Eligibility is based on the piece's <em>installed</em> turf area fitting the leftover, so a piece tucks in whenever its actual shape (not its full 15ft rectangle) fits. <strong>On a multi-layer job each install layer nests independently:</strong> you can drag a piece within any install layer onto another roll's waste in that same layer, and it relocates and reduces that layer's Ordered SqFt. Nesting is same-layer only — a piece can't be tucked into a different layer's roll, since each layer is rolled on its own plan.</p>
+        <p>With "Show purchased roll rectangles" on, drag a roll's colored shape (the installed piece) onto another roll's hatched waste area to indicate it can be cut from that roll's offcut rather than ordered separately. Valid drop targets highlight with a green dashed border while dragging. On a successful drop the piece is redrawn relocated to the target roll's waste area, outlined in orange and labeled "from Roll N / Piece M waste," and its area is removed from Ordered SqFt. <strong>The piece lands exactly where you drop it</strong> — its centroid goes to the drop point, clamped only so the whole piece stays within that roll's purchased rectangle (and nudged just enough to not stack on another piece already nested there). The tool does not relocate or refuse the piece: you place it manually, the way you'd lay it out in the yard. If where you dropped it overlaps that roll's installed turf, the piece is outlined <strong>red</strong> (instead of orange) and its label adds "— overlaps turf," so you can see at a glance that it won't actually fit there and drag it to a clear spot. Drop it again to move it elsewhere. To undo a move, use the piece's <strong>"↩ Put back"</strong> button in the Nested Pieces list — that's the reliable way; you can also drag the orange piece fully off every waste area onto open space, but that gesture is fiddly. You can move several pieces independently and put any one of them back without affecting the others. Works whether or not Cut Mode is active — in Cut Mode a quick click still toggles a cut, while a press-and-drag on a piece nests it. Disabled only in Edit Shape and Move Layers modes. <strong>Nesting reduces what you order:</strong> a nested piece is cut from another roll's already-purchased waste, so it drops out of Linear Ft and the roll count (not just the Ordered SqFt figure) — it still counts as an installed piece. You can also nest a cut piece into the <strong>same roll's</strong> own leftover (drop it on a sibling piece's waste), which shortens that roll. Eligibility is based on the piece's <em>installed</em> turf area fitting the leftover, so a piece tucks in whenever its actual shape (not its full 15ft rectangle) fits. <strong>On a multi-layer job you can nest across layers:</strong> drag a piece from any install layer onto another roll's waste in the <em>same</em> layer or a <em>different</em> one. A cross-layer nest means the piece is cut from the other layer's roll waste — so it drops out of <em>its own</em> layer's Ordered SqFt, Linear Ft, and roll count, while the layer it's tucked into keeps its order unchanged (that roll was already bought) and only its scrap falls. The piece is redrawn in the target layer's waste at your drop point and labeled "from &lt;layer name&gt; waste." Cross-layer placement is approximate — it lands in the target's waste near where you drop it; treat the orange/red outline as the confirmation and nudge it if needed.</p>
         <p>Placements are tied to each roll's position in the shape, so they persist across saves/reloads. If you later change roll direction, seam offset, roll width, or side trim enough that the rolls reflow into different bands, a placement tied to a band that no longer exists is simply dropped — it won't jump onto an unrelated roll. Re-check nesting after making significant roll-setting changes.</p>
         <p>A <strong>"Nested Pieces"</strong> list appears in Roll Results whenever any piece is nested, showing each one as "Roll N / Piece M → nested in …" with a <strong>"↩ Put back"</strong> button. Clicking it reverts that single placement — the piece returns to its own ordered length and its area is added back into Ordered SqFt. This is the discoverable equivalent of dragging the orange piece back off the waste area on the canvas. Each row also has a <strong>"⟳ 90°"</strong> button that rotates that nested piece a quarter turn, so it runs the grain the other way to fit a leftover that's longer across the roll than along it (the row shows "(rotated 90°)" when active; the piece re-clamps to stay inside the roll). Turf has a pile direction, so a rotated piece's grain runs perpendicular to the rest — fine for a hidden or small piece, visible on an open lawn, so it's your call per piece.</p>
 
@@ -6636,8 +6636,38 @@ function placedOverlapsTurf(u, placedX, placedY, target) {
   return false;
 }
 
-// Returns the roll layout for every "install" layer: the primary shape (always
-// installed) plus each secondary shape whose mode is 'install'. Each is rolled
+// Map a point in a target unit's roll frame to display coords using that target's
+// displayRect (whose corners are [(rfX0,rfY0),(rfX1,rfY0),(rfX1,rfY1),(rfX0,rfY1)]
+// rotated into the display). Bilinear over the quad = exact for the rigid
+// rotation+translation that produced it. Used to draw a CROSS-LAYER nested piece
+// inside the target layer's waste (the source piece's own display transform belongs
+// to a different layer, so it can't be reused directly).
+function rollPointToDisplayViaRect(target, rx, ry) {
+  const dr = target && target.displayRect;
+  if (!dr || dr.length < 4) return { x: rx, y: ry };
+  const x0 = target.rfX0, x1 = target.rfX1, y0 = target.rfY0, y1 = target.rfY1;
+  const fx = (x1 - x0) ? (rx - x0) / (x1 - x0) : 0;
+  const fy = (y1 - y0) ? (ry - y0) / (y1 - y0) : 0;
+  const top = { x: dr[0].x + (dr[1].x - dr[0].x) * fx, y: dr[0].y + (dr[1].y - dr[0].y) * fx };
+  const bot = { x: dr[3].x + (dr[2].x - dr[3].x) * fx, y: dr[3].y + (dr[2].y - dr[3].y) * fx };
+  return { x: top.x + (bot.x - top.x) * fy, y: top.y + (bot.y - top.y) * fy };
+}
+// Display polygon for a cross-layer nested piece: take its roll-frame footprint
+// (rotated if the user flipped it), translate so its bbox-min sits at the placement
+// (_nestX/_nestY, computed by assignNestPlacements in the TARGET's frame), then map
+// through the target's displayRect into display coords.
+function nestedCrossLayerDisplayPoly(u, target) {
+  const fp = (u._nestClipRoll && u._nestClipRoll.length >= 3) ? u._nestClipRoll
+           : ((u.clipped && u.clipped.length >= 3) ? u.clipped : null);
+  if (!fp || !target) return null;
+  const wX0 = (u._nestRfX0 != null) ? u._nestRfX0 : Math.min(...fp.map(p => p.x));
+  const wY0 = (u._nestRfY0 != null) ? u._nestRfY0 : Math.min(...fp.map(p => p.y));
+  const tx = (u._nestX != null ? u._nestX : target.rfX0) - wX0;
+  const ty = (u._nestY != null ? u._nestY : target.rfY0) - wY0;
+  return fp.map(p => rollPointToDisplayViaRect(target, p.x + tx, p.y + ty));
+}
+
+
 // independently with the SAME shared roll settings, on that layer's positioned
 // (view-rotated + per-layer rotated + offset) points. `primaryLayout` is the
 // already-computed primary layout; `secondaryShapes` carry `.displayPoints`.
@@ -6707,6 +6737,56 @@ function setLayerRollGroup(id, group) {
 // total installed area (each install layer contributes its own shape area).
 // Roll count honors per-layer grouping: 'shared' layers pool their linear footage
 // into shared physical rolls; 'own' layers are counted independently.
+// Cross-layer nesting: a piece in one layer dropped onto ANOTHER layer's roll
+// waste. computeRollLayout resolves nesting per-layer, so a target in a different
+// layer is never seen there — this pass runs after all layers are rolled, with a
+// global view. For each unresolved cross-layer nest that fits the target's waste,
+// it marks the source piece nested and DROPS it from its OWN layer's order (the
+// piece is cut from the target layer's existing roll waste, so it isn't ordered as
+// its own roll). The target layer's order is unchanged; only its scrap falls
+// (reflected in the combined scrap = ordered − installed). Mutates the layouts in
+// `list`. Returns the number of cross-layer nests resolved.
+function resolveCrossLayerNesting(list, nesting, nestPos, nestRot) {
+  if (!list || list.length < 2 || !nesting) return 0;
+  const byKey = {}, ownerOf = {}, nameOf = {};
+  list.forEach(entry => {
+    const L = entry && entry.layout; if (!L) return;
+    (L.strips || []).forEach(s => (s.pieces || [s]).forEach(u => {
+      byKey[u.key] = u; ownerOf[u.key] = L; nameOf[u.key] = entry.name;
+    }));
+  });
+  let resolved = 0;
+  Object.keys(nesting).forEach(srcKey => {
+    const targetKey = nesting[srcKey];
+    const src = byKey[srcKey], target = byKey[targetKey];
+    if (!src || !target || targetKey == null || src.key === target.key) return;
+    if (src.nestedInto != null) return;                 // already resolved same-layer
+    if (target.nestedInto != null) return;              // can't nest into a nested unit
+    if (ownerOf[srcKey] === ownerOf[targetKey]) return; // same layer → handled elsewhere
+    const srcFit = (src.clippedArea != null ? src.clippedArea : src.purchasedArea);
+    if (srcFit > target.wasteArea + 1e-6) return;       // doesn't fit the target's waste
+    // Mark the source piece nested into the target (a different layer).
+    src.nestedInto = target.index;
+    src.nestedIntoKey = target.key;
+    src.nestedIntoLabel = nameOf[targetKey] || 'another layer';
+    src.nestPos = (nestPos && nestPos[srcKey]) || null;
+    src.nestRot = (nestRot && nestRot[srcKey]) ? 90 : 0;
+    src._nestCrossLayer = true;
+    target.nestHost = target.nestHost || [];
+    target.nestHost.push(src.index);
+    // Drop the piece from its OWN layer's order (no longer cut from that roll).
+    const srcL = ownerOf[srcKey];
+    srcL.totalOrdered -= src.purchasedArea;
+    srcL.totalSaved = (srcL.totalSaved || 0) + src.purchasedArea;
+    srcL.linearFt -= (src.orderedLength || 0);
+    if (srcL.linearFt < 0) srcL.linearFt = 0;
+    srcL.scrap = srcL.totalOrdered - srcL.shapeArea;
+    srcL.wastePct = srcL.totalOrdered > 0 ? (srcL.scrap / srcL.totalOrdered * 100) : 0;
+    resolved++;
+  });
+  return resolved;
+}
+
 function sumInstallLayouts(list) {
   let ordered = 0, usable = 0, linear = 0, area = 0, saved = 0, pieces = 0;
   let ownRolls = 0, sharedLinear = 0, sharedCount = 0;
@@ -6826,6 +6906,9 @@ function renderRollLayout() {
   // When more than one install layer exists, the output fields show the COMBINED
   // totals and a per-layer breakdown is listed. 'Apply' uses the combined total.
   const installLayers = computeInstallLayerLayouts(proj, layout, secondaryShapes, rotation, translation, opts);
+  // Resolve any cross-layer nests (a piece dropped onto a different layer's roll
+  // waste) before summing — this drops nested pieces from their own layer's order.
+  resolveCrossLayerNesting(installLayers, opts.nesting, opts.nestPos, opts.nestRot);
   const breakdownEl = document.getElementById('rollLayerBreakdown');
   layout._installLayers = installLayers;
   layout._combined = null;
@@ -7267,8 +7350,15 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
           // Draw this piece relocated to where it was dropped. Outline orange when
           // it sits clear in the leftover, RED when it overlaps the roll's turf
           // (so the user can see it won't actually fit there and move it).
-          const off = nestedPieceOffset(u);
-          const movedClipped = translatePoly(nestedDisplayClip(u), off.dx, off.dy);
+          let movedClipped;
+          if (u._nestCrossLayer) {
+            const tgt = allUnitsByKey[u.nestedIntoKey];
+            movedClipped = tgt ? nestedCrossLayerDisplayPoly(u, tgt) : null;
+          }
+          if (!movedClipped) {
+            const off = nestedPieceOffset(u);
+            movedClipped = translatePoly(nestedDisplayClip(u), off.dx, off.dy);
+          }
           drawPoly(movedClipped, color, 'rgba(0,0,0,0.25)');
           drawPoly(movedClipped, null, u._nestOverlapsTurf ? '#e53935' : '#f4a822');
           u._displayClippedMoved = movedClipped; // stash for label placement below
@@ -7327,8 +7417,15 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
             if (u.nestedInto != null) {
               // Drawn relocated to where it was dropped; orange when clear, RED
               // when it overlaps this layer's turf — mirrors the primary draw.
-              const off = nestedPieceOffset(u);
-              const movedClipped = translatePoly(nestedDisplayClip(u), off.dx, off.dy);
+              let movedClipped;
+              if (u._nestCrossLayer) {
+                const tgt = allUnitsByKey[u.nestedIntoKey];
+                movedClipped = tgt ? nestedCrossLayerDisplayPoly(u, tgt) : null;
+              }
+              if (!movedClipped) {
+                const off = nestedPieceOffset(u);
+                movedClipped = translatePoly(nestedDisplayClip(u), off.dx, off.dy);
+              }
               drawPoly(movedClipped, fill, 'rgba(0,0,0,0.25)');
               drawPoly(movedClipped, null, u._nestOverlapsTurf ? '#e53935' : '#f4a822');
               u._displayClippedMoved = movedClipped;
@@ -8115,19 +8212,26 @@ function endDragNesting(evt) {
     if (u) { srcGroup = g; srcUnit = u; break; }
   }
 
-  // Check if dropped on another same-layer unit's waste area (displayRect but
-  // NOT displayClipped). Eligibility is area-based; placement honors the drop.
-  let targetKey = null;
+  // Check if dropped on ANY layer's unit waste area (displayRect but NOT
+  // displayClipped) — cross-layer nesting: a piece can be cut from a different
+  // layer's roll waste, not just its own. Secondary layers draw on top, so check
+  // them first to match z-order. The drop anchor is stored in the TARGET layer's
+  // roll frame (that's whose waste the piece sits in).
+  let targetKey = null, targetGroup = null;
   if (srcGroup && srcUnit) {
-    for (const u of srcGroup.units) {
-      if (u.key === srcKey) continue;
-      if (!u.displayRect || !u.displayRect.length) continue;
-      if (pointInPoly(dataPt, u.displayRect) && !pointInPoly(dataPt, u.displayClipped)) {
-        if ((srcUnit.clippedArea != null ? srcUnit.clippedArea : srcUnit.purchasedArea) <= u.wasteArea + 1e-6) {
-          targetKey = u.key;
+    const srcFit = (srcUnit.clippedArea != null ? srcUnit.clippedArea : srcUnit.purchasedArea);
+    const order = [...groups.filter(g => g.layerId !== 'primary'), ...groups.filter(g => g.layerId === 'primary')];
+    let done = false;
+    for (const g of order) {
+      for (const u of g.units) {
+        if (u.key === srcKey) continue;
+        if (!u.displayRect || !u.displayRect.length) continue;
+        if (pointInPoly(dataPt, u.displayRect) && !pointInPoly(dataPt, u.displayClipped)) {
+          if (srcFit <= u.wasteArea + 1e-6) { targetKey = u.key; targetGroup = g; }
+          done = true; break;
         }
-        break;
       }
+      if (done) break;
     }
   }
 
@@ -8135,9 +8239,9 @@ function endDragNesting(evt) {
   if (!proj.layout.nestPos) proj.layout.nestPos = {};
 
   if (targetKey != null && srcUnit) {
-    const rollPt = displayPointToRollFrame(dataPt, srcGroup);
-    // Store the drop point so the piece is drawn exactly where the user put it.
-    // Keys are already layer-prefixed, so this writes into the correct layer.
+    const rollPt = displayPointToRollFrame(dataPt, targetGroup || srcGroup);
+    // Store the drop point in the TARGET layer's frame so the piece is drawn in
+    // that layer's waste where the user put it. Keys are layer-prefixed already.
     proj.layout.nesting[srcUnit.key] = targetKey;
     proj.layout.nestPos[srcUnit.key] = { rfX: rollPt.x, rfY: rollPt.y };
   } else if (srcUnit) {

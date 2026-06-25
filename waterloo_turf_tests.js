@@ -4823,6 +4823,74 @@ section('60. Overlay layer mode');
   assert(Math.abs(ctx.sumInstallLayouts(layers2).ordered - sum.ordered) < 1e-6, 'overlay adds nothing to Ordered SqFt (same as ignore for the order)');
 }
 
+// ════════════════════════════════════════════════════════════════════════
+//  61. Cross-layer nesting — a piece cut from a DIFFERENT layer's roll waste
+//  resolveCrossLayerNesting drops the piece from its OWN layer's order, leaves
+//  the target layer's order alone, and only fires when the piece fits the waste.
+// ════════════════════════════════════════════════════════════════════════
+section('61. Cross-layer nesting');
+{
+  const mk = (over) => Object.assign({ nestedInto: null, nestedIntoKey: null, nestHost: [], index: 0, _nestCrossLayer: false }, over);
+  const freshLayers = () => {
+    const src = mk({ key: 'p0', purchasedArea: 150, clippedArea: 80, orderedLength: 10, wasteArea: 70 });
+    const tgt = mk({ key: 'L1_t0', purchasedArea: 450, clippedArea: 300, orderedLength: 30, wasteArea: 150 });
+    const A = { strips: [src, mk({ key: 'p1', purchasedArea: 150, clippedArea: 90, orderedLength: 10, wasteArea: 60 })], totalOrdered: 300, totalSaved: 0, linearFt: 20, shapeArea: 170, scrap: 130 };
+    const B = { strips: [tgt], totalOrdered: 450, totalSaved: 0, linearFt: 30, shapeArea: 300, scrap: 150 };
+    return { src, tgt, A, B, list: [{ id: 'primary', name: 'Base', layout: A }, { id: 1, name: 'Side Yard', layout: B }] };
+  };
+
+  // Happy path: piece (80 ft²) fits target waste (150 ft²) → nested cross-layer.
+  {
+    const f = freshLayers();
+    const n = ctx.resolveCrossLayerNesting(f.list, { p0: 'L1_t0' }, {}, {});
+    assert(n === 1, 'one cross-layer nest resolved');
+    assert(f.src.nestedInto != null && f.src._nestCrossLayer === true, 'source piece marked nested cross-layer');
+    assert(f.src.nestedIntoKey === 'L1_t0' && f.src.nestedIntoLabel === 'Side Yard', 'source records the target key + target layer name');
+    assert(near(f.A.totalOrdered, 150), 'source layer order drops by the piece purchased area (300 − 150)');
+    assert(near(f.A.linearFt, 10), 'source layer linear ft drops by the piece ordered length (20 − 10)');
+    assert(near(f.A.totalSaved, 150), 'piece purchased area moves into the source layer saved');
+    assert(near(f.B.totalOrdered, 450) && near(f.B.linearFt, 30), 'target layer order/linear are unchanged (it already bought that roll)');
+    assert(f.tgt.nestHost.length === 1, 'target records the foreign piece as a host');
+  }
+
+  // Combined totals: ordered falls by the piece, installed area is unchanged → scrap falls.
+  {
+    const f = freshLayers();
+    const before = ctx.sumInstallLayouts(f.list);
+    ctx.resolveCrossLayerNesting(f.list, { p0: 'L1_t0' }, {}, {});
+    const after = ctx.sumInstallLayouts(f.list);
+    assert(near(before.ordered - after.ordered, 150), 'combined ordered falls by the nested piece (150)');
+    assert(near(before.area, after.area), 'combined installed area is unchanged (piece is still installed, now in the other layer)');
+    assert(after.scrap < before.scrap - 1e-6, 'combined scrap falls — the piece consumed the target layer\'s waste');
+  }
+
+  // Doesn't fit: piece clipped (80) > target waste (50) → not resolved, nothing changes.
+  {
+    const f = freshLayers();
+    f.tgt.wasteArea = 50;
+    const ord0 = f.A.totalOrdered;
+    const n = ctx.resolveCrossLayerNesting(f.list, { p0: 'L1_t0' }, {}, {});
+    assert(n === 0 && f.src.nestedInto == null && near(f.A.totalOrdered, ord0), 'a piece larger than the target waste does not nest and changes nothing');
+  }
+
+  // Same-layer pair is left to computeRollLayout (resolver skips it).
+  {
+    const f = freshLayers();
+    const sameSrc = mk({ key: 's0', purchasedArea: 100, clippedArea: 40, orderedLength: 7, wasteArea: 60 });
+    const sameTgt = mk({ key: 's1', purchasedArea: 100, clippedArea: 30, orderedLength: 7, wasteArea: 70 });
+    const S = { strips: [sameSrc, sameTgt], totalOrdered: 200, totalSaved: 0, linearFt: 14, shapeArea: 70, scrap: 130 };
+    const list = [{ id: 'primary', name: 'P', layout: S }, { id: 1, name: 'Q', layout: f.B }];
+    const n = ctx.resolveCrossLayerNesting(list, { s0: 's1' }, {}, {});
+    assert(n === 0 && sameSrc.nestedInto == null, 'a same-layer nest is skipped by the cross-layer resolver');
+  }
+
+  // Fewer than two install layers → nothing to do.
+  {
+    const f = freshLayers();
+    assert(ctx.resolveCrossLayerNesting([{ id: 'primary', name: 'B', layout: f.A }], { p0: 'L1_t0' }, {}, {}) === 0, 'a single layer resolves no cross-layer nests');
+  }
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
