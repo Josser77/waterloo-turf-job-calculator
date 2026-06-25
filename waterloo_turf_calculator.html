@@ -1516,36 +1516,24 @@
           <div class="card-header">
             <div class="card-title">Roll Settings</div>
           </div>
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">These drive the roll plan on the <strong>Layout</strong> tab. They're a <strong>global default</strong> for every project; tick <em>Override</em> to give the open job its own values (Cutting Margin is the usual per-job lever). Standard rolls are 15 ft × 100 ft.</p>
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin:0;min-height:0;">
-              <input type="checkbox" id="rollOverrideToggle" onchange="setRollOverride(this.checked)" style="width:auto;margin:0;">
-              Override for the current project: <strong id="rollOverrideName">(no project open)</strong>
-            </label>
-            <a id="rollOverrideReset" onclick="setRollOverride(false)" style="display:none;font-size:11px;color:var(--accent);cursor:pointer;text-decoration:underline;">Reset to global</a>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">These drive the roll plan on the <strong>Layout</strong> tab. They're a <strong>global default</strong> for every project. With a project open, changing a value asks whether to update the global default or just that job. Standard rolls are 15 ft × 100 ft.</p>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;font-size:11px;color:var(--text-light);">
+            <span id="rollOverrideNote"></span>
+            <a id="rollOverrideReset" onclick="resetRollOverride()" style="display:none;color:var(--accent);cursor:pointer;text-decoration:underline;">Reset this job to the global default</a>
           </div>
-          <div id="rollOverrideNote" style="font-size:11px;color:var(--text-light);margin-bottom:14px;line-height:1.4;"></div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;max-width:880px;align-items:start;">
-            <div style="display:flex;flex-direction:column;">
-              <label style="min-height:2.6em;display:flex;align-items:flex-end;margin-bottom:6px;">Roll Width (ft)</label>
-              <input type="number" id="rollWidthInput" value="15" min="1" step="0.5" class="manual-input" oninput="onRollSettingChange()">
-              <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Fixed product width — every roll is 15 ft wide.</div>
-            </div>
-            <div style="display:flex;flex-direction:column;">
-              <label style="min-height:2.6em;display:flex;align-items:flex-end;margin-bottom:6px;">Roll Length — one full roll (ft)</label>
-              <input type="number" id="rollLengthInput" value="100" min="1" step="1" class="manual-input" oninput="onRollSettingChange()">
-              <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Length of <strong>one physical roll</strong>. Only the point where a run too long for one roll gets split — <strong>not</strong> what you order. What you order is <strong>Ordered Linear Ft</strong> (Layout sidebar), per job.</div>
-            </div>
-            <div style="display:flex;flex-direction:column;">
-              <label style="min-height:2.6em;display:flex;align-items:flex-end;margin-bottom:6px;">S-Seam Side Trim (in)</label>
-              <input type="number" id="sideTrimInput" value="4" min="0" step="0.5" class="manual-input" oninput="onRollSettingChange()">
-              <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Trimmed off each roll's edge for the S-seam (usable width = roll width − trim).</div>
-            </div>
-            <div style="display:flex;flex-direction:column;">
-              <label style="min-height:2.6em;display:flex;align-items:flex-end;margin-bottom:6px;color:#b26a00;font-weight:600;">⚠ Cutting Margin (in)</label>
-              <input type="number" id="cuttingMarginInput" value="4" min="0" step="0.5" class="manual-input" oninput="onRollSettingChange()" style="border-color:var(--yellow-border);">
-              <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Extra length added to <strong>every cut piece</strong> before rounding up to the next whole foot — the main lever for how much buffer gets ordered.</div>
-            </div>
+          <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));column-gap:16px;row-gap:6px;max-width:880px;">
+            <label style="align-self:end;margin:0;">Roll Width (ft)</label>
+            <label style="align-self:end;margin:0;">Roll Length (ft)</label>
+            <label style="align-self:end;margin:0;">S-Seam Side Trim (in)</label>
+            <label style="align-self:end;margin:0;">Cutting Margin (in)</label>
+            <input type="number" id="rollWidthInput" value="15" min="1" step="0.5" class="manual-input" onfocus="this.dataset.prev=this.value" onchange="onRollSettingEdit('rollWidth', this)">
+            <input type="number" id="rollLengthInput" value="100" min="1" step="1" class="manual-input" onfocus="this.dataset.prev=this.value" onchange="onRollSettingEdit('rollLength', this)">
+            <input type="number" id="sideTrimInput" value="4" min="0" step="0.5" class="manual-input" onfocus="this.dataset.prev=this.value" onchange="onRollSettingEdit('sideTrim', this)">
+            <input type="number" id="cuttingMarginInput" value="4" min="0" step="0.5" class="manual-input" onfocus="this.dataset.prev=this.value" onchange="onRollSettingEdit('cuttingMargin', this)">
+            <div style="align-self:start;font-size:11px;color:var(--text-light);line-height:1.4;">Fixed product width — every roll is 15 ft wide.</div>
+            <div style="align-self:start;font-size:11px;color:var(--text-light);line-height:1.4;">Length of <strong>one physical roll</strong> (15 × 100) — the point where a long run gets split across rolls. <strong>Not</strong> what you order; that's <strong>Ordered Linear Ft</strong> (Layout sidebar), per job.</div>
+            <div style="align-self:start;font-size:11px;color:var(--text-light);line-height:1.4;">Trimmed off each roll's edge for the S-seam (usable width = roll width − trim).</div>
+            <div style="align-self:start;font-size:11px;color:var(--text-light);line-height:1.4;">Extra length added to <strong>every cut piece</strong> before rounding up to the next whole foot.</div>
           </div>
         </div>
 
@@ -2138,7 +2126,7 @@
         <p>Rotates the drawing to match how you're viewing the yard on-site. Purely cosmetic — does not affect area, roll counts, or any calculations.</p>
 
         <div class="docs-h3">Roll Settings &amp; the Layout key metrics</div>
-        <p>The four roll <strong>dimensions</strong> live under the <strong>⚙ Settings</strong> tab → <em>Roll Settings</em>. They're a <strong>global default</strong> shared by every project, with an optional <strong>per-project override</strong>: tick <em>Override for the current project</em> to give the open job its own values (Cutting Margin is the usual per-job lever), or leave it off and editing the fields sets the shop-wide default for every job that isn't overriding. <em>Reset to global</em> drops a job's override. Standard rolls are 15 ft × 100 ft. The <strong>Layout</strong> sidebar leads with a fixed <strong>key-metrics</strong> block that's always visible: <strong>Installed SqFt</strong> (the total installed turf across <em>all</em> Install layers, primary plus every secondary marked Install, plus any Overlay layers, minus any cutouts), <strong>Ordered SqFt</strong>, <strong>Ordered Linear Ft</strong>, and <strong>Perimeter (linear ft)</strong>, which sums the same Install/Overlay layers. Below that are collapsible twisties — <em>Roll Direction &amp; Seam</em> (open by default, the day-to-day control), then <em>Apply area</em>, <em>Display &amp; overlays</em>, fringe, and <em>Roll Results</em>, most collapsed to keep the pane short. The <em>Layers &amp; roll grouping</em> panel sits in its own full-width strip <strong>below the canvas</strong> (not in the right pane), since it's the tallest control. Each layer's name is shown on the diagram. The roll dimensions themselves:</p>
+        <p>The four roll <strong>dimensions</strong> live under the <strong>⚙ Settings</strong> tab → <em>Roll Settings</em>. They're a <strong>global default</strong> shared by every project. With a project open, changing any value pops a quick dialog — <strong>Every project (global default)</strong> or <strong>Only this project</strong> — so you decide the scope of each change; <em>Cancel</em> reverts it. A per-project override is field-granular (overriding one field still tracks the global for the others), and a status line shows whether the open job is on the global or overriding, with <em>Reset this job to the global default</em> to drop it. With no project open, editing just sets the global default. Standard rolls are 15 ft × 100 ft. The <strong>Layout</strong> sidebar leads with a fixed <strong>key-metrics</strong> block that's always visible: <strong>Installed SqFt</strong> (the total installed turf across <em>all</em> Install layers, primary plus every secondary marked Install, plus any Overlay layers, minus any cutouts), <strong>Ordered SqFt</strong>, <strong>Ordered Linear Ft</strong>, and <strong>Perimeter (linear ft)</strong>, which sums the same Install/Overlay layers. Below that are collapsible twisties — <em>Roll Direction &amp; Seam</em> (open by default, the day-to-day control), then <em>Apply area</em>, <em>Display &amp; overlays</em>, fringe, and <em>Roll Results</em>, most collapsed to keep the pane short. The <em>Layers &amp; roll grouping</em> panel sits in its own full-width strip <strong>below the canvas</strong> (not in the right pane), since it's the tallest control. Each layer's name is shown on the diagram. The roll dimensions themselves:</p>
         <ul class="docs-list">
           <li><strong>Roll Width</strong> — width of the turf roll as purchased.</li>
           <li><strong>Roll Length</strong> — maximum length of a single piece; longer runs are split, each adding a Cutting Margin.</li>
@@ -6370,49 +6358,102 @@ function loadRollDefaultsToInputs() {
   set('cuttingMarginInput', d.cuttingMargin);
   updateRollOverrideUI();
 }
-// Reflect override state in the toggle, name, reset link, and contextual note.
+// Reflect override state in the status line + reset link.
 function updateRollOverrideUI() {
   const proj = (typeof getCurrentProject === 'function') ? getCurrentProject() : null;
-  const cb = document.getElementById('rollOverrideToggle');
-  const nameEl = document.getElementById('rollOverrideName');
   const resetEl = document.getElementById('rollOverrideReset');
   const note = document.getElementById('rollOverrideNote');
   const overriding = projectOverridesRoll(proj);
-  if (cb) { cb.checked = overriding; cb.disabled = !proj; }
-  if (nameEl) nameEl.textContent = proj ? `"${proj.name}"` : '(no project open)';
   if (resetEl) resetEl.style.display = overriding ? '' : 'none';
   if (note) {
-    if (!proj) note.textContent = 'No project open — editing the fields sets the shop-wide global default.';
-    else if (overriding) note.textContent = 'This job uses its own roll settings; every other job uses the global default. Untick (or Reset to global) to drop the override.';
-    else note.textContent = 'Editing the fields changes the global default used by every job that isn\u2019t overriding.';
+    if (!proj) note.textContent = 'No project open — editing sets the global default.';
+    else if (overriding) {
+      const keys = Object.keys(proj.rollSettings || {});
+      const labels = { rollWidth:'width', rollLength:'length', sideTrim:'trim', cuttingMargin:'cutting margin' };
+      const named = keys.map(k => labels[k] || k).join(', ');
+      note.textContent = `"${proj.name}" overrides the global default${named ? ` (${named})` : ''}.`;
+    } else {
+      note.textContent = `"${proj.name}" uses the global default.`;
+    }
   }
 }
-// Toggle the per-project override. On: seed the override from the current global
-// default so the job starts where it was. Off: drop the override → back to global.
-function setRollOverride(checked) {
+
+// ── Per-project override mutation (pure-ish, testable): set/clear one field on a
+// project's rollSettings. Clearing the last field removes the override entirely.
+function setProjectRollOverrideField(proj, field, val) {
+  if (!proj) return;
+  proj.rollSettings = Object.assign({}, proj.rollSettings || {});
+  proj.rollSettings[field] = val;
+}
+function clearProjectRollOverrideField(proj, field) {
+  if (!proj || !proj.rollSettings) return;
+  delete proj.rollSettings[field];
+  if (Object.keys(proj.rollSettings).length === 0) delete proj.rollSettings;
+}
+
+// Drop a job's entire override → back to the global default.
+function resetRollOverride() {
   const proj = (typeof getCurrentProject === 'function') ? getCurrentProject() : null;
-  if (!proj) { updateRollOverrideUI(); return; }
-  if (checked) {
-    proj.rollSettings = Object.assign({}, getGlobalRollDefaults(), proj.rollSettings || {}, rollDefaultsFromInputs());
-  } else {
-    delete proj.rollSettings;
-  }
+  if (!proj) return;
+  delete proj.rollSettings;
   if (typeof save === 'function') save();
   loadRollDefaultsToInputs();
   renderRollLayout();
 }
-// Called from the four inputs: write to the project's override if it's overriding,
-// otherwise to the global default. Then re-render the layout.
-function onRollSettingChange() {
+
+// Called from a roll-setting input on change. No project → write straight to the
+// global default. Project open → ask whether the change is global or job-only.
+function onRollSettingEdit(field, el) {
   const proj = (typeof getCurrentProject === 'function') ? getCurrentProject() : null;
-  const d = rollDefaultsFromInputs();
-  if (projectOverridesRoll(proj)) {
-    proj.rollSettings = Object.assign({}, proj.rollSettings, d);
-    if (typeof save === 'function') save();
-  } else {
-    saveGlobalRollDefaults(d);
+  const newVal = parseFloat(el.value);
+  if (isNaN(newVal)) { el.value = el.dataset.prev != null ? el.dataset.prev : ''; return; }
+  if (!proj) {
+    saveGlobalRollDefaults({ [field]: newVal });
+    el.dataset.prev = el.value;
+    renderRollLayout();
+    return;
   }
+  const prevVal = el.dataset.prev != null ? el.dataset.prev : el.value;
+  openRollScopeDialog(field, newVal, prevVal, el);
+}
+
+const ROLL_FIELD_LABELS = { rollWidth:'Roll Width', rollLength:'Roll Length', sideTrim:'S-seam Side Trim', cuttingMargin:'Cutting Margin' };
+
+function openRollScopeDialog(field, newVal, prevVal, el) {
+  const modal = document.getElementById('rollScopeModal');
+  const msg = document.getElementById('rollScopeMsg');
+  const proj = (typeof getCurrentProject === 'function') ? getCurrentProject() : null;
+  const label = ROLL_FIELD_LABELS[field] || field;
+  if (msg) msg.innerHTML = `You changed <strong>${label}</strong> to <strong>${newVal}</strong>. Make this the <strong>global default</strong> for every project, or apply it only to <strong>"${proj ? proj.name : ''}"</strong>?`;
+  const g = document.getElementById('rollScopeGlobalBtn');
+  const p = document.getElementById('rollScopeProjectBtn');
+  const c = document.getElementById('rollScopeCancelBtn');
+  if (g) g.onclick = () => applyRollScope('global', field, newVal, el);
+  if (p) p.onclick = () => applyRollScope('project', field, newVal, el);
+  if (c) c.onclick = () => cancelRollScope(prevVal, el);
+  if (modal) modal.style.display = 'flex';
+}
+function closeRollScopeDialog() {
+  const m = document.getElementById('rollScopeModal');
+  if (m) m.style.display = 'none';
+}
+function applyRollScope(scope, field, newVal, el) {
+  const proj = (typeof getCurrentProject === 'function') ? getCurrentProject() : null;
+  if (scope === 'global') {
+    saveGlobalRollDefaults({ [field]: newVal });
+    // This job follows the global for this field now → drop any prior override of it.
+    clearProjectRollOverrideField(proj, field);
+  } else {
+    setProjectRollOverrideField(proj, field, newVal);
+  }
+  if (typeof save === 'function') save();
+  closeRollScopeDialog();
+  loadRollDefaultsToInputs();
   renderRollLayout();
+}
+function cancelRollScope(prevVal, el) {
+  if (el) el.value = prevVal;
+  closeRollScopeDialog();
 }
 
 
@@ -6702,7 +6743,7 @@ function renderRollLayout() {
   document.getElementById('rollRotationValue').textContent = rotation + '°';
   document.getElementById('rollTranslationValue').textContent = translation + ' ft';
 
-  // Roll settings persist per-project via onRollSettingChange (proj.rollSettings).
+  // Roll settings resolve from the global default + this project's override (if any).
   proj.layout.rotation = rotation;
   proj.layout.translation = translation;
   proj.layout.showRects = document.getElementById('showRectanglesToggle').checked;
@@ -8868,5 +8909,18 @@ function setVal(id, val) {
 }
 
 </script>
+<!-- Roll setting scope dialog: global vs this-project, shown when a roll setting is
+     changed with a project open. -->
+<div id="rollScopeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:12px;padding:24px;max-width:440px;width:100%;box-shadow:0 12px 48px rgba(0,0,0,0.25);">
+    <div style="font-size:16px;font-weight:700;margin-bottom:10px;color:var(--text);">Apply this change to…</div>
+    <div id="rollScopeMsg" style="font-size:13px;color:var(--text-light);margin-bottom:20px;line-height:1.5;"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="btn btn-primary" id="rollScopeGlobalBtn" style="width:100%;">Every project (global default)</button>
+      <button class="btn" id="rollScopeProjectBtn" style="width:100%;">Only this project</button>
+      <button class="btn btn-ghost" id="rollScopeCancelBtn" style="width:100%;margin-top:4px;">Cancel</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

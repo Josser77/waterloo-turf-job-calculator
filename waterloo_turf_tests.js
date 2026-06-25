@@ -4739,6 +4739,18 @@ section('58. Roll settings (global default + per-project override)');
   // The override is independent of the global: changing the global does not move the override value.
   const ov2 = ctx.resolveRollSettings({ rollSettings: { cuttingMargin: 9 } }, { rollWidth: 15, rollLength: 100, sideTrim: 4, cuttingMargin: 12 });
   assert(ov2.cuttingMargin === 9, 'an overriding job keeps its own margin even if the global changes');
+
+  // Field-granular override set/clear (used by the global-vs-project dialog).
+  const job = { name: 'J' };
+  ctx.setProjectRollOverrideField(job, 'cuttingMargin', 8);
+  assert(job.rollSettings && job.rollSettings.cuttingMargin === 8, 'set override field writes just that field');
+  assert(ctx.resolveRollSettings(job, G).sideTrim === 4, 'other fields still resolve to the global');
+  ctx.setProjectRollOverrideField(job, 'sideTrim', 6);
+  assert(Object.keys(job.rollSettings).length === 2, 'a second override field is added, not replaced');
+  ctx.clearProjectRollOverrideField(job, 'cuttingMargin');
+  assert(job.rollSettings && job.rollSettings.cuttingMargin === undefined && job.rollSettings.sideTrim === 6, 'clearing one field leaves the others');
+  ctx.clearProjectRollOverrideField(job, 'sideTrim');
+  assert(!job.rollSettings && ctx.projectOverridesRoll(job) === false, 'clearing the last override field drops the override entirely (back to global)');
 }
 
 // ════════════════════════════════════════════════════════════════════════

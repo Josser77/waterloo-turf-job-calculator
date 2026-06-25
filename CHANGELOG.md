@@ -5,7 +5,47 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 38) — Roll Settings: global default + per-project override
+## 2026-06-21 (cont'd, 40) — Roll Settings: real input alignment + neutral Cutting Margin
+
+Two small fixes. Test suite: **832** (sandbox 789), unchanged (UI only).
+
+- **Alignment:** the previous fix relied on a label `min-height`, but "Roll Length — one
+  full roll (ft)" wrapped to two lines and overran it, dropping that one input. Replaced
+  the four per-field flex columns with a single flat grid (4 labels row, 4 inputs row, 4
+  helpers row), so every input sits in the same grid row and stays aligned regardless of
+  how a label wraps. Roll Length's label shortened to "Roll Length (ft)" (the "one full
+  roll" detail moved to its helper text).
+- **Cutting Margin treated like the others:** dropped the ⚠ icon, the orange bold label,
+  the redundant yellow border, and the "main lever" framing in the card, intro, and
+  in-app docs. It's now a plain field identical to Width / Length / Trim. (Width/length
+  are physically fixed and trim is a shop constant, which is why it had been highlighted
+  — but the override applies to all four equally, so there's no reason to single it out.)
+
+---
+
+
+
+Changing a roll setting with a project open now asks where it should apply, instead of a
+pre-set Override checkbox. Test suite: **832** (sandbox 789).
+
+- Editing a field (on `change`) with a project open opens a dialog: **Every project
+  (global default)** / **Only this project** / **Cancel**. Global writes the global
+  default and drops any prior override of that field; project writes a field-granular
+  override; cancel reverts the field to its prior value (captured on focus).
+- Overrides are now **field-granular** — overriding Cutting Margin still tracks the
+  global width/length/trim. `setProjectRollOverrideField` / `clearProjectRollOverrideField`
+  manage them; clearing the last field drops the override entirely.
+- The checkbox is gone; a status line shows "uses the global default" or "overrides the
+  global default (cutting margin)", with **Reset this job to the global default**.
+- With no project open, editing writes straight to the global default (no dialog).
+
+### Tests
+- Section 58 extended: field-granular override set/clear, other fields still resolving to
+  the global, and clearing the last field dropping the override.
+
+---
+
+
 
 Roll Width / Length / S-seam Trim / Cutting Margin are now a **global default** with an
 optional **per-project override** (the hybrid). Test suite: **827** (sandbox 784).
