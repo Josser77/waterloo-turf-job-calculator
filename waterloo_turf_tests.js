@@ -3860,16 +3860,25 @@ section('50. Multi-layer install (Phase 1)');
 
   {
     const c = ic();
-    const proj = { layout: { primaryLayerName:'A', secondaryShapes:[{name:'B',points:rectB},{name:'C',points:rectC}], secondaryShapeModes:{} } };
+    const proj = { layout: { primaryLayerName:'A', secondaryShapes:[{name:'B',points:rectB},{name:'C',points:rectC}], secondaryShapeModes:{0:'install',1:'install'} } };
     const primaryLayout = c.computeRollLayout(rectA, 0, 0, opts);
     const secs = proj.layout.secondaryShapes.map(s => ({ ...s, displayPoints: s.points }));
     const layers = c.computeInstallLayerLayouts(proj, primaryLayout, secs, 0, 0, opts);
-    assert(layers.length === 3, 'all layers default to install → 3 install layouts (primary + 2)');
+    assert(layers.length === 3, 'two secondaries marked Install → 3 install layouts (primary + 2)');
     const sum = c.sumInstallLayouts(layers);
     const expectOrdered = layers.reduce((a,l)=>a+l.layout.totalOrdered,0);
     assert(Math.abs(sum.ordered - expectOrdered) < 1e-6, 'combined ordered = sum of each layer\'s ordered');
     assert(sum.ordered > primaryLayout.totalOrdered + 1e-6, 'combined ordered exceeds the primary alone (extra layers add)');
-    assert(sum.rolls >= 3, 'each layer contributes at least one roll');
+    // Default grouping is SHARED: small layers pool into shared physical rolls, so the
+    // roll count is at most the layer count (here all fit in one roll).
+    assert(sum.rolls >= 1, 'combined produces at least one roll');
+    assert(sum.rolls <= layers.length, 'shared (default) grouping pools layers → rolls ≤ layer count');
+    // Force each layer onto its own roll → rolls sum independently (old behavior).
+    const ownLayers = layers.map(l => ({ ...l, rollGroup: 'own' }));
+    const ownSum = c.sumInstallLayouts(ownLayers);
+    assert(ownSum.rolls >= 3, 'with each layer on its own roll, every layer adds ≥1 roll');
+    assert(ownSum.rolls >= sum.rolls, 'own grouping is never fewer rolls than shared');
+    assert(Math.abs(ownSum.ordered - sum.ordered) < 1e-6, 'roll grouping never changes Ordered SqFt');
   }
 
   {
@@ -3884,10 +3893,23 @@ section('50. Multi-layer install (Phase 1)');
   }
 
   {
+    // New default: a secondary with NO explicit mode is IGNORED (not summed), so a
+    // fresh import shows the primary area only — not an inflated sum.
+    const c = ic();
+    const proj = { layout: { primaryLayerName:'A', secondaryShapes:[{name:'B',points:rectB},{name:'C',points:rectC}], secondaryShapeModes:{} } };
+    const primaryLayout = c.computeRollLayout(rectA, 0, 0, opts);
+    const secs = proj.layout.secondaryShapes.map(s => ({ ...s, displayPoints: s.points }));
+    const layers = c.computeInstallLayerLayouts(proj, primaryLayout, secs, 0, 0, opts);
+    assert(layers.length === 1, 'secondaries default to IGNORE (not install) → primary is the only install layer');
+    assert(Math.abs(c.getAdjustedShapeArea(proj, primaryLayout.shapeArea) - primaryLayout.shapeArea) < 1e-6,
+      'default-ignored secondaries do not change the primary installed area');
+  }
+
+  {
     // Positioned (offset) layer: rolling uses the displayPoints, so a pure
     // translation does not change ordered area (translation-invariant).
     const c = ic();
-    const proj = { layout: { primaryLayerName:'A', secondaryShapes:[{name:'B',points:rectB}], secondaryShapeModes:{} } };
+    const proj = { layout: { primaryLayerName:'A', secondaryShapes:[{name:'B',points:rectB}], secondaryShapeModes:{0:'install'} } };
     const primaryLayout = c.computeRollLayout(rectA, 0, 0, opts);
     const moved = rectB.map(p => ({ x: p.x + 100, y: p.y + 50 }));
     const layersMoved = c.computeInstallLayerLayouts(proj, primaryLayout, [{ name:'B', points:rectB, displayPoints:moved }], 0, 0, opts);
@@ -3901,7 +3923,7 @@ section('50. Multi-layer install (Phase 1)');
     // displayClipped geometry positioned via its displayPoints, so the canvas
     // has something to draw at that layer's location.
     const c = ic();
-    const proj = { layout: { primaryLayerName:'A', secondaryShapes:[{name:'B',points:rectB}], secondaryShapeModes:{} } };
+    const proj = { layout: { primaryLayerName:'A', secondaryShapes:[{name:'B',points:rectB}], secondaryShapeModes:{0:'install'} } };
     const primaryLayout = c.computeRollLayout(rectA, 0, 0, opts);
     const moved = rectB.map(p => ({ x: p.x + 100, y: p.y + 50 }));
     const layers = c.computeInstallLayerLayouts(proj, primaryLayout, [{ name:'B', points:rectB, displayPoints:moved }], 0, 0, opts);
@@ -4682,6 +4704,111 @@ section('57. Nesting reduces Linear Ft + rolls');
     assert(np1.nestedInto != null, 'a cut piece nests into a SIBLING piece on the same roll (installed-area gate)');
     assert(nested.linearFt < cut.linearFt, 'same-roll nesting reduces Linear Ft (fewer feet to order)');
   }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  58. Roll settings — global default + per-project override
+// ════════════════════════════════════════════════════════════════════════
+section('58. Roll settings (global default + per-project override)');
+{
+  // Empty storage → standard 15×100 with default trim/margin.
+  const d = ctx.getGlobalRollDefaults();
+  assert(d.rollWidth === 15 && d.rollLength === 100, 'default roll size is 15 ft × 100 ft');
+  assert(d.sideTrim === 4 && d.cuttingMargin === 4, 'default trim/margin = 4 / 4');
+
+  // A stored partial global is merged over the fallback (missing keys keep defaults).
+  const prevGet = ctx.localStorage.getItem;
+  ctx.localStorage.getItem = (k) => k === 'wt_rollDefaults' ? JSON.stringify({ cuttingMargin: 6 }) : null;
+  const g2 = ctx.getGlobalRollDefaults();
+  assert(g2.cuttingMargin === 6, 'stored global cutting margin is read back');
+  assert(g2.rollWidth === 15 && g2.rollLength === 100, 'missing keys still fall back to 15×100');
+  ctx.localStorage.getItem = prevGet;
+
+  // Resolver: a project with NO override resolves to the global default.
+  const G = { rollWidth: 15, rollLength: 100, sideTrim: 4, cuttingMargin: 4 };
+  const noOv = ctx.resolveRollSettings({ name: 'A' }, G);
+  assert(noOv.cuttingMargin === 4 && noOv.rollWidth === 15, 'no override → uses the global default');
+  assert(ctx.projectOverridesRoll({ name: 'A' }) === false, 'a project without rollSettings is not overriding');
+
+  // Resolver: a per-project override is merged OVER the global default.
+  const ov = ctx.resolveRollSettings({ name: 'B', rollSettings: { cuttingMargin: 9 } }, G);
+  assert(ov.cuttingMargin === 9, 'override value wins for that project');
+  assert(ov.rollWidth === 15 && ov.rollLength === 100 && ov.sideTrim === 4, 'override fills unspecified keys from the global default');
+  assert(ctx.projectOverridesRoll({ name: 'B', rollSettings: { cuttingMargin: 9 } }) === true, 'a project with rollSettings is overriding');
+
+  // The override is independent of the global: changing the global does not move the override value.
+  const ov2 = ctx.resolveRollSettings({ rollSettings: { cuttingMargin: 9 } }, { rollWidth: 15, rollLength: 100, sideTrim: 4, cuttingMargin: 12 });
+  assert(ov2.cuttingMargin === 9, 'an overriding job keeps its own margin even if the global changes');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  59. Layer roll grouping — shared layers pool into shared rolls
+// ════════════════════════════════════════════════════════════════════════
+section('59. Layer roll grouping');
+{
+  // Default group is 'shared' (multiple layers ≠ multiple rolls).
+  assert(ctx.getLayerRollGroup({ layout: {} }, 'primary') === 'shared', 'roll group defaults to shared');
+  assert(ctx.getLayerRollGroup({ layout: { layerRollGroup: { 0: 'own' } } }, 0) === 'own', 'explicit own is honored');
+
+  // Three layers needing 30 / 40 / 20 linear ft at a 100 ft roll length.
+  const mk = (lin) => ({ layout: { totalOrdered: lin*15, totalUsable: lin*15, linearFt: lin, shapeArea: lin*15, totalSaved: 0, rollLength: 100, strips: [{ clippedArea: lin*15, orderedLength: lin, numSegments: 1, nestedInto: null, pieces: null }] } });
+  const run = (g) => ctx.sumInstallLayouts([{ ...mk(30), rollGroup: g[0] }, { ...mk(40), rollGroup: g[1] }, { ...mk(20), rollGroup: g[2] }]);
+
+  const shared = run(['shared','shared','shared']);
+  const own    = run(['own','own','own']);
+  const mixed  = run(['shared','shared','own']); // 70 ft pooled → 1, plus 1 own
+
+  assert(shared.rolls === 1, 'all shared: 90 ft pools into 1 roll');
+  assert(own.rolls === 3, 'all own: 3 separate rolls');
+  assert(mixed.rolls === 2, 'mixed: ceil(70/100)=1 shared + 1 own = 2');
+  assert(shared.ordered === own.ordered && own.ordered === mixed.ordered, 'grouping never changes Ordered SqFt');
+  assert(shared.linear === own.linear && own.linear === mixed.linear, 'grouping never changes Ordered Linear Ft');
+  assert(shared.pieces === own.pieces, 'grouping never changes the installed-piece count');
+
+  // combined.area sums every install layer's installed area — this is what the
+  // Installed SqFt metric is built from, so a secondary 'install' layer adds to it.
+  assert(Math.abs(shared.area - (30+40+20)*15) < 1e-6, 'combined installed area = sum of all install layers (not just primary)');
+
+  // computeInstallLayerLayouts tags each layer with its group (default shared).
+  {
+    const proj = { layout: { primaryLayerName:'A', secondaryShapes:[{name:'B',points:[{x:0,y:0},{x:8,y:0},{x:8,y:10},{x:0,y:10}]}], secondaryShapeModes:{0:'install'}, layerRollGroup:{ primary:'own' } } };
+    const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{} };
+    const pl = ctx.computeRollLayout(proj.layout.points = [{x:0,y:0},{x:10,y:0},{x:10,y:12},{x:0,y:12}], 0, 0, opts);
+    const secs = proj.layout.secondaryShapes.map(s => ({ ...s, displayPoints: s.points }));
+    const layers = ctx.computeInstallLayerLayouts(proj, pl, secs, 0, 0, opts);
+    assert(layers[0].rollGroup === 'own', 'primary picks up its explicit own grouping');
+    assert(layers[1].rollGroup === 'shared', 'secondary defaults to shared');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  60. Overlay mode — installed turf cut from existing roll waste (free)
+//  Adds to Installed SqFt (getOverlayArea), but never subtracts (not a cutout)
+//  and is excluded from install layers (no extra rolls / Ordered SqFt).
+// ════════════════════════════════════════════════════════════════════════
+section('60. Overlay layer mode');
+{
+  const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{} };
+  const sqA = [{x:0,y:0},{x:10,y:0},{x:10,y:10},{x:0,y:10}]; // 100
+  const sqB = [{x:0,y:0},{x:5,y:0},{x:5,y:6},{x:0,y:6}];      // 30
+  const proj = { layout: { primaryLayerName:'P', secondaryShapes:[{name:'A',points:sqA},{name:'B',points:sqB}], secondaryShapeModes:{0:'overlay',1:'install'} } };
+
+  assert(near(ctx.getOverlayArea(proj), 100), 'getOverlayArea sums only overlay-mode shapes (A=100, B is install)');
+  assert(near(ctx.getOverlayArea({ layout: { secondaryShapes: [{name:'A',points:sqA}], secondaryShapeModes:{} } }), 0), 'default (ignore) is not overlay');
+
+  // Overlay does NOT subtract from the primary like a cutout.
+  assert(near(ctx.getAdjustedShapeArea(proj, 500), 500), 'overlay never subtracts from primary installed area');
+
+  // Overlay is excluded from install layers → adds no rolls / Ordered SqFt.
+  const pl = ctx.computeRollLayout([{x:0,y:0},{x:20,y:0},{x:20,y:20},{x:0,y:20}], 0, 0, opts);
+  const secs = proj.layout.secondaryShapes.map(s => ({ ...s, displayPoints: s.points }));
+  const layers = ctx.computeInstallLayerLayouts(proj, pl, secs, 0, 0, opts);
+  assert(layers.length === 2 && !layers.some(l => l.name === 'A'), 'overlay layer A is NOT an install layer (B is)');
+  const sum = ctx.sumInstallLayouts(layers);
+  // Switching A from overlay → ignore leaves Ordered identical (overlay never ordered).
+  const proj2 = { layout: { ...proj.layout, secondaryShapeModes:{0:'ignore',1:'install'} } };
+  const layers2 = ctx.computeInstallLayerLayouts(proj2, pl, secs, 0, 0, opts);
+  assert(Math.abs(ctx.sumInstallLayouts(layers2).ordered - sum.ordered) < 1e-6, 'overlay adds nothing to Ordered SqFt (same as ignore for the order)');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

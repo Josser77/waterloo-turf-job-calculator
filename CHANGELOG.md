@@ -5,9 +5,205 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 32) — Nesting honors the drop; Apply-Area alt-turf fix; elevation + grade overlay; per-layer cuts; nesting reduces rolls + same-roll + 90° rotation; Layout sidebar cleanup
+## 2026-06-21 (cont'd, 38) — Roll Settings: global default + per-project override
 
-Seven changes this session. Test suite: **795** (sandbox 752).
+Roll Width / Length / S-seam Trim / Cutting Margin are now a **global default** with an
+optional **per-project override** (the hybrid). Test suite: **827** (sandbox 784).
+
+- **Global default** lives in localStorage (`wt_rollDefaults`); every project uses it
+  unless it overrides.
+- **Per-project override** is stored on `proj.rollSettings`. A project "overrides" iff
+  that object exists. `resolveRollSettings(proj, global)` returns the global default
+  overlaid by the project's override (partial overrides fill missing keys from global).
+- **UI:** a checkbox "Override for the current project: <name>" on the Roll Settings
+  card. Unticked → editing the fields changes the global default (note explains this).
+  Ticked → editing writes only this job's override; a "Reset to global" link drops it.
+  Checking the box seeds the override from the current global so the job starts where it
+  was. The contextual note + state refresh whenever you open a project or the tab.
+- `onRollSettingChange` routes writes to the override or the global based on state; no
+  silent cross-job changes — a job only diverges once you tick Override.
+
+### Tests
+- Section 58 reworked: global default read/merge, `resolveRollSettings` (no override →
+  global; override wins and fills unspecified keys from global; an overriding job keeps
+  its margin when the global changes), and `projectOverridesRoll`.
+
+---
+
+
+
+Two fixes to the Settings → Roll Settings card. Test suite: **821** (sandbox 778).
+
+### Per-project roll settings (reverted from global)
+
+Roll Width / Length / S-seam Trim / Cutting Margin are now **saved per project**
+(`proj.rollSettings`) — Cutting Margin especially is a per-job lever. `getRollDefaults`
+reads the current project's `rollSettings`, falling back to any legacy per-project
+`proj.layout.*` fields, then the legacy global seed (`wt_rollDefaults`), then the
+15×100/4/4 standard. `saveRollDefaults` writes `proj.rollSettings` and saves; nothing
+writes the global store anymore. Inputs reload on tab/project switch via
+`loadRollDefaultsToInputs`. In-app docs + stale "global" comments updated.
+
+### Card alignment
+
+The Cutting Margin field was in a boxed cell taller than the other three, so the row
+didn't line up. All four fields are now uniform flex cells in one
+`repeat(auto-fit,minmax(190px,1fr))` grid; labels share a `min-height` with bottom
+alignment so the inputs line up despite 1- vs 2-line labels. The Cutting Margin box is
+gone — it's now an orange bold label + a yellow-bordered input (no background box).
+
+---
+
+
+
+New layer mode for overlapping/stacked layers. Test suite: **821** (sandbox 778).
+
+A fifth secondary-shape mode, **Overlay**, for the "Install on an existing roll because
+of layer overlays" case. An overlay layer:
+
+- **Adds to Installed SqFt** (`getOverlayArea`) — it's real installed turf.
+- Adds **nothing to the order** — it's cut from an existing roll's waste, so no extra
+  rolls and no Ordered SqFt / Linear Ft (it's excluded from `computeInstallLayerLayouts`,
+  like ignore, but counted as installed).
+- Never subtracts (it's not a cutout — `getAdjustedShapeArea` leaves the primary alone).
+- Adds its edge to **Perimeter** (it's an installed piece).
+- Drawn in violet with a dotted outline, labeled "(overlay, from waste)".
+- **Waste check:** if the overlay area exceeds the roll waste actually available
+  (Ordered − installed), a warning shows under Installed SqFt — past that it isn't all
+  free and needs extra turf.
+
+Installed SqFt label now reads e.g. "470 ft² (incl. 100 ft² overlay from waste)".
+
+### Tests
+- New section 60: `getOverlayArea` sums only overlay shapes; overlay never subtracts;
+  overlay is excluded from install layers (adds no rolls/Ordered, identical to ignore
+  for the order) while still counting as installed.
+
+---
+
+
+
+Four fixes from testing. Test suite: **816** (sandbox 773).
+
+### 1. Secondary shapes default to "Measure only" (ignore), not Install
+
+Installed SqFt was inflated because every secondary shape defaulted to **Install** and
+summed in — double-counting sub-regions of the same yard and silently adding cutouts.
+The default is now **ignore** (drawn + labeled, but not counted). "Install" means "ADD
+as separate turf" and is opt-in. Dropdown relabeled and reordered (Measure only /
+Install ADD / Exclude / Putting Green). Six `|| 'install'` defaults → `|| 'ignore'`.
+Installed SqFt and the quote now show the primary area on a fresh import; the user opts
+specific genuinely-separate pieces into Install.
+
+### 2. Layer names persist on the diagram in every mode
+
+Names + area only drew for Install layers, so changing a layer's dropdown made its label
+vanish. Now every visible layer is labeled at its centroid with a mode tag — "(added)",
+"(subtracted)", "(green)", or "(not counted)" — in a mode-matched color. The primary is
+labeled whenever any other shape is present (previously only when >1 install layer).
+
+### 3. Perimeter sums the same layers as Installed SqFt
+
+Perimeter was primary-only. It now sums the primary plus every Install layer (each is a
+separate piece with its own edge), and shows "(N layers)" when more than one. With the
+new ignore default, a typical import shows the primary's perimeter.
+
+### 4. Imported shape fills the canvas (less white space)
+
+The canvas fit and the draw scale computed *different* bounding boxes (the draw always
+included purchased rectangles), causing letterboxing/white space. Extracted one shared
+`layoutFitPoints(layout, showRects)` used by both `sizeLayoutCanvas` and
+`drawRollLayoutCanvas`: purchased RECTANGLES are only framed in when "Show purchased roll
+rectangles" is on, hidden layers are excluded, and padding tightened (24→16). A fresh
+import now hugs the actual shape.
+
+### Tests
+- Section 50 updated for the new default (set Install explicitly where layers must sum);
+  added: secondaries default to ignore → primary is the only install layer, and
+  default-ignored secondaries don't change the primary installed area.
+
+---
+
+
+
+Three fixes from real testing. Test suite: **814** (sandbox 771).
+
+### 1. Installed SqFt now sums every Install layer (bug fix)
+
+Installed SqFt showed the **primary shape only**, while Ordered SqFt already summed
+all install layers — so the two top numbers disagreed on multi-layer jobs. Root cause:
+`getAdjustedShapeArea` only *subtracts* cutouts, it never *adds* install layers.
+Installed SqFt is now `combined.area − primary raw area + primary adjusted area` when
+multiple install layers exist (= primary minus its exclusions, plus every secondary
+'install' layer). Single-layer behavior unchanged. Does not touch pricing.
+
+### 2. Primary layer name drawn on the diagram
+
+Secondary install layers already drew their name + ordered ft² on the canvas; the
+**primary** did not. It now does (bold green label at the primary centroid), shown when
+there's more than one layer so single-shape jobs stay clean. Renaming any layer updates
+the canvas label.
+
+### 3. Layout right pane decluttered / fixed scroll-drag
+
+- The sidebar's `.field-group` spacing was ~40 px of margin/padding/border *each*; cut to
+  a compact 10 px, removing the per-field borders (the twisties separate sections now).
+- Most twisties now default **closed** (Apply area, Display & overlays, Roll Results
+  Advanced); only Roll Direction & Seam and Roll Results basics stay open. Summaries got
+  a rotating ▸ caret.
+- The **Layers** panel moved out of the right pane into its own **full-width strip below
+  the canvas**, with layer cards in a responsive auto-fill grid (renamed "Layers & roll
+  grouping"). It's the tallest control and benefits from the width.
+- The **canvas column is now sticky** (`position:sticky;top:8px`) so scrolling the
+  sidebar no longer drifts the diagram, and the sidebar `max-height` was relaxed.
+
+### Tests
+- Section 59: combined installed area = sum of all install layers (basis for the
+  Installed SqFt fix).
+
+---
+
+
+
+Two changes. Test suite: **813** (sandbox 770).
+
+### 1. Rename any layer
+
+Each layer card in the Layers list (primary included) now has an editable name field
+(`setLayerName`, with `escAttr` for safe attribute output). Primary name persists on
+`proj.layout.primaryLayerName`, secondary names on `secondaryShapes[i].name`. The name
+flows to the canvas labels, the per-layer breakdown, and the Nested Pieces list.
+
+### 2. Per-layer roll grouping (multiple layers ≠ multiple rolls)
+
+When more than one install layer exists, each layer gets a "Rolls" selector:
+
+- **Share rolls with other layers** (default) — the layer's linear footage pools with
+  the other shared layers and the roll count is `ceil(pooled linear ft ÷ roll length)`,
+  i.e. they're cut from the same physical rolls.
+- **Roll on its own** — the layer's rolls are counted independently (for a layer that's
+  a different turf product).
+
+Stored on `proj.layout.layerRollGroup[id]` (`getLayerRollGroup`/`setLayerRollGroup`,
+default shared). `computeInstallLayerLayouts` tags each layer with its group;
+`sumInstallLayouts` pools shared layers' linear ft and adds own layers' rolls
+separately. **Grouping only changes the roll count — Ordered SqFt and Linear Ft are
+unchanged** (verified: roll count never feeds pricing, only display/labels). The
+per-layer breakdown now shows each shared layer's linear-ft contribution and a pooled
+roll summary line.
+
+### Tests
+- Section 50 updated: default grouping is shared (rolls ≤ layer count); forcing each
+  layer to `own` sums rolls independently and never changes Ordered SqFt.
+- New section 59: `getLayerRollGroup` default + override; pooling math (30/40/20 ft →
+  1 roll shared, 3 own, 2 mixed); grouping leaves Ordered SqFt / Linear Ft / piece count
+  untouched; `computeInstallLayerLayouts` tags each layer's group.
+
+---
+
+
+
+Seven changes this session. Test suite: **799** (sandbox 756).
 
 ### 1. Nesting now lands exactly where you drop it (reverted the 2D auto-fit gate)
 
@@ -137,10 +333,19 @@ roll's leftover, order less roll):
   `polygonPerimeter`). Ordered SqFt and Linear Ft were relocated up from Roll
   Results/Advanced (same element IDs, so population is unchanged — no duplicate IDs).
 - **Roll dimensions** (Roll Width, Max Roll Length, S-Seam Side Trim, Cutting Margin)
-  moved to a new **Roll Settings** card under the ⚙ Settings tab. They remain
-  per-project (same IDs, still loaded/saved from `proj.layout`), just relocated —
-  flagged in-app as per-project. (Roll Direction & Seam stay on Layout, since they're
-  day-to-day controls you watch update live.)
+  moved to a new **Roll Settings** card under the ⚙ Settings tab, and made **global**
+  (one set for every project) rather than per-project. Standard rolls are always
+  15 ft × 100 ft and trim/margin are shop-wide practice, so per-project storage was a
+  footgun (an editable input that could silently desync a quote). New global store
+  `wt_rollDefaults` via `getRollDefaults`/`saveRollDefaults`/`loadRollDefaultsToInputs`;
+  the four inputs now call `onRollSettingChange` (persist global + re-render). The
+  per-project load (`renderLayoutTab`) and writes (`renderRollLayout`) were removed; the
+  computed layout still carries its own rollWidth/rollLength from opts, so downstream is
+  unchanged. (Roll Direction & Seam stay on Layout — they're per-job, watched live.)
+  The Roll Length field is labeled "one full roll" with helper text clarifying it's the
+  physical roll length (the seam-split threshold), *not* what you order — what you order
+  per job is Ordered Linear Ft (varies by job, always 15 ft wide). Width field notes the
+  fixed 15 ft product width.
 - **Every sidebar section is now a collapsible twistie**, reordered so Roll Direction &
   Seam sits right under the key metrics, then Apply area, Display & overlays
   (elevation + grade + view rotation), Layers, fringe, and detailed Roll Results.
@@ -173,6 +378,8 @@ roll's leftover, order less roll):
   flag, and keeps the centroid on the drop.
 - Geometry section: `polygonPerimeter` cases (square = 40, 3-4-5 triangle = 12) for the
   new Layout perimeter metric.
+- New section 58: global roll defaults — empty store returns 15×100 / 4 / 4; a stored
+  partial override (e.g. cutting margin) is read back while missing keys keep 15×100.
 
 ---
 

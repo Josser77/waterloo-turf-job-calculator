@@ -953,23 +953,33 @@
   }
 
   #layoutSidebar {
-    max-height: calc(100vh - 180px);
+    max-height: calc(100vh - 140px);
   }
 
   #layoutSidebar .field-group {
-    margin-bottom: 22px;
-    padding-bottom: 18px;
-    border-bottom: 1px solid var(--border);
-  }
-  #layoutSidebar .field-group:last-child {
-    margin-bottom: 0;
+    margin-bottom: 10px;
     padding-bottom: 0;
     border-bottom: none;
   }
+  #layoutSidebar .field-group:last-child {
+    margin-bottom: 0;
+  }
   #layoutSidebar .field-group label {
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     display: block;
   }
+  #layoutSidebar details > summary {
+    list-style: none;
+  }
+  #layoutSidebar details > summary::-webkit-details-marker { display: none; }
+  #layoutSidebar details > summary::before {
+    content: '▸';
+    display: inline-block;
+    margin-right: 6px;
+    transition: transform 0.15s;
+    color: var(--text-light);
+  }
+  #layoutSidebar details[open] > summary::before { transform: rotate(90deg); }
 
   @media (max-width: 860px) {
     #layoutGrid { grid-template-columns: 1fr; }
@@ -1256,7 +1266,7 @@
           </div>
           <div id="layoutContent" style="display:none;">
             <div id="layoutGrid" style="display:grid;gap:20px;align-items:start;">
-              <div style="min-width:0;display:flex;flex-direction:column;">
+              <div style="min-width:0;display:flex;flex-direction:column;position:sticky;top:8px;align-self:start;">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
                   <button class="btn btn-ghost btn-sm" onclick="layoutZoom(1.25)" title="Zoom in">＋</button>
                   <button class="btn btn-ghost btn-sm" onclick="layoutZoom(0.8)" title="Zoom out">－</button>
@@ -1273,6 +1283,7 @@
                   <div class="field-group" style="margin-bottom:8px;">
                     <label>Installed SqFt</label>
                     <input type="text" id="layoutArea" class="auto-filled" readonly>
+                    <div id="layoutOverlayWarn" style="display:none;font-size:11px;color:#b26a00;margin-top:4px;line-height:1.35;"></div>
                   </div>
                   <div class="field-group" style="margin-bottom:8px;">
                     <label>Ordered SqFt</label>
@@ -1312,7 +1323,7 @@
                   </div>
                 </details>
 
-                <details open style="margin-top:6px;">
+                <details style="margin-top:6px;">
                   <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:6px 0;">Apply area to a turf row</summary>
                   <div class="field-group" style="padding-top:8px;">
                     <label>Apply to → Installed SqFt</label>
@@ -1345,13 +1356,6 @@
                         <span id="viewRotationValue">0°</span> — rotates the drawing only, to match how you're viewing the yard. Doesn't affect area or roll calculations.
                       </div>
                     </div>
-                  </div>
-                </details>
-
-                <details open style="margin-top:6px;">
-                  <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:6px 0;">Layers</summary>
-                  <div class="field-group" id="layoutLayersGroup" style="padding-top:8px;">
-                    <div id="layoutLayersList" style="font-size:11px;"></div>
                   </div>
                 </details>
 
@@ -1453,6 +1457,15 @@
                 </div>
               </div>
             </div>
+
+            <!-- LAYERS — full width below the canvas + sidebar (the tallest control,
+                 it gets its own row so the right pane stays short) -->
+            <details id="layoutLayersSection" open style="margin-top:16px;border:1px solid var(--border);border-radius:8px;padding:8px 14px;">
+              <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:4px 0;">Layers &amp; roll grouping</summary>
+              <div id="layoutLayersGroup" style="padding-top:10px;">
+                <div id="layoutLayersList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;font-size:11px;align-items:start;"></div>
+              </div>
+            </details>
           </div>
         </div>
       </div><!-- /tab-layout -->
@@ -1503,24 +1516,35 @@
           <div class="card-header">
             <div class="card-title">Roll Settings</div>
           </div>
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">These drive the roll plan on the <strong>Layout</strong> tab. They're saved <strong>per project</strong>, so they reflect whichever project is currently open (and are blank until you open one).</p>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;max-width:760px;">
-            <div class="field-group">
-              <label>Roll Width (ft)</label>
-              <input type="number" id="rollWidthInput" value="15" min="1" step="0.5" class="manual-input" oninput="renderRollLayout()">
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">These drive the roll plan on the <strong>Layout</strong> tab. They're a <strong>global default</strong> for every project; tick <em>Override</em> to give the open job its own values (Cutting Margin is the usual per-job lever). Standard rolls are 15 ft × 100 ft.</p>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin:0;min-height:0;">
+              <input type="checkbox" id="rollOverrideToggle" onchange="setRollOverride(this.checked)" style="width:auto;margin:0;">
+              Override for the current project: <strong id="rollOverrideName">(no project open)</strong>
+            </label>
+            <a id="rollOverrideReset" onclick="setRollOverride(false)" style="display:none;font-size:11px;color:var(--accent);cursor:pointer;text-decoration:underline;">Reset to global</a>
+          </div>
+          <div id="rollOverrideNote" style="font-size:11px;color:var(--text-light);margin-bottom:14px;line-height:1.4;"></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;max-width:880px;align-items:start;">
+            <div style="display:flex;flex-direction:column;">
+              <label style="min-height:2.6em;display:flex;align-items:flex-end;margin-bottom:6px;">Roll Width (ft)</label>
+              <input type="number" id="rollWidthInput" value="15" min="1" step="0.5" class="manual-input" oninput="onRollSettingChange()">
+              <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Fixed product width — every roll is 15 ft wide.</div>
             </div>
-            <div class="field-group">
-              <label>Max Roll Length (ft)</label>
-              <input type="number" id="rollLengthInput" value="100" min="1" step="1" class="manual-input" oninput="renderRollLayout()">
+            <div style="display:flex;flex-direction:column;">
+              <label style="min-height:2.6em;display:flex;align-items:flex-end;margin-bottom:6px;">Roll Length — one full roll (ft)</label>
+              <input type="number" id="rollLengthInput" value="100" min="1" step="1" class="manual-input" oninput="onRollSettingChange()">
+              <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Length of <strong>one physical roll</strong>. Only the point where a run too long for one roll gets split — <strong>not</strong> what you order. What you order is <strong>Ordered Linear Ft</strong> (Layout sidebar), per job.</div>
             </div>
-            <div class="field-group">
-              <label>S-Seam Side Trim (in)</label>
-              <input type="number" id="sideTrimInput" value="4" min="0" step="0.5" class="manual-input" oninput="renderRollLayout()">
+            <div style="display:flex;flex-direction:column;">
+              <label style="min-height:2.6em;display:flex;align-items:flex-end;margin-bottom:6px;">S-Seam Side Trim (in)</label>
+              <input type="number" id="sideTrimInput" value="4" min="0" step="0.5" class="manual-input" oninput="onRollSettingChange()">
+              <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Trimmed off each roll's edge for the S-seam (usable width = roll width − trim).</div>
             </div>
-            <div class="field-group" style="background:var(--yellow);border:1px solid var(--yellow-border);border-left:4px solid var(--yellow-border);border-radius:8px;padding:10px 12px;">
-              <label style="color:var(--text);">⚠ Cutting Margin (in)</label>
-              <input type="number" id="cuttingMarginInput" value="4" min="0" step="0.5" class="manual-input" oninput="renderRollLayout()">
-              <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Extra length added to <strong>every cut piece</strong> before rounding up to the next whole foot. The main lever for how much buffer gets ordered.</div>
+            <div style="display:flex;flex-direction:column;">
+              <label style="min-height:2.6em;display:flex;align-items:flex-end;margin-bottom:6px;color:#b26a00;font-weight:600;">⚠ Cutting Margin (in)</label>
+              <input type="number" id="cuttingMarginInput" value="4" min="0" step="0.5" class="manual-input" oninput="onRollSettingChange()" style="border-color:var(--yellow-border);">
+              <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Extra length added to <strong>every cut piece</strong> before rounding up to the next whole foot — the main lever for how much buffer gets ordered.</div>
             </div>
           </div>
         </div>
@@ -2067,7 +2091,9 @@
         <p>Every layer — including the primary one — has a checkbox. Uncheck it to hide that layer on the canvas; this is purely visual and doesn't affect any calculations. This is useful for decluttering the view when a file has several overlapping shapes, or for focusing on one layer while editing.</p>
         <p>Each layer has a dropdown that controls how it's treated:</p>
         <ul class="docs-list">
-          <li><strong>Install — its own turf + rolls</strong> — default. The layer is its own turf area: it gets rolled independently and its Ordered SqFt, Linear Ft, rolls, and waste are <strong>summed into the combined totals</strong> shown in Roll Results. Use this when a Moasure file captures the yard as several separate pieces (e.g. a front yard measured in sections). A per-layer breakdown is listed under the totals (with each layer's roll direction), and "Apply" sends the combined Ordered SqFt to the chosen turf row. Each install layer's <strong>roll plan is drawn on the canvas at its position</strong> (its installed strips, plus purchased rectangles + waste hatch when "Show purchased roll rectangles" is on), labeled with the layer name and its Ordered SqFt. Position each layer with "✋ Move Layers" and the per-layer Rotate slider. <strong>Each install layer also has its own Roll direction + Seam offset</strong> in the Layers list (with Horizontal / Vertical / Auto buttons) so a multi-section yard can roll each section the way that minimizes its waste; until you change them, a layer "matches primary" (uses the main roll-direction sliders), and "↺ Match primary" clears an override. <strong>Nesting now works within each install layer</strong> — drag a piece onto another roll's waste in the same layer and it relocates there (and gets its own "↩ Put back" entry); pieces can't be nested across different layers. <strong>Manual cuts also work on every install layer</strong> — in Cut Mode, clicking a sub-layer's strip adds a butt-seam there just like on the primary, routed to that layer's own roll plan.</li>
+          <li><strong>Measure only — not added</strong> — the <strong>default</strong> for every secondary shape. The layer is drawn and labeled on the canvas but does <strong>not</strong> change Installed SqFt or the quote (use it for sub-areas of the same yard, reference outlines, or elevation sub-regions). You opt a layer into counting by choosing one of the modes below.</li>
+          <li><strong>Install — ADD as separate turf</strong> — the layer is its own turf area: it's rolled independently and its area, Ordered SqFt, Linear Ft, rolls, and waste are <strong>added to the combined totals</strong>. Use this only when a shape is a genuinely separate piece (e.g. a detached side yard) — <strong>not</strong> for a sub-region that overlaps the main yard, which would double-count. A per-layer breakdown is listed under the totals (with each layer's roll direction), and "Apply" sends the combined Ordered SqFt to the chosen turf row. Each install layer's <strong>roll plan is drawn on the canvas at its position</strong> (its installed strips, plus purchased rectangles + waste hatch when "Show purchased roll rectangles" is on), labeled with the layer name and its area. Position each layer with "✋ Move Layers" and the per-layer Rotate slider. <strong>Each install layer also has its own Roll direction + Seam offset</strong> in the Layers list (with Horizontal / Vertical / Auto buttons); until you change them, a layer "matches primary," and "↺ Match primary" clears an override. <strong>Nesting and manual cuts work within each install layer.</strong> <strong>Rename any layer</strong> by typing in its name field at the top of its card; the name shows on the canvas, the breakdown, and the Nested Pieces list. <strong>Installed SqFt and Perimeter</strong> sum the primary plus every Install layer. <strong>Roll grouping (multiple layers ≠ multiple rolls):</strong> when there's more than one install layer, each gets a "Rolls" selector — <em>Share rolls with other layers</em> (default) pools that layer's linear footage so they're cut from the same physical rolls, while <em>Roll on its own</em> counts the layer's rolls independently. Grouping only changes the <strong>roll count</strong> — Ordered SqFt and Linear Ft are identical either way.</li>
+          <li><strong>Overlay — installed, cut from existing roll waste</strong> — for layer overlays: the shape <strong>counts toward Installed SqFt</strong> (it's real turf going down) but is cut from an existing roll's leftover, so it adds <strong>nothing</strong> to the order — no extra rolls, no Ordered SqFt. Use it when an overlapping/stacked layer's turf comes from material you're already buying. It's drawn in violet with a dotted outline and labeled "(overlay, from waste)". If the overlay area is larger than the roll waste actually available, a warning appears under Installed SqFt — beyond that point it isn't entirely free and you'd need extra turf.</li>
           <li><strong>Exclude from Installed Area (hole/cutout)</strong> — subtracts that shape's area from the primary's Installed Area, and draws it as a hatched red region — turf doesn't go there.</li>
           <li><strong>Ignore (informational only)</strong> — no effect on any total. Drawn as a dashed blue outline for reference.</li>
           <li><strong>Putting Green (used for fringe calculation)</strong> — subtracts that shape's area from the primary's Installed Area like Exclude, AND marks it as the putting green outline for the Fringe feature (see below). Drawn as a solid green shape. Only one layer can be the putting green at a time — selecting it on a different layer demotes the previous one back to Install.</li>
@@ -2112,7 +2138,7 @@
         <p>Rotates the drawing to match how you're viewing the yard on-site. Purely cosmetic — does not affect area, roll counts, or any calculations.</p>
 
         <div class="docs-h3">Roll Settings &amp; the Layout key metrics</div>
-        <p>The four roll <strong>dimensions</strong> now live under the <strong>⚙ Settings</strong> tab → <em>Roll Settings</em> (they're still saved per project — they reflect whichever project is open). The <strong>Layout</strong> sidebar leads with a fixed <strong>key-metrics</strong> block that's always visible: <strong>Installed SqFt</strong>, <strong>Ordered SqFt</strong>, <strong>Ordered Linear Ft</strong>, and <strong>Perimeter (linear ft)</strong> of the shape outline. Below that, every section is a collapsible twistie — <em>Roll Direction &amp; Seam</em> first (the day-to-day controls), then <em>Apply area</em>, <em>Display &amp; overlays</em>, <em>Layers</em>, fringe, and the detailed <em>Roll Results</em>. The roll dimensions themselves:</p>
+        <p>The four roll <strong>dimensions</strong> live under the <strong>⚙ Settings</strong> tab → <em>Roll Settings</em>. They're a <strong>global default</strong> shared by every project, with an optional <strong>per-project override</strong>: tick <em>Override for the current project</em> to give the open job its own values (Cutting Margin is the usual per-job lever), or leave it off and editing the fields sets the shop-wide default for every job that isn't overriding. <em>Reset to global</em> drops a job's override. Standard rolls are 15 ft × 100 ft. The <strong>Layout</strong> sidebar leads with a fixed <strong>key-metrics</strong> block that's always visible: <strong>Installed SqFt</strong> (the total installed turf across <em>all</em> Install layers, primary plus every secondary marked Install, plus any Overlay layers, minus any cutouts), <strong>Ordered SqFt</strong>, <strong>Ordered Linear Ft</strong>, and <strong>Perimeter (linear ft)</strong>, which sums the same Install/Overlay layers. Below that are collapsible twisties — <em>Roll Direction &amp; Seam</em> (open by default, the day-to-day control), then <em>Apply area</em>, <em>Display &amp; overlays</em>, fringe, and <em>Roll Results</em>, most collapsed to keep the pane short. The <em>Layers &amp; roll grouping</em> panel sits in its own full-width strip <strong>below the canvas</strong> (not in the right pane), since it's the tallest control. Each layer's name is shown on the diagram. The roll dimensions themselves:</p>
         <ul class="docs-list">
           <li><strong>Roll Width</strong> — width of the turf roll as purchased.</li>
           <li><strong>Roll Length</strong> — maximum length of a single piece; longer runs are split, each adding a Cutting Margin.</li>
@@ -3996,6 +4022,7 @@ function renderSettingsTables() {
   renderMiscItemsTable();
   const marginInput = document.getElementById('profitMarginInput');
   if (marginInput) marginInput.value = getProfitMargin();
+  loadRollDefaultsToInputs();
 }
 
 function updateProfitMargin(val) {
@@ -5055,13 +5082,26 @@ function getSecondaryShapeArea(shape) {
   return shape.area != null ? shape.area : polygonArea(shape.points);
 }
 
+// Total area of secondary shapes set to 'overlay' — turf that's INSTALLED (counts
+// toward Installed SqFt) but cut from an existing roll's leftover/waste, so it adds
+// nothing to the order. Used for the "Install on existing roll" / layer-overlay case.
+function getOverlayArea(proj) {
+  const secondary = (proj.layout && proj.layout.secondaryShapes) || [];
+  let a = 0;
+  secondary.forEach((s, i) => {
+    const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'ignore';
+    if (mode === 'overlay') a += getSecondaryShapeArea(s);
+  });
+  return a;
+}
+
 // Total area to use for "Installed Area" / roll calculations, after applying
 // each secondary shape's mode (exclude = subtract as a hole, ignore = no effect).
 function getAdjustedShapeArea(proj, baseArea) {
   const secondary = (proj.layout && proj.layout.secondaryShapes) || [];
   let area = baseArea;
   secondary.forEach((s, i) => {
-    const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'install';
+    const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'ignore';
     // Only true cutouts subtract from the primary's installed area. 'install'
     // layers are their own areas (summed separately); 'ignore' has no effect.
     if (mode === 'exclude' || mode === 'putting-green') area -= getSecondaryShapeArea(s);
@@ -5077,7 +5117,7 @@ function getPuttingGreenShapeArea(proj) {
   const secondary = (proj.layout && proj.layout.secondaryShapes) || [];
   let pg = 0;
   secondary.forEach((s, i) => {
-    const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'install';
+    const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'ignore';
     if (mode === 'putting-green') pg += getSecondaryShapeArea(s);
   });
   return pg;
@@ -5213,6 +5253,27 @@ function autoRotateLayer(layerId) {
   renderRollLayout();
   renderLayersList(proj);
 }
+// Escape a string for safe insertion into an HTML attribute value.
+function escAttr(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+// Rename a layer. Primary name lives on proj.layout.primaryLayerName; secondary
+// names live on each secondaryShapes[i].name. Empty falls back to a sensible default.
+function setLayerName(layerId, value) {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  const name = (value || '').trim();
+  if (layerId === 'primary') {
+    proj.layout.primaryLayerName = name || 'Primary Shape';
+  } else {
+    const i = +layerId;
+    if (proj.layout.secondaryShapes && proj.layout.secondaryShapes[i]) {
+      proj.layout.secondaryShapes[i].name = name || ('Layer ' + (i + 1));
+    }
+  }
+  save();
+  renderRollLayout();      // refresh canvas labels + per-layer breakdown
+  renderLayersList(proj);
+}
 function renderLayersList(proj) {
   const list = document.getElementById('layoutLayersList');
   if (!list) return;
@@ -5221,6 +5282,23 @@ function renderLayersList(proj) {
   const primaryArea = proj.layout ? (proj.layout.area != null ? proj.layout.area : polygonArea(proj.layout.points||[])) : 0;
   const primaryName = (proj.layout && proj.layout.primaryLayerName) || 'Primary Shape';
   const offsets = (proj.layout && proj.layout.layerOffsets) || {};
+  // Roll grouping only matters when more than one layer is actually rolled.
+  const modesForCount = (proj.layout && proj.layout.secondaryShapeModes) || {};
+  let installCount = 1; // primary
+  secondary.forEach((s, i) => { if ((modesForCount[i] || 'ignore') === 'install') installCount++; });
+  const showRollGroup = installCount > 1;
+  function rollGroupControl(layerId) {
+    if (!showRollGroup) return '';
+    const grp = getLayerRollGroup(proj, layerId);
+    return `
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-top:5px;">
+          <span style="color:var(--text-light);white-space:nowrap;">Rolls</span>
+          <select style="flex:1;font-size:11px;padding:2px 4px;" onchange="setLayerRollGroup('${layerId}', this.value)" title="Share = cut from the same physical rolls as other shared layers (fewer rolls). Own = this layer gets its own roll(s).">
+            <option value="shared" ${grp==='shared'?'selected':''}>Share rolls with other layers</option>
+            <option value="own" ${grp==='own'?'selected':''}>Roll on its own</option>
+          </select>
+        </div>`;
+  }
 
   function hasOffset(layerId) {
     const o = offsets[layerId];
@@ -5240,11 +5318,13 @@ function renderLayersList(proj) {
   const primaryTransNow = (+((proj.layout && proj.layout.translation) || 0)).toFixed(1);
   rows.push(`
     <div style="border:1px solid var(--border);border-radius:6px;padding:6px 8px;margin-bottom:6px;">
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--text-mid);">
-        <input type="checkbox" ${isLayerVisible(proj,'primary')?'checked':''} onchange="setLayerVisible('primary', this.checked)" style="width:auto;margin:0;">
-        ${primaryName} — ${primaryArea.toLocaleString(undefined,{maximumFractionDigits:1})} ft²
+      <div style="display:flex;align-items:center;gap:6px;">
+        <input type="checkbox" ${isLayerVisible(proj,'primary')?'checked':''} onchange="setLayerVisible('primary', this.checked)" style="width:auto;margin:0;" title="Show on canvas">
+        <input type="text" value="${escAttr(primaryName)}" onchange="setLayerName('primary', this.value)" title="Rename this layer"
+          style="flex:1;min-width:0;font-weight:600;color:var(--text-mid);font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:4px;background:#fff;">
+        <span style="font-size:11px;color:var(--text-light);white-space:nowrap;">${primaryArea.toLocaleString(undefined,{maximumFractionDigits:1})} ft²</span>
         ${resetBtn('primary')}
-      </label>
+      </div>
       <div style="border-top:1px dashed var(--border);margin-top:5px;padding-top:5px;">
         <div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:3px;">
           <span style="color:var(--text-light);white-space:nowrap;">Roll dir</span>
@@ -5264,6 +5344,7 @@ function renderLayersList(proj) {
             onchange="setPrimarySeamOffset(this.value)">
           <span style="min-width:40px;text-align:right;color:var(--text-light);">${primaryTransNow} ft</span>
         </div>
+        ${rollGroupControl('primary')}
       </div>
     </div>`);
 
@@ -5272,7 +5353,7 @@ function renderLayersList(proj) {
   const primaryTrans = (proj.layout && proj.layout.translation) || 0;
   secondary.forEach((s, i) => {
     const area = getSecondaryShapeArea(s);
-    const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'install';
+    const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'ignore';
     const rot = (offsets[i] && offsets[i].rotation) || 0;
     // Per-layer roll direction / seam offset block — only meaningful for install
     // layers (other modes aren't rolled).
@@ -5305,20 +5386,24 @@ function renderLayersList(proj) {
               onchange="setLayerSeamOffset(${i}, this.value)">
             <span style="min-width:40px;text-align:right;color:var(--text-light);">${rsTrans} ft</span>
           </div>
+          ${rollGroupControl(i)}
         </div>`;
     }
     rows.push(`
       <div style="border:1px solid var(--border);border-radius:6px;padding:6px 8px;margin-bottom:6px;">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--text-mid);margin-bottom:4px;">
-          <input type="checkbox" ${isLayerVisible(proj,i)?'checked':''} onchange="setLayerVisible(${i}, this.checked)" style="width:auto;margin:0;">
-          ${s.name} — ${area.toLocaleString(undefined,{maximumFractionDigits:1})} ft²
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          <input type="checkbox" ${isLayerVisible(proj,i)?'checked':''} onchange="setLayerVisible(${i}, this.checked)" style="width:auto;margin:0;" title="Show on canvas">
+          <input type="text" value="${escAttr(s.name)}" onchange="setLayerName(${i}, this.value)" title="Rename this layer"
+            style="flex:1;min-width:0;font-weight:600;color:var(--text-mid);font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:4px;background:#fff;">
+          <span style="font-size:11px;color:var(--text-light);white-space:nowrap;">${area.toLocaleString(undefined,{maximumFractionDigits:1})} ft²</span>
           ${resetBtn(i)}
-        </label>
+        </div>
         <select style="width:100%;font-size:11px;padding:3px 4px;margin-bottom:4px;" onchange="setSecondaryShapeMode(${i}, this.value)">
-          <option value="install" ${mode==='install'?'selected':''}>Install — its own turf + rolls (summed into the quote)</option>
-          <option value="exclude" ${mode==='exclude'?'selected':''}>Exclude from Installed Area (hole/cutout)</option>
-          <option value="ignore" ${mode==='ignore'?'selected':''}>Ignore (informational only)</option>
-          <option value="putting-green" ${mode==='putting-green'?'selected':''}>Putting Green (used for fringe calculation)</option>
+          <option value="ignore" ${mode==='ignore'?'selected':''}>Measure only — not added (default)</option>
+          <option value="install" ${mode==='install'?'selected':''}>Install — ADD as separate turf (its own rolls)</option>
+          <option value="overlay" ${mode==='overlay'?'selected':''}>Overlay — installed, cut from existing roll's waste (free)</option>
+          <option value="exclude" ${mode==='exclude'?'selected':''}>Exclude — subtract as a hole/cutout</option>
+          <option value="putting-green" ${mode==='putting-green'?'selected':''}>Putting Green (for fringe calculation)</option>
         </select>
         <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
           <span style="color:var(--text-light);white-space:nowrap;">Rotate</span>
@@ -5331,7 +5416,7 @@ function renderLayersList(proj) {
   });
 
   if (secondary.length > 0) {
-    rows.push(`<div style="font-size:11px;color:var(--text-light);margin-top:2px;">This Moasure file contains more than one measured shape (e.g. a planter bed, tree well, or putting green outline). Uncheck a layer to hide it on the canvas, or choose how it affects Installed Area.</div>`);
+    rows.push(`<div style="grid-column:1/-1;font-size:11px;color:var(--text-light);margin-top:2px;">This Moasure file contains more than one measured shape (e.g. a planter bed, tree well, or putting green outline). Uncheck a layer to hide it on the canvas, or choose how it affects Installed Area. When more than one layer is set to Install, use each layer's "Rolls" choice to share rolls (fewer rolls) or keep it on its own.</div>`);
   }
 
   list.innerHTML = rows.join('');
@@ -5583,10 +5668,9 @@ function renderLayoutTab() {
   const rollSel = document.getElementById('rollApplyTarget');
   rollSel.innerHTML = sel.innerHTML;
 
-  document.getElementById('rollWidthInput').value = proj.layout.rollWidth || 15;
-  document.getElementById('rollLengthInput').value = proj.layout.rollLength || 100;
-  document.getElementById('sideTrimInput').value = proj.layout.sideTrim != null ? proj.layout.sideTrim : 4;
-  document.getElementById('cuttingMarginInput').value = proj.layout.cuttingMargin != null ? proj.layout.cuttingMargin : 4;
+  // Roll settings are per-project: load this project's saved width/length/trim/margin
+  // (falling back to the legacy global seed or 15×100/4/4 for an untouched project).
+  loadRollDefaultsToInputs();
   document.getElementById('rollRotationInput').value = proj.layout.rotation || 0;
   document.getElementById('rollRotationValue').textContent = (proj.layout.rotation || 0) + '°';
   document.getElementById('rollTranslationInput').value = proj.layout.translation || 0;
@@ -6234,6 +6318,104 @@ function getRollOpts(proj) {
   };
 }
 
+// ── Roll settings: a GLOBAL default (shop-wide, in localStorage) that every
+// project uses, with an optional PER-PROJECT override stored on proj.rollSettings.
+// A project "overrides" iff proj.rollSettings exists; otherwise it resolves to the
+// global default. Cutting Margin is the usual per-job override lever.
+const ROLL_DEFAULTS_KEY = 'wt_rollDefaults'; // global default store
+const ROLL_DEFAULTS_FALLBACK = { rollWidth: 15, rollLength: 100, sideTrim: 4, cuttingMargin: 4 };
+
+function getGlobalRollDefaults() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ROLL_DEFAULTS_KEY));
+    if (raw && typeof raw === 'object') return Object.assign({}, ROLL_DEFAULTS_FALLBACK, raw);
+  } catch (e) {}
+  return Object.assign({}, ROLL_DEFAULTS_FALLBACK);
+}
+function saveGlobalRollDefaults(d) {
+  try { localStorage.setItem(ROLL_DEFAULTS_KEY, JSON.stringify(Object.assign({}, getGlobalRollDefaults(), d))); } catch (e) {}
+}
+// Pure resolver (testable): a project's effective roll settings = global default,
+// overlaid by its per-project override if it has one.
+function resolveRollSettings(proj, globalDefaults) {
+  const g = Object.assign({}, ROLL_DEFAULTS_FALLBACK, globalDefaults || {});
+  if (proj && proj.rollSettings && typeof proj.rollSettings === 'object') {
+    return Object.assign({}, g, proj.rollSettings);
+  }
+  return g;
+}
+function projectOverridesRoll(proj) {
+  return !!(proj && proj.rollSettings && typeof proj.rollSettings === 'object');
+}
+// Effective settings for the current project (global default unless it overrides).
+function getRollDefaults() {
+  const proj = (typeof getCurrentProject === 'function') ? getCurrentProject() : null;
+  return resolveRollSettings(proj, getGlobalRollDefaults());
+}
+function rollDefaultsFromInputs() {
+  const num = (id, dflt) => { const el = document.getElementById(id); const v = el ? parseFloat(el.value) : NaN; return isNaN(v) ? dflt : v; };
+  return {
+    rollWidth: num('rollWidthInput', 15),
+    rollLength: num('rollLengthInput', 100),
+    sideTrim: num('sideTrimInput', 0),
+    cuttingMargin: num('cuttingMarginInput', 0),
+  };
+}
+function loadRollDefaultsToInputs() {
+  const d = getRollDefaults();
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  set('rollWidthInput', d.rollWidth);
+  set('rollLengthInput', d.rollLength);
+  set('sideTrimInput', d.sideTrim);
+  set('cuttingMarginInput', d.cuttingMargin);
+  updateRollOverrideUI();
+}
+// Reflect override state in the toggle, name, reset link, and contextual note.
+function updateRollOverrideUI() {
+  const proj = (typeof getCurrentProject === 'function') ? getCurrentProject() : null;
+  const cb = document.getElementById('rollOverrideToggle');
+  const nameEl = document.getElementById('rollOverrideName');
+  const resetEl = document.getElementById('rollOverrideReset');
+  const note = document.getElementById('rollOverrideNote');
+  const overriding = projectOverridesRoll(proj);
+  if (cb) { cb.checked = overriding; cb.disabled = !proj; }
+  if (nameEl) nameEl.textContent = proj ? `"${proj.name}"` : '(no project open)';
+  if (resetEl) resetEl.style.display = overriding ? '' : 'none';
+  if (note) {
+    if (!proj) note.textContent = 'No project open — editing the fields sets the shop-wide global default.';
+    else if (overriding) note.textContent = 'This job uses its own roll settings; every other job uses the global default. Untick (or Reset to global) to drop the override.';
+    else note.textContent = 'Editing the fields changes the global default used by every job that isn\u2019t overriding.';
+  }
+}
+// Toggle the per-project override. On: seed the override from the current global
+// default so the job starts where it was. Off: drop the override → back to global.
+function setRollOverride(checked) {
+  const proj = (typeof getCurrentProject === 'function') ? getCurrentProject() : null;
+  if (!proj) { updateRollOverrideUI(); return; }
+  if (checked) {
+    proj.rollSettings = Object.assign({}, getGlobalRollDefaults(), proj.rollSettings || {}, rollDefaultsFromInputs());
+  } else {
+    delete proj.rollSettings;
+  }
+  if (typeof save === 'function') save();
+  loadRollDefaultsToInputs();
+  renderRollLayout();
+}
+// Called from the four inputs: write to the project's override if it's overriding,
+// otherwise to the global default. Then re-render the layout.
+function onRollSettingChange() {
+  const proj = (typeof getCurrentProject === 'function') ? getCurrentProject() : null;
+  const d = rollDefaultsFromInputs();
+  if (projectOverridesRoll(proj)) {
+    proj.rollSettings = Object.assign({}, proj.rollSettings, d);
+    if (typeof save === 'function') save();
+  } else {
+    saveGlobalRollDefaults(d);
+  }
+  renderRollLayout();
+}
+
+
 // Usable width of one roll after the S-seam side trim (inches → feet), floored at
 // a hair above zero so downstream divisions never blow up. Single source of truth:
 // every place that needs "effective roll width" routes through here.
@@ -6437,10 +6619,11 @@ function computeInstallLayerLayouts(proj, primaryLayout, secondaryShapes, rotati
     rollRotation: rotation,
     rollTranslation: translation,
     rollOverridden: false,
+    rollGroup: getLayerRollGroup(proj, 'primary'),
   }];
   const modes = (proj.layout && proj.layout.secondaryShapeModes) || {};
   (secondaryShapes || []).forEach((s, i) => {
-    const mode = modes[i] || 'install';
+    const mode = modes[i] || 'ignore';
     if (mode !== 'install') return;
     const pts = s.displayPoints || s.points;
     if (!pts || pts.length < 3) return;
@@ -6454,27 +6637,59 @@ function computeInstallLayerLayouts(proj, primaryLayout, secondaryShapes, rotati
       rollRotation: rs.rotation,
       rollTranslation: rs.translation,
       rollOverridden: rs.overridden,
+      rollGroup: getLayerRollGroup(proj, i),
     });
   });
   return out;
 }
 
+// Per-layer roll grouping: 'shared' (default) means this layer's turf is cut from
+// the same physical rolls as the other 'shared' layers — their linear footage pools
+// and the roll count is ceil(pooled / roll length). 'own' means the layer is rolled
+// on its own physical roll(s). Lets a multi-layer job order one roll instead of one
+// per layer when the pieces all fit. Only affects the ROLL COUNT, never Ordered SqFt
+// or Linear Ft (you still order the same total footage either way).
+function getLayerRollGroup(proj, id) {
+  const m = (proj && proj.layout && proj.layout.layerRollGroup) || {};
+  return m[id] === 'own' ? 'own' : 'shared';
+}
+function setLayerRollGroup(id, group) {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  if (!proj.layout.layerRollGroup) proj.layout.layerRollGroup = {};
+  proj.layout.layerRollGroup[id] = (group === 'own') ? 'own' : 'shared';
+  save();
+  renderRollLayout();
+  renderLayersList(proj);
+}
+
 // Sum the key outputs across install layers. Combined scrap = total ordered −
 // total installed area (each install layer contributes its own shape area).
+// Roll count honors per-layer grouping: 'shared' layers pool their linear footage
+// into shared physical rolls; 'own' layers are counted independently.
 function sumInstallLayouts(list) {
-  let ordered = 0, usable = 0, linear = 0, area = 0, saved = 0, rolls = 0, pieces = 0;
-  (list || []).forEach(({ layout: L }) => {
-    if (!L) return;
+  let ordered = 0, usable = 0, linear = 0, area = 0, saved = 0, pieces = 0;
+  let ownRolls = 0, sharedLinear = 0, sharedCount = 0;
+  const rollLength = (list && list[0] && list[0].layout && list[0].layout.rollLength) || 100;
+  (list || []).forEach(item => {
+    const L = item && item.layout; if (!L) return;
     ordered += L.totalOrdered || 0;
     usable += L.totalUsable || 0;
     linear += L.linearFt || 0;
     area += L.shapeArea || 0;
     saved += L.totalSaved || 0;
     const rp = countRollsAndPieces(L);
-    rolls += rp.totalRolls; pieces += rp.totalPieces;
+    pieces += rp.totalPieces;
+    if (item.rollGroup === 'own') {
+      ownRolls += rp.totalRolls;
+    } else {
+      sharedLinear += L.linearFt || 0; // pool with other shared layers
+      sharedCount += 1;
+    }
   });
+  const sharedRolls = sharedLinear > 0 ? Math.max(1, Math.ceil(sharedLinear / rollLength - 1e-9)) : 0;
+  const rolls = ownRolls + sharedRolls;
   const scrap = ordered - area;
-  return { ordered, usable, linear, area, saved, rolls, pieces, scrap, wastePct: ordered > 0 ? (scrap / ordered * 100) : 0 };
+  return { ordered, usable, linear, area, saved, rolls, pieces, scrap, sharedCount, sharedRolls, ownRolls, wastePct: ordered > 0 ? (scrap / ordered * 100) : 0 };
 }
 
 function renderRollLayout() {
@@ -6487,10 +6702,7 @@ function renderRollLayout() {
   document.getElementById('rollRotationValue').textContent = rotation + '°';
   document.getElementById('rollTranslationValue').textContent = translation + ' ft';
 
-  proj.layout.rollWidth = parseFloat(opts.rollWidth) || 15;
-  proj.layout.rollLength = parseFloat(opts.rollLength) || 100;
-  proj.layout.sideTrim = parseFloat(opts.sideTrim) || 0;
-  proj.layout.cuttingMargin = parseFloat(opts.cuttingMargin) || 0;
+  // Roll settings persist per-project via onRollSettingChange (proj.rollSettings).
   proj.layout.rotation = rotation;
   proj.layout.translation = translation;
   proj.layout.showRects = document.getElementById('showRectanglesToggle').checked;
@@ -6587,13 +6799,21 @@ function renderRollLayout() {
     document.getElementById('rollLinearOut').value = combined.linear.toLocaleString(undefined,{maximumFractionDigits:1}) + ' ft';
     document.getElementById('rollWasteOut').value = combined.scrap.toLocaleString(undefined,{maximumFractionDigits:0}) + ' ft² (' + combined.wastePct.toFixed(1) + '%)';
     if (breakdownEl) {
-      const lines = installLayers.map(({ name, layout: L, rollRotation, rollOverridden }) => {
+      const lines = installLayers.map(({ name, layout: L, rollRotation, rollOverridden, rollGroup }) => {
         const rp = countRollsAndPieces(L);
         const pcs = rp.totalPieces !== rp.totalRolls ? `/${rp.totalPieces}pc` : '';
         const dir = `${Math.round(rollRotation||0)}°${rollOverridden ? '' : '*'}`;
-        return `<div style="display:flex;justify-content:space-between;gap:8px;padding:1px 0;"><span>${name}</span><span style="white-space:nowrap;color:var(--text-light);">${dir} · ${(L.totalOrdered||0).toLocaleString(undefined,{maximumFractionDigits:0})} ft² · ${rp.totalRolls}r${pcs}</span></div>`;
+        // Shared layers don't each carry their own rolls — show their linear-ft
+        // contribution to the shared pool instead; 'own' layers show their roll count.
+        const rollNote = (rollGroup === 'own')
+          ? `${rp.totalRolls}r${pcs} · own`
+          : `${(L.linearFt||0).toLocaleString(undefined,{maximumFractionDigits:1})} lf · shared`;
+        return `<div style="display:flex;justify-content:space-between;gap:8px;padding:1px 0;"><span>${name}</span><span style="white-space:nowrap;color:var(--text-light);">${dir} · ${(L.totalOrdered||0).toLocaleString(undefined,{maximumFractionDigits:0})} ft² · ${rollNote}</span></div>`;
       }).join('');
-      breakdownEl.innerHTML = `<div style="font-weight:600;margin-bottom:3px;color:var(--text-mid);">${installLayers.length} install layers (combined above)</div>${lines}<div style="font-size:10px;color:var(--text-light);margin-top:3px;">Roll direction shown per layer; * = matches primary.</div>`;
+      const sharedNote = (combined.sharedCount > 0)
+        ? `<div style="font-size:10px;color:var(--text-light);margin-top:3px;">${combined.sharedCount} shared layer${combined.sharedCount===1?'':'s'} → ${combined.sharedRolls} pooled roll${combined.sharedRolls===1?'':'s'}${combined.ownRolls?` + ${combined.ownRolls} own`:''} = ${combined.rolls} total.</div>`
+        : '';
+      breakdownEl.innerHTML = `<div style="font-weight:600;margin-bottom:3px;color:var(--text-mid);">${installLayers.length} install layers (combined above)</div>${lines}${sharedNote}<div style="font-size:10px;color:var(--text-light);margin-top:3px;">Roll dir per layer; * = matches primary. "shared" layers are cut from the same rolls.</div>`;
       breakdownEl.style.display = '';
     }
   } else if (breakdownEl) {
@@ -6606,16 +6826,61 @@ function renderRollLayout() {
   renderManualCutsList(layout, proj);
   renderNestedPiecesList(layout, proj);
   renderPieceList(layout, proj);
-  document.getElementById('layoutArea').value = `${layout.adjustedShapeArea.toLocaleString(undefined,{maximumFractionDigits:2})} ft²`
-    + (layout.adjustedShapeArea !== layout.shapeArea ? ` (${layout.shapeArea.toLocaleString(undefined,{maximumFractionDigits:2})} ft² before exclusions)` : '');
+  // Installed SqFt = total installed turf. Single layer → primary's exclusion-
+  // adjusted area. Multi-layer → that plus every 'install' layer's area. PLUS any
+  // 'overlay' layers — installed turf cut from existing roll waste (free, so it
+  // adds to Installed but NOT to Ordered/rolls).
+  const combo = layout._combined;
+  const baseInstalled = combo
+    ? (combo.area - layout.shapeArea + layout.adjustedShapeArea)
+    : layout.adjustedShapeArea;
+  const overlayArea = getOverlayArea(proj);
+  const installedArea = baseInstalled + overlayArea;
+  const rawInstalled = (combo ? combo.area : layout.shapeArea) + overlayArea;
+  document.getElementById('layoutArea').value = `${installedArea.toLocaleString(undefined,{maximumFractionDigits:2})} ft²`
+    + (overlayArea > 1e-6 ? ` (incl. ${overlayArea.toLocaleString(undefined,{maximumFractionDigits:0})} ft² overlay from waste)` : '')
+    + (Math.abs(baseInstalled - (combo ? combo.area : layout.shapeArea)) > 1e-6 ? ` · ${(combo ? combo.area : layout.shapeArea).toLocaleString(undefined,{maximumFractionDigits:0})} ft² before exclusions` : '');
+
+  // Overlay turf is assumed to come from existing roll waste. Flag it if the
+  // overlay area exceeds the scrap actually available — then it isn't all free.
+  const orderedTotalForScrap = combo ? combo.ordered : layout.totalOrdered;
+  const availableScrap = Math.max(0, orderedTotalForScrap - baseInstalled);
+  const overlayWarnEl = document.getElementById('layoutOverlayWarn');
+  if (overlayWarnEl) {
+    if (overlayArea > availableScrap + 1e-6) {
+      overlayWarnEl.style.display = '';
+      overlayWarnEl.textContent = `⚠ Overlay (${Math.round(overlayArea)} ft²) exceeds the roll waste available (${Math.round(availableScrap)} ft²) — about ${Math.round(overlayArea - availableScrap)} ft² of it would need extra turf, so it isn't entirely free.`;
+    } else {
+      overlayWarnEl.style.display = 'none';
+    }
+  }
   const perimEl = document.getElementById('layoutPerimeterOut');
   if (perimEl) {
-    // Perimeter of the primary shape outline (rotation/translation-invariant).
-    const perimPts = (layout.basePoints && layout.basePoints.length >= 3)
-      ? layout.basePoints
-      : ((proj.layout && proj.layout.points) || []);
-    const perim = perimPts.length >= 3 ? polygonPerimeter(perimPts) : 0;
-    perimEl.value = perim ? `${perim.toLocaleString(undefined,{maximumFractionDigits:1})} ft` : '—';
+    // Perimeter follows the SAME layers as Installed SqFt: the primary plus every
+    // secondary marked 'Install' (each install layer is a separate piece with its
+    // own edge). Default-ignored layers don't add. Perimeter is rotation/translation
+    // invariant, so the rotated basePoints give the right number.
+    let perim = 0;
+    const installs = (layout._installLayers && layout._installLayers.length)
+      ? layout._installLayers
+      : [{ layout }];
+    installs.forEach(({ layout: L }) => {
+      const pts = (L && L.basePoints && L.basePoints.length >= 3) ? L.basePoints : null;
+      if (pts) perim += polygonPerimeter(pts);
+    });
+    // Overlay layers are installed pieces too — add their edge.
+    let overlayCount = 0;
+    (proj.layout.secondaryShapes || []).forEach((s, i) => {
+      const m = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'ignore';
+      if (m === 'overlay') {
+        const pts = s.displayPoints || s.points;
+        if (pts && pts.length >= 3) { perim += polygonPerimeter(pts); overlayCount++; }
+      }
+    });
+    const nInstall = installs.length + overlayCount;
+    perimEl.value = perim
+      ? `${perim.toLocaleString(undefined,{maximumFractionDigits:1})} ft${nInstall > 1 ? ` (${nInstall} layers)` : ''}`
+      : '—';
   }
   renderLayoutElevation(proj);
   renderLayoutGradeNote(proj);
@@ -6757,6 +7022,43 @@ function autoRotateRollLayout() {
 
 const STRIP_COLORS = ['rgba(76,175,80,0.25)','rgba(33,150,243,0.22)','rgba(255,152,0,0.22)','rgba(156,39,176,0.2)','rgba(0,188,212,0.22)','rgba(244,67,54,0.18)'];
 
+// The set of points the canvas fit/scale is computed from — shared by
+// sizeLayoutCanvas (sets canvas dimensions) and drawRollLayoutCanvas (sets the
+// draw scale) so they always agree (no letterboxing). Purchased roll RECTANGLES
+// are only included when the user is showing them; otherwise the fit hugs the
+// actual installed shapes so an imported file fills the canvas. Hidden layers
+// are excluded.
+function layoutFitPoints(layout, showRects) {
+  const pts = [...(layout.basePoints || [])];
+  (layout.strips || []).forEach(s => {
+    if (showRects && s.displayRect) pts.push(...s.displayRect);
+    if (s.displayClipped) pts.push(...s.displayClipped);
+  });
+  (layout.secondaryShapes || []).forEach((s, i) => {
+    if (layout.layerVisibility && layout.layerVisibility[i] === false) return;
+    if (s.displayPoints) pts.push(...s.displayPoints);
+  });
+  (layout._installLayers || []).forEach(({ id, layout: L }) => {
+    if (id === 'primary' || !L) return;
+    (L.strips || []).forEach(st => {
+      if (showRects && st.displayRect) pts.push(...st.displayRect);
+      if (st.displayClipped) pts.push(...st.displayClipped);
+    });
+  });
+  try {
+    const proj = getCurrentProject() || {};
+    const pgIdx = getPuttingGreenShapeIndex(proj);
+    const fringe = getFringeConfig(proj);
+    if (pgIdx >= 0 && fringe.enabled && fringe.width > 0) {
+      const pgShape = (layout.secondaryShapes || [])[pgIdx];
+      const pgPoints = pgShape ? pgShape.displayPoints : null;
+      const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layout.rollLength) : null;
+      if (plan) plan.pieces.forEach(p => pts.push(p.p0, p.p1, p.p2, p.p3));
+    }
+  } catch (e) {}
+  return pts.length ? pts : [...(layout.basePoints || [])];
+}
+
 function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   const canvas = document.getElementById('rollLayoutCanvas');
   if (!canvas) return;
@@ -6768,38 +7070,12 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   // pieces sharing a roll's waste avoid the turf and each other.
   assignNestPlacements(layout);
 
-  // Frame on all display geometry: base shape + all strip rects + secondary
-  // shapes (which may be independently offset), so nothing clips
-  const allPts = [...layout.basePoints];
-  layout.strips.forEach(s => {
-    if (s.displayRect) allPts.push(...s.displayRect);
-    if (s.displayClipped) allPts.push(...s.displayClipped);
-  });
-  (layout.secondaryShapes || []).forEach(s => {
-    if (s.displayPoints) allPts.push(...s.displayPoints);
-  });
-  // Include each install layer's roll rects so their purchased rectangles
-  // (which can extend past the shape outline) aren't clipped by the frame.
-  (layout._installLayers || []).forEach(({ id, layout: L }) => {
-    if (id === 'primary' || !L) return;
-    (L.strips || []).forEach(st => {
-      if (st.displayRect) allPts.push(...st.displayRect);
-      if (st.displayClipped) allPts.push(...st.displayClipped);
-    });
-  });
-  // Include fringe piece extents (they extend beyond the PG outline) so the
-  // canvas frame doesn't clip the fringe diagram.
-  {
-    const pgIdx = getPuttingGreenShapeIndex(getCurrentProject() || {});
-    const fringe = getFringeConfig(getCurrentProject() || {});
-    if (pgIdx >= 0 && fringe.enabled && fringe.width > 0) {
-      const pgShape = (layout.secondaryShapes || [])[pgIdx];
-      const pgPoints = pgShape ? pgShape.displayPoints : null;
-      const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layout.rollLength) : null;
-      if (plan) plan.pieces.forEach(p => allPts.push(p.p0, p.p1, p.p2, p.p3));
-    }
-  }
-  let minX, minY, scale, pad = 24;
+  const showRectsFit = document.getElementById('showRectanglesToggle') && document.getElementById('showRectanglesToggle').checked;
+  // Frame on the shared fit points so the canvas dimensions (sizeLayoutCanvas)
+  // and the draw scale agree exactly — the shape fills the canvas with no
+  // letterboxing, and rectangles are only framed in when they're being shown.
+  const allPts = layoutFitPoints(layout, showRectsFit);
+  let minX, minY, scale, pad = 16;
   const _frozen = window._wtFreezeTransform && window._wtCanvasTransform;
   if (_frozen) {
     // During a layer drag the view is held fixed, so moving one shape doesn't
@@ -6970,13 +7246,32 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   if (primaryVisible) {
     ctx.lineWidth = 2;
     drawPoly(layout.basePoints, null, '#2e7d32');
+    // Label the primary layer by name (parity with secondary layers) whenever
+    // there are other shapes present, so a multi-shape file shows every layer's name.
+    const hasOtherShapes = (layout.secondaryShapes || []).some((s, i) => s.displayPoints && s.displayPoints.length >= 3 && layout.layerVisibility[i] !== false);
+    if (hasOtherShapes && layout.basePoints && layout.basePoints.length >= 3) {
+      const pName = (layout._installLayers[0] && layout._installLayers[0].name) || 'Primary Shape';
+      const pArea = Math.round(layout.adjustedShapeArea != null ? layout.adjustedShapeArea : layout.shapeArea);
+      const pLabel = `${pName} — ${pArea} ft²`;
+      const n = layout.basePoints.length;
+      const lcx = layout.basePoints.reduce((a,p)=>a+p.x,0)/n;
+      const lcy = layout.basePoints.reduce((a,p)=>a+p.y,0)/n;
+      const cc = toCanvas({ x: lcx, y: lcy });
+      ctx.font = 'bold 11px sans-serif';
+      const tw = ctx.measureText(pLabel).width;
+      ctx.fillStyle = 'rgba(255,255,255,0.88)';
+      ctx.fillRect(cc.x - tw/2 - 3, cc.y - 8, tw + 6, 16);
+      ctx.fillStyle = '#1b5e20';
+      ctx.fillText(pLabel, cc.x - tw/2, cc.y + 4);
+      ctx.font = '11px sans-serif';
+    }
   }
 
   // Secondary shapes (additional Moasure layers, e.g. cutouts/planter beds)
   (layout.secondaryShapes || []).forEach((s, i) => {
     if (!s.displayPoints || s.displayPoints.length < 3) return;
     if (layout.layerVisibility[i] === false) return; // layer hidden
-    const mode = (layout.secondaryShapeModes && layout.secondaryShapeModes[i]) || 'install';
+    const mode = (layout.secondaryShapeModes && layout.secondaryShapeModes[i]) || 'ignore';
     if (mode === 'install') {
       // Phase 2: draw this layer's own roll plan at its position. Each strip's
       // installed shape is filled in the layer's colour; with "show rectangles"
@@ -7008,19 +7303,6 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       } else {
         drawPoly(s.displayPoints, 'rgba(46,125,50,0.10)', stroke);
       }
-      // Label the layer at its centroid (name + ordered sqft).
-      const n = s.displayPoints.length;
-      const lcx = s.displayPoints.reduce((a,p)=>a+p.x,0)/n;
-      const lcy = s.displayPoints.reduce((a,p)=>a+p.y,0)/n;
-      const cc = toCanvas({ x: lcx, y: lcy });
-      const ordered = il && il.layout ? Math.round(il.layout.totalOrdered) : 0;
-      const label = `${s.name}${ordered ? ` — ${ordered} ft²` : ''}`;
-      ctx.font = '11px sans-serif';
-      const tw = ctx.measureText(label).width;
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.fillRect(cc.x - tw/2 - 2, cc.y - 7, tw + 4, 14);
-      ctx.fillStyle = '#2e7d32';
-      ctx.fillText(label, cc.x - tw/2, cc.y + 4);
     } else if (mode === 'exclude') {
       // Hole: hatch it and outline in red to show it's subtracted from Installed Area
       drawHatched(s.displayPoints, 'rgba(244,67,54,0.25)');
@@ -7064,12 +7346,44 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
           }
         }
       }
+    } else if (mode === 'overlay') {
+      // Installed turf cut from existing roll waste — distinct violet fill + a
+      // dotted outline so it reads as "on top of / from another roll," not a
+      // separately-ordered piece.
+      drawPoly(s.displayPoints, 'rgba(123,97,214,0.20)', '#6b4fbb');
+      ctx.save();
+      ctx.setLineDash([2,2]);
+      drawPoly(s.displayPoints, null, '#6b4fbb');
+      ctx.restore();
     } else {
       // Informational only: dashed blue outline, no fill
       ctx.save();
       ctx.setLineDash([4,3]);
       drawPoly(s.displayPoints, null, '#1565c0');
       ctx.restore();
+    }
+
+    // Always label the layer by name + area + mode, so it stays identifiable no
+    // matter which mode is selected (changing the dropdown no longer hides it).
+    {
+      const n = s.displayPoints.length;
+      const lcx = s.displayPoints.reduce((a,p)=>a+p.x,0)/n;
+      const lcy = s.displayPoints.reduce((a,p)=>a+p.y,0)/n;
+      const cc = toCanvas({ x: lcx, y: lcy });
+      const a = Math.round(s.area != null ? s.area : polygonArea(s.points || s.displayPoints));
+      let suffix, color;
+      if (mode === 'install') { suffix = ` — ${a} ft² (added)`; color = '#2e7d32'; }
+      else if (mode === 'overlay') { suffix = ` — ${a} ft² (overlay, from waste)`; color = '#6b4fbb'; }
+      else if (mode === 'exclude') { suffix = ` — ${a} ft² (subtracted)`; color = '#c62828'; }
+      else if (mode === 'putting-green') { suffix = ` — ${a} ft² (green)`; color = '#2B7653'; }
+      else { suffix = ` — ${a} ft² (not counted)`; color = '#1565c0'; }
+      const label = `${s.name}${suffix}`;
+      ctx.font = '11px sans-serif';
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.fillRect(cc.x - tw/2 - 2, cc.y - 7, tw + 4, 14);
+      ctx.fillStyle = color;
+      ctx.fillText(label, cc.x - tw/2, cc.y + 4);
     }
   });
 
@@ -8301,19 +8615,13 @@ function sizeLayoutCanvas() {
   const baseW = Math.max(200, wrap.clientWidth || 600);
 
   if (layout) {
-    // Compute shape bounding box across all geometry so aspect ratio is exact
-    const allPts = [...layout.basePoints];
-    layout.strips.forEach(s => {
-      if (s.displayRect)    allPts.push(...s.displayRect);
-      if (s.displayClipped) allPts.push(...s.displayClipped);
-    });
-    (layout.secondaryShapes || []).forEach(s => {
-      if (s.displayPoints) allPts.push(...s.displayPoints);
-    });
+    // Same fit points the draw uses, so the canvas aspect matches the draw scale.
+    const showRects = document.getElementById('showRectanglesToggle') && document.getElementById('showRectanglesToggle').checked;
+    const allPts = layoutFitPoints(layout, showRects);
     const xs = allPts.map(p=>p.x), ys = allPts.map(p=>p.y);
     const spanX = (Math.max(...xs) - Math.min(...xs)) || 1;
     const spanY = (Math.max(...ys) - Math.min(...ys)) || 1;
-    const pad = 24;
+    const pad = 16;
     // Canvas height = whatever height perfectly fits the shape at full width
     const scale = (baseW - 2*pad) / spanX;
     const baseH = Math.round(spanY * scale + 2*pad);
