@@ -5,7 +5,52 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 41) — Cross-layer nesting (drop a piece into another layer's roll waste)
+## 2026-06-21 (cont'd, 43) — Clearer layer-mode wording + the "overlaps turf" warning actually fires
+
+Test suite: **846** (sandbox 803), unchanged (UI wording + canvas-drop behavior, verified in-app).
+
+- **Layer-mode dropdown reworded** and given a one-line explanation of the selected mode
+  under it. "Overlay" is renamed **Free fill** everywhere it's user-visible (dropdown,
+  the per-mode help line, the canvas label "(free fill)", the Installed SqFt note "incl. N
+  ft² free fill from scrap", and the over-scrap warning), because "Overlay — cut from
+  existing roll's waste" implied you could drag/place it, which you can't. The help line
+  for Free fill now says plainly that it isn't rolled or placed and points to Install +
+  drag for real placement. Other modes: "Measure only — doesn't change totals", "Install
+  — separate turf area, its own rolls", "Cutout — subtract as a hole", "Putting green —
+  for fringe calculation".
+- **The red "overlaps turf" warning now actually fires when you aim at turf.** The drop
+  handler previously only accepted a target when the drop point was in the *waste*
+  (`!pointInPoly(displayClipped)`), so dropping onto a spot that already had turf was
+  rejected outright — the piece snapped back and you saw nothing. Now a unit is a valid
+  target when the drop point lands anywhere on its purchased rectangle (waste or turf) and
+  it has enough waste; the piece lands where you aimed and is flagged **red** ("overlaps
+  turf") if it sits on installed turf. `placedOverlapsTurf` itself was already correct.
+- **Drag highlight spans layers:** the green dashed "valid target" outline now lights up
+  eligible rolls in *every* layer (matching cross-layer nesting), not just the dragged
+  piece's own layer.
+
+---
+
+
+
+Fixes the Layers & roll grouping panel jumping around while you adjust a slider.
+Test suite: **846** (sandbox 803), unchanged (canvas-sizing behavior, verified in-app).
+
+- `renderRollLayout` re-fit the canvas height to the rotating shape's bounding box on
+  every render, so each tick of a roll-direction / seam / rotate slider changed the
+  canvas height and shoved the panel directly below it up and down — you couldn't watch
+  the layer while tuning it. The list rebuild was already drag-guarded; the canvas resize
+  wasn't.
+- During a live drag (slider `oninput`) the roll-direction, seam, and per-layer rotate
+  sliders now render through `renderRollLayoutStableCanvas()`, which freezes the canvas
+  size (`sizeLayoutCanvas` early-returns) so the panel stays put. The draw still fits the
+  rotating content inside the fixed box. On release (`onchange`) the normal render runs and
+  re-fits the canvas to the final shape. (Added an `onchange` to the secondary Rotate
+  slider, which previously only had `oninput`.)
+
+---
+
+
 
 A piece can now be nested into a **different** install layer's roll waste, not just
 its own. Test suite: **846** (sandbox 803), +14 (new section 61).
