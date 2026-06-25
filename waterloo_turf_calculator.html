@@ -949,8 +949,27 @@
   #rollLayoutCanvas { max-width: 100%; }
 
   #layoutGrid {
-    grid-template-columns: 1fr clamp(260px, 26vw, 380px);
+    grid-template-columns: 1fr clamp(300px, 30vw, 440px);
   }
+
+  /* Layout right-pane sub-tabs (replaced the old collapsible twisties) */
+  .layout-subtabs {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    margin: 12px 0 10px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .layout-subtab-btn {
+    font-size: 11px; font-weight: 600; line-height: 1;
+    padding: 6px 10px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text-mid);
+    border-radius: 6px; cursor: pointer; white-space: nowrap;
+  }
+  .layout-subtab-btn:hover { border-color: var(--green-light); }
+  .layout-subtab-btn.active {
+    background: var(--green); color: #fff; border-color: var(--green);
+  }
+  .layout-subpanel { display: none; }
+  .layout-subpanel.active { display: block; }
 
   #layoutSidebar {
     max-height: calc(100vh - 140px);
@@ -1284,6 +1303,7 @@
                     <label>Installed SqFt</label>
                     <input type="text" id="layoutArea" class="auto-filled" readonly>
                     <div id="layoutOverlayWarn" style="display:none;font-size:11px;color:#b26a00;margin-top:4px;line-height:1.35;"></div>
+                    <div id="layoutNestWarn" style="display:none;font-size:11px;color:#b71c1c;background:#fdecea;border:1px solid #f5c2c0;border-radius:5px;padding:5px 7px;margin-top:5px;line-height:1.35;font-weight:600;"></div>
                   </div>
                   <div class="field-group" style="margin-bottom:8px;">
                     <label>Ordered SqFt</label>
@@ -1299,8 +1319,16 @@
                   </div>
                 </div>
 
-                <details open style="margin-top:6px;">
-                  <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:6px 0;">Roll Direction &amp; Seam</summary>
+                <div class="layout-subtabs" id="layoutSubtabs">
+                  <button type="button" class="layout-subtab-btn active" data-tab="roll" onclick="switchLayoutSubtab('roll')">Roll &amp; Seam</button>
+                  <button type="button" class="layout-subtab-btn" data-tab="layers" onclick="switchLayoutSubtab('layers')">Layers</button>
+                  <button type="button" class="layout-subtab-btn" data-tab="results" onclick="switchLayoutSubtab('results')">Results</button>
+                  <button type="button" class="layout-subtab-btn" data-tab="apply" onclick="switchLayoutSubtab('apply')">Apply</button>
+                  <button type="button" class="layout-subtab-btn" data-tab="display" onclick="switchLayoutSubtab('display')">Display</button>
+                  <button type="button" class="layout-subtab-btn" data-tab="fringe" id="layoutSubtabFringeBtn" style="display:none;" onclick="switchLayoutSubtab('fringe')">Fringe</button>
+                </div>
+
+                <div class="layout-subpanel active" data-panel="roll">
                   <div style="padding-top:8px;">
                     <div style="font-size:11px;color:var(--text-light);margin-bottom:8px;">Roll dimensions (width, length, trim, cutting margin) now live under the <strong>⚙ Settings</strong> tab → Roll Settings.</div>
                     <div class="field-group">
@@ -1321,19 +1349,23 @@
                       <div style="font-size:11px;color:var(--text-light);"><span id="rollTranslationValue">0 ft</span></div>
                     </div>
                   </div>
-                </details>
+                </div>
 
-                <details style="margin-top:6px;">
-                  <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:6px 0;">Apply area to a turf row</summary>
+                <div class="layout-subpanel" data-panel="layers">
+                  <div id="layoutLayersGroup">
+                    <div id="layoutLayersList" style="display:grid;grid-template-columns:1fr;gap:10px;font-size:11px;align-items:start;"></div>
+                  </div>
+                </div>
+
+                <div class="layout-subpanel" data-panel="apply">
                   <div class="field-group" style="padding-top:8px;">
                     <label>Apply to → Installed SqFt</label>
                     <select id="layoutApplyTarget" style="width:100%;margin-bottom:6px;"></select>
                     <button class="btn btn-primary btn-sm" style="width:100%;" onclick="applyLayoutAreaToTurf()">Apply Area</button>
                   </div>
-                </details>
+                </div>
 
-                <details style="margin-top:6px;">
-                  <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:6px 0;">Display &amp; overlays</summary>
+                <div class="layout-subpanel" data-panel="display">
                   <div style="padding-top:8px;">
                     <div class="field-group">
                       <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;">
@@ -1357,10 +1389,9 @@
                       </div>
                     </div>
                   </div>
-                </details>
+                </div>
 
-                <details id="fringeGroup" open style="display:none;margin-top:6px;">
-                  <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:6px 0;">Putting Green Fringe</summary>
+                <div class="layout-subpanel" data-panel="fringe" id="fringeGroup">
                   <div class="field-group" style="padding-top:8px;">
                     <label style="display:flex;align-items:center;gap:6px;font-weight:500;margin-bottom:6px;">
                       <input type="checkbox" id="fringeEnabled" onchange="updateFringeConfig()" style="width:auto;margin:0;">
@@ -1384,13 +1415,9 @@
                       <div id="fringeSummary" style="font-size:11px;color:var(--text-light);background:var(--bg-alt);border-radius:6px;padding:6px 8px;"></div>
                     </div>
                   </div>
-                </details>
+                </div>
 
-
-
-
-                <details open style="margin-top:6px;">
-                  <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:6px 0;">Roll Results</summary>
+                <div class="layout-subpanel" data-panel="results">
                   <div style="padding-top:8px;">
                     <!-- BASIC: the numbers a standard install needs -->
                     <div class="field-group">
@@ -1448,7 +1475,7 @@
                       </div>
                     </details>
                   </div>
-                </details>
+                </div>
 
                 <div class="divider"></div>
 
@@ -1457,15 +1484,6 @@
                 </div>
               </div>
             </div>
-
-            <!-- LAYERS — full width below the canvas + sidebar (the tallest control,
-                 it gets its own row so the right pane stays short) -->
-            <details id="layoutLayersSection" open style="margin-top:16px;border:1px solid var(--border);border-radius:8px;padding:8px 14px;">
-              <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text-mid);padding:4px 0;">Layers &amp; roll grouping</summary>
-              <div id="layoutLayersGroup" style="padding-top:10px;">
-                <div id="layoutLayersList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;font-size:11px;align-items:start;"></div>
-              </div>
-            </details>
           </div>
         </div>
       </div><!-- /tab-layout -->
@@ -2081,7 +2099,7 @@
         <ul class="docs-list">
           <li><strong>Measure only — doesn't change totals</strong> — the <strong>default</strong> for every secondary shape. The layer is drawn and labeled on the canvas but does <strong>not</strong> change Installed SqFt or the quote (use it for sub-areas of the same yard, reference outlines, or elevation sub-regions). You opt a layer into counting by choosing one of the modes below.</li>
           <li><strong>Install — separate turf area, its own rolls</strong> — the layer is its own turf area: it's rolled independently and its area, Ordered SqFt, Linear Ft, rolls, and waste are <strong>added to the combined totals</strong>. Use this only when a shape is a genuinely separate piece (e.g. a detached side yard) — <strong>not</strong> for a sub-region that overlaps the main yard, which would double-count. A per-layer breakdown is listed under the totals (with each layer's roll direction), and "Apply" sends the combined Ordered SqFt to the chosen turf row. Each install layer's <strong>roll plan is drawn on the canvas at its position</strong> (its installed strips, plus purchased rectangles + waste hatch when "Show purchased roll rectangles" is on), labeled with the layer name and its area. Position each layer with "✋ Move Layers" and the per-layer Rotate slider. <strong>Each install layer also has its own Roll direction + Seam offset</strong> in the Layers list (with Horizontal / Vertical / Auto buttons); until you change them, a layer "matches primary," and "↺ Match primary" clears an override. <strong>Nesting and manual cuts work within each install layer, and a piece can now be nested across layers</strong> (dropped onto a different layer's roll waste). <strong>Rename any layer</strong> by typing in its name field at the top of its card; the name shows on the canvas, the breakdown, and the Nested Pieces list. <strong>Installed SqFt and Perimeter</strong> sum the primary plus every Install layer. <strong>Roll grouping (multiple layers ≠ multiple rolls):</strong> when there's more than one install layer, each gets a "Rolls" selector — <em>Share rolls with other layers</em> (default) pools that layer's linear footage so they're cut from the same physical rolls, while <em>Roll on its own</em> counts the layer's rolls independently. Grouping only changes the <strong>roll count</strong> — Ordered SqFt and Linear Ft are identical either way.</li>
-          <li><strong>Free fill — installed, not ordered (from scrap)</strong> — the shape <strong>counts toward Installed SqFt</strong> (it's real turf going down) but adds <strong>nothing</strong> to the order — no extra rolls, no Ordered SqFt — because it's assumed to be cut from leftover scrap. It is <strong>not rolled or placed</strong>: it's a quick "I trust there's enough scrap" estimate, not a specific piece in a specific roll's waste. To actually place a piece into a particular roll's waste (with a real fit check and exact position), use <strong>Install</strong> for that layer and drag its piece onto the target roll's waste — that's the precise version of this. Free-fill shapes are drawn in violet with a dotted outline and labeled "(free fill)". If the free-fill area is larger than the roll waste actually available, a warning appears under Installed SqFt — beyond that point it isn't entirely free and you'd need extra turf.</li>
+          <li><strong>Free fill — installed, not ordered (from scrap)</strong> — the shape <strong>counts toward Installed SqFt</strong> (it's real turf going down) but adds <strong>nothing</strong> to the order — no extra rolls, no Ordered SqFt — because it's assumed to be cut from leftover scrap. It is <strong>not rolled or placed</strong>: it's a quick "I trust there's enough scrap" estimate, not a specific piece in a specific roll's waste. To actually place a piece into a particular roll's waste (with a real fit check and exact position), use <strong>Install</strong> for that layer and drag its piece onto the target roll's waste — that's the precise version of this. Free-fill shapes are drawn in violet with a dotted outline and labeled "(free fill)". <strong>Whenever a Free-fill layer is in use, a warning shows under Installed SqFt</strong> spelling out that the area is added to Installed but not ordered (assumed cut from scrap); it turns <strong>red</strong> if the free-fill area is larger than the roll waste actually available — beyond that point it isn't entirely free and you'd need extra turf.</li>
           <li><strong>Exclude from Installed Area (hole/cutout)</strong> — subtracts that shape's area from the primary's Installed Area, and draws it as a hatched red region — turf doesn't go there.</li>
           <li><strong>Ignore (informational only)</strong> — no effect on any total. Drawn as a dashed blue outline for reference.</li>
           <li><strong>Putting Green (used for fringe calculation)</strong> — subtracts that shape's area from the primary's Installed Area like Exclude, AND marks it as the putting green outline for the Fringe feature (see below). Drawn as a solid green shape. Only one layer can be the putting green at a time — selecting it on a different layer demotes the previous one back to Install.</li>
@@ -2090,7 +2108,7 @@
         <p>"Installed Area" shows the adjusted total (after exclusions), with the pre-exclusion total in parentheses if anything was excluded. The roll plan's scrap calculation uses the adjusted total. <strong>"Apply Area" is role-aware:</strong> applied to a <strong>Base Yard</strong> row it pushes the whole yard <em>including</em> the putting-green footprint (the green's area is added back), since the base turf covers that spot and the green is laid there as its own row — true <strong>Exclude</strong> holes are still subtracted. Applied to a Putting Green row it uses the adjusted total as-is. <strong>Alt Turf rows don't take an applied area</strong>: an Alt Turf option is priced on the <em>base yard</em> area (it covers the same yard as the base, just a different product), so its own Installed SqFt field is intentionally left blank and Apply Area will explain this and point you to the Base Yard row instead. This keeps base Installed SqFt consistent with how the quote splits labor (standard yard = total minus the green) so the green isn't subtracted twice. Note that hiding a layer (visibility checkbox) is independent from its exclude/ignore/putting-green mode — a hidden layer can still be excluded from the area total, and a visible layer can be set to "ignore."</p>
 
         <div class="docs-h3">Putting Green Fringe</div>
-        <p>Once a layer is set to <strong>Putting Green</strong>, a "Putting Green Fringe" section appears below the Layers list. Check <strong>"Add a fringe border around the putting green"</strong> to enable it, then choose a <strong>Fringe Turf Product</strong> from your catalog and set the <strong>Fringe Width</strong> (in feet) — the border strip's width all the way around the green.</p>
+        <p>Once a layer is set to <strong>Putting Green</strong>, a <strong>Fringe</strong> sub-tab appears in the Layout right pane. Open it and check <strong>"Add a fringe border around the putting green"</strong> to enable it, then choose a <strong>Fringe Turf Product</strong> from your catalog and set the <strong>Fringe Width</strong> (in feet) — the border strip's width all the way around the green.</p>
         <p>The fringe is calculated as a ring around the putting green's actual perimeter (traced from its Moasure outline), offset outward by the fringe width with properly mitered corners — adjacent pieces meet exactly edge-to-edge with no overlap and no gap, so the canvas doesn't show doubled-up or duplicated-looking pieces. Rather than cutting one piece per original boundary point — which for a Moasure-captured outline with curves or rounded corners could mean dozens (or with very fine-grained traces, over a hundred) of tiny pieces — nearby straight or gently-curved sections of the perimeter are first merged into single longer pieces wherever the boundary stays within about half the fringe width of a straight line between their endpoints, capped at Max Roll Length so each piece can still be cut from one roll. Each merged piece is then a simple trapezoid (a rectangle once cut) running between mitered corners; on any unusually sharp or jagged corner where a true miter would spike out unreasonably far, that corner is squared off (beveled) instead, keeping every piece a sensible size. This intentionally orders a bit more material than the bare ring area — the summary shows the ring area, total sqft to order, and the difference between them — in exchange for far fewer seams and cuts, which is worth it for most jobs. The fringe width directly controls all of this: a wider fringe both adds more sqft per piece and allows more merging (since the deviation tolerance scales with width), so changing it reflows the whole plan.</p>
         <p>On the canvas, the fringe is drawn in orange around the green. By default each piece is filled and labeled ("Fringe 1", "Fringe 2", etc.) so you can match the diagram to your cut list. Uncheck <strong>"Show fringe pieces on canvas"</strong> to instead draw a single smooth outline at the fringe width, following the green's actual outline point-for-point — this is closer to how the fringe would actually look once installed, rather than the coarser straight-edged pieces used for cutting/ordering. This only affects the canvas drawing; the Piece List, sqft, and pricing are unaffected either way.</p>
         <p>Fringe material cost is added to any quote option that includes a putting green (it has no effect on "No Putting Green" options), using the same turf material pricing as the main yard's products.</p>
@@ -2126,7 +2144,7 @@
         <p>Rotates the drawing to match how you're viewing the yard on-site. Purely cosmetic — does not affect area, roll counts, or any calculations.</p>
 
         <div class="docs-h3">Roll Settings &amp; the Layout key metrics</div>
-        <p>The four roll <strong>dimensions</strong> live under the <strong>⚙ Settings</strong> tab → <em>Roll Settings</em>. They're a <strong>global default</strong> shared by every project. With a project open, changing any value pops a quick dialog — <strong>Every project (global default)</strong> or <strong>Only this project</strong> — so you decide the scope of each change; <em>Cancel</em> reverts it. A per-project override is field-granular (overriding one field still tracks the global for the others), and a status line shows whether the open job is on the global or overriding, with <em>Reset this job to the global default</em> to drop it. With no project open, editing just sets the global default. Standard rolls are 15 ft × 100 ft. The <strong>Layout</strong> sidebar leads with a fixed <strong>key-metrics</strong> block that's always visible: <strong>Installed SqFt</strong> (the total installed turf across <em>all</em> Install layers, primary plus every secondary marked Install, plus any Free-fill layers, minus any cutouts), <strong>Ordered SqFt</strong>, <strong>Ordered Linear Ft</strong>, and <strong>Perimeter (linear ft)</strong>, which sums the same Install/Free-fill layers. Below that are collapsible twisties — <em>Roll Direction &amp; Seam</em> (open by default, the day-to-day control), then <em>Apply area</em>, <em>Display &amp; overlays</em>, fringe, and <em>Roll Results</em>, most collapsed to keep the pane short. The <em>Layers &amp; roll grouping</em> panel sits in its own full-width strip <strong>below the canvas</strong> (not in the right pane), since it's the tallest control. While you drag a roll-direction, seam, or rotate slider, the canvas holds its current size so this panel stays put under your cursor — it re-fits to the shape when you release. Each layer's name is shown on the diagram. The roll dimensions themselves:</p>
+        <p>The four roll <strong>dimensions</strong> live under the <strong>⚙ Settings</strong> tab → <em>Roll Settings</em>. They're a <strong>global default</strong> shared by every project. With a project open, changing any value pops a quick dialog — <strong>Every project (global default)</strong> or <strong>Only this project</strong> — so you decide the scope of each change; <em>Cancel</em> reverts it. A per-project override is field-granular (overriding one field still tracks the global for the others), and a status line shows whether the open job is on the global or overriding, with <em>Reset this job to the global default</em> to drop it. With no project open, editing just sets the global default. Standard rolls are 15 ft × 100 ft. The <strong>Layout</strong> sidebar leads with a fixed <strong>key-metrics</strong> block that's always visible: <strong>Installed SqFt</strong> (the total installed turf across <em>all</em> Install layers, primary plus every secondary marked Install, plus any Free-fill layers, minus any cutouts), <strong>Ordered SqFt</strong>, <strong>Ordered Linear Ft</strong>, and <strong>Perimeter (linear ft)</strong>, which sums the same Install/Free-fill layers. Below that, the rest of the controls are split into <strong>sub-tabs</strong> across the top of the right pane — <em>Roll &amp; Seam</em> (the day-to-day control, shown first), <em>Layers</em>, <em>Results</em>, <em>Apply</em>, <em>Display</em>, and (only when a putting green exists) <em>Fringe</em> — so each section is one click away with no long scroll. The <em>Layers &amp; roll grouping</em> controls live on the <em>Layers</em> tab, back in the right pane. While you drag a roll-direction, seam, or rotate slider, the canvas holds its current size so nothing jumps — it re-fits to the shape when you release. Each layer's name is shown on the diagram. The roll dimensions themselves:</p>
         <ul class="docs-list">
           <li><strong>Roll Width</strong> — width of the turf roll as purchased.</li>
           <li><strong>Roll Length</strong> — maximum length of a single piece; longer runs are split, each adding a Cutting Margin.</li>
@@ -2149,7 +2167,7 @@
         <p>A table listing every individual piece that will be cut for this job — each row shows its <strong>Roll N / Piece M</strong> label, <strong>Length</strong> (its ordered length along the roll), <strong>Width</strong> (the roll width), and resulting <strong>SqFt</strong>. This is the cut sheet for your installers: it tells them exactly how long to cut each piece from the roll, and the total linear footage at the bottom helps you sanity-check how many rolls to bring and plan seam placement to minimize butt seams. Pieces created by Manual Cuts or that have been nested into another roll's waste show a note (e.g. "cut from Roll N / Piece M waste"). If a Putting Green Fringe is configured, the fringe pieces ("Fringe 1", "Fringe 2", ...) are listed too, with their own length/width/sqft.</p>
 
         <div class="docs-h3">Drag-and-Drop Nesting</div>
-        <p>With "Show purchased roll rectangles" on, drag a roll's colored shape (the installed piece) onto another roll's hatched waste area to indicate it can be cut from that roll's offcut rather than ordered separately. Valid drop targets highlight with a green dashed border while dragging — across <em>every</em> layer, since a piece can be nested into a different layer's roll waste, not just its own. You can aim at any part of a roll's rectangle, including a spot that already has turf: the piece still lands where you drop it and is flagged <strong>red</strong> ("overlaps turf") so an impossible spot is obvious instead of the drop silently doing nothing. On a successful drop the piece is redrawn relocated to the target roll's waste area, outlined in orange and labeled "from Roll N / Piece M waste," and its area is removed from Ordered SqFt. <strong>The piece lands exactly where you drop it</strong> — its centroid goes to the drop point, clamped only so the whole piece stays within that roll's purchased rectangle (and nudged just enough to not stack on another piece already nested there). The tool does not relocate or refuse the piece: you place it manually, the way you'd lay it out in the yard. If where you dropped it overlaps that roll's installed turf, the piece is outlined <strong>red</strong> (instead of orange) and its label adds "— overlaps turf," so you can see at a glance that it won't actually fit there and drag it to a clear spot. Drop it again to move it elsewhere. To undo a move, use the piece's <strong>"↩ Put back"</strong> button in the Nested Pieces list — that's the reliable way; you can also drag the orange piece fully off every waste area onto open space, but that gesture is fiddly. You can move several pieces independently and put any one of them back without affecting the others. Works whether or not Cut Mode is active — in Cut Mode a quick click still toggles a cut, while a press-and-drag on a piece nests it. Disabled only in Edit Shape and Move Layers modes. <strong>Nesting reduces what you order:</strong> a nested piece is cut from another roll's already-purchased waste, so it drops out of Linear Ft and the roll count (not just the Ordered SqFt figure) — it still counts as an installed piece. You can also nest a cut piece into the <strong>same roll's</strong> own leftover (drop it on a sibling piece's waste), which shortens that roll. Eligibility is based on the piece's <em>installed</em> turf area fitting the leftover, so a piece tucks in whenever its actual shape (not its full 15ft rectangle) fits. <strong>On a multi-layer job you can nest across layers:</strong> drag a piece from any install layer onto another roll's waste in the <em>same</em> layer or a <em>different</em> one. A cross-layer nest means the piece is cut from the other layer's roll waste — so it drops out of <em>its own</em> layer's Ordered SqFt, Linear Ft, and roll count, while the layer it's tucked into keeps its order unchanged (that roll was already bought) and only its scrap falls. The piece is redrawn in the target layer's waste at your drop point and labeled "from &lt;layer name&gt; waste." Cross-layer placement is approximate — it lands in the target's waste near where you drop it; treat the orange/red outline as the confirmation and nudge it if needed.</p>
+        <p>With "Show purchased roll rectangles" on, drag a roll's colored shape (the installed piece) onto another roll's hatched waste area to indicate it can be cut from that roll's offcut rather than ordered separately. Valid drop targets highlight with a green dashed border while dragging — across <em>every</em> layer, since a piece can be nested into a different layer's roll waste, not just its own. You can aim at any part of a roll's rectangle, including a spot that already has turf: the piece still lands where you drop it and is flagged <strong>red</strong> ("overlaps turf") so an impossible spot is obvious instead of the drop silently doing nothing. On a successful drop the piece is redrawn relocated to the target roll's waste area, outlined in orange and labeled "from Roll N / Piece M waste," and its area is removed from Ordered SqFt. <strong>The piece lands exactly where you drop it</strong> — its centroid goes to the drop point, clamped only so the whole piece stays within that roll's purchased rectangle (and nudged just enough to not stack on another piece already nested there). The tool does not relocate or refuse the piece: you place it manually, the way you'd lay it out in the yard. If where you dropped it overlaps that roll's installed turf, the piece is outlined <strong>red</strong> (instead of orange) and its label adds "— overlaps turf," a <strong>toast pops up immediately</strong> ("placed on existing turf — it won't fit there"), and a <strong>persistent red warning shows under Installed SqFt</strong> counting how many placed pieces overlap turf — so an impossible placement can't be missed. Drag it to a clear spot to clear the warning. Drop it again to move it elsewhere. To undo a move, use the piece's <strong>"↩ Put back"</strong> button in the Nested Pieces list — that's the reliable way; you can also drag the orange piece fully off every waste area onto open space, but that gesture is fiddly. You can move several pieces independently and put any one of them back without affecting the others. Works whether or not Cut Mode is active — in Cut Mode a quick click still toggles a cut, while a press-and-drag on a piece nests it. Disabled only in Edit Shape and Move Layers modes. <strong>Nesting reduces what you order:</strong> a nested piece is cut from another roll's already-purchased waste, so it drops out of Linear Ft and the roll count (not just the Ordered SqFt figure) — it still counts as an installed piece. You can also nest a cut piece into the <strong>same roll's</strong> own leftover (drop it on a sibling piece's waste), which shortens that roll. Eligibility is based on the piece's <em>installed</em> turf area fitting the leftover, so a piece tucks in whenever its actual shape (not its full 15ft rectangle) fits. <strong>On a multi-layer job you can nest across layers:</strong> drag a piece from any install layer onto another roll's waste in the <em>same</em> layer or a <em>different</em> one. A cross-layer nest means the piece is cut from the other layer's roll waste — so it drops out of <em>its own</em> layer's Ordered SqFt, Linear Ft, and roll count, while the layer it's tucked into keeps its order unchanged (that roll was already bought) and only its scrap falls. The piece is redrawn in the target layer's waste at your drop point and labeled "from &lt;layer name&gt; waste." Cross-layer placement is approximate — it lands in the target's waste near where you drop it; treat the orange/red outline as the confirmation and nudge it if needed.</p>
         <p>Placements are tied to each roll's position in the shape, so they persist across saves/reloads. If you later change roll direction, seam offset, roll width, or side trim enough that the rolls reflow into different bands, a placement tied to a band that no longer exists is simply dropped — it won't jump onto an unrelated roll. Re-check nesting after making significant roll-setting changes.</p>
         <p>A <strong>"Nested Pieces"</strong> list appears in Roll Results whenever any piece is nested, showing each one as "Roll N / Piece M → nested in …" with a <strong>"↩ Put back"</strong> button. Clicking it reverts that single placement — the piece returns to its own ordered length and its area is added back into Ordered SqFt. This is the discoverable equivalent of dragging the orange piece back off the waste area on the canvas. Each row also has a <strong>"⟳ 90°"</strong> button that rotates that nested piece a quarter turn, so it runs the grain the other way to fit a leftover that's longer across the roll than along it (the row shows "(rotated 90°)" when active; the piece re-clamps to stay inside the roll). Turf has a pile direction, so a rotated piece's grain runs perpendicular to the rest — fine for a hidden or small piece, visible on an open lawn, so it's your call per piece.</p>
 
@@ -5128,6 +5146,9 @@ function setSecondaryShapeMode(i, mode) {
   renderLayersList(proj);
   renderFringeSection(proj);
   renderRollLayout();
+  if (mode === 'overlay') {
+    showLayoutToast('Free fill: this area is added to Installed SqFt but NOT ordered — it assumes the turf is cut from leftover scrap. It isn\'t placed or fit-checked. To place a real piece into a roll\'s waste, use Install and drag it there.');
+  }
 }
 
 // Layer visibility: 'primary' for the main shape, secondary shape index (number)
@@ -5437,6 +5458,23 @@ function getFringeConfig(proj) {
 // secondary shape is marked as the putting green. Populates the turf product
 // dropdown from the catalog and shows a live summary (perimeter, sqft) once
 // a width and product are set.
+// Layout right-pane sub-tabs (Roll & Seam / Layers / Results / Apply / Display /
+// Fringe). Replaced the old collapsible twisties + the below-canvas Layers strip:
+// each section is now its own tab so there's no long scroll, and Layers is back on
+// the right. Shows one panel at a time; remembers the choice across renders.
+function switchLayoutSubtab(name) {
+  const sidebar = document.getElementById('layoutSidebar');
+  if (!sidebar) return;
+  window._wtLayoutSubtab = name;
+  sidebar.querySelectorAll('.layout-subpanel').forEach(p => {
+    p.classList.toggle('active', p.getAttribute('data-panel') === name);
+  });
+  const bar = document.getElementById('layoutSubtabs');
+  if (bar) bar.querySelectorAll('.layout-subtab-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-tab') === name);
+  });
+}
+
 function renderFringeSection(proj) {
   const group = document.getElementById('fringeGroup');
   const fieldsEl = document.getElementById('fringeConfigFields');
@@ -5448,11 +5486,14 @@ function renderFringeSection(proj) {
   if (!group) return;
 
   const pgIdx = getPuttingGreenShapeIndex(proj);
+  const fringeBtn = document.getElementById('layoutSubtabFringeBtn');
   if (pgIdx < 0) {
-    group.style.display = 'none';
+    if (fringeBtn) fringeBtn.style.display = 'none';
+    // Don't strand the user on a now-hidden Fringe tab.
+    if (window._wtLayoutSubtab === 'fringe') switchLayoutSubtab('roll');
     return;
   }
-  group.style.display = '';
+  if (fringeBtn) fringeBtn.style.display = '';
 
   const fringe = getFringeConfig(proj);
   enabledEl.checked = !!fringe.enabled;
@@ -6973,17 +7014,44 @@ function renderRollLayout() {
     + (overlayArea > 1e-6 ? ` (incl. ${overlayArea.toLocaleString(undefined,{maximumFractionDigits:0})} ft² free fill from scrap)` : '')
     + (Math.abs(baseInstalled - (combo ? combo.area : layout.shapeArea)) > 1e-6 ? ` · ${(combo ? combo.area : layout.shapeArea).toLocaleString(undefined,{maximumFractionDigits:0})} ft² before exclusions` : '');
 
-  // Overlay turf is assumed to come from existing roll waste. Flag it if the
-  // overlay area exceeds the scrap actually available — then it isn't all free.
+  // Free fill is ASSUMED to come from existing roll waste. Always surface that
+  // assumption when any free-fill layer is in use (amber), and escalate to a red
+  // warning when the free-fill area exceeds the scrap actually available — past
+  // that point it isn't all free and you'd need extra turf.
   const orderedTotalForScrap = combo ? combo.ordered : layout.totalOrdered;
   const availableScrap = Math.max(0, orderedTotalForScrap - baseInstalled);
   const overlayWarnEl = document.getElementById('layoutOverlayWarn');
   if (overlayWarnEl) {
-    if (overlayArea > availableScrap + 1e-6) {
+    if (overlayArea > 1e-6 && overlayArea > availableScrap + 1e-6) {
       overlayWarnEl.style.display = '';
+      overlayWarnEl.style.color = '#b71c1c';
+      overlayWarnEl.style.fontWeight = '600';
       overlayWarnEl.textContent = `⚠ Free fill (${Math.round(overlayArea)} ft²) exceeds the roll waste available (${Math.round(availableScrap)} ft²) — about ${Math.round(overlayArea - availableScrap)} ft² of it would need extra turf, so it isn't entirely free.`;
+    } else if (overlayArea > 1e-6) {
+      overlayWarnEl.style.display = '';
+      overlayWarnEl.style.color = '#b26a00';
+      overlayWarnEl.style.fontWeight = 'normal';
+      overlayWarnEl.textContent = `⚠ ${Math.round(overlayArea)} ft² is Free fill — added to Installed but NOT ordered, assuming it's cut from leftover scrap (about ${Math.round(availableScrap)} ft² available). This isn't placed or fit-checked; to place a real piece into a roll's waste, use Install and drag it there.`;
     } else {
       overlayWarnEl.style.display = 'none';
+    }
+  }
+
+  // Overlap warning: any nested piece whose placed position sits on the target
+  // roll's installed turf (flagged _nestOverlapsTurf during the draw) won't
+  // actually fit there. The red outline on the canvas is easy to miss, so surface
+  // a persistent banner under Installed SqFt too.
+  const nestWarnEl = document.getElementById('layoutNestWarn');
+  if (nestWarnEl) {
+    let overlapCount = 0;
+    const walk = L => (L && L.strips || []).forEach(s => (s.pieces || [s]).forEach(u => { if (u.nestedInto != null && u._nestOverlapsTurf) overlapCount++; }));
+    walk(layout);
+    (layout._installLayers || []).forEach(({ id, layout: L }) => { if (id !== 'primary') walk(L); });
+    if (overlapCount > 0) {
+      nestWarnEl.style.display = '';
+      nestWarnEl.textContent = `⚠ ${overlapCount} placed piece${overlapCount===1?'':'s'} overlap${overlapCount===1?'s':''} existing turf and won't fit there (outlined red on the diagram). Move ${overlapCount===1?'it':'them'} to a clear hatched waste spot, or use “↩ Put back”.`;
+    } else {
+      nestWarnEl.style.display = 'none';
     }
   }
   const perimEl = document.getElementById('layoutPerimeterOut');
@@ -8263,11 +8331,25 @@ function endDragNesting(evt) {
   }
   save();
   renderRollLayout();
-}
 
-// ── Move Layers: drag any layer (primary shape or any secondary shape) to
-// reposition it on the canvas. Purely visual — stores a per-layer {dx,dy}
-// offset applied at render time; does not affect area or roll calculations.
+  // Immediate feedback. After the re-render the dropped piece carries its overlap
+  // flag, so we can tell the user right away if it landed on turf (won't fit) — the
+  // red outline alone is easy to miss.
+  if (targetKey != null) {
+    let placed = null;
+    const after = getNestableUnitsByLayer(window._wtCurrentRollLayout || layout);
+    for (const g of after) { const u = g.units.find(u => u.key === srcKey); if (u) { placed = u; break; } }
+    if (placed && placed._nestOverlapsTurf) {
+      showLayoutToast('⚠ Placed on existing turf — it won\'t fit there. Drag it to a clear (hatched) waste spot.');
+    }
+  } else if (srcUnit) {
+    // It was dragged but landed on no roll's rectangle with room — say so rather
+    // than silently snapping back, so a too-big piece doesn't look like a no-op.
+    const srcFit = (srcUnit.clippedArea != null ? srcUnit.clippedArea : srcUnit.purchasedArea);
+    const overAnyRect = getNestableUnitsByLayer(layout).some(g => g.units.some(u => u.key !== srcKey && u.displayRect && u.displayRect.length && pointInPoly(dataPt, u.displayRect)));
+    if (overAnyRect) showLayoutToast(`This piece (${Math.round(srcFit)} ft²) is bigger than that roll's leftover waste — it can't be nested there.`);
+  }
+}
 
 function startDragLayer(evt) {
   if (!window._wtMoveLayersMode) return;

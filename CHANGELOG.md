@@ -5,7 +5,45 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 43) — Clearer layer-mode wording + the "overlaps turf" warning actually fires
+## 2026-06-21 (cont'd, 45) — Layout right pane: sub-tabs instead of twisties; Layers back on the right
+
+Restructures the Layout page's right pane on request. Test suite: **846** (sandbox 803),
+unchanged (DOM structure, verified in-app).
+
+- The five collapsible twisties (Roll Direction & Seam, Apply, Display & overlays, Fringe,
+  Roll Results) are replaced by **sub-tabs** across the top of the right pane, so each
+  section is one click away with no long scroll. The always-visible key-metrics block
+  (Installed / Ordered SqFt, Linear Ft, Perimeter) stays pinned above the tabs.
+- **Layers & roll grouping moved off the bottom of the page back into the right pane** as
+  its own *Layers* tab. The below-canvas full-width strip is gone.
+- The **Fringe** tab only appears when a layer is set to Putting Green (the tab button is
+  shown/hidden by `renderFringeSection`; if you were on it when the green is removed, it
+  falls back to Roll & Seam).
+- New `switchLayoutSubtab(name)` toggles the active panel/button and remembers the choice.
+  Sidebar widened from `clamp(260px,26vw,380px)` to `clamp(300px,30vw,440px)` to fit the
+  layer cards (now single-column in the narrower pane). The Advanced details inside Results
+  stays a small nested twisty.
+
+---
+
+
+
+Both were too quiet. Test suite: **846** (sandbox 803), unchanged (DOM/canvas warnings, verified in-app).
+
+- **Free fill now warns whenever it's in use,** not only when it exceeds scrap. A persistent
+  note under Installed SqFt spells out that the area is added to Installed but not ordered
+  (assumed cut from leftover scrap), in amber; it escalates to red when the free-fill area
+  is larger than the waste actually available. Choosing Free fill on a layer also fires a
+  toast explaining the same thing.
+- **Overlapping a placed piece with turf is now unmissable.** Previously the only cue was a
+  red outline on the canvas. Now: a toast fires the moment you drop onto turf ("won't fit
+  there"), and a persistent red banner under Installed SqFt counts how many placed pieces
+  overlap turf until you move them clear. A too-big-to-nest drop also toasts instead of
+  silently snapping back.
+
+---
+
+
 
 Test suite: **846** (sandbox 803), unchanged (UI wording + canvas-drop behavior, verified in-app).
 
