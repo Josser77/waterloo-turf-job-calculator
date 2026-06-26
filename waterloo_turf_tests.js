@@ -4891,6 +4891,22 @@ section('61. Cross-layer nesting');
   }
 }
 
+// ════════════════════════════════════════════════════════════════════════
+//  62. Fit frame includes a roll's waste rectangle when it HOSTS a nested piece
+//  even with rectangles hidden — otherwise the piece (drawn in the waste) clips.
+// ════════════════════════════════════════════════════════════════════════
+section('62. Fit includes host rectangles');
+{
+  const host = { displayRect:[{x:-50,y:0},{x:-30,y:0},{x:-30,y:10},{x:-50,y:10}], displayClipped:[{x:0,y:0},{x:5,y:0},{x:5,y:5},{x:0,y:5}], nestHost:[0] };
+  const plain = { displayRect:[{x:100,y:0},{x:120,y:0},{x:120,y:10},{x:100,y:10}], displayClipped:[{x:10,y:0},{x:15,y:0},{x:15,y:5},{x:10,y:5}] };
+  const layout = { basePoints:[{x:0,y:0}], strips:[host, plain] };
+  const off = ctx.layoutFitPoints(layout, false);
+  assert(near(Math.min(...off.map(p=>p.x)), -50), 'rectangles OFF: a host roll\'s waste rectangle is still framed in (nested piece there won\'t clip)');
+  assert(Math.max(...off.map(p=>p.x)) < 100, 'rectangles OFF: a non-host roll\'s rectangle is excluded');
+  const on = ctx.layoutFitPoints(layout, true);
+  assert(Math.max(...on.map(p=>p.x)) >= 120 - 1e-6, 'rectangles ON: every roll rectangle is framed in');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

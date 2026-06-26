@@ -1293,7 +1293,7 @@
                   <span id="layoutZoomLevel" style="font-size:11px;color:var(--text-light);">100%</span>
                 </div>
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:12px;margin-bottom:6px;" title="Off = real installed shape per roll. On = the full rectangle you'd order, with the unused portion hatched. Turn this ON to see each roll's waste and drag pieces to nest them.">
-                  <input type="checkbox" id="showRectanglesToggle" onchange="renderRollLayout()" style="width:auto;margin:0;">
+                  <input type="checkbox" id="showRectanglesToggle" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
                   Show purchased roll rectangles (waste) — needed to drag/nest pieces
                 </label>
                 <div id="layoutCanvasWrap" style="overflow:auto;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:default;">
@@ -1317,9 +1317,13 @@
                     <label>Ordered Linear Ft</label>
                     <input type="text" id="rollLinearOut" class="auto-filled" readonly>
                   </div>
-                  <div class="field-group" style="margin-bottom:0;">
+                  <div class="field-group" style="margin-bottom:8px;">
                     <label>Perimeter (linear ft)</label>
                     <input type="text" id="layoutPerimeterOut" class="auto-filled" readonly>
+                  </div>
+                  <div class="field-group" style="margin-bottom:0;">
+                    <label>Scrap</label>
+                    <input type="text" id="rollWasteOut" class="auto-filled" readonly>
                   </div>
                 </div>
 
@@ -1441,14 +1445,6 @@
                     <details id="rollAdvancedDetails" style="margin-top:10px;border-top:1px dashed var(--border);padding-top:6px;">
                       <summary style="cursor:pointer;font-weight:600;font-size:12px;color:var(--text-light);padding:4px 0;">⚙ Advanced details &amp; tools</summary>
                       <div style="padding-top:8px;">
-                        <div class="field-group">
-                          <label>Usable SqFt</label>
-                          <input type="text" id="rollUsableOut" class="auto-filled" readonly>
-                        </div>
-                        <div class="field-group">
-                          <label>Scrap</label>
-                          <input type="text" id="rollWasteOut" class="auto-filled" readonly>
-                        </div>
                         <div class="field-group" id="rollSavedGroup" style="display:none;">
                           <label>Saved (nested)</label>
                           <input type="text" id="rollSavedOut" class="auto-filled" readonly>
@@ -2154,8 +2150,8 @@
         <p>Each roll strip only orders the length it actually needs based on where it intersects the shape — strips don't all buy the full bounding-box length. Ordered length is rounded up to the next whole foot, since turf is sold in Roll Width × 1ft increments. This produces accurate per-strip quantities and more realistic scrap percentages.</p>
 
         <div class="docs-h3">Roll Results</div>
-        <p>The <strong>Results</strong> tab shows the rolls/piece count and per-layer breakdown, with extra detail (Usable SqFt, Scrap, cut/nest tools, Piece List) under a small <strong>Advanced</strong> twisty so a standard install isn't cluttered. Both <strong>Apply</strong> buttons — <em>Apply Installed SqFt → turf row</em> and <em>Apply Ordered SqFt → turf row</em> — live together on the <strong>Apply</strong> tab (Ordered is usually the one you want; it's what you actually buy and already accounts for nested pieces). <strong>Installed SqFt, Ordered SqFt, Ordered Linear Ft, and Perimeter</strong> all live in the always-visible key-metrics block at the top of the right pane.</p>
-        <p>Open <strong>"⚙ Advanced details &amp; tools"</strong> for the rest: the purchased-rectangles toggle, Usable SqFt (after side trim), Linear Ft, Scrap (Ordered minus shape area, with %), the manual-cuts and nested-pieces lists, and the per-piece list. Entering Cut Mode opens this section automatically so the cut/nest tools are visible.</p>
+        <p>The <strong>Results</strong> tab shows the rolls/piece count and per-layer breakdown, with extra detail (cut/nest tools, Piece List) under a small <strong>Advanced</strong> twisty so a standard install isn't cluttered. Both <strong>Apply</strong> buttons — <em>Apply Installed SqFt → turf row</em> and <em>Apply Ordered SqFt → turf row</em> — live together on the <strong>Apply</strong> tab (Ordered is usually the one you want; it's what you actually buy and already accounts for nested pieces). <strong>Installed SqFt, Ordered SqFt, Ordered Linear Ft, Perimeter, and Scrap</strong> all live in the always-visible key-metrics block at the top of the right pane.</p>
+        <p>Open <strong>"⚙ Advanced details &amp; tools"</strong> for the rest: the Saved (nested) figure, the manual-cuts and nested-pieces lists, and the per-piece list. Entering Cut Mode opens this section automatically so the cut/nest tools are visible. (<strong>Scrap</strong> — Ordered minus the installed shape area, with % — now sits in the key-metrics block at the top of the pane; the purchased-rectangles toggle sits above the canvas.)</p>
         <p>The roll/piece count shows just <strong>"N rolls"</strong> when the number of rolls to purchase equals the number of installed pieces — the normal case. It shows <strong>"N rolls / M pieces"</strong> only when these differ.</p>
         <p><strong>Pieces</strong> = total separately-installed pieces across the whole job: one per band/strip normally, more if a strip is manually cut into butt-seamed sections, or if a single strip is longer than Max Roll Length (which forces an inherent seam even without a manual cut).</p>
         <p><strong>Rolls</strong> = a global count based on total linear footage: <code>ceil(sum of every piece's ordered length ÷ Max Roll Length)</code>. All pieces run the same direction at the same Roll Width, so pieces from different bands/strips can be cut from the same physical roll as long as their combined length fits. For example, 3 separate pieces totaling 75 linear ft all come from a single 100ft roll — shown as "1 roll / 3 pieces" — while 3 pieces totaling 180ft need "2 rolls / 3 pieces".</p>
@@ -6934,7 +6930,6 @@ function renderRollLayout() {
   const piecesLabel = totalPieces !== totalRolls ? ` / ${totalPieces} piece${totalPieces===1?'':'s'}` : '';
   document.getElementById('rollStripsOut').value = rollsLabel + piecesLabel;
   document.getElementById('rollOrderedOut').value = layout.totalOrdered.toLocaleString(undefined,{maximumFractionDigits:0}) + ' ft²';
-  document.getElementById('rollUsableOut').value = layout.totalUsable.toLocaleString(undefined,{maximumFractionDigits:0}) + ' ft²';
   document.getElementById('rollLinearOut').value = layout.linearFt.toLocaleString(undefined,{maximumFractionDigits:1}) + ' ft';
   document.getElementById('rollWasteOut').value = layout.scrap.toLocaleString(undefined,{maximumFractionDigits:0}) + ' ft² (' + layout.wastePct.toFixed(1) + '%)';
 
@@ -6966,7 +6961,6 @@ function renderRollLayout() {
     const cPiecesLabel = combined.pieces !== combined.rolls ? ` / ${combined.pieces} piece${combined.pieces===1?'':'s'}` : '';
     document.getElementById('rollStripsOut').value = cRollsLabel + cPiecesLabel;
     document.getElementById('rollOrderedOut').value = combined.ordered.toLocaleString(undefined,{maximumFractionDigits:0}) + ' ft²';
-    document.getElementById('rollUsableOut').value = combined.usable.toLocaleString(undefined,{maximumFractionDigits:0}) + ' ft²';
     document.getElementById('rollLinearOut').value = combined.linear.toLocaleString(undefined,{maximumFractionDigits:1}) + ' ft';
     document.getElementById('rollWasteOut').value = combined.scrap.toLocaleString(undefined,{maximumFractionDigits:0}) + ' ft² (' + combined.wastePct.toFixed(1) + '%)';
     if (breakdownEl) {
@@ -7228,20 +7222,26 @@ const STRIP_COLORS = ['rgba(76,175,80,0.25)','rgba(33,150,243,0.22)','rgba(255,1
 // are excluded.
 function layoutFitPoints(layout, showRects) {
   const pts = [...(layout.basePoints || [])];
-  (layout.strips || []).forEach(s => {
-    if (showRects && s.displayRect) pts.push(...s.displayRect);
-    if (s.displayClipped) pts.push(...s.displayClipped);
-  });
+  // Include a roll's purchased rectangle when rectangles are shown OR when it
+  // hosts a nested piece — a nested piece sits in the waste (the rectangle, outside
+  // the installed shape), so without this it falls outside the frame and gets
+  // clipped whenever rectangles are toggled off.
+  (layout.strips || []).forEach(s => (s.pieces || [s]).forEach(u => {
+    const hostsNested = u.nestHost && u.nestHost.length;
+    if ((showRects || hostsNested) && u.displayRect) pts.push(...u.displayRect);
+    if (u.displayClipped) pts.push(...u.displayClipped);
+  }));
   (layout.secondaryShapes || []).forEach((s, i) => {
     if (layout.layerVisibility && layout.layerVisibility[i] === false) return;
     if (s.displayPoints) pts.push(...s.displayPoints);
   });
   (layout._installLayers || []).forEach(({ id, layout: L }) => {
     if (id === 'primary' || !L) return;
-    (L.strips || []).forEach(st => {
-      if (showRects && st.displayRect) pts.push(...st.displayRect);
-      if (st.displayClipped) pts.push(...st.displayClipped);
-    });
+    (L.strips || []).forEach(s => (s.pieces || [s]).forEach(u => {
+      const hostsNested = u.nestHost && u.nestHost.length;
+      if ((showRects || hostsNested) && u.displayRect) pts.push(...u.displayRect);
+      if (u.displayClipped) pts.push(...u.displayClipped);
+    }));
   });
   try {
     const proj = getCurrentProject() || {};

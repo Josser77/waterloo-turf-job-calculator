@@ -5,7 +5,37 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 46) — Both Apply buttons on the Apply tab; roll-rectangles toggle always visible
+## 2026-06-21 (cont'd, 48) — Drop Usable SqFt; move Scrap into the key-metrics block
+
+Test suite: **849** (sandbox 806), unchanged (field placement, verified in-app).
+
+- Removed the **Usable SqFt** field from Advanced (it was unclear — installed area after
+  side trim, redundant with Installed SqFt). Both DOM field and its two JS assignments are
+  gone.
+- **Scrap** moved out of Advanced up into the always-visible key-metrics block at the top of
+  the right pane, alongside Installed SqFt, Ordered SqFt, Ordered Linear Ft, and Perimeter
+  (now five metrics). Same value/format, same id (`rollWasteOut`).
+
+---
+
+
+
+Test suite: **849** (sandbox 806), +3 (section 62).
+
+- **Clipping fix:** the canvas fit (`layoutFitPoints`) only framed in a roll's purchased
+  rectangle when rectangles were shown. But a nested piece is drawn in the waste (the
+  rectangle, outside the installed shape), so a roll that *hosts* a nested piece had that
+  piece fall outside the frame and get clipped on the edge whenever rectangles were off.
+  Now a host roll's rectangle is always included in the fit (non-host rectangles still only
+  when shown), so nested pieces are never cut off. The loops also walk per-piece now.
+- **No resize on toggle:** the "Show purchased roll rectangles" checkbox renders through
+  `renderRollLayoutStableCanvas()`, so flipping it doesn't re-fit/resize the canvas height
+  (the draw fits the content into the existing box). Hit "⊙ Fit" if you want it re-sized to
+  the rectangles.
+
+---
+
+
 
 Test suite: **846** (sandbox 803), unchanged (DOM placement, verified in-app).
 
