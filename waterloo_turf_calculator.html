@@ -1292,6 +1292,10 @@
                   <button class="btn btn-ghost btn-sm" onclick="layoutZoomFit()" title="Fit shape">⊙ Fit</button>
                   <span id="layoutZoomLevel" style="font-size:11px;color:var(--text-light);">100%</span>
                 </div>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:12px;margin-bottom:6px;" title="Off = real installed shape per roll. On = the full rectangle you'd order, with the unused portion hatched. Turn this ON to see each roll's waste and drag pieces to nest them.">
+                  <input type="checkbox" id="showRectanglesToggle" onchange="renderRollLayout()" style="width:auto;margin:0;">
+                  Show purchased roll rectangles (waste) — needed to drag/nest pieces
+                </label>
                 <div id="layoutCanvasWrap" style="overflow:auto;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:default;">
                   <canvas id="rollLayoutCanvas" style="display:block;"></canvas>
                 </div>
@@ -1359,9 +1363,16 @@
 
                 <div class="layout-subpanel" data-panel="apply">
                   <div class="field-group" style="padding-top:8px;">
-                    <label>Apply to → Installed SqFt</label>
+                    <label>Apply Installed SqFt → turf row</label>
                     <select id="layoutApplyTarget" style="width:100%;margin-bottom:6px;"></select>
-                    <button class="btn btn-primary btn-sm" style="width:100%;" onclick="applyLayoutAreaToTurf()">Apply Area</button>
+                    <button class="btn btn-primary btn-sm" style="width:100%;" onclick="applyLayoutAreaToTurf()">Apply Installed SqFt</button>
+                    <div style="font-size:11px;color:var(--text-light);margin-top:5px;line-height:1.4;">Pushes <strong>Installed SqFt</strong> (the turf actually going down) into the selected row's "SqFt to Order."</div>
+                  </div>
+                  <div class="field-group" style="margin-top:12px;border-top:1px dashed var(--border);padding-top:10px;">
+                    <label>Apply Ordered SqFt → turf row</label>
+                    <select id="rollApplyTarget" style="width:100%;margin-bottom:6px;"></select>
+                    <button class="btn btn-primary btn-sm" style="width:100%;" onclick="applyRollLayoutToTurf()">Apply Ordered SqFt</button>
+                    <div style="font-size:11px;color:var(--text-light);margin-top:5px;line-height:1.4;">Pushes <strong>Ordered SqFt</strong> (what you actually buy, incl. waste; already accounts for nested pieces) into the selected row's "SqFt to Order." Usually the one you want.</div>
                   </div>
                 </div>
 
@@ -1425,24 +1436,11 @@
                       <input type="text" id="rollStripsOut" class="auto-filled" readonly>
                     </div>
                     <div id="rollLayerBreakdown" style="display:none;font-size:11px;margin-top:6px;padding:6px 8px;background:var(--bg-alt);border-radius:6px;"></div>
-                    <div class="field-group">
-                      <label>Apply to → Sqft to Order</label>
-                      <select id="rollApplyTarget" style="width:100%;margin-bottom:6px;"></select>
-                      <button class="btn btn-primary btn-sm" style="width:100%;" onclick="applyRollLayoutToTurf()">Apply Sqft to Order</button>
-                      <div style="font-size:11px;color:var(--text-light);margin-top:5px;line-height:1.4;">Pushes <strong>Ordered SqFt</strong> (above) into the selected turf row's "SqFt to Order" — already accounts for any pieces nested into waste areas.</div>
-                    </div>
 
                     <!-- ADVANCED: extra detail + cut/nest tools, collapsed by default -->
                     <details id="rollAdvancedDetails" style="margin-top:10px;border-top:1px dashed var(--border);padding-top:6px;">
                       <summary style="cursor:pointer;font-weight:600;font-size:12px;color:var(--text-light);padding:4px 0;">⚙ Advanced details &amp; tools</summary>
                       <div style="padding-top:8px;">
-                        <div class="field-group">
-                          <label style="display:flex;align-items:center;gap:6px;font-weight:500;">
-                            <input type="checkbox" id="showRectanglesToggle" onchange="renderRollLayout()" style="width:auto;margin:0;">
-                            Show purchased roll rectangles (incl. waste)
-                          </label>
-                          <div style="font-size:11px;color:var(--text-light);">Off = real installed shape per roll. On = full rectangle you'd order, with unused portion hatched.</div>
-                        </div>
                         <div class="field-group">
                           <label>Usable SqFt</label>
                           <input type="text" id="rollUsableOut" class="auto-filled" readonly>
@@ -2088,7 +2086,7 @@
         <p>Import the CSV exported from a Moasure measurement to visualize the yard shape and plan how turf rolls lay across it. You can import at project creation time (pre-fills measurements) or later via the Layout tab. The toolbar holding <strong>Edit Shape / Move Layers / Cut Mode / Import</strong> stays pinned to the top as you scroll through the canvas and results, so those controls are always reachable.</p>
 
         <div class="docs-h3">Importing</div>
-        <p>Click "↑ Import CSV" — either in the New Project modal (pre-fills Installed SqFt for all turf rows) or in the Layout tab after project creation. The shape is drawn on the canvas with roll strips overlaid immediately. "Installed Area" shows the polygon-computed area; use "Apply Area" to push it into a turf row's Installed SqFt.</p>
+        <p>Click "↑ Import CSV" — either in the New Project modal (pre-fills Installed SqFt for all turf rows) or in the Layout tab after project creation. The shape is drawn on the canvas with roll strips overlaid immediately. "Installed Area" shows the polygon-computed area; use the <strong>Apply</strong> tab to push Installed or Ordered SqFt into a turf row's "SqFt to Order."</p>
         <p><strong>Show elevation change (from CSV):</strong> Moasure measures in 3D, so some exports include a height/Z column for each measured point. Tick this opt-in box in the Layout sidebar to see the elevation change across the yard — the total range (low → high) and the number of measured points it's based on. It reads the height column from the imported CSV (common headers like <em>Z:ft</em>, <em>Elevation</em>, or <em>Height</em>), and the unit follows the column header. <strong>When a file has more than one measured layer, each layer's own fall is broken out</strong> below the total, and each non-base layer also shows how far its <em>mean height</em> sits above or below the base layer (e.g. "sits 1.2 ft above the base") — because a raised sub-layer (a bed or step-up) sits at a different base height, so the whole-import range would otherwise overstate the grade of any single surface. If your CSV has no height data, the box says so plainly rather than guessing — re-import a Moasure file that includes elevation to populate it. This is purely informational (a grading/slope reference); it does not change area, rolls, or pricing.</p>
         <p><strong>Show grade overlay (color the shape by height):</strong> a second opt-in box that paints the imported shape's outline by measured height — blue (low) through green to red (high), the same palette Moasure uses — with an elevation label at each measured corner and a low→high color key. It's drawn on the layout canvas over the roll plan; toggle it off to go back to the plain plan. Use it to read fall and slope direction across the yard for drainage. <strong>Important honesty note:</strong> a Moasure CSV export records only the points traced around the <em>edge</em> of each shape (the boundary), not a grid of interior surface points. So this overlay colors the outline and corners — which is the real measured data — but does not draw interior contour lines across the middle of the yard, because the export contains no height data there. The colorful contour lines you see inside a shape in the Moasure app come from its full 3D capture, which isn't in the CSV. For an interior dip or hump that matters to drainage, walk a Moasure path across that spot so it becomes an edge of a measured shape.</p>
 
@@ -2156,12 +2154,12 @@
         <p>Each roll strip only orders the length it actually needs based on where it intersects the shape — strips don't all buy the full bounding-box length. Ordered length is rounded up to the next whole foot, since turf is sold in Roll Width × 1ft increments. This produces accurate per-strip quantities and more realistic scrap percentages.</p>
 
         <div class="docs-h3">Roll Results</div>
-        <p>Roll Results is split into <strong>Basic</strong> and <strong>Advanced</strong> so a standard install isn't cluttered. The Basic view (always shown) is the rolls/piece count and "Apply Sqft to Order," which pushes Ordered SqFt directly into a turf row. <strong>Installed SqFt, Ordered SqFt, Ordered Linear Ft, and Perimeter</strong> all live in the always-visible key-metrics block at the very top of the sidebar.</p>
+        <p>The <strong>Results</strong> tab shows the rolls/piece count and per-layer breakdown, with extra detail (Usable SqFt, Scrap, cut/nest tools, Piece List) under a small <strong>Advanced</strong> twisty so a standard install isn't cluttered. Both <strong>Apply</strong> buttons — <em>Apply Installed SqFt → turf row</em> and <em>Apply Ordered SqFt → turf row</em> — live together on the <strong>Apply</strong> tab (Ordered is usually the one you want; it's what you actually buy and already accounts for nested pieces). <strong>Installed SqFt, Ordered SqFt, Ordered Linear Ft, and Perimeter</strong> all live in the always-visible key-metrics block at the top of the right pane.</p>
         <p>Open <strong>"⚙ Advanced details &amp; tools"</strong> for the rest: the purchased-rectangles toggle, Usable SqFt (after side trim), Linear Ft, Scrap (Ordered minus shape area, with %), the manual-cuts and nested-pieces lists, and the per-piece list. Entering Cut Mode opens this section automatically so the cut/nest tools are visible.</p>
         <p>The roll/piece count shows just <strong>"N rolls"</strong> when the number of rolls to purchase equals the number of installed pieces — the normal case. It shows <strong>"N rolls / M pieces"</strong> only when these differ.</p>
         <p><strong>Pieces</strong> = total separately-installed pieces across the whole job: one per band/strip normally, more if a strip is manually cut into butt-seamed sections, or if a single strip is longer than Max Roll Length (which forces an inherent seam even without a manual cut).</p>
         <p><strong>Rolls</strong> = a global count based on total linear footage: <code>ceil(sum of every piece's ordered length ÷ Max Roll Length)</code>. All pieces run the same direction at the same Roll Width, so pieces from different bands/strips can be cut from the same physical roll as long as their combined length fits. For example, 3 separate pieces totaling 75 linear ft all come from a single 100ft roll — shown as "1 roll / 3 pieces" — while 3 pieces totaling 180ft need "2 rolls / 3 pieces".</p>
-        <p>Toggle <strong>"Show purchased roll rectangles"</strong> to overlay each roll's full purchased rectangle with the unused (waste) portion hatched in red. This enables drag-and-drop nesting.</p>
+        <p>The <strong>"Show purchased roll rectangles (waste)"</strong> checkbox sits right above the canvas, always visible no matter which tab you're on, so it's a one-click toggle. On, it overlays each roll's full purchased rectangle with the unused (waste) portion hatched in red — which is what enables drag-and-drop nesting.</p>
 
         <div class="docs-h3">Piece List (Length × Width)</div>
         <p>A table listing every individual piece that will be cut for this job — each row shows its <strong>Roll N / Piece M</strong> label, <strong>Length</strong> (its ordered length along the roll), <strong>Width</strong> (the roll width), and resulting <strong>SqFt</strong>. This is the cut sheet for your installers: it tells them exactly how long to cut each piece from the roll, and the total linear footage at the bottom helps you sanity-check how many rolls to bring and plan seam placement to minimize butt seams. Pieces created by Manual Cuts or that have been nested into another roll's waste show a note (e.g. "cut from Roll N / Piece M waste"). If a Putting Green Fringe is configured, the fringe pieces ("Fringe 1", "Fringe 2", ...) are listed too, with their own length/width/sqft.</p>

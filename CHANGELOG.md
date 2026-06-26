@@ -5,7 +5,22 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 45) — Layout right pane: sub-tabs instead of twisties; Layers back on the right
+## 2026-06-21 (cont'd, 46) — Both Apply buttons on the Apply tab; roll-rectangles toggle always visible
+
+Test suite: **846** (sandbox 803), unchanged (DOM placement, verified in-app).
+
+- Both apply actions now live together on the **Apply** tab: <em>Apply Installed SqFt →
+  turf row</em> and <em>Apply Ordered SqFt → turf row</em> (relabeled from "Apply Area" /
+  "Apply Sqft to Order" so it's obvious which figure each pushes). The Ordered apply was
+  moved out of the Results tab. Same IDs/handlers, so behavior is unchanged.
+- **"Show purchased roll rectangles (waste)"** moved out of the Advanced twisty to a fixed
+  spot just above the canvas, visible on every tab — it's the toggle you need on to see
+  waste and drag-nest pieces, so it shouldn't be buried. Label now notes it's needed to
+  drag/nest.
+
+---
+
+
 
 Restructures the Layout page's right pane on request. Test suite: **846** (sandbox 803),
 unchanged (DOM structure, verified in-app).
