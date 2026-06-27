@@ -1258,12 +1258,15 @@
           <div class="card-header" id="layoutToolbar">
             <div class="card-title">Site Layout & Roll Plan (Moasure Import)</div>
             <div style="display:flex;gap:8px;align-items:center;">
+              <button id="lockLayoutBtn" class="btn btn-ghost btn-sm" data-lockok="1" onclick="toggleLayoutLock()" title="Lock the layout to prevent accidental changes to sliders, edits, and adjustments.">🔓 Lock</button>
               <button id="editShapeBtn" class="btn btn-ghost btn-sm" onclick="toggleEditMode()">✎ Edit Shape</button>
               <button id="moveLayersBtn" class="btn btn-ghost btn-sm" onclick="toggleMoveLayersMode()">✋ Move Layers</button>
               <button id="cutModeBtn" class="btn btn-ghost btn-sm" onclick="toggleCutMode()">✂ Cut Mode</button>
               <button id="undoShapeBtn" class="btn btn-ghost btn-sm" onclick="undoLayoutEdit()" style="display:none;">↶ Undo</button>
               <label for="layoutFileInput" class="btn btn-ghost btn-sm" style="margin:0;cursor:pointer;">↑ Import CSV</label>
               <input type="file" id="layoutFileInput" accept=".csv,text/csv" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="importLayoutCsv(this)">
+              <label for="addLayoutFileInput" class="btn btn-ghost btn-sm" style="margin:0;cursor:pointer;" title="Add another CSV's shapes as new movable layers, without replacing the current layout.">＋ Add CSV</label>
+              <input type="file" id="addLayoutFileInput" accept=".csv,text/csv" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="addLayoutCsv(this)">
             </div>
           </div>
           <p id="editShapeHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
@@ -1287,13 +1290,13 @@
             <div id="layoutGrid" style="display:grid;gap:20px;align-items:start;">
               <div style="min-width:0;display:flex;flex-direction:column;position:sticky;top:8px;align-self:start;">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                  <button class="btn btn-ghost btn-sm" onclick="layoutZoom(1.25)" title="Zoom in">＋</button>
-                  <button class="btn btn-ghost btn-sm" onclick="layoutZoom(0.8)" title="Zoom out">－</button>
-                  <button class="btn btn-ghost btn-sm" onclick="layoutZoomFit()" title="Fit shape">⊙ Fit</button>
+                  <button class="btn btn-ghost btn-sm" data-lockok="1" onclick="layoutZoom(1.25)" title="Zoom in">＋</button>
+                  <button class="btn btn-ghost btn-sm" data-lockok="1" onclick="layoutZoom(0.8)" title="Zoom out">－</button>
+                  <button class="btn btn-ghost btn-sm" data-lockok="1" onclick="layoutZoomFit()" title="Fit shape">⊙ Fit</button>
                   <span id="layoutZoomLevel" style="font-size:11px;color:var(--text-light);">100%</span>
                 </div>
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:12px;margin-bottom:6px;" title="Off = real installed shape per roll. On = the full rectangle you'd order, with the unused portion hatched. Turn this ON to see each roll's waste and drag pieces to nest them.">
-                  <input type="checkbox" id="showRectanglesToggle" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
+                  <input type="checkbox" id="showRectanglesToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
                   Show purchased roll rectangles (waste) — needed to drag/nest pieces
                 </label>
                 <div id="layoutCanvasWrap" style="overflow:auto;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:default;">
@@ -1328,12 +1331,12 @@
                 </div>
 
                 <div class="layout-subtabs" id="layoutSubtabs">
-                  <button type="button" class="layout-subtab-btn active" data-tab="roll" onclick="switchLayoutSubtab('roll')">Roll &amp; Seam</button>
-                  <button type="button" class="layout-subtab-btn" data-tab="layers" onclick="switchLayoutSubtab('layers')">Layers</button>
-                  <button type="button" class="layout-subtab-btn" data-tab="results" onclick="switchLayoutSubtab('results')">Results</button>
-                  <button type="button" class="layout-subtab-btn" data-tab="apply" onclick="switchLayoutSubtab('apply')">Apply</button>
-                  <button type="button" class="layout-subtab-btn" data-tab="display" onclick="switchLayoutSubtab('display')">Display</button>
-                  <button type="button" class="layout-subtab-btn" data-tab="fringe" id="layoutSubtabFringeBtn" style="display:none;" onclick="switchLayoutSubtab('fringe')">Fringe</button>
+                  <button type="button" class="layout-subtab-btn active" data-lockok="1" data-tab="roll" onclick="switchLayoutSubtab('roll')">Roll &amp; Seam</button>
+                  <button type="button" class="layout-subtab-btn" data-lockok="1" data-tab="layers" onclick="switchLayoutSubtab('layers')">Layers</button>
+                  <button type="button" class="layout-subtab-btn" data-lockok="1" data-tab="results" onclick="switchLayoutSubtab('results')">Results</button>
+                  <button type="button" class="layout-subtab-btn" data-lockok="1" data-tab="apply" onclick="switchLayoutSubtab('apply')">Apply</button>
+                  <button type="button" class="layout-subtab-btn" data-lockok="1" data-tab="display" onclick="switchLayoutSubtab('display')">Display</button>
+                  <button type="button" class="layout-subtab-btn" data-lockok="1" data-tab="fringe" id="layoutSubtabFringeBtn" style="display:none;" onclick="switchLayoutSubtab('fringe')">Fringe</button>
                 </div>
 
                 <div class="layout-subpanel active" data-panel="roll">
@@ -1368,15 +1371,15 @@
                 <div class="layout-subpanel" data-panel="apply">
                   <div class="field-group" style="padding-top:8px;">
                     <label>Apply Installed SqFt → turf row</label>
-                    <select id="layoutApplyTarget" style="width:100%;margin-bottom:6px;"></select>
-                    <button class="btn btn-primary btn-sm" style="width:100%;" onclick="applyLayoutAreaToTurf()">Apply Installed SqFt</button>
+                    <select id="layoutApplyTarget" data-lockok="1" style="width:100%;margin-bottom:6px;"></select>
+                    <button class="btn btn-primary btn-sm" data-lockok="1" style="width:100%;" onclick="applyLayoutAreaToTurf()">Apply Installed SqFt</button>
                     <div style="font-size:11px;color:var(--text-light);margin-top:5px;line-height:1.4;">Pushes <strong>Installed SqFt</strong> (the turf actually going down) into the selected row's "SqFt to Order."</div>
                   </div>
                   <div class="field-group" style="margin-top:12px;border-top:1px dashed var(--border);padding-top:10px;">
                     <label>Apply Ordered SqFt → turf row</label>
-                    <select id="rollApplyTarget" style="width:100%;margin-bottom:6px;"></select>
-                    <button class="btn btn-primary btn-sm" style="width:100%;" onclick="applyRollLayoutToTurf()">Apply Ordered SqFt</button>
-                    <div style="font-size:11px;color:var(--text-light);margin-top:5px;line-height:1.4;">Pushes <strong>Ordered SqFt</strong> (what you actually buy, incl. waste; already accounts for nested pieces) into the selected row's "SqFt to Order." Usually the one you want.</div>
+                    <select id="rollApplyTarget" data-lockok="1" style="width:100%;margin-bottom:6px;"></select>
+                    <button class="btn btn-primary btn-sm" data-lockok="1" style="width:100%;" onclick="applyRollLayoutToTurf()">Apply Ordered SqFt</button>
+                    <div style="font-size:11px;color:var(--text-light);margin-top:5px;line-height:1.4;">Pushes <strong>Ordered SqFt</strong> (what you actually buy, incl. waste; already accounts for nested pieces) into the row's "SqFt to Order," <strong>and</strong> sets that row's <strong>Installed SqFt</strong> so infill, labor, and rock fill in from the same click. Usually the one you want.</div>
                   </div>
                 </div>
 
@@ -2079,10 +2082,14 @@
       <!-- MATERIALS TAB -->
       <div class="docs-section">
         <div class="docs-h2" id="doc-layout">Layout Tab: Site Layout & Roll Plan</div>
-        <p>Import the CSV exported from a Moasure measurement to visualize the yard shape and plan how turf rolls lay across it. You can import at project creation time (pre-fills measurements) or later via the Layout tab. The toolbar holding <strong>Edit Shape / Move Layers / Cut Mode / Import</strong> stays pinned to the top as you scroll through the canvas and results, so those controls are always reachable.</p>
+        <p>Import the CSV exported from a Moasure measurement to visualize the yard shape and plan how turf rolls lay across it. You can import at project creation time (pre-fills measurements) or later via the Layout tab. The toolbar holding <strong>Lock / Edit Shape / Move Layers / Cut Mode / Import</strong> stays pinned to the top as you scroll through the canvas and results, so those controls are always reachable.</p>
+
+        <p><strong>🔓 Lock:</strong> once a layout is dialed in, click <strong>Lock</strong> (top-left of the toolbar) to freeze it. Locking disables every slider and adjustment — roll direction, translation, seam offsets, view rotation, roll settings, per-layer controls, fringe settings — plus Edit Shape / Move Layers / Cut Mode and all on-canvas editing and piece-dragging, and it blocks importing a new CSV over the layout. View-only controls stay live so you can still inspect the plan: zoom, the purchased-rectangles toggle, the sub-tab navigation, and both <strong>Apply</strong> buttons (applying to a turf row doesn't change the layout). The button turns solid and reads <strong>🔒 Locked</strong>; click it again to unlock. The locked state is saved per project, so it sticks when you reopen the layout.</p>
 
         <div class="docs-h3">Importing</div>
-        <p>Click "↑ Import CSV" — either in the New Project modal (pre-fills Installed SqFt for all turf rows) or in the Layout tab after project creation. The shape is drawn on the canvas with roll strips overlaid immediately. "Installed Area" shows the polygon-computed area; use the <strong>Apply</strong> tab to push Installed or Ordered SqFt into a turf row's "SqFt to Order."</p>
+        <p>Click "↑ Import CSV" — either in the New Project modal (pre-fills Installed SqFt for all turf rows) or in the Layout tab after project creation. The shape is drawn on the canvas with roll strips overlaid immediately. "Installed Area" shows the polygon-computed area; use the <strong>Apply</strong> tab to push Installed or Ordered SqFt into a turf row's "SqFt to Order." Re-importing replaces the current layout (it asks first if you'd already imported one).</p>
+
+        <p><strong>＋ Add CSV — combine several measurements into one layout:</strong> when a yard is captured as more than one Moasure file (e.g. a back yard and a side yard measured separately), use <strong>＋ Add CSV</strong> to bring each additional file in <em>without</em> replacing what's already there. Each Moasure file has its own (0,0) origin, so an added file's shapes would otherwise land on top of the first; instead they're dropped as a group into open space to the <strong>right</strong> of the current layout. Drag them where they belong with <strong>✋ Move Layers</strong> (each layer moves independently). The added file's <strong>main (largest) shape defaults to Install</strong> — a separate turf area with its own rolls that counts toward the combined totals — and its sub-shapes default to <strong>Ignore</strong> so cutouts don't silently change the quote; set each one's mode in the <strong>Layers</strong> list. Added layers are named "&lt;file&gt; — &lt;layer&gt;" so you can tell them apart. <strong>Caveat:</strong> Install assumes the added area is genuinely separate from the main yard — if you position an Install layer so it overlaps the primary shape, that overlapping area is counted twice. Keep separate captures non-overlapping, or set overlapping pieces to a different mode.</p>
         <p><strong>Show elevation change (from CSV):</strong> Moasure measures in 3D, so some exports include a height/Z column for each measured point. Tick this opt-in box in the Layout sidebar to see the elevation change across the yard — the total range (low → high) and the number of measured points it's based on. It reads the height column from the imported CSV (common headers like <em>Z:ft</em>, <em>Elevation</em>, or <em>Height</em>), and the unit follows the column header. <strong>When a file has more than one measured layer, each layer's own fall is broken out</strong> below the total, and each non-base layer also shows how far its <em>mean height</em> sits above or below the base layer (e.g. "sits 1.2 ft above the base") — because a raised sub-layer (a bed or step-up) sits at a different base height, so the whole-import range would otherwise overstate the grade of any single surface. If your CSV has no height data, the box says so plainly rather than guessing — re-import a Moasure file that includes elevation to populate it. This is purely informational (a grading/slope reference); it does not change area, rolls, or pricing.</p>
         <p><strong>Show grade overlay (color the shape by height):</strong> a second opt-in box that paints the imported shape's outline by measured height — blue (low) through green to red (high), the same palette Moasure uses — with an elevation label at each measured corner and a low→high color key. It's drawn on the layout canvas over the roll plan; toggle it off to go back to the plain plan. Use it to read fall and slope direction across the yard for drainage. <strong>Important honesty note:</strong> a Moasure CSV export records only the points traced around the <em>edge</em> of each shape (the boundary), not a grid of interior surface points. So this overlay colors the outline and corners — which is the real measured data — but does not draw interior contour lines across the middle of the yard, because the export contains no height data there. The colorful contour lines you see inside a shape in the Moasure app come from its full 3D capture, which isn't in the CSV. For an interior dip or hump that matters to drainage, walk a Moasure path across that spot so it becomes an edge of a measured shape.</p>
 
@@ -2150,7 +2157,7 @@
         <p>Each roll strip only orders the length it actually needs based on where it intersects the shape — strips don't all buy the full bounding-box length. Ordered length is rounded up to the next whole foot, since turf is sold in Roll Width × 1ft increments. This produces accurate per-strip quantities and more realistic scrap percentages.</p>
 
         <div class="docs-h3">Roll Results</div>
-        <p>The <strong>Results</strong> tab shows the rolls/piece count and per-layer breakdown, with extra detail (cut/nest tools, Piece List) under a small <strong>Advanced</strong> twisty so a standard install isn't cluttered. Both <strong>Apply</strong> buttons — <em>Apply Installed SqFt → turf row</em> and <em>Apply Ordered SqFt → turf row</em> — live together on the <strong>Apply</strong> tab (Ordered is usually the one you want; it's what you actually buy and already accounts for nested pieces). <strong>Installed SqFt, Ordered SqFt, Ordered Linear Ft, Perimeter, and Scrap</strong> all live in the always-visible key-metrics block at the top of the right pane.</p>
+        <p>The <strong>Results</strong> tab shows the rolls/piece count and per-layer breakdown, with extra detail (cut/nest tools, Piece List) under a small <strong>Advanced</strong> twisty so a standard install isn't cluttered. Both <strong>Apply</strong> buttons — <em>Apply Installed SqFt → turf row</em> and <em>Apply Ordered SqFt → turf row</em> — live together on the <strong>Apply</strong> tab. <em>Apply Ordered SqFt</em> is usually the one you want: it sets the row's <strong>SqFt to Order</strong> <em>and</em> its <strong>Installed SqFt</strong>, so infill (which derives its area from Installed SqFt), labor, and rock all cascade from the one click. <em>Apply Installed SqFt</em> sets just the installed area. Each applies to the <strong>one row</strong> selected in its dropdown. <strong>Installed SqFt, Ordered SqFt, Ordered Linear Ft, Perimeter, and Scrap</strong> all live in the always-visible key-metrics block at the top of the right pane.</p>
         <p>Open <strong>"⚙ Advanced details &amp; tools"</strong> for the rest: the Saved (nested) figure, the manual-cuts and nested-pieces lists, and the per-piece list. Entering Cut Mode opens this section automatically so the cut/nest tools are visible. (<strong>Scrap</strong> — Ordered minus the installed shape area, with % — now sits in the key-metrics block at the top of the pane; the purchased-rectangles toggle sits above the canvas.)</p>
         <p>The roll/piece count shows just <strong>"N rolls"</strong> when the number of rolls to purchase equals the number of installed pieces — the normal case. It shows <strong>"N rolls / M pieces"</strong> only when these differ.</p>
         <p><strong>Pieces</strong> = total separately-installed pieces across the whole job: one per band/strip normally, more if a strip is manually cut into butt-seamed sections, or if a single strip is longer than Max Roll Length (which forces an inherent seam even without a manual cut).</p>
@@ -5019,6 +5026,11 @@ function importLayoutCsv(input) {
   if (!file) { return; }
   const proj = getCurrentProject();
   if (!proj) { alert('Select a project first.'); input.value=''; return; }
+  if (isLayoutLocked(proj)) { alert('This layout is locked. Unlock it before importing a new CSV — importing would replace the current layout.'); input.value=''; return; }
+  if (proj.layout && proj.layout.points && proj.layout.points.length >= 3 &&
+      !confirm('Replace the current layout (including any CSVs you added) with this file? Use "＋ Add CSV" instead to keep them and add this one as new layers.')) {
+    input.value=''; return;
+  }
 
   const reader = new FileReader();
   reader.onerror = () => {
@@ -5035,6 +5047,95 @@ function importLayoutCsv(input) {
       renderLayoutTab();
     } catch (err) {
       alert('Could not import this CSV: ' + err.message);
+    } finally {
+      input.value = '';
+    }
+  };
+  reader.readAsText(file);
+}
+
+// Approximate display points of everything currently placed (primary + each
+// secondary, each shifted by its own layer offset). Rotation is ignored — this
+// only seeds where a freshly-added CSV first lands, which the user then drags.
+function layoutPlacedPoints(proj) {
+  if (!proj || !proj.layout || !proj.layout.points) return [];
+  const offs = proj.layout.layerOffsets || {};
+  const shift = (pts, off) => (pts || []).map(p => ({ x: p.x + ((off && off.dx) || 0), y: p.y + ((off && off.dy) || 0) }));
+  let out = shift(proj.layout.points, offs.primary);
+  (proj.layout.secondaryShapes || []).forEach((s, i) => { out = out.concat(shift(s.points, offs[i])); });
+  return out;
+}
+
+// Offset that drops a newly-added group of points to the right of whatever is
+// already placed (top-aligned), so a second/third CSV lands in open space rather
+// than stacking on the shared origin.
+function computeAppendOffset(existingPts, newPts, gap) {
+  if (!existingPts.length || !newPts.length) return { dx: 0, dy: 0, rotation: 0 };
+  const exMaxX = Math.max(...existingPts.map(p => p.x));
+  const exMinY = Math.min(...existingPts.map(p => p.y));
+  const nwMinX = Math.min(...newPts.map(p => p.x));
+  const nwMinY = Math.min(...newPts.map(p => p.y));
+  return { dx: (exMaxX + (gap || 3)) - nwMinX, dy: exMinY - nwMinY, rotation: 0 };
+}
+
+// Add another CSV's shapes as new movable layers WITHOUT replacing the current
+// layout. The added file's main (largest) shape installs as a separate turf
+// area; its sub-shapes start ignored so cutouts don't silently move totals. All
+// shapes from the file share one offset so the capture keeps its internal layout.
+function addLayoutCsv(input) {
+  const file = input.files && input.files[0];
+  if (!file) { return; }
+  const proj = getCurrentProject();
+  if (!proj) { alert('Select a project first.'); input.value=''; return; }
+  if (isLayoutLocked(proj)) { alert('This layout is locked. Unlock it before adding a CSV.'); input.value=''; return; }
+
+  const reader = new FileReader();
+  reader.onerror = () => {
+    alert('Could not read this file: ' + (reader.error ? reader.error.message : 'unknown error'));
+    input.value = '';
+  };
+  reader.onload = e => {
+    try {
+      const parsed = parseLayoutCsv(e.target.result);
+      if (!parsed.points || parsed.points.length < 3) throw new Error('Could not find a valid shape in this CSV.');
+
+      // No layout yet → behave like a first import.
+      if (!proj.layout || !proj.layout.points || proj.layout.points.length < 3) {
+        proj.layout = { points: parsed.points, area: parsed.area, secondaryShapes: parsed.secondaryShapes || [], fileName: file.name, imported: Date.now(), viewCentroid: centroidOf(parsed.points), elevation: parsed.elevation || null, elevationUnit: parsed.elevationUnit || 'ft', elevationLayers: (parsed.shapes || []).map(s => ({ name: s.name, elevation: s.elevation, primary: String(s.layer) === String(parsed.primaryLayer) })) };
+        save();
+        renderLayoutTab();
+        showLayoutToast('Imported ' + file.name + '.');
+        return;
+      }
+
+      proj.layout.secondaryShapes  = proj.layout.secondaryShapes  || [];
+      proj.layout.secondaryShapeModes = proj.layout.secondaryShapeModes || {};
+      proj.layout.layerOffsets     = proj.layout.layerOffsets     || {};
+      proj.layout.layerVisibility  = proj.layout.layerVisibility  || {};
+
+      const base = file.name.replace(/\.csv$/i, '');
+      const primName = ((parsed.shapes || []).find(s => String(s.layer) === String(parsed.primaryLayer)) || {}).name || 'Base Layer';
+      const newShapes = [{ name: primName, points: parsed.points, area: parsed.area, layer: parsed.primaryLayer, _isFilePrimary: true }]
+        .concat((parsed.secondaryShapes || []).map(s => ({ ...s })));
+
+      const allNewPts = newShapes.reduce((a, s) => a.concat(s.points || []), []);
+      const offset = computeAppendOffset(layoutPlacedPoints(proj), allNewPts, 3);
+
+      let added = 0;
+      newShapes.forEach(s => {
+        const idx = proj.layout.secondaryShapes.length;
+        proj.layout.secondaryShapes.push({ name: base + ' — ' + (s.name || 'Layer'), points: s.points, area: s.area, layer: s.layer });
+        proj.layout.layerOffsets[idx] = { ...offset };
+        proj.layout.secondaryShapeModes[idx] = s._isFilePrimary ? 'install' : 'ignore';
+        added++;
+      });
+
+      save();
+      renderLayoutTab();
+      switchLayoutSubtab('layers');
+      showLayoutToast('Added ' + file.name + ' (' + added + ' shape' + (added === 1 ? '' : 's') + ') to the right of the current layout. Its main area is set to Install; drag it into place with ✋ Move Layers and set modes in the Layers list.');
+    } catch (err) {
+      alert('Could not add this CSV: ' + err.message);
     } finally {
       input.value = '';
     }
@@ -5431,6 +5532,8 @@ function renderLayersList(proj) {
   }
 
   list.innerHTML = rows.join('');
+  // Keep dynamically-built per-layer controls in sync with the lock state.
+  if (window._wtLayoutLocked) applyLayoutLockState();
 }
 
 // Returns the index of the secondary shape currently marked as the putting
@@ -7076,6 +7179,7 @@ function renderRollLayout() {
   }
   renderLayoutElevation(proj);
   renderLayoutGradeNote(proj);
+  applyLayoutLockState();
 }
 
 // Opt-in elevation readout. The checkbox state lives on the layout so it sticks
@@ -7451,10 +7555,10 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   if (primaryVisible) {
     ctx.lineWidth = 2;
     drawPoly(layout.basePoints, null, '#2e7d32');
-    // Label the primary layer by name (parity with secondary layers) whenever
-    // there are other shapes present, so a multi-shape file shows every layer's name.
-    const hasOtherShapes = (layout.secondaryShapes || []).some((s, i) => s.displayPoints && s.displayPoints.length >= 3 && layout.layerVisibility[i] !== false);
-    if (hasOtherShapes && layout.basePoints && layout.basePoints.length >= 3) {
+    // Label the primary layer by name + area whenever it's visible — on a
+    // single-shape yard this is the only name/area label, and gating it to
+    // multi-shape files made it disappear on ordinary one-shape jobs.
+    if (layout.basePoints && layout.basePoints.length >= 3) {
       const pName = (layout._installLayers[0] && layout._installLayers[0].name) || 'Primary Shape';
       const pArea = Math.round(layout.adjustedShapeArea != null ? layout.adjustedShapeArea : layout.shapeArea);
       const pLabel = `${pName} — ${pArea} ft²`;
@@ -7876,6 +7980,7 @@ function undoLayoutEdit() {
 }
 
 function toggleEditMode() {
+  if (window._wtLayoutLocked) return;
   window._wtEditMode = !window._wtEditMode;
   window._wtDragVertexIndex = null;
   window._wtEditLayerId = null;
@@ -7902,6 +8007,7 @@ function toggleEditMode() {
 }
 
 function toggleMoveLayersMode() {
+  if (window._wtLayoutLocked) return;
   window._wtMoveLayersMode = !window._wtMoveLayersMode;
   window._wtDragLayerId = null;
   window._wtFreezeTransform = false;
@@ -7926,6 +8032,7 @@ function toggleMoveLayersMode() {
 }
 
 function toggleCutMode() {
+  if (window._wtLayoutLocked) return;
   window._wtCutMode = !window._wtCutMode;
   const btn = document.getElementById('cutModeBtn');
   const hint = document.getElementById('cutModeHint');
@@ -8725,6 +8832,7 @@ function setupLayoutCanvasEvents() {
   if (!canvas || canvas._wtEventsBound) return;
   canvas._wtEventsBound = true;
   canvas.addEventListener('mousedown', e => {
+    if (window._wtLayoutLocked) return;
     if (window._wtEditMode) { onLayoutCanvasMouseDown(e); return; }
     if (window._wtMoveLayersMode) { startDragLayer(e); return; }
     if (window._wtCutMode) {
@@ -8740,6 +8848,7 @@ function setupLayoutCanvasEvents() {
   canvas.addEventListener('mouseleave', e => { onLayoutCanvasMouseUp(e); window._wtCutDownPos = null; endDragNesting(e); endDragLayer(e); });
   canvas.addEventListener('dblclick', onLayoutCanvasDblClick);
   canvas.addEventListener('touchstart', e => {
+    if (window._wtLayoutLocked) return;
     if (window._wtEditMode) { onLayoutCanvasMouseDown(e); return; }
     if (window._wtMoveLayersMode) { startDragLayer(e); return; }
     if (window._wtCutMode) {
@@ -8752,6 +8861,60 @@ function setupLayoutCanvasEvents() {
   }, {passive:false});
   canvas.addEventListener('touchmove', e => { onLayoutCanvasMouseMove(e); moveDragNesting(e); moveDragLayer(e); }, {passive:false});
   canvas.addEventListener('touchend', e => { onLayoutCanvasMouseUp(e); endCutClick(e); endDragNesting(e); endDragLayer(e); });
+}
+
+// ── Layout lock ───────────────────────────────────────────────────────
+// A locked layout is a finalized plan: every slider, adjustment input, edit
+// mode, and on-canvas edit/drag is frozen so it can't be nudged by accident.
+// View-only controls (zoom, the rectangles toggle, sub-tab nav) and the Apply
+// buttons stay live, since neither changes the plan. Lock state persists per
+// project on proj.layout.locked.
+function isLayoutLocked(proj) {
+  return !!(proj && proj.layout && proj.layout.locked);
+}
+
+// Disable/enable every interactive control in the toolbar + layout content,
+// except those explicitly marked data-lockok="1" (zoom, rectangles toggle,
+// sub-tabs, Apply, the lock button itself). Re-applied after each render so
+// dynamically-rebuilt per-layer controls pick up the locked state too.
+function applyLayoutLockState() {
+  const proj = getCurrentProject();
+  const locked = isLayoutLocked(proj);
+  window._wtLayoutLocked = locked;
+  ['layoutToolbar', 'layoutContent'].forEach(id => {
+    const scope = document.getElementById(id);
+    if (!scope) return;
+    scope.querySelectorAll('input, select, button, textarea').forEach(el => {
+      if (el.getAttribute('data-lockok') === '1') return;
+      el.disabled = locked;
+    });
+  });
+  const btn = document.getElementById('lockLayoutBtn');
+  if (btn) {
+    btn.textContent = locked ? '🔒 Locked' : '🔓 Lock';
+    if (locked) { btn.classList.add('btn-primary'); btn.classList.remove('btn-ghost'); }
+    else { btn.classList.remove('btn-primary'); btn.classList.add('btn-ghost'); }
+    btn.title = locked
+      ? 'Layout is locked — sliders, edits, and adjustments are disabled. Click to unlock.'
+      : 'Lock the layout to prevent accidental changes to sliders, edits, and adjustments.';
+  }
+  const canvas = document.getElementById('rollLayoutCanvas');
+  if (canvas) canvas.style.cursor = locked ? 'not-allowed' : 'default';
+}
+
+function toggleLayoutLock() {
+  const proj = getCurrentProject();
+  if (!proj || !proj.layout) return;
+  const willLock = !proj.layout.locked;
+  if (willLock) {
+    // Exit any active edit mode before freezing (these guards no-op once locked).
+    if (window._wtEditMode) toggleEditMode();
+    if (window._wtMoveLayersMode) toggleMoveLayersMode();
+    if (window._wtCutMode) toggleCutMode();
+  }
+  proj.layout.locked = willLock;
+  save();
+  applyLayoutLockState();
 }
 
 
@@ -8767,7 +8930,13 @@ function applyRollLayoutToTurf() {
   const combined = layout._combined || null;
   const orderedTotal = combined ? combined.ordered : layout.totalOrdered;
   const linearTotal = combined ? combined.linear : layout.linearFt;
-  proj.turf[i].sqFtToOrder = Math.round(orderedTotal * 100) / 100;
+  const row = proj.turf[i];
+  row.sqFtToOrder = Math.round(orderedTotal * 100) / 100;
+  // Also set this row's Installed SqFt (role-aware) so the downstream materials —
+  // infill (which derives its area from Installed SqFt), labor, and rock — populate
+  // from the same click. Without this, applying only the order left infill empty.
+  const inst = computeApplyAreaForRow(proj, layout, row);
+  if (inst.ok) row.installedSqFt = inst.area;
   save();
   calcTurfRow(i);
   renderTurfRows(proj);
@@ -8775,7 +8944,8 @@ function applyRollLayoutToTurf() {
   const totalPieces = combined ? combined.pieces : countRollsAndPieces(layout).totalPieces;
   const pieceNote = totalPieces !== totalRolls ? `, ${totalPieces} piece(s)` : '';
   const layerNote = combined ? ` across ${layout._installLayers.length} layers` : '';
-  alert(`Applied ${orderedTotal.toLocaleString(undefined,{maximumFractionDigits:0})} ft² (${totalRolls} roll(s)${pieceNote}, ${linearTotal.toFixed(1)} linear ft)${layerNote} to ${proj.turf[i].product || 'turf row '+(i+1)}.`);
+  const instNote = inst.ok ? ` and set Installed SqFt to ${inst.area.toLocaleString(undefined,{maximumFractionDigits:0})} ft² (infill updated)` : '';
+  alert(`Applied ${orderedTotal.toLocaleString(undefined,{maximumFractionDigits:0})} ft² (${totalRolls} roll(s)${pieceNote}, ${linearTotal.toFixed(1)} linear ft)${layerNote} to ${row.product || 'turf row '+(i+1)}${instNote}.`);
 }
 
 // Decide what "Apply Area" should push into a given turf row. Pure (no DOM) so

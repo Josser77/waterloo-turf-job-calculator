@@ -4907,6 +4907,31 @@ section('62. Fit includes host rectangles');
   assert(Math.max(...on.map(p=>p.x)) >= 120 - 1e-6, 'rectangles ON: every roll rectangle is framed in');
 }
 
+section('63. Layout lock predicate');
+{
+  assert(ctx.isLayoutLocked(undefined) === false, 'no project → not locked');
+  assert(ctx.isLayoutLocked({}) === false, 'project without layout → not locked');
+  assert(ctx.isLayoutLocked({ layout: {} }) === false, 'layout without locked flag → not locked');
+  assert(ctx.isLayoutLocked({ layout: { locked: false } }) === false, 'locked:false → not locked');
+  assert(ctx.isLayoutLocked({ layout: { locked: true } }) === true, 'locked:true → locked');
+}
+
+section('64. Add CSV: append placement');
+{
+  const existing = [{x:0,y:0},{x:10,y:0},{x:10,y:8},{x:0,y:8}];
+  const neu = [{x:0,y:0},{x:5,y:0},{x:5,y:5},{x:0,y:5}];
+  const off = ctx.computeAppendOffset(existing, neu, 3);
+  assert(near(off.dx, 13), 'dx drops the new group just right of existing (maxX 10 + gap 3 − newMinX 0)');
+  assert(near(off.dy, 0), 'dy top-aligns the new group with existing');
+  const movedMinX = Math.min(...neu.map(p => p.x + off.dx));
+  assert(movedMinX >= 10 - 1e-9, 'shifted new shape clears the existing content on X (no origin stacking)');
+  assert(ctx.computeAppendOffset([], neu, 3).dx === 0, 'no existing content → zero offset (first import lands at origin)');
+
+  const proj = { layout: { points: [{x:0,y:0},{x:4,y:0},{x:4,y:4},{x:0,y:4}], secondaryShapes: [{ points: [{x:1,y:1},{x:2,y:1},{x:2,y:2},{x:1,y:2}] }], layerOffsets: { primary: {dx:0,dy:0}, 0: {dx:20,dy:0} } } };
+  const placed = ctx.layoutPlacedPoints(proj);
+  assert(Math.max(...placed.map(p=>p.x)) >= 22 - 1e-9, 'placed-points bounds include a secondary shifted by its own offset');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

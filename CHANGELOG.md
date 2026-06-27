@@ -5,7 +5,93 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 48) — Drop Usable SqFt; move Scrap into the key-metrics block
+## 2026-06-21 (cont'd, 52) — Add CSV: combine multiple Moasure files into one layout
+
+Test suite: **859** (sandbox 816, +5), data-dependent 43. New section 64 covers the append
+placement math (`computeAppendOffset`, `layoutPlacedPoints`); append wiring verified
+headlessly by feeding Backyard.csv twice.
+
+- New **＋ Add CSV** button in the Layout toolbar (beside Import CSV). It brings an
+  additional Moasure file's shapes in as new movable layers **without replacing** the current
+  layout — for yards captured as several separate measurements.
+- Because every Moasure file shares a (0,0) origin, added shapes are dropped as a group into
+  open space to the **right** of the existing content (single shared offset per file, so the
+  capture keeps its internal layout), then positioned with **✋ Move Layers**.
+- The added file's **main shape defaults to Install** (separate area + own rolls, counts
+  toward totals); its sub-shapes default to **Ignore** so cutouts don't silently change the
+  quote. Layers are named "&lt;file&gt; — &lt;layer&gt;". A toast explains what happened and
+  jumps to the Layers sub-tab.
+- **Import CSV** now confirms before replacing an existing layout (so a multi-file layout
+  isn't wiped by accident), and points to ＋ Add CSV. **Add CSV** with no layout yet behaves
+  like a first import. Both are blocked while the layout is **locked**.
+- Implementation: `addLayoutCsv` (append path) + pure helpers `computeAppendOffset` and
+  `layoutPlacedPoints`. Appended shapes go onto `secondaryShapes` with their own
+  `layerOffsets` / `secondaryShapeModes` entries, so the existing per-layer move, rotate,
+  mode, visibility, and roll-direction controls all apply to them unchanged.
+
+---
+
+
+
+Test suite: **854** (sandbox 811, +5), data-dependent 43. New section 63 covers the
+`isLayoutLocked` predicate; the disable/enable wiring is DOM and verified in-app.
+
+- New **🔓 Lock** button, pinned first in the Layout toolbar alongside Edit Shape / Move
+  Layers / Cut Mode / Import. Clicking it freezes the whole plan.
+- **Locked disables:** every slider and adjustment (roll direction, translation, seam, view
+  rotation, roll settings, per-layer controls, fringe), the three edit-mode buttons, all
+  on-canvas vertex editing / layer moving / cutting / piece-dragging (guarded in the
+  mousedown + touchstart dispatchers), and CSV import over the layout.
+- **Stays live (view-only / non-mutating):** zoom, the purchased-rectangles toggle, sub-tab
+  navigation, and both Apply buttons. Controls opt out of locking via `data-lockok="1"`.
+- Implementation: `proj.layout.locked` (persisted per project) + `window._wtLayoutLocked`
+  mirror for the canvas guards. `applyLayoutLockState()` disables every non-exempt
+  input/select/button in the toolbar + layout content and is re-applied at the end of
+  `renderRollLayout` and `renderLayersList` so dynamically-rebuilt per-layer controls inherit
+  the state. `toggleLayoutLock()` exits any active edit mode before freezing. The mode
+  toggles and `importLayoutCsv` also self-guard against the locked state.
+
+---
+
+
+
+Test suite: **849** (sandbox 806), unchanged (on-canvas label gating; verified by headless
+draw harness against real Backyard.csv geometry + a synthetic single-shape layout).
+
+- **Bug:** the primary shape's on-canvas "&lt;name&gt; — &lt;area&gt; ft²" label was gated behind
+  `hasOtherShapes` — it only drew when at least one *visible secondary* layer was present. On
+  an ordinary single-shape yard (no secondary layers), or when the lone secondary layer was
+  toggled off, that gate was false, so the name + area label disappeared and only the
+  "Roll N / Piece M" piece labels remained. Read as "label names and sq ft are gone."
+- **Fix:** the primary label now draws whenever the primary layer is visible and has ≥3
+  points, regardless of how many other shapes exist. Secondary-shape labels are unchanged
+  (still one per visible secondary).
+- Traced end-to-end with a headless canvas harness (parser → `computeRollLayout` →
+  `renderRollLayout` → `drawRollLayoutCanvas`) to confirm the label code itself emits every
+  label correctly; the gate was the only thing suppressing them.
+
+---
+
+
+
+Test suite: **849** (sandbox 806), unchanged (apply/cascade wiring, verified in-app).
+
+- **Bug:** infill sq ft derives (via `autoPopulateInfill` → `infillAreaForTier`) from each
+  turf row's <strong>Installed SqFt</strong>. But "Apply Ordered SqFt" only set
+  `sqFtToOrder`, never `installedSqFt` — so infill (and anything else keyed to installed
+  area) had nothing to read and stayed empty. Applying the order made it look like nothing
+  propagated to the products.
+- **Fix:** `applyRollLayoutToTurf` now also sets the row's Installed SqFt (role-aware, via
+  `computeApplyAreaForRow`) before `calcTurfRow`, so infill, labor, and rock all cascade
+  from the one click. The confirmation alert reports the installed value it set. Alt-turf
+  rows are still skipped for Installed (they're priced on the base area by design), so they
+  just get their order amount.
+- Help text + docs updated to say the Ordered apply fills both SqFt to Order and Installed
+  SqFt; each apply still targets the one row picked in its dropdown.
+
+---
+
+
 
 Test suite: **849** (sandbox 806), unchanged (field placement, verified in-app).
 
