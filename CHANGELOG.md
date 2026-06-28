@@ -5,7 +5,109 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 60) — Cut list: CAD-style dimensioned drawings
+## 2026-06-21 (cont'd, 65) — Supplier Order & Installer Sheet exports
+
+New **Job Info & Exports** card at the top of the Quote Builder tab. Three per-project fields —
+Job Address, Delivery Date, Install Date — plus two copy-to-clipboard exports. (No Jobber
+integration: the app is a single static file with no backend, so address/dates are entered here.)
+
+- **📦 Supplier Order** — job, delivery address, delivery date, and every orderable material with
+  its quantity: turf (ordered sqft + linear ft @ 15 ft roll), infill (bags), bender board edging
+  (boards), and misc items. **Rock is excluded** by design (sourced separately) and noted at the
+  bottom.
+- **🔧 Installer Sheet** — job, install address, install date, turf to install **per product** with
+  each installed sqft (base yard, putting green, etc.), and all misc items with quantities.
+  Alt-turf rows (no separate install area) are omitted.
+- Both open a panel with the formatted text and a **⎘ Copy** button — paste straight into an email.
+- New fields persist on the project (`address`, `deliveryDate`, `installDate`) and reload with it.
+
+Pure, DOM-free builders `buildSupplierOrderText` / `buildInstallerSheetText` / `fmtExportDate` —
+**+24 sandbox tests** (now **901**, README **944**) covering ordered-qty formatting, rock
+exclusion, per-product install sqft, alt-turf omission, zero-qty skipping, multi-line address
+flattening, and empty/null graceful degradation.
+
+---
+
+
+
+Editing a shape's points previously only worked via double-click — which never fired on touch
+(iPad) and is finicky to land on an exact point. Now there's an explicit, single-tap path.
+
+- **Point tool in Edit mode.** Entering Edit mode shows a <strong>Point tool</strong> row:
+  <strong>✥ Move</strong> (drag points, the default), <strong>➕ Add</strong> (one click/tap on an
+  edge inserts a point), <strong>➖ Delete</strong> (one click/tap on a point removes it). Same
+  gesture on desktop and touch — no double-click required. The 3-point-minimum floor still holds.
+- **Touch double-tap** also works as a shortcut in Move mode (mirrors the desktop double-click),
+  so the old muscle memory still adds/deletes on an iPad.
+- Refactored the shared delete/add logic into `editDeletePointAtCanvas` / `editAddPointAtData`;
+  the double-click handler now calls the same helpers, so all three entry points behave identically.
+
+Test suite unchanged at **920** (sandbox 877) — the new paths are DOM/touch-coupled and were
+verified headlessly: delete-mode click removes a point (5→4), add-mode click on an edge inserts
+one (4→5), move-mode click still starts a drag, and deleting at 3 points is blocked.
+
+---
+
+
+
+Test suite unchanged at **920** (sandbox 877) — canvas/scroll changes verified headlessly: a long
+label whose pieces sit in the top-right corner clamps to x≈434 (inside the 600-wide canvas), and
+a pan drag scrolls the wrapper by the drag delta while standing down when content fits or a piece
+is grabbed.
+
+- **Labels no longer get cut off at the edges.** The primary and secondary layer name/area labels
+  now clamp to the canvas bounds (like the piece labels already did), so a label whose pieces sit
+  against the top/right waste stays fully readable instead of running off the edge.
+- **Pan a zoomed-in layout.** The canvas wrapper is now a fixed-height scroll viewport
+  (max-height 80vh). In idle mode, dragging an empty part of the canvas scrolls/pans it (cursor
+  shows a hand when there's room to pan); grabbing a piece still nests it. Touch uses native
+  one-finger scroll. Scrollbars / two-finger scroll work too. Pan won't fire when everything
+  already fits.
+- Canvas size is also held during a layer drag (the frozen-transform guard added to
+  `sizeLayoutCanvas`), so panning/zoom state doesn't fight an in-progress move.
+
+---
+
+
+
+Test suite unchanged at **920** (sandbox 877) — both fixes are in canvas/sizing code the pure
+harness can't render. Verified headlessly: at 2× the internal canvas stays 600 while CSS width
+doubles to 1200; an install layer's label lands on its drawn pieces (x≈493) not the outline
+centroid (x≈87).
+
+- **Zoom (＋ / －) now scales properly.** `#rollLayoutCanvas` had `max-width:100%`, which clamped
+  the display so zooming in couldn't enlarge it, and labels were fixed-pixel so they never
+  scaled. Now `sizeLayoutCanvas` keeps the internal resolution at the 1× fit and sets the CSS
+  display size to `fit × zoom`, so the browser scales the whole bitmap — shapes and labels grow
+  and shrink together — and the wrapper scrolls when zoomed past its width. `canvasEventToData`
+  already maps via `canvas.width/rect.width`, so pointer hit-testing stays correct at any zoom.
+- **Canvas size now holds during a layer drag.** `sizeLayoutCanvas` also bails while
+  `_wtFreezeTransform` is set, so the view no longer resizes mid-drag against the frozen
+  transform (which shifted everything vertically).
+- **An install layer's label follows its pieces.** When a layer's pieces are nested into roll
+  waste, its outline isn't drawn there anymore — but the name/area label was still anchored to
+  the outline centroid, so it stayed behind. The label now anchors to the centroid of the
+  layer's actually-drawn pieces (their relocated positions when nested), so it travels with
+  them. Non-install layers and un-nested install layers are unchanged.
+
+---
+
+
+
+Test suite: **920** (sandbox 877, +4), data-dependent 43. New `pasteOffset` cases in section 70;
+the snap-on / off-grid-origin / snap-off paths verified headlessly (corner lands on grid, size
+preserved in every case).
+
+- **Bug:** Paste always offset the copy by a fractional `16/scale` ft, so with snap on the
+  pasted shape landed off the grid even when the original was on it.
+- **Fix:** extracted pure `pasteOffset(pts, nudge, step)`. With snap on it translates the whole
+  shape (no distortion) so the bbox corner lands on a grid intersection and it's offset by at
+  least one whole grid cell; an off-grid original gets its corner pulled onto the grid. Snap off
+  keeps the plain nudge. Size is preserved in all cases.
+
+---
+
+
 
 Test suite: **916** (sandbox 873, +10), data-dependent 43. New section 71 covers `ftIn`
 (feet-inch formatting) and `cutPieceSvg` (valid SVG, dimension labels present, degenerate

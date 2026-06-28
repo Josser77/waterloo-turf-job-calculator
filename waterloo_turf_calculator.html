@@ -946,7 +946,7 @@
     }
   }
 
-  #rollLayoutCanvas { max-width: 100%; }
+  #rollLayoutCanvas { display: block; }
 
   #layoutGrid {
     grid-template-columns: 1fr clamp(300px, 30vw, 440px);
@@ -1150,6 +1150,31 @@
       ══════════════════════════════════════ -->
       <div class="tab-panel active" id="panel-quote">
 
+        <!-- JOB INFO & EXPORTS -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Job Info &amp; Exports</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-ghost btn-sm" onclick="openSupplierOrder()" title="Material order to email your supplier (rock excluded)">📦 Supplier Order</button>
+              <button class="btn btn-ghost btn-sm" onclick="openInstallerSheet()" title="Install details to email your installer">🔧 Installer Sheet</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;align-items:start;">
+            <div class="field-group" style="margin:0;">
+              <label>Job Address</label>
+              <textarea id="jobAddress" rows="2" placeholder="123 Main St, Tigard, OR 97223" oninput="saveJobInfo()" style="width:100%;resize:vertical;box-sizing:border-box;"></textarea>
+            </div>
+            <div class="field-group" style="margin:0;">
+              <label>Delivery Date</label>
+              <input type="date" id="jobDeliveryDate" oninput="saveJobInfo()" style="width:100%;box-sizing:border-box;">
+            </div>
+            <div class="field-group" style="margin:0;">
+              <label>Install Date</label>
+              <input type="date" id="jobInstallDate" oninput="saveJobInfo()" style="width:100%;box-sizing:border-box;">
+            </div>
+          </div>
+        </div>
+
         <!-- TURF -->
         <div class="card">
           <div class="card-header">
@@ -1272,8 +1297,15 @@
             </div>
           </div>
           <p id="editShapeHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
-            <strong>Edit mode:</strong> drag a point to move it — works on <strong>any layer</strong> (the main shape's points show green, each other layer's show blue). Double-click a point to delete it (min. 3 points). Double-click an edge to add a new point there. Click "✎ Edit Shape" again when done.
+            <strong>Edit mode:</strong> drag a point to move it — works on <strong>any layer</strong> (the main shape's points show green, each other layer's show blue). <strong>Double-click (or double-tap) a point to delete it</strong> (min. 3 points). <strong>Double-click/tap an edge to add a new point</strong> there. Click "✎ Edit Shape" again when done.
           </p>
+          <div id="editPointTools" style="display:none;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+            <span style="font-size:12px;color:var(--text-mid);font-weight:600;">Point tool:</span>
+            <button id="editPtMoveBtn" class="btn btn-primary btn-sm" style="font-size:11px;padding:3px 10px;" onclick="setEditPointMode('move')" title="Drag points to move them">✥ Move</button>
+            <button id="editPtAddBtn" class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 10px;" onclick="setEditPointMode('add')" title="Click/tap an edge to add a point there">➕ Add</button>
+            <button id="editPtDeleteBtn" class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 10px;" onclick="setEditPointMode('delete')" title="Click/tap a point to delete it">➖ Delete</button>
+            <span id="editPtModeHint" style="font-size:11px;color:var(--text-light);"></span>
+          </div>
           <p id="moveLayersHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
             <strong>Move Layers mode:</strong> click and drag any layer (the main shape outline, or any additional shape) to reposition it on the canvas. This is purely visual — it doesn't change area or roll calculations. Click "✋ Move Layers" again when done.
           </p>
@@ -1332,7 +1364,7 @@
                   <input type="checkbox" id="showRectanglesToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
                   Show purchased roll rectangles (waste) — needed to drag/nest pieces
                 </label>
-                <div id="layoutCanvasWrap" style="overflow:auto;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:default;">
+                <div id="layoutCanvasWrap" style="overflow:auto;max-height:80vh;overscroll-behavior:contain;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:default;">
                   <canvas id="rollLayoutCanvas" style="display:block;"></canvas>
                 </div>
               </div>
@@ -2012,6 +2044,7 @@
           <li><a onclick="jumpToDocSection('doc-quote')">Quote Builder Tab</a></li>
           <li><a onclick="jumpToDocSection('doc-layout')">Layout Tab: Site Layout &amp; Roll Plan</a></li>
           <li><a onclick="jumpToDocSection('doc-materials')">Materials Tab</a></li>
+          <li><a onclick="jumpToDocSection('doc-exports')">Supplier Order &amp; Installer Sheet</a></li>
           <li><a onclick="jumpToDocSection('doc-crews')">Multiple Crew Rate Sets</a></li>
           <li><a onclick="jumpToDocSection('doc-backup')">Backup, Sync &amp; Restore</a></li>
           <li><a onclick="jumpToDocSection('doc-workflow')">Recommended Workflow</a></li>
@@ -2182,15 +2215,15 @@
         <div class="docs-h3">Canvas Layout</div>
         <p>The canvas and the fields panel sit side-by-side — canvas on the left (fills all available width), fields on the right. The canvas is sized automatically to exactly fit the shape's aspect ratio with no dead whitespace, and adapts as the window resizes. On mobile (≤860px) the fields stack below the canvas.</p>
 
-        <div class="docs-h3">Zoom</div>
-        <p>The canvas always opens at the natural fit — no dead space, shape fills the available area. Use <strong>＋</strong> / <strong>－</strong> to zoom in/out (the canvas grows and scrolls within its container), and <strong>⊙ Fit</strong> to snap back to the fitted view. Ctrl+scroll / two-finger trackpad pinch also zooms. All edit and drag interactions remain accurate at any zoom level.</p>
+        <div class="docs-h3">Zoom &amp; Pan</div>
+        <p>The canvas always opens at the natural fit — no dead space, shape fills the available area. Use <strong>＋</strong> / <strong>－</strong> to zoom in/out (everything scales together — shapes and labels — and the view scrolls within its box), and <strong>⊙ Fit</strong> to snap back to the fitted view. Ctrl+scroll / two-finger trackpad pinch also zooms. <strong>To move a zoomed-in layout around:</strong> drag an empty part of the canvas to pan it (the cursor shows a hand when there's room to pan), or use the scrollbars / two-finger scroll; on a touch screen, drag with one finger. Grabbing a piece still nests it. All edit and drag interactions remain accurate at any zoom level.</p>
 
         <div class="docs-h3">Editing the Shape (any layer)</div>
         <p>Click "✎ Edit Shape" to clean up an imported outline. This works on <strong>every visible layer</strong>, not just the main shape — grab a point on whichever layer you want to edit:</p>
         <ul class="docs-list">
           <li>The main shape's points show <strong>green</strong>; each additional layer's points show <strong>blue</strong>. Drag any of them — area and roll layout recompute live, and the layer's own stored area updates.</li>
-          <li>Double-click a point to delete it (minimum 3 points per shape).</li>
-          <li>Double-click on an edge (between points) to insert a new point there.</li>
+          <li><strong>Point tool (Move / Add / Delete):</strong> when you enter Edit mode a small <strong>Point tool</strong> row appears. Leave it on <strong>✥ Move</strong> to drag points. Switch to <strong>➕ Add</strong> and a single click/tap on an edge inserts a point there. Switch to <strong>➖ Delete</strong> and a single click/tap on a point removes it (minimum 3 points per shape). This works the same on desktop and touch — no double-click needed.</li>
+          <li>Shortcut: in Move mode you can also <strong>double-click (or double-tap) a point to delete</strong> it, or double-click/tap an edge to add one.</li>
           <li>The view is held still while you drag a point, so editing one layer doesn't make the others appear to shift.</li>
         </ul>
         <p>"↶ Undo" steps back through your last 20 edits (each remembers which layer it changed). Click "✓ Done Editing" to exit. Everything saves automatically. To start over from the original file, re-import the CSV — this replaces the shape and clears edit history.</p>
@@ -2240,6 +2273,17 @@
         <p>Shows the <strong>tons to order</strong> for each rock/base material in your catalog, auto-calculated from this job's base turf sqft and each material's depth/density settings. SqFt basis, depth, and pricing are configured once under <strong>Settings → Rock / Base Materials</strong> rather than per-project — only the resulting tons total is shown here. Remove a row if this job doesn't need that material.</p>
         <div class="docs-h3">Materials Summary</div>
         <p>A full summary of all materials across turf, infill, edging, and rock for easy reference when ordering.</p>
+      </div>
+
+      <!-- EXPORTS -->
+      <div class="docs-section">
+        <div class="docs-h2" id="doc-exports">Supplier Order &amp; Installer Sheet</div>
+        <p>At the top of the <strong>Quote Builder</strong> tab, the <strong>Job Info &amp; Exports</strong> card holds three fields — <strong>Job Address</strong>, <strong>Delivery Date</strong>, and <strong>Install Date</strong> — plus two export buttons. These are saved per project. (There's no Jobber link, so the address and dates are typed here or pasted in.)</p>
+        <ul class="docs-list">
+          <li><strong>📦 Supplier Order</strong> — opens a ready-to-send block listing the job, delivery address, delivery date, and every orderable material with its order quantity: turf (ordered sqft and linear ft at 15 ft roll width), infill (bags), bender board edging (boards), and any misc items. <strong>Rock/base is intentionally excluded</strong> (you source it separately) — it's noted at the bottom but never listed.</li>
+          <li><strong>🔧 Installer Sheet</strong> — opens a block with the job, install address, install date, the <strong>turf to install per product</strong> with each installed sqft (base yard, putting green, etc.), and all misc items with quantities. Alt-turf rows (which share the base yard's area) aren't listed, since they carry no separate install area.</li>
+        </ul>
+        <p>Both open a panel with the text and a <strong>⎘ Copy</strong> button — copy it and paste it straight into an email to your supplier or installer. Quantities come from whatever you've entered in the Quote Builder, so fill those in first.</p>
       </div>
 
       <!-- CREW RATES -->
@@ -2327,6 +2371,25 @@
       </button>
     </div>
     <div id="cutListBody" style="font-size:13px;color:var(--text);line-height:1.5;"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="exportModal" style="z-index:1100;">
+  <div class="modal" style="width:min(640px,95vw);max-height:90vh;overflow-y:auto;padding:28px 32px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+      <div>
+        <div id="exportTitle" style="font-family:'Raleway',sans-serif;font-size:20px;font-weight:800;color:var(--text);">Export</div>
+        <div id="exportSubtitle" style="font-size:12px;color:var(--text-light);margin-top:4px;"></div>
+      </div>
+      <button onclick="document.getElementById('exportModal').classList.remove('open')"
+        style="background:none;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;color:var(--text-light);cursor:pointer;flex-shrink:0;">
+        Close ✕
+      </button>
+    </div>
+    <textarea id="exportText" readonly style="width:100%;min-height:320px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.5;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:12px;resize:vertical;background:var(--bg-alt);box-sizing:border-box;"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+      <button class="btn btn-primary btn-sm" id="exportCopyBtn" onclick="copyExportText()">⎘ Copy</button>
+    </div>
   </div>
 </div>
 
@@ -3048,6 +3111,7 @@ function loadProject(id) {
   document.getElementById('projectTitle').value = proj.name;
   document.getElementById('topbar').classList.add('visible');
 
+  populateJobInfo(proj);
   renderProjectCrewSelect();
   renderTurfRows(proj);
   renderInfillRows(proj);
@@ -7839,10 +7903,12 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       const cc = toCanvas({ x: lcx, y: lcy });
       ctx.font = 'bold 11px sans-serif';
       const tw = ctx.measureText(pLabel).width;
+      const lx = Math.min(Math.max(cc.x - tw/2, pad + 3), Math.max(pad + 3, w - pad - tw - 3));
+      const ly = Math.min(Math.max(cc.y + 4, pad + 12), h - pad - 2);
       ctx.fillStyle = 'rgba(255,255,255,0.88)';
-      ctx.fillRect(cc.x - tw/2 - 3, cc.y - 8, tw + 6, 16);
+      ctx.fillRect(lx - 3, ly - 12, tw + 6, 16);
       ctx.fillStyle = '#1b5e20';
-      ctx.fillText(pLabel, cc.x - tw/2, cc.y + 4);
+      ctx.fillText(pLabel, lx, ly);
       ctx.font = '11px sans-serif';
     }
   }
@@ -7852,6 +7918,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     if (!s.displayPoints || s.displayPoints.length < 3) return;
     if (layout.layerVisibility[i] === false) return; // layer hidden
     const mode = (layout.secondaryShapeModes && layout.secondaryShapeModes[i]) || 'ignore';
+    let installDrawnPts = null; // where this layer's pieces actually drew (follows nesting)
     if (mode === 'install') {
       // Phase 2: draw this layer's own roll plan at its position. Each strip's
       // installed shape is filled in the layer's colour; with "show rectangles"
@@ -7859,6 +7926,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       const il = (layout._installLayers || []).find(e => e.id === i);
       const fill = STRIP_COLORS[(i + 1) % STRIP_COLORS.length];
       const stroke = '#2e7d32';
+      installDrawnPts = [];
       if (il && il.layout && il.layout.strips && il.layout.strips.length) {
         il.layout.strips.forEach(st => {
           const us = st.pieces || [st];
@@ -7878,12 +7946,13 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
               drawPoly(movedClipped, fill, 'rgba(0,0,0,0.25)');
               drawPoly(movedClipped, null, u._nestOverlapsTurf ? '#e53935' : '#f4a822');
               u._displayClippedMoved = movedClipped;
+              if (movedClipped && movedClipped.length) installDrawnPts.push(...movedClipped);
             } else {
               if (showRects && u.displayRect && u.displayRect.length) {
                 drawHatched(u.displayRect, 'rgba(244,67,54,0.18)');
                 drawPoly(u.displayRect, null, 'rgba(0,0,0,0.18)');
               }
-              if (u.displayClipped) drawPoly(u.displayClipped, fill, stroke);
+              if (u.displayClipped) { drawPoly(u.displayClipped, fill, stroke); installDrawnPts.push(...u.displayClipped); }
             }
           });
         });
@@ -7953,9 +8022,13 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     // Always label the layer by name + area + mode, so it stays identifiable no
     // matter which mode is selected (changing the dropdown no longer hides it).
     {
-      const n = s.displayPoints.length;
-      const lcx = s.displayPoints.reduce((a,p)=>a+p.x,0)/n;
-      const lcy = s.displayPoints.reduce((a,p)=>a+p.y,0)/n;
+      // Anchor the label to where the layer's pieces actually drew (so it
+      // follows when an install layer's pieces are nested into roll waste);
+      // fall back to the shape outline for non-install layers.
+      const anchorPts = (installDrawnPts && installDrawnPts.length >= 3) ? installDrawnPts : s.displayPoints;
+      const n = anchorPts.length;
+      const lcx = anchorPts.reduce((a,p)=>a+p.x,0)/n;
+      const lcy = anchorPts.reduce((a,p)=>a+p.y,0)/n;
       const cc = toCanvas({ x: lcx, y: lcy });
       const a = Math.round(s.area != null ? s.area : polygonArea(s.points || s.displayPoints));
       let suffix, color;
@@ -7967,10 +8040,14 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       const label = `${s.name}${suffix}`;
       ctx.font = '11px sans-serif';
       const tw = ctx.measureText(label).width;
+      // Keep the label fully on-canvas — clamp so it isn't cut off at an edge
+      // (e.g. when an install layer's pieces nest into the top/right waste).
+      const lx = Math.min(Math.max(cc.x - tw/2, pad + 2), Math.max(pad + 2, w - pad - tw - 2));
+      const ly = Math.min(Math.max(cc.y + 4, pad + 12), h - pad - 2);
       ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.fillRect(cc.x - tw/2 - 2, cc.y - 7, tw + 4, 14);
+      ctx.fillRect(lx - 2, ly - 11, tw + 4, 14);
       ctx.fillStyle = color;
-      ctx.fillText(label, cc.x - tw/2, cc.y + 4);
+      ctx.fillText(label, lx, ly);
     }
   });
 
@@ -8302,6 +8379,7 @@ function toggleEditMode() {
   window._wtFreezeTransform = false;
   const btn = document.getElementById('editShapeBtn');
   const hint = document.getElementById('editShapeHint');
+  const tools = document.getElementById('editPointTools');
   const canvas = document.getElementById('rollLayoutCanvas');
   if (window._wtEditMode) {
     // Mutually exclusive with Move Layers and Cut modes
@@ -8311,15 +8389,72 @@ function toggleEditMode() {
     btn.classList.add('btn-primary');
     btn.textContent = '✓ Done Editing';
     hint.style.display = '';
+    if (tools) tools.style.display = 'flex';
+    setEditPointMode('move');
     if (canvas) canvas.style.cursor = 'crosshair';
   } else {
     btn.classList.remove('btn-primary');
     btn.textContent = '✎ Edit Shape';
     hint.style.display = 'none';
+    if (tools) tools.style.display = 'none';
+    window._wtEditPointMode = 'move';
     if (canvas) canvas.style.cursor = 'default';
   }
   renderRollLayout();
   updateUndoButton(getCurrentProject());
+}
+
+// Edit-mode point tool: 'move' drags points, 'add' inserts a point on a tapped
+// edge, 'delete' removes a tapped point. A single click/tap acts in add/delete
+// mode (no double-click needed), so it works the same on desktop and touch.
+function setEditPointMode(mode) {
+  window._wtEditPointMode = mode;
+  const cfg = {
+    move:   { id: 'editPtMoveBtn',   hint: 'Drag a point to move it.' },
+    add:    { id: 'editPtAddBtn',    hint: 'Click or tap an edge to add a point there.' },
+    delete: { id: 'editPtDeleteBtn', hint: 'Click or tap a point to delete it (min. 3 points).' }
+  };
+  ['editPtMoveBtn','editPtAddBtn','editPtDeleteBtn'].forEach(id => {
+    const b = document.getElementById(id); if (!b) return;
+    b.classList.remove('btn-primary'); b.classList.add('btn-ghost');
+  });
+  const active = cfg[mode] || cfg.move;
+  const ab = document.getElementById(active.id);
+  if (ab) { ab.classList.add('btn-primary'); ab.classList.remove('btn-ghost'); }
+  const h = document.getElementById('editPtModeHint');
+  if (h) h.textContent = active.hint;
+  const canvas = document.getElementById('rollLayoutCanvas');
+  if (canvas) canvas.style.cursor = (mode === 'move') ? 'crosshair' : 'pointer';
+}
+
+// Delete the vertex nearest a canvas point (any layer). Returns true if removed.
+function editDeletePointAtCanvas(canvasX, canvasY) {
+  const proj = getCurrentProject(); const layout = window._wtCurrentRollLayout;
+  if (!proj || !proj.layout || !layout) return false;
+  const hit = findNearestVertexAnyLayer(canvasX, canvasY, 16, layout);
+  if (!hit) return false;
+  const pts = getLayerCanonicalPoints(proj, hit.layerId);
+  if (!pts || pts.length <= 3) { alert('A shape needs at least 3 points.'); return false; }
+  pushLayoutHistory(proj, hit.layerId);
+  pts.splice(hit.index, 1);
+  recomputeLayerArea(proj, hit.layerId);
+  save(); renderRollLayout(); updateUndoButton(proj);
+  return true;
+}
+
+// Insert a vertex on the edge nearest a display-frame point (any layer). Returns true if added.
+function editAddPointAtData(pos) {
+  const proj = getCurrentProject(); const layout = window._wtCurrentRollLayout;
+  if (!proj || !proj.layout || !layout) return false;
+  const edge = findNearestEdgeAnyLayer(pos, 18, layout);
+  if (!edge) return false;
+  pushLayoutHistory(proj, edge.layerId);
+  const canonical = displayPointToLayerCanonical(proj, edge.layerId, edge.point);
+  const pts = getLayerCanonicalPoints(proj, edge.layerId);
+  pts.splice(edge.index + 1, 0, canonical);
+  recomputeLayerArea(proj, edge.layerId);
+  save(); renderRollLayout(); updateUndoButton(proj);
+  return true;
 }
 
 function toggleMoveLayersMode() {
@@ -8717,14 +8852,28 @@ function copySelectedAnnotation() {
   updateAnnoDeleteBtn();
 }
 
+// Translation delta for a pasted shape. With snap on, lands the bbox corner on a
+// grid intersection and offsets by at least one whole cell; otherwise a plain nudge.
+// Pure (translation only — never distorts the shape).
+function pasteOffset(pts, nudge, step) {
+  const minX = Math.min(...pts.map(p => p.x)), minY = Math.min(...pts.map(p => p.y));
+  if (step) {
+    const n = Math.max(1, Math.round(nudge / step));
+    return { dx: (Math.round(minX / step) * step + n * step) - minX, dy: (Math.round(minY / step) * step - n * step) - minY };
+  }
+  return { dx: nudge, dy: -nudge };
+}
+
 function pasteAnnotation() {
   const proj = getCurrentProject();
   if (!proj || !proj.layout || !window._wtAnnoClipboard) return;
   const copy = JSON.parse(JSON.stringify(window._wtAnnoClipboard));
-  // Offset the paste a small, zoom-consistent nudge so it's visibly a duplicate.
+  const pts = copy.points || [];
+  if (!pts.length) return;
   const t = window._wtCanvasTransform;
-  const off = t && t.scale ? 16 / t.scale : 1;
-  copy.points = (copy.points || []).map(p => ({ x: p.x + off, y: p.y - off }));
+  const nudge = (t && t.scale) ? 16 / t.scale : 1;
+  const { dx, dy } = pasteOffset(pts, nudge, drawSnapStep());
+  copy.points = pts.map(p => ({ x: p.x + dx, y: p.y + dy }));
   proj.layout.annotations = proj.layout.annotations || [];
   proj.layout.annotations.push(copy);
   window._wtSelectedAnno = proj.layout.annotations.length - 1;
@@ -8843,37 +8992,12 @@ function onLayoutCanvasMouseUp(evt) {
 
 function onLayoutCanvasDblClick(evt) {
   if (!window._wtEditMode) return;
-  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
   const layout = window._wtCurrentRollLayout; if (!layout) return;
   const pos = canvasEventToData(evt); if (!pos) return;
   evt.preventDefault();
-
-  // Delete a vertex if double-clicked directly on one (min 3 points)
-  const hit = findNearestVertexAnyLayer(pos.canvasX, pos.canvasY, 12, layout);
-  if (hit) {
-    const pts = getLayerCanonicalPoints(proj, hit.layerId);
-    if (!pts || pts.length <= 3) { alert('A shape needs at least 3 points.'); return; }
-    pushLayoutHistory(proj, hit.layerId);
-    pts.splice(hit.index, 1);
-    recomputeLayerArea(proj, hit.layerId);
-    save();
-    renderRollLayout();
-    updateUndoButton(proj);
-    return;
-  }
-
-  // Otherwise, insert a new vertex on the nearest edge (any layer)
-  const edge = findNearestEdgeAnyLayer(pos, 14, layout);
-  if (edge) {
-    pushLayoutHistory(proj, edge.layerId);
-    const canonical = displayPointToLayerCanonical(proj, edge.layerId, edge.point);
-    const pts = getLayerCanonicalPoints(proj, edge.layerId);
-    pts.splice(edge.index + 1, 0, canonical);
-    recomputeLayerArea(proj, edge.layerId);
-    save();
-    renderRollLayout();
-    updateUndoButton(proj);
-  }
+  // Delete a vertex if double-clicked directly on one; else add one on the nearest edge.
+  if (editDeletePointAtCanvas(pos.canvasX, pos.canvasY)) return;
+  editAddPointAtData(pos);
 }
 
 function pointInPoly(pt, poly) {
@@ -9676,6 +9800,153 @@ function endCutClick(evt) {
 }
 
 
+// ── Order / install exports ───────────────────────────────────────────────
+// Pure text builders (no DOM) so they're unit-testable. The supplier order lists
+// orderable materials MINUS rock (rock is sourced separately); the installer
+// sheet lists turf to install per product and all misc items.
+
+function fmtExportDate(s) {
+  if (!s) return 'TBD';
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return s;
+  const d = new Date(+m[1], +m[2] - 1, +m[3]);
+  if (isNaN(d.getTime())) return s;
+  return d.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function buildSupplierOrderText(proj) {
+  if (!proj) return '';
+  const L = [];
+  L.push('WATERLOO TURF — MATERIAL ORDER');
+  L.push('');
+  L.push('Job: ' + (proj.name || 'Untitled'));
+  L.push('Delivery address: ' + (proj.address ? String(proj.address).replace(/\s*\n+\s*/g, ', ').trim() : 'TBD'));
+  L.push('Delivery date: ' + fmtExportDate(proj.deliveryDate));
+  L.push('');
+  L.push('MATERIALS TO ORDER');
+
+  const items = [];
+  (proj.turf || []).forEach(t => {
+    const ordered = parseFloat(t.orderedSqFt) || 0;
+    const lin = parseFloat(t.linearFt) || 0;
+    if (ordered > 0 || lin > 0) {
+      const qty = ordered
+        ? (ordered + ' sq ft' + (lin ? ' (' + lin + ' lin ft × 15 ft roll)' : ''))
+        : (lin + ' lin ft × 15 ft roll');
+      items.push('• Turf — ' + (t.product || 'turf') + ': ' + qty);
+    }
+  });
+  (proj.infill || []).forEach(i => {
+    const bags = parseFloat(i.bags) || 0;
+    if (bags > 0) items.push('• Infill — ' + (i.product || 'infill') + ': ' + bags + ' bag' + (bags === 1 ? '' : 's'));
+  });
+  if (proj.edging) {
+    const boards = parseFloat(proj.edging.boards) || 0;
+    const linFt = parseFloat(proj.edging.linFt) || 0;
+    if (boards > 0) items.push('• Edging (bender board): ' + boards + ' board' + (boards === 1 ? '' : 's') + (linFt ? ' (' + linFt + ' lin ft)' : ''));
+  }
+  (proj.miscItems || []).forEach(m => {
+    const qty = parseFloat(m.qty) || 0;
+    if (qty > 0 && m.name) items.push('• ' + m.name + ': ' + qty + ' ' + (m.unit || 'each'));
+  });
+
+  if (items.length) L.push.apply(L, items);
+  else L.push('(no orderable materials entered yet)');
+
+  L.push('');
+  L.push('Note: rock/base material is ordered separately and is not included above.');
+  return L.join('\n');
+}
+
+function buildInstallerSheetText(proj) {
+  if (!proj) return '';
+  const roleLabel = { base: 'base yard', 'putting-green': 'putting green', putting: 'putting green', alt: 'alt turf', upgraded: 'upgraded' };
+  const L = [];
+  L.push('WATERLOO TURF — INSTALL DETAILS');
+  L.push('');
+  L.push('Job: ' + (proj.name || 'Untitled'));
+  L.push('Install address: ' + (proj.address ? String(proj.address).replace(/\s*\n+\s*/g, ', ').trim() : 'TBD'));
+  L.push('Install date: ' + fmtExportDate(proj.installDate));
+  L.push('');
+  L.push('TURF TO INSTALL');
+
+  const turfLines = [];
+  (proj.turf || []).forEach(t => {
+    const sf = parseFloat(t.installedSqFt) || 0;
+    if (sf > 0) {
+      const rl = roleLabel[t.role] || (t.role || 'turf');
+      turfLines.push('• ' + (t.product || 'turf') + ' (' + rl + '): ' + sf + ' sq ft');
+    }
+  });
+  if (turfLines.length) L.push.apply(L, turfLines);
+  else L.push('(no installed turf area entered yet)');
+
+  const miscLines = [];
+  (proj.miscItems || []).forEach(m => {
+    const qty = parseFloat(m.qty) || 0;
+    if (qty > 0 && m.name) miscLines.push('• ' + m.name + ': ' + qty + ' ' + (m.unit || 'each'));
+  });
+  if (miscLines.length) {
+    L.push('');
+    L.push('MISC ITEMS');
+    L.push.apply(L, miscLines);
+  }
+  return L.join('\n');
+}
+
+function saveJobInfo() {
+  const proj = getCurrentProject(); if (!proj) return;
+  const a = document.getElementById('jobAddress');
+  const d = document.getElementById('jobDeliveryDate');
+  const i = document.getElementById('jobInstallDate');
+  if (a) proj.address = a.value;
+  if (d) proj.deliveryDate = d.value;
+  if (i) proj.installDate = i.value;
+  save();
+}
+
+function populateJobInfo(proj) {
+  if (!proj) return;
+  const a = document.getElementById('jobAddress');
+  const d = document.getElementById('jobDeliveryDate');
+  const i = document.getElementById('jobInstallDate');
+  if (a) a.value = proj.address || '';
+  if (d) d.value = proj.deliveryDate || '';
+  if (i) i.value = proj.installDate || '';
+}
+
+function showExportModal(title, subtitle, text) {
+  const t = document.getElementById('exportTitle'); if (t) t.textContent = title;
+  const s = document.getElementById('exportSubtitle'); if (s) s.textContent = subtitle;
+  const ta = document.getElementById('exportText'); if (ta) ta.value = text;
+  const btn = document.getElementById('exportCopyBtn'); if (btn) btn.textContent = '⎘ Copy';
+  const modal = document.getElementById('exportModal'); if (modal) modal.classList.add('open');
+}
+
+function openSupplierOrder() {
+  const proj = getCurrentProject(); if (!proj) { alert('Open a project first.'); return; }
+  showExportModal('Supplier Order', 'Copy this and paste it into an email to your supplier.', buildSupplierOrderText(proj));
+}
+
+function openInstallerSheet() {
+  const proj = getCurrentProject(); if (!proj) { alert('Open a project first.'); return; }
+  showExportModal('Installer Sheet', 'Copy this and paste it into an email to your installer.', buildInstallerSheetText(proj));
+}
+
+function copyExportText() {
+  const ta = document.getElementById('exportText'); if (!ta) return;
+  const btn = document.getElementById('exportCopyBtn');
+  const done = () => { if (btn) { btn.textContent = '✓ Copied'; setTimeout(() => { btn.textContent = '⎘ Copy'; }, 1600); } };
+  const fallback = () => {
+    ta.removeAttribute('readonly'); ta.focus(); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    ta.setAttribute('readonly', '');
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(ta.value).then(done).catch(fallback);
+  } else fallback();
+}
+
 function setupLayoutCanvasEvents() {
   const canvas = document.getElementById('rollLayoutCanvas');
   if (!canvas || canvas._wtEventsBound) return;
@@ -9683,7 +9954,7 @@ function setupLayoutCanvasEvents() {
   canvas.addEventListener('mousedown', e => {
     if (window._wtLayoutLocked) return;
     if (window._wtDrawMode) { onDrawMouseDown(e); return; }
-    if (window._wtEditMode) { onLayoutCanvasMouseDown(e); return; }
+    if (window._wtEditMode) { handleEditPointerDown(e, false); return; }
     if (window._wtMoveLayersMode) { startDragLayer(e); return; }
     if (window._wtCutMode) {
       const p = canvasEventToData(e);
@@ -9692,15 +9963,16 @@ function setupLayoutCanvasEvents() {
       return;
     }
     startDragNesting(e);
+    startLayoutPan(e); // idle: drag empty space to pan when zoomed (no piece grabbed)
   });
-  canvas.addEventListener('mousemove', e => { if (window._wtDrawMode) { onDrawMouseMove(e); return; } onLayoutCanvasMouseMove(e); moveDragNesting(e); moveDragLayer(e); });
-  canvas.addEventListener('mouseup', e => { if (window._wtDrawMode) { onDrawMouseUp(e); return; } onLayoutCanvasMouseUp(e); endCutClick(e); endDragNesting(e); endDragLayer(e); });
-  canvas.addEventListener('mouseleave', e => { if (window._wtDrawMode) { onDrawMouseUp(e); return; } onLayoutCanvasMouseUp(e); window._wtCutDownPos = null; endDragNesting(e); endDragLayer(e); });
+  canvas.addEventListener('mousemove', e => { if (window._wtDrawMode) { onDrawMouseMove(e); return; } if (window._wtPan) { moveLayoutPan(e); return; } onLayoutCanvasMouseMove(e); moveDragNesting(e); moveDragLayer(e); });
+  canvas.addEventListener('mouseup', e => { if (window._wtDrawMode) { onDrawMouseUp(e); return; } endLayoutPan(e); onLayoutCanvasMouseUp(e); endCutClick(e); endDragNesting(e); endDragLayer(e); });
+  canvas.addEventListener('mouseleave', e => { if (window._wtDrawMode) { onDrawMouseUp(e); return; } endLayoutPan(e); onLayoutCanvasMouseUp(e); window._wtCutDownPos = null; endDragNesting(e); endDragLayer(e); });
   canvas.addEventListener('dblclick', onLayoutCanvasDblClick);
   canvas.addEventListener('touchstart', e => {
     if (window._wtLayoutLocked) return;
     if (window._wtDrawMode) { onDrawMouseDown(e); return; }
-    if (window._wtEditMode) { onLayoutCanvasMouseDown(e); return; }
+    if (window._wtEditMode) { handleEditPointerDown(e, true); return; }
     if (window._wtMoveLayersMode) { startDragLayer(e); return; }
     if (window._wtCutMode) {
       const p = canvasEventToData(e);
@@ -9708,7 +9980,7 @@ function setupLayoutCanvasEvents() {
       startDragNesting(e);
       return;
     }
-    startDragNesting(e);
+    startDragNesting(e); // empty-space one-finger drag falls through to native scroll (panning)
   }, {passive:false});
   canvas.addEventListener('touchmove', e => { if (window._wtDrawMode) { onDrawMouseMove(e); return; } onLayoutCanvasMouseMove(e); moveDragNesting(e); moveDragLayer(e); }, {passive:false});
   canvas.addEventListener('touchend', e => { if (window._wtDrawMode) { onDrawMouseUp(e); return; } onLayoutCanvasMouseUp(e); endCutClick(e); endDragNesting(e); endDragLayer(e); });
@@ -9718,6 +9990,75 @@ function setupLayoutCanvasEvents() {
     window._wtDrawKeysBound = true;
     document.addEventListener('keydown', onDrawKeydown);
   }
+}
+
+// ── Pan (drag the layout when zoomed) ─────────────────────────────────────
+// In idle mode (no edit/move/cut/draw), dragging empty canvas scrolls the
+// wrapper so you can move a zoomed-in layout around. Grabbing a piece nests it
+// instead (startDragNesting wins). On touch this falls through to native scroll.
+function layoutPanCursor() {
+  if (window._wtEditMode || window._wtMoveLayersMode || window._wtCutMode || window._wtDrawMode || window._wtLayoutLocked) return '';
+  const wrap = document.getElementById('layoutCanvasWrap');
+  if (wrap && (wrap.scrollWidth > wrap.clientWidth + 1 || wrap.scrollHeight > wrap.clientHeight + 1)) return 'grab';
+  return 'default';
+}
+
+function startLayoutPan(evt) {
+  if (window._wtDragNestKey != null) return; // a piece was grabbed → nest, don't pan
+  const wrap = document.getElementById('layoutCanvasWrap'); if (!wrap) return;
+  if (wrap.scrollWidth <= wrap.clientWidth + 1 && wrap.scrollHeight <= wrap.clientHeight + 1) return; // nothing to pan
+  window._wtPan = { x: evt.clientX, y: evt.clientY, sl: wrap.scrollLeft, st: wrap.scrollTop };
+  const canvas = document.getElementById('rollLayoutCanvas');
+  if (canvas) canvas.style.cursor = 'grabbing';
+}
+
+function moveLayoutPan(evt) {
+  const p = window._wtPan; if (!p) return;
+  const wrap = document.getElementById('layoutCanvasWrap'); if (!wrap) return;
+  wrap.scrollLeft = p.sl - (evt.clientX - p.x);
+  wrap.scrollTop = p.st - (evt.clientY - p.y);
+  if (evt.cancelable) evt.preventDefault();
+}
+
+function endLayoutPan(evt) {
+  if (!window._wtPan) return;
+  window._wtPan = null;
+  const canvas = document.getElementById('rollLayoutCanvas');
+  if (canvas) canvas.style.cursor = layoutPanCursor();
+}
+
+// In edit mode, a touch double-tap (touch has no native dblclick) adds a point on
+// an edge or deletes a tapped point — mirroring the desktop double-click. A single
+// tap still starts a vertex drag.
+function handleEditTouchStart(e) {
+  const now = Date.now();
+  const p = canvasEventToData(e);
+  const last = window._wtLastEditTap;
+  if (last && p && (now - last.t) < 350 && Math.hypot(p.canvasX - last.x, p.canvasY - last.y) < 26) {
+    window._wtLastEditTap = null;
+    onLayoutCanvasDblClick(e); // delete the tapped point, or add one on the tapped edge
+    return;
+  }
+  window._wtLastEditTap = p ? { t: now, x: p.canvasX, y: p.canvasY } : null;
+  onLayoutCanvasMouseDown(e); // single tap → start a vertex drag
+}
+
+// Edit-mode pointer-down router. In Add/Delete point mode a single click/tap acts
+// immediately; in Move mode it starts a drag (with touch double-tap as a shortcut
+// for add/delete).
+function handleEditPointerDown(e, isTouch) {
+  const mode = window._wtEditPointMode || 'move';
+  if (mode === 'add' || mode === 'delete') {
+    const pos = canvasEventToData(e);
+    if (pos) {
+      if (e.cancelable) e.preventDefault();
+      if (mode === 'delete') editDeletePointAtCanvas(pos.canvasX, pos.canvasY);
+      else editAddPointAtData(pos);
+    }
+    return;
+  }
+  if (isTouch) handleEditTouchStart(e);
+  else onLayoutCanvasMouseDown(e);
 }
 
 function onDrawKeydown(e) {
@@ -9879,6 +10220,8 @@ function applyLayoutZoom() {
   const layout = window._wtCurrentRollLayout;
   if (layout) drawRollLayoutCanvas(layout);
   if (label) label.textContent = Math.round((window._wtLayoutZoom || 1) * 100) + '%';
+  const canvas = document.getElementById('rollLayoutCanvas');
+  if (canvas && typeof layoutPanCursor === 'function') canvas.style.cursor = layoutPanCursor();
 }
 
 // Re-render the roll layout WITHOUT re-fitting the canvas height. The roll-
@@ -9898,8 +10241,9 @@ function sizeLayoutCanvas() {
   if (!wrap || !canvas) return;
 
   // During a live slider drag, keep the current canvas size so the panel below
-  // doesn't jump. The draw still fits the (rotating) content inside this fixed box.
-  if (window._wtFreezeCanvasH && canvas.width > 0 && canvas.height > 0) return;
+  // doesn't jump. Also hold size during a layer move/transform drag so the
+  // frozen view stays put. The draw still fits the content inside this box.
+  if ((window._wtFreezeCanvasH || window._wtFreezeTransform) && canvas.width > 0 && canvas.height > 0) return;
 
   const layout = window._wtCurrentRollLayout;
   const z = window._wtLayoutZoom || 1;
@@ -9907,6 +10251,7 @@ function sizeLayoutCanvas() {
   // Base canvas width = wrapper content width
   const baseW = Math.max(200, wrap.clientWidth || 600);
 
+  let baseH;
   if (layout) {
     // Same fit points the draw uses, so the canvas aspect matches the draw scale.
     const showRects = document.getElementById('showRectanglesToggle') && document.getElementById('showRectanglesToggle').checked;
@@ -9915,16 +10260,19 @@ function sizeLayoutCanvas() {
     const spanX = (Math.max(...xs) - Math.min(...xs)) || 1;
     const spanY = (Math.max(...ys) - Math.min(...ys)) || 1;
     const pad = 16;
-    // Canvas height = whatever height perfectly fits the shape at full width
     const scale = (baseW - 2*pad) / spanX;
-    const baseH = Math.round(spanY * scale + 2*pad);
-    canvas.width  = Math.round(baseW * z);
-    canvas.height = Math.round(baseH * z);
+    baseH = Math.round(spanY * scale + 2*pad);
   } else {
-    // No layout yet — square-ish placeholder
-    canvas.width  = Math.round(baseW * z);
-    canvas.height = Math.round(baseW * 0.6 * z);
+    baseH = Math.round(baseW * 0.6);
   }
+
+  // Internal resolution stays at the 1× fit size; the CSS display size carries
+  // the zoom. The browser scales the bitmap, so shapes AND labels grow/shrink
+  // together, and the (overflow:auto) wrapper scrolls when zoomed past its width.
+  canvas.width = Math.round(baseW);
+  canvas.height = Math.round(baseH);
+  canvas.style.width = Math.round(baseW * z) + 'px';
+  canvas.style.height = Math.round(baseH * z) + 'px';
 }
 
 function layoutZoomFit() {

@@ -5064,6 +5064,16 @@ section('70. Snap to grid');
   const p = {x:1.3,y:2.7};
   assert(ctx.snapPt(p, 0) === p, 'step 0 is a no-op (snap off)');
   assert(near(ctx.snapPt({x:0.4,y:0.4}, 1).x, 0) && near(ctx.snapPt({x:0.6,y:0.6}, 1).x, 1), 'rounds to the nearer line');
+
+  // paste offset: snap on lands the bbox corner on grid + offsets a whole cell
+  const rect = [{x:2,y:3},{x:6,y:3},{x:6,y:5},{x:2,y:5}];
+  const onGrid = ctx.pasteOffset(rect, 1.6, 1);
+  assert(Number.isInteger(2 + onGrid.dx) && Number.isInteger(3 + onGrid.dy), 'snap paste lands corner on grid');
+  assert(Math.abs(onGrid.dx) >= 1 && Math.abs(onGrid.dy) >= 1, 'snap paste offsets at least one whole cell');
+  const offGrid = ctx.pasteOffset([{x:2.4,y:3.7},{x:6.4,y:3.7},{x:6.4,y:5.7},{x:2.4,y:5.7}], 1.6, 1);
+  assert(Number.isInteger(2.4 + offGrid.dx) && Number.isInteger(3.7 + offGrid.dy), 'snap paste pulls an off-grid corner onto the grid');
+  const noSnap = ctx.pasteOffset(rect, 1.6, 0);
+  assert(near(noSnap.dx, 1.6) && near(noSnap.dy, -1.6), 'no-snap paste is a plain nudge');
 }
 
 section('71. Cut-piece drawings (ft-in + SVG)');
@@ -5085,6 +5095,61 @@ section('71. Cut-piece drawings (ft-in + SVG)');
   // a degenerate piece (no poly) still renders from its bbox without throwing
   const tiny = ctx.cutPieceSvg({ footW: 0.1, footL: 0.1, rollWidth: 15, cutLength: 1, area: 0.01, irregular: false });
   assert(tiny.indexOf('<svg') === 0 && tiny.indexOf('</svg>') > 0, 'degenerate piece still yields valid SVG');
+}
+
+section('72. Order / install export text builders');
+{
+  const proj = {
+    name: 'Smith Backyard',
+    address: '123 Main St\nTigard, OR 97223',
+    deliveryDate: '2026-07-15',
+    installDate: '2026-07-18',
+    turf: [
+      { product: 'Pro 90', role: 'base', installedSqFt: 1200, orderedSqFt: 1215, linearFt: 81 },
+      { product: 'Putt 56', role: 'putting-green', installedSqFt: 300, orderedSqFt: 315, linearFt: 21 },
+      { product: 'Premium Alt', role: 'alt', installedSqFt: '', orderedSqFt: 1215, linearFt: 81 }
+    ],
+    infill: [{ product: 'Envirofill', bags: 40 }],
+    edging: { boards: 6, linFt: 110 },
+    rock: [{ type: '1/4" Minus', sqFt: 1500, depth: 4, tons: 18 }],
+    miscItems: [
+      { name: 'Weed barrier', qty: 2, unit: 'roll' },
+      { name: 'Nails 6"', qty: 5, unit: 'box' },
+      { name: 'Zero qty item', qty: 0, unit: 'each' }
+    ]
+  };
+
+  const order = ctx.buildSupplierOrderText(proj);
+  assert(order.indexOf('MATERIAL ORDER') >= 0, 'order has header');
+  assert(order.indexOf('Smith Backyard') >= 0, 'order shows job name');
+  assert(order.indexOf('123 Main St, Tigard, OR 97223') >= 0, 'order flattens multi-line address');
+  assert(order.indexOf('Delivery date:') >= 0 && order.indexOf('TBD') < 0, 'order shows a real delivery date');
+  assert(/Pro 90: 1215 sq ft \(81 lin ft/.test(order), 'turf ordered sqft + linear ft listed');
+  assert(order.indexOf('Envirofill: 40 bags') >= 0, 'infill bags listed');
+  assert(order.indexOf('Edging (bender board): 6 boards (110 lin ft)') >= 0, 'edging boards listed');
+  assert(order.indexOf('Weed barrier: 2 roll') >= 0, 'misc item listed');
+  assert(order.indexOf('Zero qty item') < 0, 'zero-qty misc item omitted');
+  assert(order.indexOf('Minus') < 0 && order.indexOf('rock') >= 0, 'rock excluded from list but noted as separate');
+  assert((order.match(/Rock|18 ton/g) || []).length === 0, 'no rock tonnage in the order');
+
+  const sheet = ctx.buildInstallerSheetText(proj);
+  assert(sheet.indexOf('INSTALL DETAILS') >= 0, 'sheet has header');
+  assert(sheet.indexOf('Install address: 123 Main St, Tigard, OR 97223') >= 0, 'sheet shows install address');
+  assert(sheet.indexOf('Install date:') >= 0, 'sheet shows install date');
+  assert(sheet.indexOf('Pro 90 (base yard): 1200 sq ft') >= 0, 'base turf install sqft per product');
+  assert(sheet.indexOf('Putt 56 (putting green): 300 sq ft') >= 0, 'putting green install sqft per product');
+  assert(sheet.indexOf('Premium Alt') < 0, 'alt turf (no installed sqft) omitted from install sheet');
+  assert(sheet.indexOf('Weed barrier: 2 roll') >= 0 && sheet.indexOf('Nails 6": 5 box') >= 0, 'all misc items on the install sheet');
+  assert(sheet.indexOf('sq ft') >= 0 && sheet.indexOf('bag') < 0, 'install sheet has no supplier-only ordering lines');
+
+  // empty / missing data degrades gracefully
+  const empty = { name: '', turf: [], infill: [], miscItems: [] };
+  const eo = ctx.buildSupplierOrderText(empty);
+  assert(eo.indexOf('Delivery date: TBD') >= 0, 'missing delivery date → TBD');
+  assert(eo.indexOf('(no orderable materials entered yet)') >= 0, 'empty order notes nothing to order');
+  assert(ctx.buildInstallerSheetText(empty).indexOf('(no installed turf area entered yet)') >= 0, 'empty install sheet notes no turf');
+  assert(ctx.buildSupplierOrderText(null) === '' && ctx.buildInstallerSheetText(null) === '', 'null project → empty string, no throw');
+  assert(ctx.fmtExportDate('') === 'TBD' && ctx.fmtExportDate('2026-07-15') !== 'TBD', 'fmtExportDate handles blank + real dates');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
