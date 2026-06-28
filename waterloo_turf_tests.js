@@ -4979,6 +4979,114 @@ section('66. Edging perimeter per layer');
   assert(ctx.layerPerimeters({}).length === 0, 'no layout → no perimeters');
 }
 
+section('67. Draw tool geometry');
+{
+  const line = ctx.drawShapePoints('line', {x:0,y:0}, {x:3,y:4});
+  assert(line.closed === false && line.points.length === 2, 'line is an open 2-point segment');
+  assert(near(line.points[1].x, 3) && near(line.points[1].y, 4), 'line end matches drag end');
+
+  const rect = ctx.drawShapePoints('rect', {x:1,y:1}, {x:5,y:3});
+  assert(rect.closed === true && rect.points.length === 4, 'rect is a closed 4-corner polygon');
+  const rxs = rect.points.map(p=>p.x), rys = rect.points.map(p=>p.y);
+  assert(near(Math.min(...rxs),1) && near(Math.max(...rxs),5) && near(Math.min(...rys),1) && near(Math.max(...rys),3), 'rect spans the drag box');
+
+  const circ = ctx.drawShapePoints('circle', {x:0,y:0}, {x:4,y:2});
+  assert(circ.closed === true && circ.points.length >= 16, 'circle sampled as a closed polygon');
+  const cxs = circ.points.map(p=>p.x), cys = circ.points.map(p=>p.y);
+  assert(near((Math.min(...cxs)+Math.max(...cxs))/2, 2) && near((Math.min(...cys)+Math.max(...cys))/2, 1), 'circle centered in the drag box');
+  assert(near(Math.max(...cxs), 4, 0.05) && near(Math.max(...cys), 2, 0.05), 'circle fills the drag box bounds');
+
+  assert(ctx.annotationHasSize({points:[{x:0,y:0},{x:5,y:0}]}) === true, 'a real-sized shape is kept');
+  assert(ctx.annotationHasSize({points:[{x:0,y:0},{x:0.05,y:0.05}]}) === false, 'a stray tiny click is discarded');
+}
+
+section('68. Annotation transforms (move / resize / rotate)');
+{
+  const rect = ctx.drawShapePoints('rect', {x:0,y:0}, {x:4,y:2}).points;
+
+  const moved = ctx.translatePoints(rect, 3, -1);
+  const mb = ctx.annoBBox(moved);
+  assert(near(mb.minX,3) && near(mb.maxX,7) && near(mb.minY,-1) && near(mb.maxY,1), 'translate shifts the whole shape');
+
+  // resize about corner 0 (0,0) by dragging corner 2 — scale x2 in X, x3 in Y
+  const scaled = ctx.scalePointsAbout(rect, {x:0,y:0}, 2, 3);
+  const sb = ctx.annoBBox(scaled);
+  assert(near(sb.minX,0) && near(sb.maxX,8) && near(sb.minY,0) && near(sb.maxY,6), 'scale about anchor grows from the anchor');
+
+  // rotate 90° about center keeps the center fixed and swaps extents
+  const b0 = ctx.annoBBox(rect);
+  const ctr = {x:(b0.minX+b0.maxX)/2, y:(b0.minY+b0.maxY)/2};
+  const rot = ctx.rotatePointsAbout(rect, ctr, Math.PI/2);
+  const rb = ctx.annoBBox(rot);
+  assert(near((rb.minX+rb.maxX)/2, ctr.x) && near((rb.minY+rb.maxY)/2, ctr.y), 'rotate keeps the center fixed');
+  assert(near(rb.maxX-rb.minX, 2) && near(rb.maxY-rb.minY, 4), '90° rotation swaps width and height');
+
+  // handles: 4 corners + a rotate knob above the top edge
+  const h = ctx.annoHandles(rect, 10);
+  assert(h.corners.length === 4, 'four corner handles');
+  assert(h.rotate.y > b0.maxY, 'rotate handle sits above the top edge');
+  assert(near(h.center.x, ctr.x) && near(h.center.y, ctr.y), 'handle center is the bbox center');
+
+  // hit testing
+  const filled = {closed:true, fill:true, points:rect};
+  assert(ctx.annoHitTest({x:2,y:1}, filled, 0.1) === true, 'click inside a filled shape selects it');
+  assert(ctx.annoHitTest({x:50,y:50}, filled, 0.1) === false, 'click far away misses');
+  const openLine = {closed:false, fill:false, points:[{x:0,y:0},{x:10,y:0}]};
+  assert(ctx.annoHitTest({x:5,y:0.05}, openLine, 0.2) === true, 'click near a line segment selects it');
+  assert(ctx.annoHitTest({x:5,y:3}, openLine, 0.2) === false, 'click off the line misses');
+}
+
+section('69. Cut list');
+{
+  const opts = { rollWidth: 15, rollLength: 100, sideTrim: 4, cuttingMargin: 4 };
+  const rectL = ctx.computeRollLayout([{x:0,y:0},{x:40,y:0},{x:40,y:30},{x:0,y:30}], 0, 0, opts);
+  const cl = ctx.buildCutList(rectL);
+  assert(cl.layers.length === 1, 'one install layer for a single shape');
+  assert(cl.totals.pieces === cl.layers[0].pieces.length, 'grand total piece count matches the layer');
+  assert(near(cl.totals.area, 1200, 1), 'cut-list coverage sums to the shape area (1200 ft²)');
+  assert(cl.layers[0].pieces.every(p => p.cutLength > 0 && p.footW > 0 && p.footL > 0), 'every piece has positive dimensions');
+  assert(cl.layers[0].pieces.every(p => near(p.rollWidth, 15)), 'cut width is the roll width');
+  const lf = cl.layers[0].pieces.reduce((s,p) => s + p.cutLength, 0);
+  assert(near(cl.totals.linearFt, lf), 'total cut length is the sum of piece cut lengths');
+
+  const Lshape = ctx.computeRollLayout([{x:0,y:0},{x:40,y:0},{x:40,y:15},{x:20,y:15},{x:20,y:30},{x:0,y:30}], 0, 0, opts);
+  const cl2 = ctx.buildCutList(Lshape);
+  assert(near(cl2.totals.area, 900, 1), 'L-shape cut list sums to its area (900 ft²)');
+  assert(cl2.layers[0].pieces.some(p => p.irregular), 'an L-shape produces at least one trim-to-shape piece');
+
+  assert(ctx.buildCutList(null).layers.length === 0, 'no layout yields an empty cut list');
+}
+
+section('70. Snap to grid');
+{
+  assert(ctx.snapPt({x:1.3,y:2.7}, 1).x === 1 && ctx.snapPt({x:1.3,y:2.7}, 1).y === 3, 'snaps to nearest 1 ft');
+  assert(near(ctx.snapPt({x:7,y:11}, 5).x, 5) && near(ctx.snapPt({x:7,y:11}, 5).y, 10), 'snaps to nearest 5 ft');
+  const p = {x:1.3,y:2.7};
+  assert(ctx.snapPt(p, 0) === p, 'step 0 is a no-op (snap off)');
+  assert(near(ctx.snapPt({x:0.4,y:0.4}, 1).x, 0) && near(ctx.snapPt({x:0.6,y:0.6}, 1).x, 1), 'rounds to the nearer line');
+}
+
+section('71. Cut-piece drawings (ft-in + SVG)');
+{
+  assert(ctx.ftIn(22.5) === "22' 6\"", 'ftIn 22.5 → 22\' 6"');
+  assert(ctx.ftIn(15) === "15'", 'ftIn whole feet drops inches');
+  assert(ctx.ftIn(0.5) === "0' 6\"", 'ftIn sub-foot shows inches');
+  assert(ctx.ftIn(1.0833) === "1' 1\"", 'ftIn rounds to nearest inch');
+
+  const piece = { footW: 14, footL: 20, rollWidth: 15, cutLength: 21, area: 280, irregular: false,
+    poly: [{x:0,y:0},{x:20,y:0},{x:20,y:14},{x:0,y:14}] };
+  const svg = ctx.cutPieceSvg(piece);
+  assert(svg.indexOf('<svg') === 0, 'returns an SVG element');
+  assert(svg.indexOf('</svg>') > 0, 'SVG is closed');
+  assert(svg.indexOf("20'") >= 0, 'length dimension label present');
+  assert(svg.indexOf("14'") >= 0, 'width dimension label present');
+  assert((svg.match(/<path/g) || []).length >= 1, 'shape path is drawn');
+
+  // a degenerate piece (no poly) still renders from its bbox without throwing
+  const tiny = ctx.cutPieceSvg({ footW: 0.1, footL: 0.1, rollWidth: 15, cutLength: 1, area: 0.01, irregular: false });
+  assert(tiny.indexOf('<svg') === 0 && tiny.indexOf('</svg>') > 0, 'degenerate piece still yields valid SVG');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

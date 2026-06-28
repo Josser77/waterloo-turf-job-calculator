@@ -5,7 +5,134 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 54) — Edging perimeter per layer
+## 2026-06-21 (cont'd, 60) — Cut list: CAD-style dimensioned drawings
+
+Test suite: **916** (sandbox 873, +10), data-dependent 43. New section 71 covers `ftIn`
+(feet-inch formatting) and `cutPieceSvg` (valid SVG, dimension labels present, degenerate
+piece safe). Drawings rendered from real rect/L/triangle layouts and eyeballed via a preview.
+
+- The cut list dialog now shows a **drawing per piece** instead of a plain table: each card has
+  a CAD-style SVG of the piece's <strong>actual trimmed footprint</strong> with overall
+  <strong>width × length dimension lines</strong> (arrowheads + feet-inch labels), plus the cut
+  size and turf area beneath. Irregular pieces draw amber and keep the <em>trim to shape</em>
+  tag; nested pieces keep the <em>nested</em> tag. Per-layer subtotals + grand total unchanged.
+- `buildCutList` now also returns each piece's normalized footprint polygon (`poly`, roll-frame,
+  translated to origin). New pure helpers `ftIn(feet)` and `cutPieceSvg(piece)` build the
+  drawing as a string; `renderCutListHtml` lays the cards out in a wrapping flex grid.
+- Dimensions are the footprint bounding box (real measured data); the drawing is the true
+  clipped outline, so rectangles look rectangular and corner/triangle pieces show their real
+  shape.
+
+---
+
+
+
+Test suite: **906** (sandbox 863, +4), data-dependent 43. New section 70 covers `snapPt`;
+copy/paste duplication, paste offset, snap-on-create, and snap-on-move (whole grid steps)
+verified headlessly through the real handlers.
+
+- **Sticky toolbar:** the draw toolbar is now `position:sticky; top:0` with a shadow, so it
+  stays pinned to the top while you scroll/draw instead of scrolling out of view.
+- **Copy / Paste:** ⧉ Copy / ⎘ Paste buttons (enabled by selection / clipboard) plus
+  Ctrl/Cmd+C / Ctrl/Cmd+V, and Delete/Backspace to remove — bound once via a draw-mode-scoped
+  keydown listener. Paste deep-clones the shape, offsets it a zoom-consistent nudge
+  (16px/scale), and selects it. Clipboard persists for the session.
+- **Snap to grid:** toggle in the toolbar (persists on `proj.layout.drawSnap`). Snaps new shape
+  points, moves (whole grid steps), and the resized corner onto the grid spacing from the
+  Display tab; rotation snaps to 15°. Grid lines sit at data multiples of the spacing, so
+  snapping lands exactly on the visible grid.
+- Implementation: pure `snapPt`/`drawSnapStep`; `copySelectedAnnotation`/`pasteAnnotation`;
+  `toggleDrawSnap`; `updateAnnoDeleteBtn` extended to drive Copy/Paste/Delete enablement; snap
+  applied in the create + select-transform handlers; snap state restored on render and on
+  entering draw mode.
+
+---
+
+
+
+Test suite unchanged at **902** (sandbox 859). Fix verified headlessly: `drawRollLayoutCanvas`
+called with `null`, `undefined`, and `{}` no longer throws, and exiting draw mode with no
+current layout is safe.
+
+- **Bug:** entering then exiting Draw mode before importing a CSV threw an opaque
+  `Uncaught Error: Script error.` The draw-mode-exit redraw called
+  `drawRollLayoutCanvas(window._wtCurrentRollLayout)` with a null layout, which hit
+  `assignNestPlacements`/`layoutFitPoints` and threw.
+- **Fix:** `drawRollLayoutCanvas` now clears the canvas and returns early when there's no
+  usable layout (`!layout || !Array.isArray(layout.strips)`), plus a guard for empty fit
+  points. This protects every caller that can run before a layout exists — draw-mode exit,
+  the grid toggle, and all annotation edits.
+
+---
+
+
+
+Test suite: **902** (sandbox 859, +9), data-dependent 43. New section 69 builds real
+layouts via `computeRollLayout` and checks `buildCutList` totals (rect sums to 1200 ft²,
+L-shape to 900 ft², trim flag fires, cut width = roll width, empty layout → empty list).
+
+- **📋 Cut List** button (toolbar, works when locked) opens a dialog listing every physical
+  turf piece across all install layers. Per piece: <strong>Cut from roll</strong> (roll width ×
+  ordered length, incl. cutting margin), <strong>Covers</strong> (turf footprint bounding box,
+  W×L), and <strong>Turf area</strong>. Tags: <em>trim to shape</em> (coverage doesn't fill the
+  rectangle) and <em>nested</em>. Per-layer subtotals + grand total for multi-layer jobs.
+- Pure `buildCutList(layout)` reads the same strips/pieces drawn on canvas (`s.pieces || [s]`),
+  using each unit's roll-frame `clipped` polygon for the real footprint and `orderedLength` for
+  the cut — so it always matches the canvas and the order math. `renderCutListHtml` +
+  `openCutListModal` handle display; new `cutListModal` mirrors the docs-modal pattern.
+- Framed explicitly as a *cut* list, separate from roll/area *order* quantities (which stay on
+  the layout panel + Materials tab), so the two aren't confused.
+
+---
+
+
+
+Test suite: **893** (sandbox 850, +11), data-dependent 43. New section 68 covers the pure
+transforms (`translatePoints`, `scalePointsAbout`, `rotatePointsAbout`, `annoBBox`,
+`annoHandles`, `annoHitTest`); the full select→move→resize→rotate→delete flow verified
+headlessly through the real mouse handlers.
+
+- Draw toolbar gains a <strong>↖ Select</strong> tool and a <strong>🗑 Delete</strong> button.
+  With Select active: click a shape to select it (dashed box + corner handles + a rotate knob);
+  drag the body to <strong>move</strong>, a corner to <strong>resize</strong> (about the opposite
+  corner), or the top knob to <strong>rotate</strong> (about center). Click empty space to
+  deselect.
+- Color/width inputs now edit the selected shape live (and the toolbar syncs to a shape's
+  color/width when you select it). Delete button enables only when something is selected.
+- Transforms are baked into the shape's points (no separate transform state), so everything
+  still saves as plain `{points}`. Known v1 limit: resizing an already-rotated shape scales in
+  world axes (can skew) — documented in-app.
+- Implementation: handlers branch on the `select` tool ahead of shape creation; pure helpers
+  added; selection box/handles drawn in the annotation pass of `drawRollLayoutCanvas`; selection
+  cleared on draw-mode exit. Still markup only — never touches turf, rolls, or the quote.
+
+---
+
+
+
+Test suite: **882** (sandbox 839, +9), data-dependent 43. New section 67 covers
+`drawShapePoints` + `annotationHasSize`; draw-handler append/undo and grid persistence
+verified headlessly.
+
+- **✏️ Draw** button in the Layout toolbar opens a drawing toolbar: <strong>Line</strong>,
+  <strong>Rectangle</strong>, <strong>Circle</strong>, <strong>Freehand</strong>, a color
+  picker, line width, optional fill, plus Undo / Clear / Done. Drag on the canvas to draw.
+  Shapes are stored in <strong>data (feet) coordinates</strong> on `proj.layout.annotations`,
+  so they scale and stay anchored through zoom/rotation, and persist per project.
+- **Markup only:** drawn shapes never touch turf area, rolls, or the quote — that's a
+  deliberate guard so free-drawing can't silently move the money. (A future "convert to
+  cutout" can bridge to real cutouts.) Draw is mutually exclusive with Edit/Move/Cut and is
+  disabled when the layout is locked.
+- **Reference grid:** Display tab gains <strong>Show grid</strong> + <strong>Grid spacing
+  (in)</strong> — a to-scale graph-paper overlay drawn behind the layout (data-aligned, density
+  capped for performance). View-only; stays usable when locked.
+- Implementation: pure `drawShapePoints(type,start,end)` + `annotationHasSize`; draw mouse/
+  touch handlers wired ahead of the edit/move/cut/nest dispatch; grid + annotation passes
+  added to `drawRollLayoutCanvas` (grid behind, annotations on top). State restored on render.
+
+---
+
+
 
 Test suite: **873** (sandbox 830, +5), data-dependent 43. New section 66 covers
 `layerPerimeters`; values verified against Michel_yard.csv.

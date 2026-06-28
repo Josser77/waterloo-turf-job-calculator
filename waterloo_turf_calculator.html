@@ -1262,11 +1262,13 @@
               <button id="editShapeBtn" class="btn btn-ghost btn-sm" onclick="toggleEditMode()">✎ Edit Shape</button>
               <button id="moveLayersBtn" class="btn btn-ghost btn-sm" onclick="toggleMoveLayersMode()">✋ Move Layers</button>
               <button id="cutModeBtn" class="btn btn-ghost btn-sm" onclick="toggleCutMode()">✂ Cut Mode</button>
+              <button id="drawModeBtn" class="btn btn-ghost btn-sm" onclick="toggleDrawMode()" title="Draw markup shapes (pavers, notes, etc.) over the layout. Visual only — does not change turf or the quote.">✏️ Draw</button>
               <button id="undoShapeBtn" class="btn btn-ghost btn-sm" onclick="undoLayoutEdit()" style="display:none;">↶ Undo</button>
               <label for="layoutFileInput" class="btn btn-ghost btn-sm" style="margin:0;cursor:pointer;">↑ Import CSV</label>
               <input type="file" id="layoutFileInput" accept=".csv,text/csv" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="importLayoutCsv(this)">
               <label for="addLayoutFileInput" class="btn btn-ghost btn-sm" style="margin:0;cursor:pointer;" title="Add another CSV's shapes as new movable layers, without replacing the current layout.">＋ Add CSV</label>
               <input type="file" id="addLayoutFileInput" accept=".csv,text/csv" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="addLayoutCsv(this)">
+              <button id="cutListBtn" class="btn btn-ghost btn-sm" data-lockok="1" onclick="openCutListModal()" title="List every turf cut piece with its dimensions">📋 Cut List</button>
             </div>
           </div>
           <p id="editShapeHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
@@ -1278,6 +1280,37 @@
           <p id="cutModeHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
             <strong>Cut mode:</strong> a quick <em>click</em> anywhere along a roll adds a butt-seam cut at that point, splitting it into separate pieces (each piece gets its own cutting margin); click an existing cut line to remove it. With "Show purchased roll rectangles" on, you can also <em>press-and-drag</em> any piece onto another roll's waste area to nest it — without leaving Cut Mode (a click toggles a cut, a drag moves a piece). Click "✂ Cut Mode" again when done.
           </p>
+          <div id="drawToolbar" style="display:none;position:sticky;top:0;z-index:50;margin-bottom:10px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--cream,#fffdf7);box-shadow:0 2px 10px rgba(0,0,0,0.12);">
+            <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+              <span style="font-size:12px;font-weight:600;margin-right:2px;">Draw:</span>
+              <button type="button" class="btn btn-ghost btn-sm draw-shape-btn" data-shape="select" onclick="setDrawShape('select')" title="Select a drawn shape to move, resize, or rotate it">↖ Select</button>
+              <button type="button" class="btn btn-ghost btn-sm draw-shape-btn" data-shape="line" onclick="setDrawShape('line')">╱ Line</button>
+              <button type="button" class="btn btn-ghost btn-sm draw-shape-btn" data-shape="rect" onclick="setDrawShape('rect')">▭ Rectangle</button>
+              <button type="button" class="btn btn-ghost btn-sm draw-shape-btn" data-shape="circle" onclick="setDrawShape('circle')">◯ Circle</button>
+              <button type="button" class="btn btn-ghost btn-sm draw-shape-btn" data-shape="freehand" onclick="setDrawShape('freehand')">✎ Freehand</button>
+              <span style="width:1px;height:20px;background:var(--border);margin:0 4px;"></span>
+              <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:normal;margin:0;">Color
+                <input type="color" id="drawColorInput" value="#c0392b" onchange="setDrawColor(this.value)" style="width:32px;height:24px;padding:0;border:1px solid var(--border);border-radius:4px;">
+              </label>
+              <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:normal;margin:0;">Width
+                <input type="number" id="drawWidthInput" min="1" max="12" step="1" value="2" onchange="setDrawWidth(this.value)" style="width:52px;">
+              </label>
+              <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:normal;margin:0;cursor:pointer;">
+                <input type="checkbox" id="drawFillInput" onchange="window._wtDrawFill=this.checked" style="width:auto;margin:0;">Fill
+              </label>
+              <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:normal;margin:0;cursor:pointer;" title="Snap shape points to the grid spacing set on the Display tab">
+                <input type="checkbox" id="drawSnapInput" onchange="toggleDrawSnap()" style="width:auto;margin:0;">Snap to grid
+              </label>
+              <span style="width:1px;height:20px;background:var(--border);margin:0 4px;"></span>
+              <button type="button" class="btn btn-ghost btn-sm" id="drawCopyBtn" onclick="copySelectedAnnotation()" title="Copy the selected shape (Ctrl/Cmd+C)" disabled>⧉ Copy</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="drawPasteBtn" onclick="pasteAnnotation()" title="Paste a copied shape (Ctrl/Cmd+V)" disabled>⎘ Paste</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="drawDeleteBtn" onclick="deleteSelectedAnnotation()" title="Delete the selected shape (Del)" disabled>🗑 Delete</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="undoDrawAnnotation()" title="Remove the last shape you drew">↶ Undo</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="clearDrawAnnotations()" title="Remove all drawn shapes">✕ Clear</button>
+              <button type="button" class="btn btn-primary btn-sm" onclick="toggleDrawMode()">✓ Done</button>
+            </div>
+            <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Pick a shape and drag on the canvas, or use <strong>↖ Select</strong> to grab a shape — drag its body to move, a corner to resize, or the top handle to rotate. <strong>Copy/Paste</strong> duplicates a selected shape; <strong>Snap to grid</strong> locks points to the grid spacing. Drawn shapes are <strong>markup only</strong> — they don't change turf, rolls, or the quote.</div>
+          </div>
           <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">
             Import the CSV exported from Moasure for this project's space. The diagram below shows the measured
             shape with the roll layout overlaid — adjust roll direction, translation, and margins to minimize scrap,
@@ -1398,6 +1431,16 @@
                         Show grade overlay (color the shape by height)
                       </label>
                       <div id="layoutGradeNote" style="display:none;font-size:12px;color:var(--text-light);margin-top:4px;line-height:1.4;"></div>
+                    </div>
+                    <div class="field-group">
+                      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;">
+                        <input type="checkbox" id="layoutShowGrid" onchange="toggleLayoutGrid()" style="margin:0;width:auto;" data-lockok="1">
+                        Show grid
+                      </label>
+                      <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+                        <label style="font-weight:normal;margin:0;white-space:nowrap;">Grid spacing (in)</label>
+                        <input type="number" id="layoutGridSpacing" min="1" step="1" value="12" oninput="setLayoutGridSpacing(this.value)" style="width:80px;" data-lockok="1">
+                      </div>
                     </div>
                     <div class="field-group">
                       <label>View Rotation (°)</label>
@@ -2119,6 +2162,16 @@
         <p>Each additional (non-primary) layer also has a <strong>Rotate</strong> slider (0-359°) in the Layers list. This rotates that shape in place about its own center — useful when Moasure captured a shape (e.g. a putting green outline) at the wrong orientation and you need to spin it to match how it actually sits in the yard. Combine with dragging to both rotate and position the shape correctly. Rotation, like position, is purely visual and doesn't affect Installed Area, scrap, or roll calculations.</p>
         <p>A layer that's been moved and/or rotated shows a "↺ Reset position" button in the Layers list to snap it back to its original (imported) position and orientation.</p>
 
+        <div class="docs-h3">Cut List</div>
+        <p>Click <strong>"📋 Cut List"</strong> in the toolbar to open a dialog showing <strong>every turf piece to cut</strong>, grouped by layer. Each piece gets a <strong>CAD-style drawing</strong> of its actual trimmed shape with the overall <strong>width × length dimensioned in feet and inches</strong>, plus the <strong>cut size</strong> (full roll width × ordered length, including the cutting margin) and <strong>turf area</strong> below it. Irregular pieces (that don't fill their rectangle) are tagged <em>trim to shape</em> and drawn in amber; pieces tucked into another roll's waste are tagged <em>nested</em>. Each layer shows a subtotal (piece count, total cut length, area) and multi-layer jobs get a grand total. The drawings read from the same strips drawn on the canvas, so they always match. This is a <em>cut</em> list — the roll and area <em>order</em> quantities live on the layout panel and Materials tab. Available even when the layout is locked.</p>
+
+        <div class="docs-h3">Draw Tool (Markup)</div>
+        <p>Click <strong>"✏️ Draw"</strong> in the toolbar to open the drawing toolbar, then pick <strong>Line</strong>, <strong>Rectangle</strong>, <strong>Circle</strong>, or <strong>Freehand</strong>, choose a <strong>color</strong> and line <strong>width</strong> (and optional <strong>Fill</strong> for rectangles/circles), and drag on the canvas. Use this to mark up the layout — show where pavers, borders, steppers, or other features go, or annotate for a customer.</p>
+        <p><strong>Adjust a shape:</strong> switch to the <strong>↖ Select</strong> tool, then click a shape to select it (a dashed box with handles appears). <strong>Drag the body</strong> to move it, <strong>drag a corner</strong> to resize, or <strong>drag the round handle above the top</strong> to rotate. Changing the color or width while a shape is selected updates that shape. <strong>⧉ Copy</strong> / <strong>⎘ Paste</strong> (or Ctrl/Cmd+C / Ctrl/Cmd+V) duplicate the selected shape — the copy lands slightly offset and selected. <strong>🗑 Delete</strong> (or the Delete key) removes the selected shape; <strong>↶ Undo</strong> removes the last shape you drew; <strong>✕ Clear</strong> removes all; <strong>✓ Done</strong> exits. <strong>Snap to grid</strong> locks new points, moves (in whole grid steps), resizes, and rotation (to 15°) onto the grid spacing set on the Display tab — turn on the grid there to see it. The draw toolbar stays pinned to the top while you work so it's always in reach. Drawn shapes scale and stay anchored to the layout when you zoom, and they save with the project. <strong>Important:</strong> drawn shapes are <em>markup only</em> — they never change turf area, rolls, or the quote. To make a real cutout that turf works around, use a CSV layer set to Cutout instead. Draw is mutually exclusive with Edit Shape / Move Layers / Cut Mode, and is disabled while the layout is locked. <em>Note: resizing a shape that you've already rotated scales along the yard's axes, so a rotated rectangle can skew — rotate last, or re-draw if it looks off.</em></p>
+
+        <div class="docs-h3">Reference Grid</div>
+        <p>On the <strong>Display</strong> tab, turn on <strong>Show grid</strong> for a to-scale graph-paper overlay behind the layout, and set <strong>Grid spacing</strong> in inches (e.g. 12 for a 1-ft grid, 6 for 6-in squares). It's a visual scale reference — each square equals the spacing you set at the current zoom — and it has no effect on any calculation. The grid stays available even when the layout is locked.</p>
+
         <div class="docs-h3">Manual Cuts (Butt Seams)</div>
         <p><strong>Automatic gap cuts:</strong> before you touch anything, the roll plan already avoids running a roll through empty space. When a notch or cut-in splits a strip's turf into separate runs along the roll's length — turf, then a gap, then turf again — that strip is automatically ordered as <em>separate pieces</em> with the gap dropped, instead of one continuous roll length spanning the waste. You'll see two (or more) shorter rectangles on that strip with their own "Roll N / Piece M" labels and nothing drawn across the gap. Only gaps worth a seam are cut (gaps under about 2 ft are bridged), and a strip you've cut by hand keeps your manual cuts instead. This lowers Ordered SqFt, Linear Ft, and the roll count to match what you'd actually lay.</p>
         <p>Click <strong>"✂ Cut Mode"</strong> to enter cut mode. Click anywhere along a roll to add a butt-seam cut at that point — this splits the roll into separate pieces, each with its own cutting margin, labeled "Roll N.1", "Roll N.2", etc. with a red seam line marking the cut. You can add multiple cuts to the same roll to create 3 or more pieces. Click an existing cut line again to remove it. Click "✓ Done Cutting" to exit — Cut Mode is mutually exclusive with Edit Shape and Move Layers modes. <strong>On a multi-layer job, cuts work on any install layer:</strong> clicking a sub-layer's strip routes the cut to that layer's own roll plan (each layer can roll in a different direction, and the cut position is measured in that layer's frame). Hidden layers can't be cut.</p>
@@ -2257,6 +2310,23 @@
       </div>
 
     </div>
+  </div>
+</div>
+
+<!-- CUT LIST MODAL -->
+<div class="modal-overlay" id="cutListModal" style="z-index:1100;">
+  <div class="modal" style="width:min(760px,95vw);max-height:90vh;overflow-y:auto;padding:28px 32px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;">
+      <div>
+        <div style="font-family:'Raleway',sans-serif;font-size:20px;font-weight:800;color:var(--text);">Turf Cut List</div>
+        <div style="font-size:12px;color:var(--text-light);margin-top:4px;">Every piece to cut from the rolls, with dimensions.</div>
+      </div>
+      <button onclick="document.getElementById('cutListModal').classList.remove('open')"
+        style="background:none;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;color:var(--text-light);cursor:pointer;flex-shrink:0;">
+        Close ✕
+      </button>
+    </div>
+    <div id="cutListBody" style="font-size:13px;color:var(--text);line-height:1.5;"></div>
   </div>
 </div>
 
@@ -5837,6 +5907,13 @@ function renderLayoutTab() {
   document.getElementById('viewRotationInput').value = proj.layout.viewRotation || 0;
   document.getElementById('viewRotationValue').textContent = (proj.layout.viewRotation || 0) + '°';
   document.getElementById('showRectanglesToggle').checked = !!proj.layout.showRects;
+  const gridCb = document.getElementById('layoutShowGrid');
+  if (gridCb) gridCb.checked = !!proj.layout.gridShow;
+  const gridSp = document.getElementById('layoutGridSpacing');
+  if (gridSp) gridSp.value = proj.layout.gridSpacingInches || 12;
+  window._wtDrawSnap = !!proj.layout.drawSnap;
+  const snapCb = document.getElementById('drawSnapInput');
+  if (snapCb) snapCb.checked = window._wtDrawSnap;
 
   renderRollLayout();
   renderFringeSection(proj);
@@ -7423,6 +7500,24 @@ function toggleLayoutGrade() {
   renderLayoutGradeNote(proj);
 }
 
+// Reference grid: a to-scale graph-paper overlay behind the layout, spacing set
+// in inches. Drawn in drawRollLayoutCanvas; state persists per project.
+function toggleLayoutGrid() {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  const cb = document.getElementById('layoutShowGrid');
+  proj.layout.gridShow = !!(cb && cb.checked);
+  save();
+  drawRollLayoutCanvas(window._wtCurrentRollLayout);
+}
+
+function setLayoutGridSpacing(val) {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  const v = Math.max(1, parseFloat(val) || 12);
+  proj.layout.gridSpacingInches = v;
+  save();
+  if (proj.layout.gridShow) drawRollLayoutCanvas(window._wtCurrentRollLayout);
+}
+
 function renderLayoutGradeNote(proj) {
   const cb   = document.getElementById('layoutShowGrade');
   const note = document.getElementById('layoutGradeNote');
@@ -7516,6 +7611,11 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   const w = canvas.width, h = canvas.height;
   ctx.clearRect(0,0,w,h);
 
+  // Nothing to draw without a computed layout (e.g. no CSV imported yet). Bail
+  // after clearing so every caller — grid toggle, draw-mode exit, annotation
+  // edits — is safe to call before a layout exists.
+  if (!layout || !Array.isArray(layout.strips)) return;
+
   // Resolve each nested piece's non-overlapping position before drawing, so
   // pieces sharing a roll's waste avoid the turf and each other.
   assignNestPlacements(layout);
@@ -7525,6 +7625,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   // and the draw scale agree exactly — the shape fills the canvas with no
   // letterboxing, and rectangles are only framed in when they're being shown.
   const allPts = layoutFitPoints(layout, showRectsFit);
+  if (!allPts || !allPts.length) return;
   let minX, minY, scale, pad = 16;
   const _frozen = window._wtFreezeTransform && window._wtCanvasTransform;
   if (_frozen) {
@@ -7546,6 +7647,28 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       y: h - pad - (p.y - minY) * scale,
     };
   }
+
+  // Reference grid (behind everything), spacing in inches → feet.
+  (function drawGrid() {
+    const gp = getCurrentProject();
+    if (!gp || !gp.layout || !gp.layout.gridShow) return;
+    const spFt = Math.max(1, parseFloat(gp.layout.gridSpacingInches) || 12) / 12;
+    const dxMin = minX - pad / scale, dxMax = minX + (w - pad) / scale;
+    const dyMin = minY - pad / scale, dyMax = minY + (h - pad) / scale;
+    if ((dxMax - dxMin) / spFt > 800 || (dyMax - dyMin) / spFt > 800) return; // too dense
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+    ctx.lineWidth = 1;
+    for (let gx = Math.ceil(dxMin / spFt) * spFt; gx <= dxMax; gx += spFt) {
+      const a = toCanvas({ x: gx, y: dyMin }), b = toCanvas({ x: gx, y: dyMax });
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    for (let gy = Math.ceil(dyMin / spFt) * spFt; gy <= dyMax; gy += spFt) {
+      const a = toCanvas({ x: dxMin, y: gy }), b = toCanvas({ x: dxMax, y: gy });
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    ctx.restore();
+  })();
 
   function drawPoly(poly, fill, stroke) {
     if (!poly.length) return;
@@ -7994,6 +8117,50 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     }
   }
 
+  // User annotations from the Draw tool (markup: pavers, notes, etc.), drawn on
+  // top of everything plus any in-progress shape. Visual only — never affects
+  // turf math or the quote.
+  (function drawAnnotations() {
+    const ap = getCurrentProject();
+    const list = (ap && ap.layout && Array.isArray(ap.layout.annotations)) ? ap.layout.annotations.slice() : [];
+    if (window._wtDrawInProgress) list.push(window._wtDrawInProgress);
+    list.forEach(a => {
+      if (!a || !a.points || a.points.length < 2) return;
+      ctx.save();
+      ctx.lineWidth = a.width || 2;
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.strokeStyle = a.color || '#c0392b';
+      ctx.beginPath();
+      a.points.forEach((p, i) => { const c = toCanvas(p); if (i === 0) ctx.moveTo(c.x, c.y); else ctx.lineTo(c.x, c.y); });
+      if (a.closed) ctx.closePath();
+      if (a.fill && a.closed) { ctx.globalAlpha = 0.22; ctx.fillStyle = a.color || '#c0392b'; ctx.fill(); ctx.globalAlpha = 1; }
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    // Selection box + transform handles for the selected annotation (Draw → Select).
+    const selI = window._wtSelectedAnno;
+    const sel = (window._wtDrawMode && ap && ap.layout && Array.isArray(ap.layout.annotations)) ? ap.layout.annotations[selI] : null;
+    if (sel && sel.points && sel.points.length >= 2) {
+      const h = annoHandles(sel.points, scale);
+      const c0 = toCanvas(h.corners[0]), c1 = toCanvas(h.corners[1]), c2 = toCanvas(h.corners[2]), c3 = toCanvas(h.corners[3]);
+      const rc = toCanvas(h.rotate), ctr = toCanvas(h.center);
+      ctx.save();
+      // dashed bounding box
+      ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(c0.x, c0.y); ctx.lineTo(c1.x, c1.y); ctx.lineTo(c2.x, c2.y); ctx.lineTo(c3.x, c3.y); ctx.closePath();
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // rotate handle stem + knob
+      ctx.beginPath(); ctx.moveTo(ctr.x, c2.y < c1.y ? c2.y : c1.y); ctx.lineTo(rc.x, rc.y); ctx.stroke();
+      ctx.fillStyle = '#fff';
+      [c0, c1, c2, c3].forEach(c => { ctx.beginPath(); ctx.rect(c.x - 4, c.y - 4, 8, 8); ctx.fill(); ctx.stroke(); });
+      ctx.beginPath(); ctx.arc(rc.x, rc.y, 5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+  })();
+
   // Expose the transform so edit-mode hit testing can map mouse <-> data coords
   window._wtCanvasTransform = { minX, minY, scale, pad, w, h };
 
@@ -8140,6 +8307,7 @@ function toggleEditMode() {
     // Mutually exclusive with Move Layers and Cut modes
     if (window._wtMoveLayersMode) toggleMoveLayersMode();
     if (window._wtCutMode) toggleCutMode();
+    if (window._wtDrawMode) toggleDrawMode();
     btn.classList.add('btn-primary');
     btn.textContent = '✓ Done Editing';
     hint.style.display = '';
@@ -8166,6 +8334,7 @@ function toggleMoveLayersMode() {
     // Mutually exclusive with Edit Shape and Cut modes
     if (window._wtEditMode) toggleEditMode();
     if (window._wtCutMode) toggleCutMode();
+    if (window._wtDrawMode) toggleDrawMode();
     btn.classList.add('btn-primary');
     btn.textContent = '✓ Done Moving';
     hint.style.display = '';
@@ -8189,6 +8358,7 @@ function toggleCutMode() {
     // Mutually exclusive with Edit Shape and Move Layers modes
     if (window._wtEditMode) toggleEditMode();
     if (window._wtMoveLayersMode) toggleMoveLayersMode();
+    if (window._wtDrawMode) toggleDrawMode();
     btn.classList.add('btn-primary');
     btn.textContent = '✓ Done Cutting';
     hint.style.display = '';
@@ -8204,6 +8374,376 @@ function toggleCutMode() {
     if (canvas) canvas.style.cursor = 'default';
   }
   renderRollLayout();
+}
+
+// ── Draw tool (markup annotations) ────────────────────────────────────────
+// Pure geometry for a shape from a start/end drag point, in data (feet) coords.
+function drawShapePoints(type, start, end) {
+  if (type === 'rect') {
+    return { closed: true, points: [
+      { x: start.x, y: start.y }, { x: end.x, y: start.y },
+      { x: end.x, y: end.y }, { x: start.x, y: end.y },
+    ] };
+  }
+  if (type === 'circle') {
+    const cx = (start.x + end.x) / 2, cy = (start.y + end.y) / 2;
+    const rx = Math.abs(end.x - start.x) / 2, ry = Math.abs(end.y - start.y) / 2;
+    const pts = []; const N = 40;
+    for (let i = 0; i < N; i++) { const a = 2 * Math.PI * i / N; pts.push({ x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) }); }
+    return { closed: true, points: pts };
+  }
+  return { closed: false, points: [{ x: start.x, y: start.y }, { x: end.x, y: end.y }] };
+}
+
+function annotationHasSize(a) {
+  if (!a || !a.points || a.points.length < 2) return false;
+  const xs = a.points.map(p => p.x), ys = a.points.map(p => p.y);
+  const dw = Math.max(...xs) - Math.min(...xs), dh = Math.max(...ys) - Math.min(...ys);
+  return Math.hypot(dw, dh) > 0.15; // ~2 in — ignore stray clicks
+}
+
+function toggleDrawMode() {
+  if (window._wtLayoutLocked) return;
+  window._wtDrawMode = !window._wtDrawMode;
+  const btn = document.getElementById('drawModeBtn');
+  const bar = document.getElementById('drawToolbar');
+  const canvas = document.getElementById('rollLayoutCanvas');
+  if (window._wtDrawMode) {
+    if (window._wtEditMode) toggleEditMode();
+    if (window._wtMoveLayersMode) toggleMoveLayersMode();
+    if (window._wtCutMode) toggleCutMode();
+    if (!window._wtDrawShape) window._wtDrawShape = 'line';
+    if (!window._wtDrawColor) { const ci = document.getElementById('drawColorInput'); window._wtDrawColor = (ci && ci.value) || '#c0392b'; }
+    if (!window._wtDrawWidth) window._wtDrawWidth = 2;
+    if (btn) { btn.classList.add('btn-primary'); btn.textContent = '✓ Done Drawing'; }
+    if (bar) bar.style.display = '';
+    if (canvas) canvas.style.cursor = 'crosshair';
+    const proj = getCurrentProject();
+    window._wtDrawSnap = !!(proj && proj.layout && proj.layout.drawSnap);
+    const snapCb = document.getElementById('drawSnapInput');
+    if (snapCb) snapCb.checked = window._wtDrawSnap;
+    updateAnnoDeleteBtn();
+    setDrawShape(window._wtDrawShape);
+  } else {
+    window._wtDrawInProgress = null; window._wtDrawStart = null;
+    window._wtSelectedAnno = null; window._wtAnnoOp = null;
+    updateAnnoDeleteBtn();
+    if (btn) { btn.classList.remove('btn-primary'); btn.textContent = '✏️ Draw'; }
+    if (bar) bar.style.display = 'none';
+    if (canvas) canvas.style.cursor = 'default';
+    drawRollLayoutCanvas(window._wtCurrentRollLayout);
+  }
+}
+
+function setDrawShape(shape) {
+  window._wtDrawShape = shape;
+  document.querySelectorAll('.draw-shape-btn').forEach(b => {
+    const on = b.getAttribute('data-shape') === shape;
+    if (on) { b.classList.add('btn-primary'); b.classList.remove('btn-ghost'); }
+    else { b.classList.remove('btn-primary'); b.classList.add('btn-ghost'); }
+  });
+}
+
+function onDrawMouseDown(evt) {
+  const pos = canvasEventToData(evt); if (!pos) return;
+  if ((window._wtDrawShape || 'line') === 'select') { annoSelectMouseDown(pos, evt); return; }
+  const step = drawSnapStep();
+  const start = snapPt({ x: pos.dataX, y: pos.dataY }, step);
+  window._wtDrawStart = start;
+  const shape = window._wtDrawShape || 'line';
+  window._wtDrawInProgress = {
+    type: shape,
+    color: window._wtDrawColor || '#c0392b',
+    width: window._wtDrawWidth || 2,
+    fill: !!window._wtDrawFill,
+    closed: (shape === 'rect' || shape === 'circle'),
+    points: [{ x: start.x, y: start.y }],
+  };
+  evt.preventDefault();
+}
+
+function onDrawMouseMove(evt) {
+  if ((window._wtDrawShape || 'line') === 'select') { annoSelectMouseMove(evt); return; }
+  if (!window._wtDrawInProgress || !window._wtDrawStart) return;
+  const pos = canvasEventToData(evt); if (!pos) return;
+  const step = drawSnapStep();
+  const cur = snapPt({ x: pos.dataX, y: pos.dataY }, step);
+  const ip = window._wtDrawInProgress;
+  if (ip.type === 'freehand') { ip.points.push(cur); }
+  else { const s = drawShapePoints(ip.type, window._wtDrawStart, cur); ip.points = s.points; ip.closed = s.closed; }
+  drawRollLayoutCanvas(window._wtCurrentRollLayout);
+  if (evt.cancelable) evt.preventDefault();
+}
+
+function onDrawMouseUp(evt) {
+  if ((window._wtDrawShape || 'line') === 'select') { annoSelectMouseUp(evt); return; }
+  const ip = window._wtDrawInProgress;
+  window._wtDrawInProgress = null; window._wtDrawStart = null;
+  if (!ip) return;
+  const proj = getCurrentProject();
+  if (proj && proj.layout && annotationHasSize(ip)) {
+    proj.layout.annotations = proj.layout.annotations || [];
+    proj.layout.annotations.push(ip);
+    save();
+  }
+  drawRollLayoutCanvas(window._wtCurrentRollLayout);
+}
+
+function undoDrawAnnotation() {
+  const proj = getCurrentProject();
+  if (!proj || !proj.layout || !Array.isArray(proj.layout.annotations) || !proj.layout.annotations.length) return;
+  proj.layout.annotations.pop();
+  save();
+  drawRollLayoutCanvas(window._wtCurrentRollLayout);
+}
+
+function clearDrawAnnotations() {
+  const proj = getCurrentProject();
+  if (!proj || !proj.layout || !Array.isArray(proj.layout.annotations) || !proj.layout.annotations.length) return;
+  if (!confirm('Remove all drawn shapes? This cannot be undone.')) return;
+  proj.layout.annotations = [];
+  window._wtSelectedAnno = null; updateAnnoDeleteBtn();
+  save();
+  drawRollLayoutCanvas(window._wtCurrentRollLayout);
+}
+
+function setDrawColor(v) {
+  window._wtDrawColor = v || '#c0392b';
+  // If a shape is selected, recolor it live.
+  const proj = getCurrentProject();
+  if (proj && proj.layout && window._wtSelectedAnno != null && proj.layout.annotations && proj.layout.annotations[window._wtSelectedAnno]) {
+    proj.layout.annotations[window._wtSelectedAnno].color = window._wtDrawColor;
+    save();
+    drawRollLayoutCanvas(window._wtCurrentRollLayout);
+  }
+}
+
+function setDrawWidth(v) {
+  window._wtDrawWidth = Math.max(1, parseInt(v) || 2);
+  const proj = getCurrentProject();
+  if (proj && proj.layout && window._wtSelectedAnno != null && proj.layout.annotations && proj.layout.annotations[window._wtSelectedAnno]) {
+    proj.layout.annotations[window._wtSelectedAnno].width = window._wtDrawWidth;
+    save();
+    drawRollLayoutCanvas(window._wtCurrentRollLayout);
+  }
+}
+
+// ── Annotation transform geometry (pure) ──────────────────────────────────
+function annoBBox(points) {
+  const xs = points.map(p => p.x), ys = points.map(p => p.y);
+  return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+}
+
+// Handle anchor points in DATA coords. Corners ordered:
+// 0=(minX,minY) 1=(maxX,minY) 2=(maxX,maxY) 3=(minX,maxY); opposite of i is (i+2)%4.
+// Rotate handle sits a constant ~screen distance above top-center (larger data Y = up).
+function annoHandles(points, scale) {
+  const b = annoBBox(points);
+  const cx = (b.minX + b.maxX) / 2, cy = (b.minY + b.maxY) / 2;
+  const off = 22 / (scale || 1);
+  return {
+    center: { x: cx, y: cy },
+    corners: [
+      { x: b.minX, y: b.minY }, { x: b.maxX, y: b.minY },
+      { x: b.maxX, y: b.maxY }, { x: b.minX, y: b.maxY },
+    ],
+    rotate: { x: cx, y: b.maxY + off },
+    bbox: b,
+  };
+}
+
+function translatePoints(points, dx, dy) {
+  return points.map(p => ({ x: p.x + dx, y: p.y + dy }));
+}
+
+function scalePointsAbout(points, anchor, sx, sy) {
+  return points.map(p => ({ x: anchor.x + (p.x - anchor.x) * sx, y: anchor.y + (p.y - anchor.y) * sy }));
+}
+
+function rotatePointsAbout(points, center, ang) {
+  const c = Math.cos(ang), s = Math.sin(ang);
+  return points.map(p => {
+    const dx = p.x - center.x, dy = p.y - center.y;
+    return { x: center.x + dx * c - dy * s, y: center.y + dx * s + dy * c };
+  });
+}
+
+function distToSegment(p, a, b) {
+  const vx = b.x - a.x, vy = b.y - a.y;
+  const len2 = vx * vx + vy * vy;
+  let t = len2 ? ((p.x - a.x) * vx + (p.y - a.y) * vy) / len2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p.x - (a.x + t * vx), p.y - (a.y + t * vy));
+}
+
+// Is data-space point `pt` on/inside annotation `a`, within tolerance `tol`?
+function annoHitTest(pt, a, tol) {
+  if (!a || !a.points || a.points.length < 2) return false;
+  if (a.closed && a.fill && pointInPoly(pt, a.points)) return true;
+  const n = a.points.length;
+  const last = a.closed ? n : n - 1;
+  for (let i = 0; i < last; i++) {
+    const p0 = a.points[i], p1 = a.points[(i + 1) % n];
+    if (distToSegment(pt, p0, p1) <= tol) return true;
+  }
+  // closed unfilled shapes are still easy to grab from inside
+  if (a.closed && pointInPoly(pt, a.points)) return true;
+  return false;
+}
+
+// ── Annotation selection + transform interaction ──────────────────────────
+function annoSelectMouseDown(pos, evt) {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  const annos = proj.layout.annotations || [];
+  const t = window._wtCanvasTransform; const scale = (t && t.scale) || 1;
+  const tol = 9 / scale, handleTol = 12 / scale;
+  const pt = { x: pos.dataX, y: pos.dataY };
+
+  // 1) If a shape is already selected, check its handles first.
+  if (window._wtSelectedAnno != null && annos[window._wtSelectedAnno]) {
+    const a = annos[window._wtSelectedAnno];
+    const h = annoHandles(a.points, scale);
+    if (Math.hypot(pt.x - h.rotate.x, pt.y - h.rotate.y) <= handleTol) {
+      window._wtAnnoOp = { type: 'rotate', center: h.center, startPoints: a.points.map(p => ({ ...p })), startAngle: Math.atan2(pt.y - h.center.y, pt.x - h.center.x) };
+      if (evt.cancelable) evt.preventDefault(); return;
+    }
+    for (let i = 0; i < 4; i++) {
+      if (Math.hypot(pt.x - h.corners[i].x, pt.y - h.corners[i].y) <= handleTol) {
+        window._wtAnnoOp = { type: 'resize', anchor: h.corners[(i + 2) % 4], startCorner: h.corners[i], startPoints: a.points.map(p => ({ ...p })) };
+        if (evt.cancelable) evt.preventDefault(); return;
+      }
+    }
+  }
+
+  // 2) Hit-test shapes, topmost (last drawn) first.
+  for (let i = annos.length - 1; i >= 0; i--) {
+    if (annoHitTest(pt, annos[i], tol)) {
+      window._wtSelectedAnno = i;
+      window._wtAnnoOp = { type: 'move', startPos: pt, startPoints: annos[i].points.map(p => ({ ...p })) };
+      syncDrawToolbarToSelection();
+      updateAnnoDeleteBtn();
+      drawRollLayoutCanvas(window._wtCurrentRollLayout);
+      if (evt.cancelable) evt.preventDefault(); return;
+    }
+  }
+
+  // 3) Empty space → deselect.
+  window._wtSelectedAnno = null; window._wtAnnoOp = null;
+  updateAnnoDeleteBtn();
+  drawRollLayoutCanvas(window._wtCurrentRollLayout);
+}
+
+function annoSelectMouseMove(evt) {
+  const op = window._wtAnnoOp; if (!op) return;
+  const pos = canvasEventToData(evt); if (!pos) return;
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  const a = proj.layout.annotations && proj.layout.annotations[window._wtSelectedAnno];
+  if (!a) return;
+  const step = drawSnapStep();
+  const pt = { x: pos.dataX, y: pos.dataY };
+  if (op.type === 'move') {
+    // Snap the translation so the shape moves in whole grid steps.
+    let dx = pt.x - op.startPos.x, dy = pt.y - op.startPos.y;
+    if (step) { dx = Math.round(dx / step) * step; dy = Math.round(dy / step) * step; }
+    a.points = translatePoints(op.startPoints, dx, dy);
+  } else if (op.type === 'resize') {
+    const an = op.anchor;
+    const sp = step ? snapPt(pt, step) : pt; // snap the dragged corner onto the grid
+    const denX = op.startCorner.x - an.x, denY = op.startCorner.y - an.y;
+    let sx = Math.abs(denX) < 1e-6 ? 1 : (sp.x - an.x) / denX;
+    let sy = Math.abs(denY) < 1e-6 ? 1 : (sp.y - an.y) / denY;
+    const clamp = s => (Math.abs(s) < 0.05 ? (s < 0 ? -0.05 : 0.05) : s);
+    a.points = scalePointsAbout(op.startPoints, an, clamp(sx), clamp(sy));
+  } else if (op.type === 'rotate') {
+    let ang = Math.atan2(pt.y - op.center.y, pt.x - op.center.x) - op.startAngle;
+    if (step) { const q = Math.PI / 12; ang = Math.round(ang / q) * q; } // snap to 15°
+    a.points = rotatePointsAbout(op.startPoints, op.center, ang);
+  }
+  drawRollLayoutCanvas(window._wtCurrentRollLayout);
+  if (evt.cancelable) evt.preventDefault();
+}
+
+function annoSelectMouseUp(evt) {
+  if (window._wtAnnoOp) { window._wtAnnoOp = null; save(); }
+}
+
+function deleteSelectedAnnotation() {
+  const proj = getCurrentProject();
+  if (!proj || !proj.layout || !Array.isArray(proj.layout.annotations)) return;
+  const i = window._wtSelectedAnno;
+  if (i == null || !proj.layout.annotations[i]) return;
+  proj.layout.annotations.splice(i, 1);
+  window._wtSelectedAnno = null; window._wtAnnoOp = null;
+  updateAnnoDeleteBtn();
+  save();
+  drawRollLayoutCanvas(window._wtCurrentRollLayout);
+}
+
+function updateAnnoDeleteBtn() {
+  const sel = (window._wtSelectedAnno != null);
+  const del = document.getElementById('drawDeleteBtn'); if (del) del.disabled = !sel;
+  const cp = document.getElementById('drawCopyBtn'); if (cp) cp.disabled = !sel;
+  const ps = document.getElementById('drawPasteBtn'); if (ps) ps.disabled = !window._wtAnnoClipboard;
+}
+
+// ── Snap to grid ──────────────────────────────────────────────────────────
+// Grid lines are drawn at data-coordinate multiples of the spacing, so snapping
+// to those same multiples lands points exactly on the visible grid.
+function toggleDrawSnap() {
+  const cb = document.getElementById('drawSnapInput');
+  window._wtDrawSnap = !!(cb && cb.checked);
+  const proj = getCurrentProject();
+  if (proj && proj.layout) { proj.layout.drawSnap = window._wtDrawSnap; save(); }
+}
+
+function drawSnapStep() {
+  if (!window._wtDrawSnap) return 0;
+  const proj = getCurrentProject();
+  const inches = (proj && proj.layout && proj.layout.gridSpacingInches) || 12;
+  return Math.max(1, inches) / 12;
+}
+
+function snapPt(pt, step) {
+  if (!step) return pt;
+  return { x: Math.round(pt.x / step) * step, y: Math.round(pt.y / step) * step };
+}
+
+// ── Copy / paste ──────────────────────────────────────────────────────────
+function copySelectedAnnotation() {
+  const proj = getCurrentProject();
+  const a = proj && proj.layout && proj.layout.annotations && proj.layout.annotations[window._wtSelectedAnno];
+  if (!a) return;
+  window._wtAnnoClipboard = JSON.parse(JSON.stringify(a));
+  updateAnnoDeleteBtn();
+}
+
+function pasteAnnotation() {
+  const proj = getCurrentProject();
+  if (!proj || !proj.layout || !window._wtAnnoClipboard) return;
+  const copy = JSON.parse(JSON.stringify(window._wtAnnoClipboard));
+  // Offset the paste a small, zoom-consistent nudge so it's visibly a duplicate.
+  const t = window._wtCanvasTransform;
+  const off = t && t.scale ? 16 / t.scale : 1;
+  copy.points = (copy.points || []).map(p => ({ x: p.x + off, y: p.y - off }));
+  proj.layout.annotations = proj.layout.annotations || [];
+  proj.layout.annotations.push(copy);
+  window._wtSelectedAnno = proj.layout.annotations.length - 1;
+  window._wtAnnoOp = null;
+  // Make sure the Select tool is active so the pasted shape is immediately editable.
+  if (window._wtDrawShape !== 'select') setDrawShape('select');
+  syncDrawToolbarToSelection();
+  updateAnnoDeleteBtn();
+  save();
+  drawRollLayoutCanvas(window._wtCurrentRollLayout);
+}
+
+// When a shape is selected, reflect its color/width in the toolbar inputs.
+function syncDrawToolbarToSelection() {
+  const proj = getCurrentProject();
+  const a = proj && proj.layout && proj.layout.annotations && proj.layout.annotations[window._wtSelectedAnno];
+  if (!a) return;
+  const ci = document.getElementById('drawColorInput'); if (ci && a.color) ci.value = a.color;
+  const wi = document.getElementById('drawWidthInput'); if (wi && a.width) wi.value = a.width;
 }
 
 function canvasEventToData(evt) {
@@ -8437,6 +8977,167 @@ function assignRollPieceLabels(layout) {
   });
 
   return labels;
+}
+
+// ── Cut list ──────────────────────────────────────────────────────────────
+// Build a flat list of every physical turf piece across all install layers,
+// each with real dimensions pulled from the same strips/pieces drawn on canvas.
+// Pure (no DOM) so it's testable. Footprint = bounding box of the actual turf
+// coverage (roll-frame); Cut = the rectangle pulled off the roll (roll width ×
+// ordered length, which includes the cutting margin).
+function buildCutList(layout) {
+  const empty = { layers: [], totals: { pieces: 0, linearFt: 0, area: 0 } };
+  if (!layout) return empty;
+  const rollWidth = layout.rollWidth || 15;
+  const entries = (layout._installLayers && layout._installLayers.length)
+    ? layout._installLayers
+    : [{ id: 'primary', name: layout.primaryLayerName || 'Turf', layout }];
+  const layers = [];
+  let gP = 0, gL = 0, gA = 0;
+  entries.forEach(({ name, layout: L }) => {
+    if (!L || !Array.isArray(L.strips)) return;
+    const labels = assignRollPieceLabels(L);
+    const pieces = [];
+    let sP = 0, sL = 0, sA = 0;
+    L.strips.forEach(s => {
+      if (s.clippedArea <= 1e-9) return;
+      const units = s.pieces || [s];
+      units.forEach(u => {
+        if (u.clippedArea <= 1e-9) return;
+        const lab = labels.get(u) || {};
+        const cp = u.clipped || [];
+        let footL, footW, poly = [];
+        if (cp.length) {
+          const xs = cp.map(p => p.x), ys = cp.map(p => p.y);
+          const minx = Math.min(...xs), miny = Math.min(...ys);
+          footL = Math.max(...xs) - minx;
+          footW = Math.max(...ys) - miny;
+          poly = cp.map(p => ({ x: p.x - minx, y: p.y - miny })); // normalize to origin
+        } else {
+          footL = (u.occupiedX1 != null ? u.occupiedX1 - u.occupiedX0 : (u.rfX1 - u.rfX0));
+          footW = (u.rfY1 - u.rfY0);
+          poly = [{x:0,y:0},{x:footL,y:0},{x:footL,y:footW},{x:0,y:footW}];
+        }
+        const cutLength = u.orderedLength || (u.rfX1 - u.rfX0);
+        const area = u.clippedArea;
+        const irregular = area < (footW * footL) - 0.5;
+        pieces.push({
+          roll: lab.roll || 1, piece: lab.piece || 1,
+          label: lab.roll ? ('Roll ' + lab.roll + ', Piece ' + lab.piece) : 'Piece',
+          cutLength, rollWidth, footW, footL, area, irregular, poly,
+          nested: (u.nestedInto != null),
+        });
+        sP++; sL += cutLength; sA += area;
+      });
+    });
+    if (!pieces.length) return;
+    layers.push({ name: name || 'Turf', pieces, subtotal: { pieces: sP, linearFt: sL, area: sA } });
+    gP += sP; gL += sL; gA += sA;
+  });
+  return { layers, totals: { pieces: gP, linearFt: gL, area: gA } };
+}
+
+function renderCutListHtml(data) {
+  if (!data.layers.length) {
+    return '<p style="color:var(--text-light);">No turf cuts yet — import or draw a layout first, then open the cut list.</p>';
+  }
+  const f1 = n => (Math.round(n * 10) / 10).toFixed(1);
+  const multi = data.layers.length > 1;
+  let html = '';
+  data.layers.forEach(layer => {
+    if (multi) html += '<div style="font-weight:700;margin:16px 0 8px;color:var(--green);">' + escAttr(layer.name) + '</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:12px;">';
+    layer.pieces.forEach(p => {
+      const badges = (p.irregular ? ' <span style="font-size:10px;color:#b45309;border:1px solid #f59e0b;border-radius:4px;padding:0 4px;">trim to shape</span>' : '')
+        + (p.nested ? ' <span style="font-size:10px;color:#1d4ed8;border:1px solid #60a5fa;border-radius:4px;padding:0 4px;">nested</span>' : '');
+      html += '<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--surface);">'
+        + '<div style="font-weight:600;font-size:12px;margin-bottom:6px;">' + escAttr(p.label) + badges + '</div>'
+        + '<div style="display:flex;justify-content:center;">' + cutPieceSvg(p) + '</div>'
+        + '<div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.5;">'
+        + 'Cut ' + f1(p.rollWidth) + ' × ' + f1(p.cutLength) + ' ft off the roll<br>'
+        + 'Turf area ' + f1(p.area) + ' ft²'
+        + '</div></div>';
+    });
+    html += '</div>';
+    html += '<div style="margin-top:10px;font-size:12px;color:var(--text-mid);font-weight:600;">'
+      + layer.subtotal.pieces + ' piece' + (layer.subtotal.pieces === 1 ? '' : 's') + ' · '
+      + f1(layer.subtotal.linearFt) + ' ft total cut · ' + f1(layer.subtotal.area) + ' ft²</div>';
+  });
+  if (multi) {
+    html += '<div style="margin-top:14px;padding-top:10px;border-top:2px solid var(--border);font-weight:700;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">'
+      + '<span>All layers: ' + data.totals.pieces + ' pieces</span>'
+      + '<span>' + f1(data.totals.linearFt) + ' ft cut · ' + f1(data.totals.area) + ' ft²</span></div>';
+  }
+  html += '<div style="margin-top:14px;font-size:11px;color:var(--text-light);line-height:1.5;">'
+    + 'Each drawing is the <strong>trimmed turf footprint</strong> with its overall width × length (feet and inches). '
+    + '<strong>Cut off the roll</strong> is the rectangle to pull — full roll width × the ordered length (includes the cutting margin). '
+    + 'Pieces marked <em>trim to shape</em> don\'t fill their rectangle. This lists physical cuts; roll/area order totals are on the layout panel.</div>';
+  return html;
+}
+
+// Format a length in feet as feet-and-inches, e.g. 22.5 → 22' 6".
+function ftIn(feet) {
+  const sign = feet < 0 ? '-' : '';
+  const t = Math.round(Math.abs(feet) * 12);
+  const ft = Math.floor(t / 12), inch = t - ft * 12;
+  return sign + ft + "'" + (inch ? ' ' + inch + '"' : '');
+}
+
+// A small CAD-style SVG of one cut piece: the actual trimmed footprint outline
+// plus overall width (vertical, left) and length (horizontal, below) dimension
+// lines with arrowheads and feet-inch labels. Pure string output.
+function cutPieceSvg(piece) {
+  const poly = (piece.poly && piece.poly.length >= 3) ? piece.poly
+    : [{x:0,y:0},{x:piece.footL,y:0},{x:piece.footL,y:piece.footW},{x:0,y:piece.footW}];
+  const W = Math.max(piece.footW, 0.1), L = Math.max(piece.footL, 0.1);
+  const scale = 168 / Math.max(W, L);
+  const drawW = L * scale, drawH = W * scale;
+  const mL = 50, mR = 16, mT = 16, mB = 42;
+  const svgW = Math.round(mL + drawW + mR), svgH = Math.round(mT + drawH + mB);
+  const X = px => +(mL + px * scale).toFixed(1);
+  const Y = py => +(mT + (W - py) * scale).toFixed(1); // flip so larger y draws up
+  const dim = '#888', dtext = 'var(--text-mid,#444)';
+  const fill = piece.irregular ? 'rgba(180,83,9,0.10)' : 'rgba(46,125,50,0.12)';
+  const stroke = piece.irregular ? '#b45309' : '#2e7d32';
+  let d = '';
+  poly.forEach((p, i) => { d += (i ? 'L' : 'M') + X(p.x) + ' ' + Y(p.y) + ' '; });
+  d += 'Z';
+  const arrow = (x, y, dir) => {
+    const s = 4;
+    if (dir === 'l') return '<path d="M' + x + ' ' + y + ' L' + (x+s) + ' ' + (y-s) + ' L' + (x+s) + ' ' + (y+s) + ' Z" fill="' + dim + '"/>';
+    if (dir === 'r') return '<path d="M' + x + ' ' + y + ' L' + (x-s) + ' ' + (y-s) + ' L' + (x-s) + ' ' + (y+s) + ' Z" fill="' + dim + '"/>';
+    if (dir === 'u') return '<path d="M' + x + ' ' + y + ' L' + (x-s) + ' ' + (y+s) + ' L' + (x+s) + ' ' + (y+s) + ' Z" fill="' + dim + '"/>';
+    return '<path d="M' + x + ' ' + y + ' L' + (x-s) + ' ' + (y-s) + ' L' + (x+s) + ' ' + (y-s) + ' Z" fill="' + dim + '"/>';
+  };
+  const yBot = +(mT + drawH).toFixed(1), x0 = X(0), x1 = X(L);
+  const dimYl = +(yBot + 22).toFixed(1);
+  const dimXw = +(mL - 28).toFixed(1), yTop = mT;
+  const cx = +((x0 + x1) / 2).toFixed(1), cy = +((yTop + yBot) / 2).toFixed(1);
+  const s = [];
+  s.push('<svg width="' + svgW + '" height="' + svgH + '" viewBox="0 0 ' + svgW + ' ' + svgH + '" xmlns="http://www.w3.org/2000/svg" style="display:block;">');
+  s.push('<path d="' + d + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.5" stroke-linejoin="round"/>');
+  // length dimension (below)
+  s.push('<line x1="' + x0 + '" y1="' + yBot + '" x2="' + x0 + '" y2="' + (dimYl+4) + '" stroke="' + dim + '" stroke-width="0.7"/>');
+  s.push('<line x1="' + x1 + '" y1="' + yBot + '" x2="' + x1 + '" y2="' + (dimYl+4) + '" stroke="' + dim + '" stroke-width="0.7"/>');
+  s.push('<line x1="' + x0 + '" y1="' + dimYl + '" x2="' + x1 + '" y2="' + dimYl + '" stroke="' + dim + '" stroke-width="0.8"/>');
+  s.push(arrow(x0, dimYl, 'l')); s.push(arrow(x1, dimYl, 'r'));
+  s.push('<text x="' + cx + '" y="' + (dimYl + 15) + '" font-size="11" fill="' + dtext + '" text-anchor="middle" font-family="sans-serif">' + escAttr(ftIn(piece.footL)) + '</text>');
+  // width dimension (left)
+  s.push('<line x1="' + mL + '" y1="' + yTop + '" x2="' + (dimXw-4) + '" y2="' + yTop + '" stroke="' + dim + '" stroke-width="0.7"/>');
+  s.push('<line x1="' + mL + '" y1="' + yBot + '" x2="' + (dimXw-4) + '" y2="' + yBot + '" stroke="' + dim + '" stroke-width="0.7"/>');
+  s.push('<line x1="' + dimXw + '" y1="' + yTop + '" x2="' + dimXw + '" y2="' + yBot + '" stroke="' + dim + '" stroke-width="0.8"/>');
+  s.push(arrow(dimXw, yTop, 'u')); s.push(arrow(dimXw, yBot, 'd'));
+  s.push('<text x="' + (dimXw - 6) + '" y="' + cy + '" font-size="11" fill="' + dtext + '" text-anchor="middle" font-family="sans-serif" transform="rotate(-90 ' + (dimXw-6) + ' ' + cy + ')">' + escAttr(ftIn(piece.footW)) + '</text>');
+  s.push('</svg>');
+  return s.join('');
+}
+
+function openCutListModal() {
+  const layout = window._wtCurrentRollLayout;
+  const body = document.getElementById('cutListBody');
+  if (body) body.innerHTML = renderCutListHtml(buildCutList(layout));
+  const modal = document.getElementById('cutListModal');
+  if (modal) modal.classList.add('open');
 }
 
 function startDragNesting(evt) {
@@ -8981,6 +9682,7 @@ function setupLayoutCanvasEvents() {
   canvas._wtEventsBound = true;
   canvas.addEventListener('mousedown', e => {
     if (window._wtLayoutLocked) return;
+    if (window._wtDrawMode) { onDrawMouseDown(e); return; }
     if (window._wtEditMode) { onLayoutCanvasMouseDown(e); return; }
     if (window._wtMoveLayersMode) { startDragLayer(e); return; }
     if (window._wtCutMode) {
@@ -8991,12 +9693,13 @@ function setupLayoutCanvasEvents() {
     }
     startDragNesting(e);
   });
-  canvas.addEventListener('mousemove', e => { onLayoutCanvasMouseMove(e); moveDragNesting(e); moveDragLayer(e); });
-  canvas.addEventListener('mouseup', e => { onLayoutCanvasMouseUp(e); endCutClick(e); endDragNesting(e); endDragLayer(e); });
-  canvas.addEventListener('mouseleave', e => { onLayoutCanvasMouseUp(e); window._wtCutDownPos = null; endDragNesting(e); endDragLayer(e); });
+  canvas.addEventListener('mousemove', e => { if (window._wtDrawMode) { onDrawMouseMove(e); return; } onLayoutCanvasMouseMove(e); moveDragNesting(e); moveDragLayer(e); });
+  canvas.addEventListener('mouseup', e => { if (window._wtDrawMode) { onDrawMouseUp(e); return; } onLayoutCanvasMouseUp(e); endCutClick(e); endDragNesting(e); endDragLayer(e); });
+  canvas.addEventListener('mouseleave', e => { if (window._wtDrawMode) { onDrawMouseUp(e); return; } onLayoutCanvasMouseUp(e); window._wtCutDownPos = null; endDragNesting(e); endDragLayer(e); });
   canvas.addEventListener('dblclick', onLayoutCanvasDblClick);
   canvas.addEventListener('touchstart', e => {
     if (window._wtLayoutLocked) return;
+    if (window._wtDrawMode) { onDrawMouseDown(e); return; }
     if (window._wtEditMode) { onLayoutCanvasMouseDown(e); return; }
     if (window._wtMoveLayersMode) { startDragLayer(e); return; }
     if (window._wtCutMode) {
@@ -9007,8 +9710,28 @@ function setupLayoutCanvasEvents() {
     }
     startDragNesting(e);
   }, {passive:false});
-  canvas.addEventListener('touchmove', e => { onLayoutCanvasMouseMove(e); moveDragNesting(e); moveDragLayer(e); }, {passive:false});
-  canvas.addEventListener('touchend', e => { onLayoutCanvasMouseUp(e); endCutClick(e); endDragNesting(e); endDragLayer(e); });
+  canvas.addEventListener('touchmove', e => { if (window._wtDrawMode) { onDrawMouseMove(e); return; } onLayoutCanvasMouseMove(e); moveDragNesting(e); moveDragLayer(e); }, {passive:false});
+  canvas.addEventListener('touchend', e => { if (window._wtDrawMode) { onDrawMouseUp(e); return; } onLayoutCanvasMouseUp(e); endCutClick(e); endDragNesting(e); endDragLayer(e); });
+
+  // Draw-mode keyboard shortcuts: copy / paste / delete the selected shape.
+  if (!window._wtDrawKeysBound) {
+    window._wtDrawKeysBound = true;
+    document.addEventListener('keydown', onDrawKeydown);
+  }
+}
+
+function onDrawKeydown(e) {
+  if (!window._wtDrawMode) return;
+  const tag = (e.target && e.target.tagName || '').toUpperCase();
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  const meta = e.ctrlKey || e.metaKey;
+  if (meta && (e.key === 'c' || e.key === 'C')) {
+    if (window._wtSelectedAnno != null) { copySelectedAnnotation(); e.preventDefault(); }
+  } else if (meta && (e.key === 'v' || e.key === 'V')) {
+    if (window._wtAnnoClipboard) { pasteAnnotation(); e.preventDefault(); }
+  } else if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (window._wtSelectedAnno != null) { deleteSelectedAnnotation(); e.preventDefault(); }
+  }
 }
 
 // ── Layout lock ───────────────────────────────────────────────────────
