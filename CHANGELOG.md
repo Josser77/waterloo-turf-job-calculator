@@ -5,7 +5,25 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 53) — Auto-cut rolls at gaps (stop running a roll through waste)
+## 2026-06-21 (cont'd, 54) — Edging perimeter per layer
+
+Test suite: **873** (sandbox 830, +5), data-dependent 43. New section 66 covers
+`layerPerimeters`; values verified against Michel_yard.csv.
+
+- The **Layers** tab now shows an <strong>Edging perimeter (per layer)</strong> block: the
+  boundary length of every measured shape (main outline + each cutout — tree wells, beds,
+  paver borders) and a <strong>Total — all edges</strong>.
+- This reconciles the gap some users see against other tools: the top-of-pane
+  <strong>Perimeter</strong> metric is the turf outline only (plus Install layers), so a
+  perimeter that includes inner cutout edges (e.g. edging around a tree well) reads longer.
+  On Michel_yard: main outline 244.8 ft (exactly the raw CSV boundary), sub-layers 31.7 /
+  26.6 / 60.6 / 51.1, total all edges 414.7 ft.
+- Pure helper `layerPerimeters(proj)` → `[{id, name, perimeter}]`; perimeter is rotation /
+  translation invariant so layer position doesn't affect it.
+
+---
+
+
 
 Test suite: **868** (sandbox 825, +9), data-dependent 43. New section 65 covers
 `bandCoverageRuns` + the end-to-end auto-cut; verified against Michel_yard.csv.

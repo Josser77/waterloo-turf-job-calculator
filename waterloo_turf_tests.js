@@ -4960,6 +4960,25 @@ section('65. Auto-cut at gaps');
   assert(!plain.strips.some(s => s.autoGapSplit), 'a gap-free rectangle is left as whole strips');
 }
 
+section('66. Edging perimeter per layer');
+{
+  const proj = { layout: {
+    points: [{x:0,y:0},{x:10,y:0},{x:10,y:10},{x:0,y:10}], // 10×10 → perimeter 40
+    primaryLayerName: 'Main Yard',
+    secondaryShapes: [
+      { name: 'Tree', points: [{x:2,y:2},{x:4,y:2},{x:4,y:4},{x:2,y:4}] }, // 2×2 → 8
+      { name: 'Bed',  points: [{x:6,y:6},{x:9,y:6},{x:9,y:7},{x:6,y:7}] },  // 3×1 → 8
+    ],
+  }};
+  const pers = ctx.layerPerimeters(proj);
+  assert(pers.length === 3, 'one entry per layer (primary + 2 secondary)');
+  assert(pers[0].id === 'primary' && near(pers[0].perimeter, 40), 'primary boundary perimeter (10×10 = 40)');
+  assert(near(pers[1].perimeter, 8), 'tree cutout perimeter (2×2 = 8)');
+  const total = pers.reduce((a, p) => a + p.perimeter, 0);
+  assert(near(total, 56), 'total edging = sum of all layer boundaries (40 + 8 + 8)');
+  assert(ctx.layerPerimeters({}).length === 0, 'no layout → no perimeters');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

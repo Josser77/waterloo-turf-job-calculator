@@ -2159,6 +2159,8 @@
 
         <div class="docs-h3">Roll Results</div>
         <p>The <strong>Results</strong> tab shows the rolls/piece count and per-layer breakdown, with extra detail (cut/nest tools, Piece List) under a small <strong>Advanced</strong> twisty so a standard install isn't cluttered. Both <strong>Apply</strong> buttons — <em>Apply Installed SqFt → turf row</em> and <em>Apply Ordered SqFt → turf row</em> — live together on the <strong>Apply</strong> tab. <em>Apply Ordered SqFt</em> is usually the one you want: it sets the row's <strong>SqFt to Order</strong> <em>and</em> its <strong>Installed SqFt</strong>, so infill (which derives its area from Installed SqFt), labor, and rock all cascade from the one click. <em>Apply Installed SqFt</em> sets just the installed area. Each applies to the <strong>one row</strong> selected in its dropdown. <strong>Installed SqFt, Ordered SqFt, Ordered Linear Ft, Perimeter, and Scrap</strong> all live in the always-visible key-metrics block at the top of the right pane.</p>
+
+        <p><strong>Edging perimeter (per layer):</strong> the <strong>Layers</strong> tab lists the boundary length of <em>every</em> measured shape — the main outline plus each cutout (tree wells, beds, paver borders) — and a <strong>Total — all edges</strong> at the bottom. This is for ordering edging/border material that wraps every edge, and it's why a number here can exceed the <strong>Perimeter</strong> metric up top: that metric is the turf outline only (plus Install layers), while the edging total includes the inner cutout edges too. Perimeter is independent of where you drag a layer or how you rotate it.</p>
         <p>Open <strong>"⚙ Advanced details &amp; tools"</strong> for the rest: the Saved (nested) figure, the manual-cuts and nested-pieces lists, and the per-piece list. Entering Cut Mode opens this section automatically so the cut/nest tools are visible. (<strong>Scrap</strong> — Ordered minus the installed shape area, with % — now sits in the key-metrics block at the top of the pane; the purchased-rectangles toggle sits above the canvas.)</p>
         <p>The roll/piece count shows just <strong>"N rolls"</strong> when the number of rolls to purchase equals the number of installed pieces — the normal case. It shows <strong>"N rolls / M pieces"</strong> only when these differ.</p>
         <p><strong>Pieces</strong> = total separately-installed pieces across the whole job: one per band/strip normally, more if a strip is manually cut into butt-seamed sections, or if a single strip is longer than Max Roll Length (which forces an inherent seam even without a manual cut).</p>
@@ -5532,6 +5534,28 @@ function renderLayersList(proj) {
     rows.push(`<div style="grid-column:1/-1;font-size:11px;color:var(--text-light);margin-top:2px;">This Moasure file contains more than one measured shape (e.g. a planter bed, tree well, or putting green outline). Uncheck a layer to hide it on the canvas, or choose how it affects Installed Area. When more than one layer is set to Install, use each layer's "Rolls" choice to share rolls (fewer rolls) or keep it on its own.</div>`);
   }
 
+  // Edging perimeter: every layer's boundary length + a total, for ordering
+  // border/edging material (the Perimeter metric up top counts only the turf
+  // outline; edging usually wraps tree wells, beds, and paver borders too).
+  const perims = layerPerimeters(proj);
+  if (perims.length) {
+    const total = perims.reduce((a, p) => a + p.perimeter, 0);
+    const rowsHtml = perims.map(p =>
+      `<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0;">
+         <span style="color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escAttr(p.name)}</span>
+         <span style="color:var(--text-light);white-space:nowrap;">${p.perimeter.toFixed(1)} ft</span>
+       </div>`).join('');
+    rows.push(
+      `<div style="grid-column:1/-1;margin-top:8px;border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--cream,#fffdf7);">
+         <div style="font-weight:600;font-size:12px;margin-bottom:6px;">Edging perimeter (per layer)</div>
+         <div style="font-size:11px;">${rowsHtml}</div>
+         <div style="display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--border);margin-top:6px;padding-top:6px;font-weight:600;font-size:12px;">
+           <span>Total — all edges</span><span>${total.toFixed(1)} ft</span>
+         </div>
+         <div style="font-size:10px;color:var(--text-light);margin-top:5px;line-height:1.4;">Boundary length of each measured shape (cutouts included). Use the total when ordering edging that wraps every edge; the <strong>Perimeter</strong> metric up top is the turf outline only.</div>
+       </div>`);
+  }
+
   list.innerHTML = rows.join('');
   // Keep dynamically-built per-layer controls in sync with the lock state.
   if (window._wtLayoutLocked) applyLayoutLockState();
@@ -5851,6 +5875,24 @@ function polygonPerimeter(poly) {
     p += Math.hypot(b.x-a.x, b.y-a.y);
   }
   return p;
+}
+
+// Edging perimeter of every layer in the layout — the primary outline plus each
+// secondary shape (tree wells, paver borders, beds, etc.), regardless of mode.
+// Perimeter is rotation/translation invariant, so the stored points are used
+// directly. Returns [{id, name, perimeter}], primary first.
+function layerPerimeters(proj) {
+  if (!proj || !proj.layout) return [];
+  const out = [];
+  const pPts = proj.layout.points || [];
+  if (pPts.length >= 2) {
+    out.push({ id: 'primary', name: (proj.layout.primaryLayerName || 'Main shape'), perimeter: polygonPerimeter(pPts) });
+  }
+  (proj.layout.secondaryShapes || []).forEach((s, i) => {
+    const pts = s.points || s.displayPoints || [];
+    if (pts.length >= 2) out.push({ id: i, name: s.name || ('Layer ' + (i + 2)), perimeter: polygonPerimeter(pts) });
+  });
+  return out;
 }
 
 // Compute a putting-green fringe (border strip) cutting plan: one rectangular
