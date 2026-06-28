@@ -305,7 +305,7 @@
     margin-bottom: 5px;
   }
 
-  input[type="number"], input[type="text"], select {
+  input[type="number"], input[type="text"], input[type="date"], select, textarea {
     width: 100%;
     padding: 9px 11px;
     border: 1px solid var(--border);
@@ -317,7 +317,7 @@
     outline: none;
     transition: border-color 0.15s;
   }
-  input:focus, select:focus { border-color: var(--green-bright); }
+  input:focus, select:focus, textarea:focus { border-color: var(--green-bright); }
 
   input.auto-filled {
     background: var(--highlight);
@@ -1162,15 +1162,15 @@
           <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;align-items:start;">
             <div class="field-group" style="margin:0;">
               <label>Job Address</label>
-              <textarea id="jobAddress" rows="2" placeholder="123 Main St, Tigard, OR 97223" oninput="saveJobInfo()" style="width:100%;resize:vertical;box-sizing:border-box;"></textarea>
+              <textarea id="jobAddress" rows="2" placeholder="123 Main St, Tigard, OR 97223" oninput="saveJobInfo()" style="resize:vertical;"></textarea>
             </div>
             <div class="field-group" style="margin:0;">
               <label>Delivery Date</label>
-              <input type="date" id="jobDeliveryDate" oninput="saveJobInfo()" style="width:100%;box-sizing:border-box;">
+              <input type="date" id="jobDeliveryDate" oninput="saveJobInfo()">
             </div>
             <div class="field-group" style="margin:0;">
               <label>Install Date</label>
-              <input type="date" id="jobInstallDate" oninput="saveJobInfo()" style="width:100%;box-sizing:border-box;">
+              <input type="date" id="jobInstallDate" oninput="saveJobInfo()">
             </div>
           </div>
         </div>
