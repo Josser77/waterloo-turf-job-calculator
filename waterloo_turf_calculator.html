@@ -2120,6 +2120,7 @@
         <p>A layer that's been moved and/or rotated shows a "↺ Reset position" button in the Layers list to snap it back to its original (imported) position and orientation.</p>
 
         <div class="docs-h3">Manual Cuts (Butt Seams)</div>
+        <p><strong>Automatic gap cuts:</strong> before you touch anything, the roll plan already avoids running a roll through empty space. When a notch or cut-in splits a strip's turf into separate runs along the roll's length — turf, then a gap, then turf again — that strip is automatically ordered as <em>separate pieces</em> with the gap dropped, instead of one continuous roll length spanning the waste. You'll see two (or more) shorter rectangles on that strip with their own "Roll N / Piece M" labels and nothing drawn across the gap. Only gaps worth a seam are cut (gaps under about 2 ft are bridged), and a strip you've cut by hand keeps your manual cuts instead. This lowers Ordered SqFt, Linear Ft, and the roll count to match what you'd actually lay.</p>
         <p>Click <strong>"✂ Cut Mode"</strong> to enter cut mode. Click anywhere along a roll to add a butt-seam cut at that point — this splits the roll into separate pieces, each with its own cutting margin, labeled "Roll N.1", "Roll N.2", etc. with a red seam line marking the cut. You can add multiple cuts to the same roll to create 3 or more pieces. Click an existing cut line again to remove it. Click "✓ Done Cutting" to exit — Cut Mode is mutually exclusive with Edit Shape and Move Layers modes. <strong>On a multi-layer job, cuts work on any install layer:</strong> clicking a sub-layer's strip routes the cut to that layer's own roll plan (each layer can roll in a different direction, and the cut position is measured in that layer's frame). Hidden layers can't be cut.</p>
         <p>A <strong>"Manual Cuts (Butt Seams)"</strong> list appears in Roll Results whenever any roll has cuts, showing each cut's position with a "✕" to remove it individually, or a "Clear all cuts on this roll" button — a precise alternative to clicking the (sometimes thin) seam line on canvas. If roll settings change such that a saved cut position no longer falls within that roll's current length, it's shown as "cuts not currently applied" with a button to clear it — so it never becomes invisible/stuck.</p>
         <p>Each piece behaves like its own roll for nesting purposes: with "Show purchased roll rectangles" on, press-and-drag any piece onto another roll's (or another piece's) hatched waste area to nest it there — exactly like whole-roll nesting. This works with Cut Mode either on or off: in Cut Mode a quick click toggles a cut while a drag moves a piece, so you can split off a small leftover piece and immediately tuck it into another roll's offcut without switching modes. To put a moved piece back, use its <strong>"↩ Put back"</strong> button in the Nested Pieces list (see below) — this undoes only the move and keeps your cuts. (Note: clearing or removing a cut is a different action — it un-cuts the roll and merges the pieces back together.)</p>
@@ -6181,6 +6182,56 @@ function countRollsAndPieces(layout) {
   return { totalRolls, totalPieces };
 }
 
+// Coverage runs along the roll axis (x, in the roll frame) within one band
+// [y0,y1]. We union the inside-intervals of horizontal scanlines taken at the
+// band edges, at every interior polygon vertex, and at midpoints between them —
+// so a notch that splits the band's turf into separate regions shows up as
+// separate runs instead of one span that swallows the gap. Runs separated by a
+// gap smaller than minGap are merged back (a tiny gap isn't worth a seam).
+// Returns [{x0,x1}, ...] left-to-right.
+function bandCoverageRuns(poly, xmin, xmax, y0, y1, minGap) {
+  const inset = Math.min((y1 - y0) * 0.001, 1e-4);
+  const ySet = new Set([y0 + inset, y1 - inset, (y0 + y1) / 2]);
+  poly.forEach(p => { if (p.y > y0 + inset && p.y < y1 - inset) ySet.add(p.y); });
+  const ySorted = [...ySet].sort((a, b) => a - b);
+  const sampleYs = [];
+  for (let k = 0; k < ySorted.length; k++) {
+    sampleYs.push(ySorted[k]);
+    if (k < ySorted.length - 1) sampleYs.push((ySorted[k] + ySorted[k + 1]) / 2);
+  }
+  const intervals = [];
+  sampleYs.forEach(y => {
+    const xs = [];
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i], b = poly[(i + 1) % poly.length];
+      // Half-open crossing test avoids double-counting shared vertices.
+      if ((a.y <= y && b.y > y) || (b.y <= y && a.y > y)) {
+        xs.push(a.x + (y - a.y) / (b.y - a.y) * (b.x - a.x));
+      }
+    }
+    xs.sort((p, q) => p - q);
+    for (let i = 0; i + 1 < xs.length; i += 2) {
+      const lo = Math.max(xmin, xs[i]), hi = Math.min(xmax, xs[i + 1]);
+      if (hi > lo) intervals.push([lo, hi]);
+    }
+  });
+  if (!intervals.length) return [];
+  intervals.sort((a, b) => a[0] - b[0]);
+  const merged = [intervals[0].slice()];
+  for (let i = 1; i < intervals.length; i++) {
+    const cur = intervals[i], last = merged[merged.length - 1];
+    if (cur[0] <= last[1] + 1e-9) last[1] = Math.max(last[1], cur[1]);
+    else merged.push(cur.slice());
+  }
+  const runs = [merged[0].slice()];
+  for (let i = 1; i < merged.length; i++) {
+    const cur = merged[i], last = runs[runs.length - 1];
+    if (cur[0] - last[1] < minGap) last[1] = cur[1];  // bridge sub-threshold gap
+    else runs.push(cur.slice());
+  }
+  return runs.map(r => ({ x0: r[0], x1: r[1] }));
+}
+
 function computeRollLayout(basePoints, rotationDeg, translation, opts) {
   const rollWidth = parseFloat(opts.rollWidth) || 15;
   const rollLength = parseFloat(opts.rollLength) || 100;
@@ -6345,6 +6396,61 @@ function computeRollLayout(basePoints, rotationDeg, translation, opts) {
       totalUsable += pieceUsable - s.usableArea;
       totalLinearFt += pieceLinear - s.orderedLength;
       s.pieces = pieces;
+    }
+  });
+
+  // ── Auto-cut at gaps ──────────────────────────────────────────────────────
+  // When a notch splits a band's turf into separate runs along the roll, order
+  // each run as its own piece and DROP the gap, instead of running one
+  // continuous roll length through the empty middle (which is pure waste). The
+  // user can still nest/move these pieces like any other. Skipped on strips the
+  // user has manually cut (manual control wins) and where the gap is too small
+  // to be worth a seam.
+  const autoCutMinGap = Math.max(2, cuttingMargin * 2);
+  strips.forEach(s => {
+    if (s.pieces || s.clippedArea < 1e-9) return;
+    const runs = bandCoverageRuns(rotated, s.sMinX, s.sMinX + s.neededLength, s.y0, s.y1, autoCutMinGap);
+    if (runs.length <= 1) return; // contiguous coverage — nothing to cut
+    const pieces = [];
+    let pieceOrdered = 0, pieceUsable = 0, pieceLinear = 0;
+    runs.forEach(r => {
+      const runLen = r.x1 - r.x0;
+      if (runLen <= 1e-6) return;
+      const px0 = r.x0, px1 = r.x1;
+      const pClipped = clipPolygonToRect(rotated, px0, px1, s.y0, s.y1);
+      const pClippedArea = pClipped.length ? polygonArea(pClipped) : 0;
+      if (pClippedArea < 1e-9) return;
+      const pOrderedLength = Math.ceil((runLen + cuttingMargin) - 1e-9);
+      const pPurchasedArea = rollWidth * pOrderedLength;
+      const pUsableArea = effW * pOrderedLength;
+      pieceOrdered += pPurchasedArea;
+      pieceUsable += pUsableArea;
+      pieceLinear += pOrderedLength;
+      const displayClipped = rotateAround(pClipped, rotationDeg, cx, cy);
+      const displayLine0 = rotateAround([{x:px0,y:s.y0},{x:px0+pOrderedLength,y:s.y0}], rotationDeg, cx, cy);
+      const displayLine1 = rotateAround([{x:px0,y:s.y1},{x:px0+pOrderedLength,y:s.y1}], rotationDeg, cx, cy);
+      const displayRect = rotateAround([
+        {x:px0, y:s.y0}, {x:px0+pOrderedLength, y:s.y0},
+        {x:px0+pOrderedLength, y:s.y1}, {x:px0, y:s.y1},
+      ], rotationDeg, cx, cy);
+      const pWasteArea = Math.max(0, pPurchasedArea - pClippedArea);
+      pieces.push({
+        index: pieces.length, key: s.key + '_g' + pieces.length, stripKey: s.key,
+        start: px0 - s.sMinX, end: px1 - s.sMinX, length: runLen,
+        clipped: pClipped, clippedArea: pClippedArea,
+        orderedLength: pOrderedLength, purchasedArea: pPurchasedArea, usableArea: pUsableArea, wasteArea: pWasteArea,
+        displayClipped, displayLine0, displayLine1, displayRect,
+        rfX0: px0, rfX1: px0 + pOrderedLength, rfY0: s.y0, rfY1: s.y1,
+        occupiedX0: px0, occupiedX1: px0 + runLen,
+        nestedInto: null, nestedIntoKey: null, nestHost: [], autoGap: true,
+      });
+    });
+    if (pieces.length > 1) {
+      totalOrdered += pieceOrdered - s.purchasedArea;
+      totalUsable += pieceUsable - s.usableArea;
+      totalLinearFt += pieceLinear - s.orderedLength;
+      s.pieces = pieces;
+      s.autoGapSplit = true;
     }
   });
 

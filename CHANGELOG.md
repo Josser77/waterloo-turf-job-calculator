@@ -5,7 +5,30 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 52) — Add CSV: combine multiple Moasure files into one layout
+## 2026-06-21 (cont'd, 53) — Auto-cut rolls at gaps (stop running a roll through waste)
+
+Test suite: **868** (sandbox 825, +9), data-dependent 43. New section 65 covers
+`bandCoverageRuns` + the end-to-end auto-cut; verified against Michel_yard.csv.
+
+- **Problem:** each strip's roll length was the full min-to-max extent of its turf along the
+  roll. When a notch split a strip into turf / gap / turf, that one length spanned the gap, so
+  the roll was ordered as a single continuous piece running through the empty middle — pure
+  waste (visible as one rectangle crossing the notch in Michel_yard's right edge).
+- **Fix:** a new `bandCoverageRuns` finds the separate turf runs along the roll within each
+  band (union of horizontal scanlines at the band edges, every interior vertex, and midpoints
+  between them). A new pass in `computeRollLayout` turns any multi-run band into
+  gap-separated **pieces** — one per run, each with its own cutting margin — and drops the gap
+  from Ordered SqFt, Linear Ft, and the roll count. Pieces reuse the existing manual-cut piece
+  structure, so the draw, labels, nesting, and totals all already handle them.
+- **Guards:** only gaps `≥ max(2 ft, 2× cutting margin)` are cut (a tiny gap isn't worth a
+  seam); a strip the user has **manually cut** keeps the manual cuts instead. A gap-free shape
+  is byte-for-byte unchanged (existing 816 tests still pass untouched).
+- On Michel_yard at the vertical-roll orientation, the right-edge notch band now orders as two
+  pieces and drops a ~13 ft gap (~190 ft² no longer ordered through the waste).
+
+---
+
+
 
 Test suite: **859** (sandbox 816, +5), data-dependent 43. New section 64 covers the append
 placement math (`computeAppendOffset`, `layoutPlacedPoints`); append wiring verified

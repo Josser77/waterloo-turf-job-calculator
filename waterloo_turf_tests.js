@@ -4932,6 +4932,34 @@ section('64. Add CSV: append placement');
   assert(Math.max(...placed.map(p=>p.x)) >= 22 - 1e-9, 'placed-points bounds include a secondary shifted by its own offset');
 }
 
+section('65. Auto-cut at gaps');
+{
+  // Rectangle 60×30 with a notch removed from the bottom middle (x 20–40, y 0–15).
+  const poly = [{x:0,y:0},{x:20,y:0},{x:20,y:15},{x:40,y:15},{x:40,y:0},{x:60,y:0},{x:60,y:30},{x:0,y:30}];
+  const runs = ctx.bandCoverageRuns(poly, 0, 60, 0, 15, 2);
+  assert(runs.length === 2, 'notched band splits into two coverage runs');
+  assert(near(runs[0].x0, 0) && near(runs[0].x1, 20), 'first run is the left solid part [0,20]');
+  assert(near(runs[1].x0, 40) && near(runs[1].x1, 60), 'second run is the right solid part [40,60]');
+  const mergedRuns = ctx.bandCoverageRuns(poly, 0, 60, 0, 15, 25);
+  assert(mergedRuns.length === 1, 'a gap below the min-gap threshold is bridged, not cut');
+  const upper = ctx.bandCoverageRuns(poly, 0, 60, 15, 30, 2);
+  assert(upper.length === 1, 'the un-notched upper band stays a single run');
+
+  // End-to-end: the notch band is ordered as two pieces with the gap dropped.
+  const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:6, maxRollLength:100, keyPrefix:'' };
+  const L = ctx.computeRollLayout(poly, 0, 0, opts);
+  const cut = L.strips.find(s => s.autoGapSplit);
+  assert(!!cut, 'computeRollLayout auto-cuts the notch band');
+  if (cut) {
+    assert(cut.pieces.length === 2, 'notch band becomes two pieces');
+    const covered = cut.pieces.reduce((a, p) => a + p.length, 0);
+    assert(covered < cut.neededLength - 10, 'pieces cover far less than the gap-spanning extent (gap dropped)');
+  }
+  // A plain rectangle (no notch) is never auto-cut.
+  const plain = ctx.computeRollLayout([{x:0,y:0},{x:60,y:0},{x:60,y:30},{x:0,y:30}], 0, 0, opts);
+  assert(!plain.strips.some(s => s.autoGapSplit), 'a gap-free rectangle is left as whole strips');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
