@@ -32,6 +32,8 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
   body {
     font-family: 'Nunito Sans', sans-serif;
     background: var(--bg);
@@ -1005,6 +1007,17 @@
     #layoutSidebar { max-height: none; }
   }
 
+  /* ── Touch devices (iPhone / iPad): stop iOS focus-zoom, roomier tap targets ── */
+  @media (pointer: coarse) {
+    /* iOS Safari zooms the whole page when you focus a field smaller than 16px.
+       Forcing 16px (over inline sizes too) means tapping a field never jumps/zooms. */
+    input, select, textarea { font-size: 16px !important; }
+    /* Bigger hit areas for the tiny per-row × buttons. */
+    .remove-btn { width: 40px; height: 40px; }
+    /* Momentum scrolling for the sideways-scrolling data grids and the canvas. */
+    .card, .tabs, #layoutCanvasWrap, .modal-overlay .modal { -webkit-overflow-scrolling: touch; }
+  }
+
 </style>
 </head>
 <body>
@@ -1139,7 +1152,6 @@
     <div class="tabs">
       <div class="tab active" onclick="switchTab('quote',this)">Quote Builder</div>
       <div class="tab" onclick="switchTab('layout',this)">Layout</div>
-      <div class="tab" onclick="switchTab('materials',this)">Materials</div>
       <div class="tab" onclick="switchTab('settings',this)">⚙ Settings</div>
     </div>
 
@@ -1223,6 +1235,24 @@
           <div id="infillRows"></div>
         </div>
 
+        <!-- ROCK -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Rock / Base</div>
+            <button class="btn btn-ghost btn-sm" onclick="openCatalogPicker('rock')">＋ Add Type</button>
+          </div>
+
+          <div class="row-grid-wide" style="display:grid;grid-template-columns:1fr 0.7fr 0.7fr 32px;gap:8px;margin-bottom:6px;">
+            <label>Material</label>
+            <label>Tons to Order</label>
+            <label>Cu. Yards</label>
+            <div></div>
+          </div>
+
+          <div id="rockRows"></div>
+          <p style="font-size:11px;color:var(--text-light);margin-top:6px;">Tons and cubic yards are calculated from this job's sqft and each material's depth/density settings — configure those under <strong>Settings → Rock / Base Materials</strong>.</p>
+        </div>
+
         <!-- EDGING -->
         <div class="card">
           <div class="card-header">
@@ -1262,6 +1292,16 @@
           </div>
           <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">Seam tape, adhesive, nails, etc. Costs are included in Quote Totals.</p>
           <div id="quoteMiscRows"></div>
+        </div>
+
+        <!-- FULL MATERIALS SUMMARY -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Materials Summary</div>
+          </div>
+          <div id="materialsSummary">
+            <div class="empty"><div class="empty-icon">📦</div><div class="empty-msg">Add turf, infill, and rock to see summary.</div></div>
+          </div>
         </div>
 
         <!-- QUOTE OPTIONS -->
@@ -1562,41 +1602,6 @@
 
 
       <!-- ══════════════════════════════════════
-           TAB: MATERIALS
-      ══════════════════════════════════════ -->
-      <div class="tab-panel" id="panel-materials">
-
-        <!-- ROCK -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">Rock / Base</div>
-            <button class="btn btn-ghost btn-sm" onclick="openCatalogPicker('rock')">＋ Add Type</button>
-          </div>
-
-          <div class="row-grid-wide" style="display:grid;grid-template-columns:1fr 0.7fr 32px;gap:8px;margin-bottom:6px;">
-            <label>Material</label>
-            <label>Tons to Order</label>
-            <div></div>
-          </div>
-
-          <div id="rockRows"></div>
-          <p style="font-size:11px;color:var(--text-light);margin-top:6px;">Tons are calculated from this job's sqft and each material's depth/density settings — configure those under <strong>Settings → Rock / Base Materials</strong>.</p>
-        </div>
-
-        <!-- FULL MATERIALS SUMMARY -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">Materials Summary</div>
-          </div>
-          <div id="materialsSummary">
-            <div class="empty"><div class="empty-icon">📦</div><div class="empty-msg">Add turf, infill, and rock to see summary.</div></div>
-          </div>
-        </div>
-
-      </div><!-- /tab-materials -->
-
-
-      <!-- ══════════════════════════════════════
            TAB: SETTINGS
       ══════════════════════════════════════ -->
       <div class="tab-panel" id="panel-settings">
@@ -1653,7 +1658,7 @@
             <div class="card-title">Rock / Base Materials</div>
             <button class="btn btn-primary btn-sm" onclick="openAddItemModal('rock')">＋ Add Material</button>
           </div>
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">Default depth is used to pre-fill the depth field in the Materials tab when this product is added.</p>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">Default depth is used to pre-fill the depth field on the Rock / Base card when this product is added.</p>
           <div id="settingsRockTable"></div>
         </div>
 
@@ -2043,7 +2048,7 @@
           <li><a onclick="jumpToDocSection('doc-project')">Creating a Project</a></li>
           <li><a onclick="jumpToDocSection('doc-quote')">Quote Builder Tab</a></li>
           <li><a onclick="jumpToDocSection('doc-layout')">Layout Tab: Site Layout &amp; Roll Plan</a></li>
-          <li><a onclick="jumpToDocSection('doc-materials')">Materials Tab</a></li>
+          <li><a onclick="jumpToDocSection('doc-materials')">Rock &amp; Materials Summary</a></li>
           <li><a onclick="jumpToDocSection('doc-exports')">Supplier Order &amp; Installer Sheet</a></li>
           <li><a onclick="jumpToDocSection('doc-crews')">Multiple Crew Rate Sets</a></li>
           <li><a onclick="jumpToDocSection('doc-backup')">Backup, Sync &amp; Restore</a></li>
@@ -2196,7 +2201,7 @@
         <p>A layer that's been moved and/or rotated shows a "↺ Reset position" button in the Layers list to snap it back to its original (imported) position and orientation.</p>
 
         <div class="docs-h3">Cut List</div>
-        <p>Click <strong>"📋 Cut List"</strong> in the toolbar to open a dialog showing <strong>every turf piece to cut</strong>, grouped by layer. Each piece gets a <strong>CAD-style drawing</strong> of its actual trimmed shape with the overall <strong>width × length dimensioned in feet and inches</strong>, plus the <strong>cut size</strong> (full roll width × ordered length, including the cutting margin) and <strong>turf area</strong> below it. Irregular pieces (that don't fill their rectangle) are tagged <em>trim to shape</em> and drawn in amber; pieces tucked into another roll's waste are tagged <em>nested</em>. Each layer shows a subtotal (piece count, total cut length, area) and multi-layer jobs get a grand total. The drawings read from the same strips drawn on the canvas, so they always match. This is a <em>cut</em> list — the roll and area <em>order</em> quantities live on the layout panel and Materials tab. Available even when the layout is locked.</p>
+        <p>Click <strong>"📋 Cut List"</strong> in the toolbar to open a dialog showing <strong>every turf piece to cut</strong>, grouped by layer. Each piece gets a <strong>CAD-style drawing</strong> of its actual trimmed shape with the overall <strong>width × length dimensioned in feet and inches</strong>, plus the <strong>cut size</strong> (full roll width × ordered length, including the cutting margin) and <strong>turf area</strong> below it. Irregular pieces (that don't fill their rectangle) are tagged <em>trim to shape</em> and drawn in amber; pieces tucked into another roll's waste are tagged <em>nested</em>. Each layer shows a subtotal (piece count, total cut length, area) and multi-layer jobs get a grand total. The drawings read from the same strips drawn on the canvas, so they always match. This is a <em>cut</em> list — the roll and area <em>order</em> quantities live on the layout panel and the Rock / Base card. Available even when the layout is locked.</p>
 
         <div class="docs-h3">Draw Tool (Markup)</div>
         <p>Click <strong>"✏️ Draw"</strong> in the toolbar to open the drawing toolbar, then pick <strong>Line</strong>, <strong>Rectangle</strong>, <strong>Circle</strong>, or <strong>Freehand</strong>, choose a <strong>color</strong> and line <strong>width</strong> (and optional <strong>Fill</strong> for rectangles/circles), and drag on the canvas. Use this to mark up the layout — show where pavers, borders, steppers, or other features go, or annotate for a customer.</p>
@@ -2267,12 +2272,12 @@
 
       <!-- MATERIALS -->
       <div class="docs-section">
-        <div class="docs-h2" id="doc-materials">Materials Tab</div>
-        <p>Shows the material quantities you need to order. Two sections:</p>
+        <div class="docs-h2" id="doc-materials">Rock &amp; Materials Summary</div>
+        <p>These live in the <strong>Quote Builder</strong> tab (they used to be a separate Materials tab). Two sections:</p>
         <div class="docs-h3">Rock / Base</div>
-        <p>Shows the <strong>tons to order</strong> for each rock/base material in your catalog, auto-calculated from this job's base turf sqft and each material's depth/density settings. SqFt basis, depth, and pricing are configured once under <strong>Settings → Rock / Base Materials</strong> rather than per-project — only the resulting tons total is shown here. Remove a row if this job doesn't need that material.</p>
+        <p>Shows the <strong>tons to order</strong> and <strong>cubic yards</strong> for each rock/base material in your catalog, auto-calculated from this job's base turf sqft and each material's depth/density settings. Cubic yards is the raw volume; tons applies a 1.4 ton/yd³ density — order by whichever unit your supplier uses. SqFt basis, depth, and pricing are configured once under <strong>Settings → Rock / Base Materials</strong> rather than per-project. Remove a row if this job doesn't need that material.</p>
         <div class="docs-h3">Materials Summary</div>
-        <p>A full summary of all materials across turf, infill, edging, and rock for easy reference when ordering.</p>
+        <p>A full summary of all materials across turf, infill, edging, and rock (with rock shown in both yd³ and tons), shown just above the Quote Options section for easy reference when ordering.</p>
       </div>
 
       <!-- EXPORTS -->
@@ -2348,7 +2353,7 @@
           <li>On the <strong>Layout tab</strong>, set roll direction/width and review the roll plan. If the Moasure file has a separate putting green outline, mark that layer as <em>Putting Green</em> and configure the <strong>Putting Green Fringe</strong> (product + width) if this job needs one</li>
           <li>Check the <strong>Piece List</strong> in Roll Results — this is your cut sheet for installers, with length/width per piece and total linear footage</li>
           <li>Review the <strong>Quote Options</strong> section — all combinations are generated automatically, including fringe cost where applicable</li>
-          <li>Switch to the <strong>Materials tab</strong> to see ordering quantities</li>
+          <li>See the <strong>Rock / Base</strong> and <strong>Materials Summary</strong> cards (Quote Builder tab) for ordering quantities</li>
           <li>Use the quote totals to build your Jobber quote</li>
         </ol>
       </div>
@@ -3975,10 +3980,23 @@ function renderRockRows(proj) {
   (proj.rock||[]).forEach((row,i) => container.appendChild(makeRockRow(row,i)));
 }
 
+// Rock/base order quantities from area + depth. Cubic yards is the raw volume;
+// tons applies a 1.4 ton/yd³ density. Both round up to 0.1 so we never under-order.
+function rockQuantities(sqFt, depthInches) {
+  const s = parseFloat(sqFt) || 0;
+  const d = parseFloat(depthInches) || 0;
+  if (s <= 0 || d <= 0) return { yards: 0, tons: 0 };
+  const rawYards = (s * (d / 12)) / 27;
+  return {
+    yards: Math.ceil(rawYards * 10) / 10,
+    tons: Math.ceil(rawYards * 1.4 * 10) / 10
+  };
+}
+
 function makeRockRow(row, i) {
   const div = document.createElement('div');
   div.className = 'row-grid-wide';
-  div.style.cssText = 'display:grid;grid-template-columns:1fr 0.7fr 32px;gap:8px;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border);';
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 0.7fr 0.7fr 32px;gap:8px;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border);';
 
   const cat = getCatalog();
   const catItem = (cat.rock||[]).find(c => c.name === row.type);
@@ -3986,8 +4004,9 @@ function makeRockRow(row, i) {
   if (row.depth !== depth) row.depth = depth;
 
   const sqFt = parseFloat(row.sqFt)||0;
-  const tons = sqFt ? Math.ceil((sqFt * (depth/12)) / 27 * 1.4 * 10) / 10 : '';
-  row.tons = tons || '';
+  const q = rockQuantities(sqFt, depth);
+  row.tons = q.tons || '';
+  row.yards = q.yards || '';
 
   const autoStyle  = 'width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--highlight-border);border-radius:7px;font-size:13px;font-family:\'DM Mono\',monospace;background:var(--highlight);color:var(--green);font-weight:500;';
 
@@ -3995,7 +4014,8 @@ function makeRockRow(row, i) {
     <div style="padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface2);color:var(--text);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
       ${row.type || '<span style="color:var(--text-light)">—</span>'}
     </div>
-    <div style="${autoStyle}">${tons || '—'}</div>
+    <div style="${autoStyle}">${q.tons || '—'}</div>
+    <div style="${autoStyle}">${q.yards || '—'}</div>
     <button class="remove-btn" onclick="removeRockRow(${i})">×</button>
   `;
   return div;
@@ -4027,7 +4047,9 @@ function calcRockRow(i) {
   const depth = catItem ? (parseFloat(catItem.defaultDepth)||4) : (parseFloat(row.depth)||4);
 
   row.depth = depth;
-  row.tons = sqFt ? Math.ceil((sqFt * (depth/12)) / 27 * 1.4 * 10) / 10 : '';
+  const q = rockQuantities(sqFt, depth);
+  row.tons = q.tons || '';
+  row.yards = q.yards || '';
 
   // Re-render the whole row so all display values update correctly
   const rows = document.querySelectorAll('#rockRows > div');
@@ -4097,12 +4119,13 @@ function updateMaterialsSummary() {
   const rockLines = (proj.rock||[]).filter(r=>r.tons);
   if (rockLines.length) {
     rockLines.forEach(r=>{
-      html += `<div class="result-row"><span class="result-label">⛏ ${r.type||'Rock'}</span><span class="result-value">${r.tons} tons</span></div>`;
+      const yd = r.yards ? `${r.yards} yd³ · ` : '';
+      html += `<div class="result-row"><span class="result-label">⛏ ${r.type||'Rock'}</span><span class="result-value">${yd}${r.tons} tons</span></div>`;
     });
   }
 
   if (!html) {
-    html = '<div class="empty"><div class="empty-icon">📦</div><div class="empty-msg">Add data in Quote Builder and Materials tabs to see your summary here.</div></div>';
+    html = '<div class="empty"><div class="empty-icon">📦</div><div class="empty-msg">Add data in the Quote Builder tab to see your summary here.</div></div>';
   }
 
   el.innerHTML = html;
@@ -10494,7 +10517,7 @@ function switchTab(name, el) {
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('panel-'+name).classList.add('active');
-  if (name==='materials') updateMaterialsSummary();
+  if (name==='quote') updateMaterialsSummary();
   if (name==='layout') renderLayoutTab();
   if (name==='settings') renderSettingsTables();
 }

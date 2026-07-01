@@ -5,7 +5,54 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 65) — Supplier Order & Installer Sheet exports
+## 2026-06-21 (cont'd, 68) — iOS touch hardening (iPhone / iPad)
+
+The app already had a real mobile layout (hamburger drawer, 860px breakpoint, sideways-scrolling
+data grids, 92vw modals). This pass closes the most common iOS annoyances — all CSS, no logic, so
+the suite is unchanged at **963** (sandbox 920); the visual result needs on-device confirmation.
+
+- **No more zoom-jump when tapping a field.** iOS Safari zooms the page whenever you focus an input
+  under 16px. A `@media (pointer: coarse)` rule forces all inputs/selects/textareas to 16px (over
+  inline sizes), so tapping any field on iPhone/iPad no longer yanks the viewport around.
+- **Bigger × buttons on touch** — per-row remove buttons go 32→40px so they're easier to hit.
+- **Momentum scrolling** on the data grids, tab strip, canvas wrapper, and modals.
+- **`text-size-adjust: 100%`** stops iOS from auto-inflating text in landscape.
+
+Deferred (need your eyes / a decision): iPad **portrait** currently gets the phone drawer layout
+(≤860px) — could keep the two-pane desktop layout instead; broader tap-target sizing on the dense
+layout toolbar; and whether the wide turf/infill/rock rows should stack on iPhone instead of
+scrolling sideways.
+
+---
+
+
+
+Reordered the Quote Builder tab so the **Materials Summary** card sits just **above** the Quote
+Options section instead of below it — ordering reference is visible before you scroll into the
+generated quotes. No logic change; suite unchanged at **963** (sandbox 920).
+
+---
+
+
+
+- **Removed the Materials tab.** Its two cards now live in the Quote Builder tab for one-screen
+  reference: **Rock / Base** sits right after Infill (the natural material grouping), and the full
+  **Materials Summary** sits at the bottom under Quote Options. The tab button is gone; nothing else
+  moved. `switchTab` refreshes the summary when you land on Quote Builder (it was already refreshed
+  on every render, so this is just belt-and-suspenders).
+- **Rock now shows cubic yards alongside tons.** The Rock / Base card gained a **Cu. Yards** column,
+  and the Materials Summary shows rock as "N yd³ · N tons." Cubic yards is the raw volume
+  (sqft × depth ÷ 27); tons is that × 1.4 density — **tons values are unchanged**, yards is derived
+  from the same calc. New pure `rockQuantities(sqFt, depth)` helper.
+
+Tests **901 → 920** (README **963**): 19 new assertions confirm tons match the previous formula
+across five sqft/depth pairs, yards equal the raw volume, yards < tons at 1.4 density, and blank/zero
+inputs yield 0 with no NaN. In-app docs and nav updated (the "Materials Tab" section is now "Rock &
+Materials Summary" and every stray "Materials tab" reference was repointed to the new location).
+
+---
+
+
 
 New **Job Info & Exports** card at the top of the Quote Builder tab. Three per-project fields —
 Job Address, Delivery Date, Install Date — plus two copy-to-clipboard exports. (No Jobber

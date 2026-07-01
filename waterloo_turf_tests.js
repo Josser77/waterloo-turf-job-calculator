@@ -5152,6 +5152,22 @@ section('72. Order / install export text builders');
   assert(ctx.fmtExportDate('') === 'TBD' && ctx.fmtExportDate('2026-07-15') !== 'TBD', 'fmtExportDate handles blank + real dates');
 }
 
+section('73. Rock quantities — cubic yards alongside tons');
+{
+  const oldTons = (sqFt, depth) => sqFt ? Math.ceil((sqFt * (depth/12)) / 27 * 1.4 * 10) / 10 : '';
+  [[1500,4],[900,3],[2400,6],[100,1],[3333,4]].forEach(([sf,d]) => {
+    const q = ctx.rockQuantities(sf, d);
+    assert(q.tons === oldTons(sf, d), `tons unchanged for ${sf}sf @ ${d}" (got ${q.tons})`);
+    const rawYards = (sf * (d/12)) / 27;
+    assert(near(q.yards, Math.ceil(rawYards*10)/10), `yards = raw volume for ${sf}sf @ ${d}"`);
+    assert(q.yards < q.tons, `yards (${q.yards}) < tons (${q.tons}) at 1.4 density`);
+  });
+  assert(ctx.rockQuantities(1500,4).yards === 18.6 && ctx.rockQuantities(1500,4).tons === 26, '1500 sqft @ 4" → 18.6 yd³ / 26 tons');
+  const z = ctx.rockQuantities(0, 4); assert(z.yards === 0 && z.tons === 0, 'zero sqft → zero yards & tons');
+  const z2 = ctx.rockQuantities(1500, 0); assert(z2.yards === 0 && z2.tons === 0, 'zero depth → zero yards & tons');
+  assert(ctx.rockQuantities('', '').yards === 0, 'blank inputs → 0, no NaN');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
