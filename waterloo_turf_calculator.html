@@ -1377,6 +1377,7 @@
               <button type="button" class="btn btn-ghost btn-sm" id="drawCopyBtn" onclick="copySelectedAnnotation()" title="Copy the selected shape (Ctrl/Cmd+C)" disabled>⧉ Copy</button>
               <button type="button" class="btn btn-ghost btn-sm" id="drawPasteBtn" onclick="pasteAnnotation()" title="Paste a copied shape (Ctrl/Cmd+V)" disabled>⎘ Paste</button>
               <button type="button" class="btn btn-ghost btn-sm" id="drawDeleteBtn" onclick="deleteSelectedAnnotation()" title="Delete the selected shape (Del)" disabled>🗑 Delete</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="drawMakeLayerBtn" onclick="makeLayerFromSelectedAnnotation()" title="Turn the selected shape into a real install layer — perimeter, installed &amp; ordered sqft, and a roll layout, just like an imported layer" disabled>⬒ Make Layer</button>
               <button type="button" class="btn btn-ghost btn-sm" onclick="undoDrawAnnotation()" title="Remove the last shape you drew">↶ Undo</button>
               <button type="button" class="btn btn-ghost btn-sm" onclick="clearDrawAnnotations()" title="Remove all drawn shapes">✕ Clear</button>
               <button type="button" class="btn btn-primary btn-sm" onclick="toggleDrawMode()">✓ Done</button>
@@ -2205,7 +2206,8 @@
 
         <div class="docs-h3">Draw Tool (Markup)</div>
         <p>Click <strong>"✏️ Draw"</strong> in the toolbar to open the drawing toolbar, then pick <strong>Line</strong>, <strong>Rectangle</strong>, <strong>Circle</strong>, or <strong>Freehand</strong>, choose a <strong>color</strong> and line <strong>width</strong> (and optional <strong>Fill</strong> for rectangles/circles), and drag on the canvas. Use this to mark up the layout — show where pavers, borders, steppers, or other features go, or annotate for a customer.</p>
-        <p><strong>Adjust a shape:</strong> switch to the <strong>↖ Select</strong> tool, then click a shape to select it (a dashed box with handles appears). <strong>Drag the body</strong> to move it, <strong>drag a corner</strong> to resize, or <strong>drag the round handle above the top</strong> to rotate. Changing the color or width while a shape is selected updates that shape. <strong>⧉ Copy</strong> / <strong>⎘ Paste</strong> (or Ctrl/Cmd+C / Ctrl/Cmd+V) duplicate the selected shape — the copy lands slightly offset and selected. <strong>🗑 Delete</strong> (or the Delete key) removes the selected shape; <strong>↶ Undo</strong> removes the last shape you drew; <strong>✕ Clear</strong> removes all; <strong>✓ Done</strong> exits. <strong>Snap to grid</strong> locks new points, moves (in whole grid steps), resizes, and rotation (to 15°) onto the grid spacing set on the Display tab — turn on the grid there to see it. The draw toolbar stays pinned to the top while you work so it's always in reach. Drawn shapes scale and stay anchored to the layout when you zoom, and they save with the project. <strong>Important:</strong> drawn shapes are <em>markup only</em> — they never change turf area, rolls, or the quote. To make a real cutout that turf works around, use a CSV layer set to Cutout instead. Draw is mutually exclusive with Edit Shape / Move Layers / Cut Mode, and is disabled while the layout is locked. <em>Note: resizing a shape that you've already rotated scales along the yard's axes, so a rotated rectangle can skew — rotate last, or re-draw if it looks off.</em></p>
+        <p><strong>Adjust a shape:</strong> switch to the <strong>↖ Select</strong> tool, then click a shape to select it (a dashed box with handles appears). <strong>Drag the body</strong> to move it, <strong>drag a corner</strong> to resize, or <strong>drag the round handle above the top</strong> to rotate. Changing the color or width while a shape is selected updates that shape. <strong>⧉ Copy</strong> / <strong>⎘ Paste</strong> (or Ctrl/Cmd+C / Ctrl/Cmd+V) duplicate the selected shape — the copy lands slightly offset and selected. <strong>🗑 Delete</strong> (or the Delete key) removes the selected shape; <strong>↶ Undo</strong> removes the last shape you drew; <strong>✕ Clear</strong> removes all; <strong>✓ Done</strong> exits. <strong>Snap to grid</strong> locks new points, moves (in whole grid steps), resizes, and rotation (to 15°) onto the grid spacing set on the Display tab — turn on the grid there to see it. The draw toolbar stays pinned to the top while you work so it's always in reach. Drawn shapes scale and stay anchored to the layout when you zoom, and they save with the project. <strong>Important:</strong> drawn shapes are <em>markup only</em> — they never change turf area, rolls, or the quote — <em>unless</em> you convert one into a layer (below). To make a real cutout that turf works around, use a CSV layer set to Cutout instead. Draw is mutually exclusive with Edit Shape / Move Layers / Cut Mode, and is disabled while the layout is locked. <em>Note: resizing a shape that you've already rotated scales along the yard's axes, so a rotated rectangle can skew — rotate last, or re-draw if it looks off.</em></p>
+        <p><strong>⬒ Make Layer — turn a drawn shape into a real install layer.</strong> Select a closed shape (Rectangle, Circle, or Freehand — a Line has no area and is skipped), then click <strong>⬒ Make Layer</strong>. The shape becomes a full <strong>Install</strong> layer with its own <strong>perimeter, installed sqft, ordered sqft, and roll layout</strong>, exactly like an imported layer — the app jumps to the <strong>Layers</strong> list so you can see those numbers and set the layer's turf and mode. The markup shape is consumed (it's a real layer now). The new layer lands exactly where you drew it, even if the view is rotated. Two things to expect: a <strong>Freehand</strong> blob keeps every point you drew, so its roll layout can have many small pieces — draw with Rectangle/Circle or a deliberate outline for clean cuts; and the new layer starts with no turf product assigned, so pick one in the Layers list to get ordered sqft and pricing.</p>
 
         <div class="docs-h3">Reference Grid</div>
         <p>On the <strong>Display</strong> tab, turn on <strong>Show grid</strong> for a to-scale graph-paper overlay behind the layout, and set <strong>Grid spacing</strong> in inches (e.g. 12 for a 1-ft grid, 6 for 6-in squares). It's a visual scale reference — each square equals the spacing you set at the current zoom — and it has no effect on any calculation. The grid stays available even when the layout is locked.</p>
@@ -8842,6 +8844,62 @@ function updateAnnoDeleteBtn() {
   const del = document.getElementById('drawDeleteBtn'); if (del) del.disabled = !sel;
   const cp = document.getElementById('drawCopyBtn'); if (cp) cp.disabled = !sel;
   const ps = document.getElementById('drawPasteBtn'); if (ps) ps.disabled = !window._wtAnnoClipboard;
+  const ml = document.getElementById('drawMakeLayerBtn');
+  if (ml) {
+    const proj = getCurrentProject();
+    const a = (sel && proj && proj.layout && proj.layout.annotations) ? proj.layout.annotations[window._wtSelectedAnno] : null;
+    ml.disabled = !(a && a.points && a.points.length >= 3); // lines (2 pts) can't be a layer
+  }
+}
+
+// ── Convert a drawn shape into a real install layer ───────────────────────
+// Drawn annotations live in the DISPLAY frame (view rotation already applied).
+// A layer stores canonical `points` that the renderer view-rotates back to the
+// display frame, so to make the new layer land exactly where it was drawn we
+// inverse-rotate the annotation points by -viewRotation about the view centroid.
+// Pure + testable: given display-frame points, returns canonical layer points.
+function annotationToLayerPoints(points, viewRotation, centroid) {
+  let pts = points.map(p => ({ x: p.x, y: p.y }));
+  if (viewRotation) pts = rotateAround(pts, -viewRotation, centroid.cx, centroid.cy);
+  return pts;
+}
+
+function makeLayerFromSelectedAnnotation() {
+  const proj = getCurrentProject();
+  if (!proj || !proj.layout) return;
+  const i = window._wtSelectedAnno;
+  const annos = proj.layout.annotations || [];
+  const a = (i != null) ? annos[i] : null;
+  if (!a || !a.points || a.points.length < 3) {
+    showLayoutToast('Select a closed shape (rectangle, circle, or freehand area) first — a line has no area, so it can\'t become a layer.');
+    return;
+  }
+  const viewRotation = proj.layout.viewRotation || 0;
+  const centroid = viewRotation ? getViewCentroid(proj) : { cx: 0, cy: 0 };
+  const pts = annotationToLayerPoints(a.points, viewRotation, centroid);
+  const area = Math.abs(polygonArea(pts));
+
+  proj.layout.secondaryShapes = proj.layout.secondaryShapes || [];
+  proj.layout.secondaryShapeModes = proj.layout.secondaryShapeModes || {};
+  proj.layout.layerOffsets = proj.layout.layerOffsets || {};
+  const idx = proj.layout.secondaryShapes.length;
+  const typeName = a.type === 'circle' ? 'Circle' : a.type === 'rect' ? 'Rectangle' : a.type === 'freehand' ? 'Freehand' : 'Shape';
+  const name = 'Drawn ' + typeName + ' ' + (idx + 1);
+  proj.layout.secondaryShapes.push({ name: name, points: pts, area: area, layer: 'Drawn' });
+  proj.layout.layerOffsets[idx] = { dx: 0, dy: 0, rotation: 0 };
+  proj.layout.secondaryShapeModes[idx] = 'install'; // full treatment: roll layout, ordered sqft
+
+  // The markup is now a real layer — remove the annotation so it isn't drawn twice.
+  annos.splice(i, 1);
+  window._wtSelectedAnno = null; window._wtAnnoOp = null;
+  save();
+
+  // Leave Draw mode and surface the Layers list, where perimeter / installed /
+  // ordered sqft for the new layer are shown just like any other layer.
+  if (window._wtDrawMode) toggleDrawMode();
+  renderLayoutTab();
+  switchLayoutSubtab('layers');
+  showLayoutToast('Created install layer "' + name + '" — ' + Math.round(area) + ' sq ft. Its perimeter, installed & ordered sqft, and roll layout are in the Layers list; pick its turf and mode there.');
 }
 
 // ── Snap to grid ──────────────────────────────────────────────────────────

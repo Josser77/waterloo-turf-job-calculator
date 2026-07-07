@@ -5168,6 +5168,26 @@ section('73. Rock quantities — cubic yards alongside tons');
   assert(ctx.rockQuantities('', '').yards === 0, 'blank inputs → 0, no NaN');
 }
 
+section('74. Draw shape → install layer (coordinate frame)');
+{
+  const rect = [{x:10,y:10},{x:30,y:10},{x:30,y:22},{x:10,y:22}]; // 20×12 = 240 sqft
+  const cen = { cx: 20, cy: 16 };
+  // viewRotation 0 → canonical points identical to drawn (display) points
+  const id = ctx.annotationToLayerPoints(rect, 0, cen);
+  assert(id.every((p,i)=>near(p.x,rect[i].x)&&near(p.y,rect[i].y)), 'viewRotation 0 → points unchanged');
+  assert(id !== rect, 'returns a fresh array (no mutation of source)');
+  // area preserved and rotation-invariant
+  assert(near(Math.abs(ctx.polygonArea(id)), 240), 'area = 240 sqft for 20×12 rect');
+  // With a view rotation, re-applying +viewRotation must reproduce the drawn points
+  [15, 37, -50, 90].forEach(vr => {
+    const canon = ctx.annotationToLayerPoints(rect, vr, cen);
+    const back = ctx.rotateAround(canon, vr, cen.cx, cen.cy);
+    const err = Math.max(...rect.map((p,i)=>Math.hypot(p.x-back[i].x, p.y-back[i].y)));
+    assert(err < 1e-9, `viewRotation ${vr}° round-trips to the drawn position (err ${err.toExponential(1)})`);
+    assert(near(Math.abs(ctx.polygonArea(canon)), 240), `area stays 240 under inverse-rotation at ${vr}°`);
+  });
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

@@ -5,7 +5,31 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 68) — iOS touch hardening (iPhone / iPad)
+## 2026-06-21 (cont'd, 69) — Make Layer: turn a drawn shape into a real install layer
+
+The Draw tool could only make markup. Now a **⬒ Make Layer** button in the draw toolbar converts
+the selected closed shape (Rectangle / Circle / Freehand — Lines are skipped, no area) into a full
+**Install** layer: perimeter, installed sqft, ordered sqft, and a roll layout, exactly like an
+imported layer. On convert it drops Draw mode and opens the Layers list so those numbers are visible;
+the layer starts with no turf assigned (pick one there to get ordered sqft + pricing).
+
+- **Correct placement under view rotation.** Drawn shapes live in the display frame; a layer stores
+  canonical points that get view-rotated back. The new `annotationToLayerPoints` helper inverse-rotates
+  by −viewRotation about the view centroid so the layer lands exactly where it was drawn — verified to
+  machine epsilon (round-trip error ~1e-15) at 0/15/37/−50/90°.
+- The markup annotation is consumed (removed) once converted, so it isn't drawn twice.
+- Button is disabled unless a ≥3-point shape is selected; a Line selection shows a "needs area" toast.
+- Freehand keeps every captured point, so its roll layout can have many small pieces — noted in the
+  in-app docs; Rectangle/Circle or a deliberate outline cut cleaner.
+
+Tests **920 → 931** (README **974**): 11 assertions on the coordinate frame — identity at
+viewRotation 0, no source mutation, area = 240 sqft for a 20×12 rect, and round-trip + area-invariance
+across four rotations. End-to-end convert (layer created with mode=install, offset zeroed, annotation
+removed, Line blocked) verified headlessly.
+
+---
+
+
 
 The app already had a real mobile layout (hamburger drawer, 860px breakpoint, sideways-scrolling
 data grids, 92vw modals). This pass closes the most common iOS annoyances — all CSS, no logic, so
