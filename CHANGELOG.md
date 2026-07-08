@@ -5,7 +5,28 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 71) — Live link now syncs Installed too + Layout tab: canvas pinned, fields scroll
+## 2026-06-21 (cont'd, 72) — Default shipping / freight cost
+
+New projects now carry a **shipping / freight** cost, defaulting to **$150**, editable per project and
+added to every quote option.
+
+- **Configurable default (not hardcoded).** Settings → **Default Shipping** holds the seed value
+  ($150 out of the box). New projects inherit it; change it once when your freight rate changes
+  instead of editing every project. It only affects projects created afterward.
+- **Per-project edit** on the Quote Builder tab (Quote Options card) → `proj.shipping`.
+- **In COGS**, so your profit margin applies to it like every other line; it shows as its own
+  "Shipping / freight" line in each option's breakdown, identical across scenarios (freight is
+  per-delivery, not per-combo).
+- **Existing projects are protected.** `resolveShipping` treats a missing/blank shipping field as
+  **$0**, so quotes saved before this change are never silently bumped — the field is blank until you
+  enter a value. Only newly created projects seed the $150 default.
+
+Tests **937 → 945** (README **988**): 8 assertions on `resolveShipping` (explicit value, missing→0,
+blank/null→0, negative clamped, string parsed) and the $150 fallback of `getDefaultShipping`.
+
+---
+
+
 
 **Live link — Installed SqFt follows the shape.** The Live link now keeps *both* fields on the
 selected row in sync, each with its own no-op guard:

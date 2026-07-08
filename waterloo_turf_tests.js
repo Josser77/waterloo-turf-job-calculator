@@ -5198,6 +5198,20 @@ section('75. Live link — Ordered SqFt value from layout');
   assert(ctx.orderedFromLayout({ totalOrdered: 0 }) === 0, 'zero ordered is a real value, not null');
 }
 
+section('76. Default shipping cost');
+{
+  // Safety-critical: older projects (no shipping field) must resolve to 0 so their
+  // saved quotes are never silently bumped; only new projects carry the default.
+  assert(ctx.resolveShipping({ shipping: 150 }) === 150, 'explicit shipping → that value');
+  assert(ctx.resolveShipping({}) === 0, 'missing shipping (older project) → 0, no silent bump');
+  assert(ctx.resolveShipping({ shipping: '' }) === 0, 'blank shipping → 0');
+  assert(ctx.resolveShipping({ shipping: null }) === 0, 'null shipping → 0');
+  assert(ctx.resolveShipping(null) === 0, 'no project → 0');
+  assert(ctx.resolveShipping({ shipping: -25 }) === 0, 'negative shipping clamped to 0');
+  assert(ctx.resolveShipping({ shipping: '175.5' }) === 175.5, 'string number parsed');
+  assert(ctx.getDefaultShipping() === 150, 'default shipping falls back to $150 when unset');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

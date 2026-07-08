@@ -1314,6 +1314,11 @@
           <div class="card-header">
             <div class="card-title">Quote Options</div>
           </div>
+          <div class="field-group" style="max-width:260px;margin-bottom:14px;">
+            <label>Shipping / Freight ($)</label>
+            <input type="number" id="projectShipping" min="0" step="1" placeholder="0" oninput="setProjectShipping(this.value)">
+            <div style="font-size:11px;color:var(--text-light);margin-top:4px;line-height:1.4;">Added to every quote option's cost (new projects default to the value set in Settings → Default Shipping). Marked up by your profit margin like other costs.</div>
+          </div>
           <div id="quoteOptionsContainer"></div>
         </div>
 
@@ -1706,6 +1711,18 @@
           <div class="field-group" style="max-width:200px;">
             <label>Margin %</label>
             <input type="number" id="profitMarginInput" min="0" max="99" step="0.5" oninput="updateProfitMargin(this.value)">
+          </div>
+        </div>
+
+        <!-- DEFAULT SHIPPING -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Default Shipping</div>
+          </div>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">Freight cost pre-filled on <strong>each new project</strong> (you can still change it per project on the Quote Builder tab). Change it here whenever your freight rate changes — it only affects projects created afterward, never existing ones.</p>
+          <div class="field-group" style="max-width:200px;">
+            <label>Default shipping cost ($)</label>
+            <input type="number" id="defaultShippingInput" min="0" step="1" oninput="updateDefaultShipping(this.value)">
           </div>
         </div>
 
@@ -2166,7 +2183,7 @@
           <li>Within each group, putting green variants appear side by side: one card without a putting green, one per Putting Green turf row</li>
         </ul>
         <p><strong>Example</strong> — Standard turf + 1 Alt turf, Standard + Upgraded infill, 1 putting green option → 4 groups, 2 cards each = 8 total quote options.</p>
-        <p><strong>What's included in each total:</strong> Labor (the turf-install rate — standard yard + putting green if applicable), turf material cost (ordered sqft × cost/sqft from Settings, with putting green turf on its own line), edging, infill materials (bags × cost/bag, with putting green infill on its own line), putting green fringe (if configured in the Layout tab — see Putting Green Fringe below), and miscellaneous items (each shown as its own line, not lumped together) — all split correctly by role/tier per scenario.</p>
+        <p><strong>What's included in each total:</strong> Labor (the turf-install rate — standard yard + putting green if applicable), turf material cost (ordered sqft × cost/sqft from Settings, with putting green turf on its own line), edging, infill materials (bags × cost/bag, with putting green infill on its own line), putting green fringe (if configured in the Layout tab — see Putting Green Fringe below), miscellaneous items (each shown as its own line, not lumped together), and <strong>shipping / freight</strong> (per project, the same on every scenario — defaults to the value in Settings → Default Shipping on new projects, editable on the Quote Builder tab) — all split correctly by role/tier per scenario. Shipping is part of COGS, so your profit margin applies to it like every other cost. Existing projects created before this feature carry no shipping (it shows as blank / $0) until you enter one, so their saved quotes don't change.</p>
         <p>When a profit margin is set, each card shows three figures: <strong>Cost (COGS)</strong>, your <strong>Margin</strong> in dollars (Price − Cost), and the customer <strong>Price</strong>. If a job is putting-green-only (no base/alt turf), the "No Putting Green" option is omitted since it would be an empty card.</p>
       </div>
 
@@ -2484,6 +2501,27 @@ function setProfitMargin(pct) {
   const v = Math.max(0, Math.min(99, parseFloat(pct) || 0));
   localStorage.setItem(MARGIN_KEY, String(v));
   return v;
+}
+
+// Default shipping/freight cost applied to each NEW project (editable per project).
+// Configurable in Settings so a rate change is a one-time edit, not per-project.
+const SHIPPING_DEFAULT_KEY = 'wt_shippingDefault';
+const SHIPPING_FALLBACK = 150;
+function getDefaultShipping() {
+  const v = parseFloat(localStorage.getItem(SHIPPING_DEFAULT_KEY));
+  return isNaN(v) ? SHIPPING_FALLBACK : v;
+}
+function setDefaultShipping(val) {
+  const v = Math.max(0, parseFloat(val) || 0);
+  localStorage.setItem(SHIPPING_DEFAULT_KEY, String(v));
+  return v;
+}
+// Resolver (testable): a project's shipping cost. Missing (older projects) → 0,
+// so existing saved quotes are never silently bumped; new projects seed the default.
+function resolveShipping(proj) {
+  if (!proj || proj.shipping == null || proj.shipping === '') return 0;
+  const v = parseFloat(proj.shipping);
+  return isNaN(v) ? 0 : Math.max(0, v);
 }
 // sellPrice = cogs / (1 - margin/100); guards against margin>=100 (division blowup)
 function applyMargin(cogs, marginPct) {
@@ -3093,6 +3131,7 @@ function createProject() {
     rock: rockRows,
     edging,
     pgSqFt,
+    shipping: getDefaultShipping(),
     miscItems: [],
   };
 
@@ -3746,6 +3785,7 @@ function removeQuoteMisc(i) {
 
 function calcQuote() {
   const proj = getCurrentProject(); if(!proj) return;
+  const shippingCost = resolveShipping(proj); // same freight on every scenario
   const container = document.getElementById('quoteOptionsContainer');
   if (!container) return;
 
@@ -3922,7 +3962,7 @@ function calcQuote() {
         const scenarioInfillCost = tierInfillCost + (pgSqFt > 0 ? pgInfillCost : 0);
         const scenarioMiscCost = baseMiscCost + (pgSqFt > 0 ? pgMiscCost : 0);
         const scenarioFringeCost = pgSqFt > 0 ? fringeCost : 0;
-        const cogs = laborStd + laborPg + edgeCost + turfMatCost + pgTurfMatCost + scenarioInfillCost + scenarioMiscCost + scenarioFringeCost;
+        const cogs = laborStd + laborPg + edgeCost + turfMatCost + pgTurfMatCost + scenarioInfillCost + scenarioMiscCost + scenarioFringeCost + shippingCost;
         const sellPrice = applyMargin(cogs, marginPct);
 
         const cardLabel = letters[cardIdx % 26];
@@ -3945,6 +3985,7 @@ function calcQuote() {
         if (pgSqFt > 0 && pgInfillCost) breakdown += `<div class="opt-line"><span>Putting green infill</span><span>${fmt(pgInfillCost)}</span></div>`;
         baseMiscItems.forEach(r => { breakdown += miscLineHtml(r); });
         if (pgSqFt > 0) pgMiscItems.forEach(r => { breakdown += miscLineHtml(r); });
+        if (shippingCost) breakdown += `<div class="opt-line"><span>Shipping / freight</span><span>${fmt(shippingCost)}</span></div>`;
 
         const marginAmt = sellPrice - cogs;
         const priceLabelStyle = 'font-size:10px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.06em;';
@@ -4201,6 +4242,8 @@ function renderSettingsTables() {
   renderMiscItemsTable();
   const marginInput = document.getElementById('profitMarginInput');
   if (marginInput) marginInput.value = getProfitMargin();
+  const shipInput = document.getElementById('defaultShippingInput');
+  if (shipInput) shipInput.value = getDefaultShipping();
   loadRollDefaultsToInputs();
 }
 
@@ -4208,6 +4251,10 @@ function updateProfitMargin(val) {
   setProfitMargin(val);
   const proj = getCurrentProject();
   if (proj) calcQuote();
+}
+
+function updateDefaultShipping(val) {
+  setDefaultShipping(val); // affects only projects created afterward
 }
 
 function renderSettingsTurfTable(items) {
@@ -10009,6 +10056,16 @@ function populateJobInfo(proj) {
   if (a) a.value = proj.address || '';
   if (d) d.value = proj.deliveryDate || '';
   if (i) i.value = proj.installDate || '';
+  const s = document.getElementById('projectShipping');
+  if (s) s.value = (proj.shipping == null || proj.shipping === '') ? '' : proj.shipping;
+}
+
+function setProjectShipping(val) {
+  const proj = getCurrentProject(); if (!proj) return;
+  proj.shipping = (val === '' || val == null) ? '' : Math.max(0, parseFloat(val) || 0);
+  save();
+  calcQuote();
+  if (typeof renderSidebar === 'function') renderSidebar();
 }
 
 function showExportModal(title, subtitle, text) {
