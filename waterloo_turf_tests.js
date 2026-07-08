@@ -441,7 +441,7 @@ section('9. autoRotate minimizes waste (smoke)');
 // ════════════════════════════════════════════════════════════════════════
 section('10. Auto-backup');
 {
-  const stored = {};
+  const stored = { 'wt_shippingDefault': '0' };
   const mockLS = { getItem: k => stored[k]||null, setItem: (k,v) => { stored[k]=v; } };
   const ctx2 = {
     window: { onload: null, _wtLayoutZoom:1, _wtEditMode:false, _wtLastAutoBackup: null },
@@ -572,7 +572,7 @@ section('13. Canvas aspect ratio sizing');
 // ════════════════════════════════════════════════════════════════════════
 section('14. Selective backup & merge import');
 {
-  const stored = {};
+  const stored = { 'wt_shippingDefault': '0' };
   const mockLS = { getItem: k => stored[k]||null, setItem: (k,v) => { stored[k]=v; } };
   const fullProj = (id,name,created) => ({id,name,created,turf:[],infill:[],rock:[],edging:{},pgSqFt:0,miscItems:[]});
 
@@ -674,7 +674,7 @@ section('14. Selective backup & merge import');
 // ════════════════════════════════════════════════════════════════════════
 section('15. Factory reset & settings-only export');
 {
-  const stored = {};
+  const stored = { 'wt_shippingDefault': '0' };
   const mockLS = {
     getItem: k => stored[k]||null,
     setItem: (k,v) => { stored[k]=v; },
@@ -973,7 +973,7 @@ section('17. Multi-layer CSV parsing & secondary shapes');
 
   // ── applyLayoutAreaToTurf end-to-end: base row gets whole yard incl. green ──
   {
-    const stored = {};
+    const stored = { 'wt_shippingDefault': '0' };
     const mockLS = { getItem:k=>stored[k]||null, setItem:(k,v)=>{stored[k]=v;}, removeItem:k=>{delete stored[k];} };
     stored['wt_catalog_v2'] = JSON.stringify({ turf:[], infill:[], rock:[] });
     stored['wt_projects_v4'] = JSON.stringify([{
@@ -1164,7 +1164,7 @@ section('20. Nesting keyed by stable position, not array index');
 // ════════════════════════════════════════════════════════════════════════
 section('21. Layer visibility (isLayerVisible / setLayerVisible)');
 {
-  const stored = {};
+  const stored = { 'wt_shippingDefault': '0' };
   const mockLS = { getItem: k => stored[k]||null, setItem: (k,v) => { stored[k]=v; } };
   const fullProj = (id,name,created,layout) => ({id,name,created,turf:[],infill:[],rock:[],edging:{},pgSqFt:0,miscItems:[],layout});
 
@@ -1280,7 +1280,7 @@ section('22. Layer offsets are purely visual, do not affect roll math');
 
   // ── resetLayerPosition removes the offset and persists ──
   {
-    const stored = {};
+    const stored = { 'wt_shippingDefault': '0' };
     const mockLS = { getItem: k => stored[k]||null, setItem: (k,v) => { stored[k]=v; } };
     const layoutData = {
       points: rect(0,0,10,10), area: 100,
@@ -1326,7 +1326,7 @@ section('22. Layer offsets are purely visual, do not affect roll math');
 // ════════════════════════════════════════════════════════════════════════
 section('23. autoRotateRollLayout end-to-end (catches undefined-variable bugs)');
 {
-  const stored = {};
+  const stored = { 'wt_shippingDefault': '0' };
   const mockLS = { getItem: k => stored[k]||null, setItem: (k,v) => { stored[k]=v; } };
   const layoutData = { points: rect(0,0,40,12), area: 480, rollWidth:15, rollLength:100, sideTrim:4, cuttingMargin:4, rotation:0, translation:0 };
   stored['wt_projects_v4'] = JSON.stringify([{id:'p1',name:'Test',created:1000,turf:[],infill:[],rock:[],edging:{},pgSqFt:0,miscItems:[],layout:layoutData}]);
@@ -1399,7 +1399,7 @@ section('23. autoRotateRollLayout end-to-end (catches undefined-variable bugs)')
 // ════════════════════════════════════════════════════════════════════════
 section('24. setLayerRotation — secondary layer rotation about own centroid');
 {
-  const stored = {};
+  const stored = { 'wt_shippingDefault': '0' };
   const mockLS = { getItem: k => stored[k]||null, setItem: (k,v) => { stored[k]=v; } };
   const layoutData = {
     points: rect(0,0,40,40), area: 1600,
@@ -1622,7 +1622,7 @@ section('25. Manual cuts (butt seams) and piece-level nesting');
 // ════════════════════════════════════════════════════════════════════════
 section('26. Cut Mode end-to-end (toggle + click-to-cut on canvas)');
 {
-  const stored = {};
+  const stored = { 'wt_shippingDefault': '0' };
   const mockLS = { getItem: k => stored[k]||null, setItem: (k,v) => { stored[k]=v; } };
   // 30x15 rect at rotation 0 -> single strip y0.00, neededLength=30, sMinX=0
   const layoutData = { points: rect(0,0,30,15), area: 450, rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, rotation:0, translation:0 };
@@ -1877,7 +1877,7 @@ section('29. Removing manual cuts via list controls');
   const base = ctx.computeRollLayout(shape, 0, 0, opts);
   const strip = base.strips.find(s=>s.clippedArea>0.5);
 
-  const stored = {};
+  const stored = { 'wt_shippingDefault': '0' };
   const mockLS = { getItem: k => stored[k]||null, setItem: (k,v) => { stored[k]=v; } };
   const layoutData = { points: shape, area: 450, rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, rotation:0, translation:0, manualCuts: { [strip.key]: [10, 20] } };
   stored['wt_projects_v4'] = JSON.stringify([{id:'p1',name:'Test',created:1000,turf:[],infill:[],rock:[],edging:{},pgSqFt:0,miscItems:[],layout:layoutData}]);
@@ -2468,7 +2468,7 @@ section('37. Putting green fringe: layer mode, config persistence, and quote cos
 
   // ── setSecondaryShapeMode: 'putting-green' is mutually exclusive across shapes ──
   {
-    const stored = {};
+    const stored = { 'wt_shippingDefault': '0' };
     const mockLS = { getItem: k => stored[k]||null, setItem: (k,v) => { stored[k]=v; } };
     const shapeA = rect(0,0,10,10);
     const shapeB = rect(20,0,10,10);
@@ -2517,7 +2517,7 @@ section('37. Putting green fringe: layer mode, config persistence, and quote cos
 
   // ── getAdjustedShapeArea: putting-green mode subtracts area like exclude ──
   {
-    const stored = {};
+    const stored = { 'wt_shippingDefault': '0' };
     const mockLS = { getItem: k => stored[k]||null, setItem: (k,v) => { stored[k]=v; } };
     const pg = rect(0,0,20,10); // area 200
     const mainShape = rect(-10,-10,60,40); // area 2400
@@ -2551,7 +2551,7 @@ section('37. Putting green fringe: layer mode, config persistence, and quote cos
 
   // ── Full end-to-end: fringe config -> summary + quote cost ──
   {
-    const stored = {};
+    const stored = { 'wt_shippingDefault': '0' };
     const mockLS = { getItem: k => stored[k]||null, setItem: (k,v) => { stored[k]=v; } };
     const catalog = {
       turf: [
@@ -2648,7 +2648,7 @@ section('38. Piece List shows length/width/sqft for every roll piece and fringe 
     return { checked:false, value:'', style:{}, classList:{add:()=>{},remove:()=>{}}, addEventListener:()=>{}, querySelector:()=>null, querySelectorAll:()=>[], innerHTML:'', appendChild:()=>{}, replaceChildren:()=>{} };
   }
   function makeHarness38(projOverrides) {
-    const stored = {};
+    const stored = { 'wt_shippingDefault': '0' };
     const mockLS = { getItem: k => stored[k]||null, setItem: (k,v) => { stored[k]=v; } };
     stored['wt_catalog_v2'] = JSON.stringify(projOverrides.catalog || { turf:[], infill:[], rock:[] });
     if (projOverrides.crews) {
@@ -2908,7 +2908,7 @@ section('40. Fringe "Show pieces" toggle: individual pieces vs single outline');
     return { checked:false, value:'', style:{}, classList:{add:()=>{},remove:()=>{}}, addEventListener:()=>{}, querySelector:()=>null, querySelectorAll:()=>[], innerHTML:'', appendChild:()=>{}, replaceChildren:()=>{} };
   }
   function makeHarness40(fringePiecesVisible) {
-    const stored = {};
+    const stored = { 'wt_shippingDefault': '0' };
     const mockLS = { getItem: k => stored[k]||null, setItem: (k,v) => { stored[k]=v; } };
     const catalog = { turf: [{ id:'fringe', name:'WT K9 Cascade Pro', type:'standard', costPerLinFt:'2.00' }], infill:[], rock:[] };
     stored['wt_catalog_v2'] = JSON.stringify(catalog);
@@ -2980,7 +2980,7 @@ section('40. Fringe "Show pieces" toggle: individual pieces vs single outline');
 
   // ── Default (piecesVisible undefined) behaves as visible ──
   {
-    const stored = {};
+    const stored = { 'wt_shippingDefault': '0' };
     const mockLS = { getItem: k => stored[k]||null, setItem: (k,v) => { stored[k]=v; } };
     const catalog = { turf: [{ id:'fringe', name:'WT K9 Cascade Pro', type:'standard', costPerLinFt:'2.00' }], infill:[], rock:[] };
     stored['wt_catalog_v2'] = JSON.stringify(catalog);
@@ -4098,7 +4098,7 @@ section('53. End-to-end quote scenarios');
 
   // Render a project's quote cards and return { ctx, html, cards }.
   function qEnv({ project, crews=FLAT_CREW, catalog=QCAT, margin=0, activeCrew='crew_main' }) {
-    const stored = {};
+    const stored = { 'wt_shippingDefault': '0' };
     const mockLS = { getItem:k=>stored[k]||null, setItem:(k,v)=>{stored[k]=v;}, removeItem:k=>{delete stored[k];} };
     stored['wt_catalog_v2']   = JSON.stringify(catalog);
     stored['wt_crews_v1']     = JSON.stringify(crews);
@@ -5129,7 +5129,8 @@ section('72. Order / install export text builders');
   assert(order.indexOf('Edging (bender board): 6 boards (110 lin ft)') >= 0, 'edging boards listed');
   assert(order.indexOf('Weed barrier: 2 roll') >= 0, 'misc item listed');
   assert(order.indexOf('Zero qty item') < 0, 'zero-qty misc item omitted');
-  assert(order.indexOf('Minus') < 0 && order.indexOf('rock') >= 0, 'rock excluded from list but noted as separate');
+  assert(order.indexOf('Minus') < 0, 'rock material still excluded from the supplier order');
+  assert(order.indexOf('Note: rock') < 0, 'rock note removed from supplier order');
   assert((order.match(/Rock|18 ton/g) || []).length === 0, 'no rock tonnage in the order');
 
   const sheet = ctx.buildInstallerSheetText(proj);
@@ -5140,7 +5141,10 @@ section('72. Order / install export text builders');
   assert(sheet.indexOf('Putt 56 (putting green): 300 sq ft') >= 0, 'putting green install sqft per product');
   assert(sheet.indexOf('Premium Alt') < 0, 'alt turf (no installed sqft) omitted from install sheet');
   assert(sheet.indexOf('Weed barrier: 2 roll') >= 0 && sheet.indexOf('Nails 6": 5 box') >= 0, 'all misc items on the install sheet');
-  assert(sheet.indexOf('sq ft') >= 0 && sheet.indexOf('bag') < 0, 'install sheet has no supplier-only ordering lines');
+  assert(/INFILL\n• Envirofill: 40 bags/.test(sheet), 'installer sheet lists infill (product + bags)');
+  assert(/EDGING\n• bender board: 6 boards \(110 lin ft\)/.test(sheet), 'installer sheet lists edging (material + boards + lin ft)');
+  assert(sheet.indexOf('WATERLOO TURF PROVIDES') >= 0 && sheet.indexOf('Turf, infill, edging, stakes, and screws') >= 0, 'installer sheet has Waterloo-provides section');
+  assert(sheet.indexOf('TURF INSTALLER PROVIDES') >= 0 && sheet.indexOf('weed cloth') >= 0 && sheet.indexOf('non-galvanized nails') >= 0, 'installer sheet has installer-provides section');
 
   // empty / missing data degrades gracefully
   const empty = { name: '', turf: [], infill: [], miscItems: [] };
@@ -5198,18 +5202,48 @@ section('75. Live link — Ordered SqFt value from layout');
   assert(ctx.orderedFromLayout({ totalOrdered: 0 }) === 0, 'zero ordered is a real value, not null');
 }
 
-section('76. Default shipping cost');
+section('76. Shipping cost — default-unless-override resolver');
 {
-  // Safety-critical: older projects (no shipping field) must resolve to 0 so their
-  // saved quotes are never silently bumped; only new projects carry the default.
-  assert(ctx.resolveShipping({ shipping: 150 }) === 150, 'explicit shipping → that value');
-  assert(ctx.resolveShipping({}) === 0, 'missing shipping (older project) → 0, no silent bump');
-  assert(ctx.resolveShipping({ shipping: '' }) === 0, 'blank shipping → 0');
-  assert(ctx.resolveShipping({ shipping: null }) === 0, 'null shipping → 0');
-  assert(ctx.resolveShipping(null) === 0, 'no project → 0');
-  assert(ctx.resolveShipping({ shipping: -25 }) === 0, 'negative shipping clamped to 0');
-  assert(ctx.resolveShipping({ shipping: '175.5' }) === 175.5, 'string number parsed');
+  // Missing/blank shipping now RESOLVES TO THE DEFAULT ($150), so every project —
+  // old or new — follows the standard unless it overrides. Only an explicit number
+  // (including 0) is a per-job override.
   assert(ctx.getDefaultShipping() === 150, 'default shipping falls back to $150 when unset');
+  assert(ctx.resolveShipping({}) === 150, 'missing shipping → default (150)');
+  assert(ctx.resolveShipping({ shipping: '' }) === 150, 'blank shipping → default (150)');
+  assert(ctx.resolveShipping({ shipping: null }) === 150, 'null shipping → default (150)');
+  assert(ctx.resolveShipping(null) === 150, 'no project → default (150)');
+  assert(ctx.resolveShipping({ shipping: 225 }) === 225, 'override → that value');
+  assert(ctx.resolveShipping({ shipping: '199.5' }) === 199.5, 'string override parsed');
+  assert(ctx.resolveShipping({ shipping: 0 }) === 0, 'explicit 0 is a real override (free freight), not "use default"');
+  assert(ctx.resolveShipping({ shipping: -40 }) === 0, 'negative override clamped to 0');
+
+  assert(ctx.projectOverridesShipping({ shipping: 225 }) === true, 'number → overridden');
+  assert(ctx.projectOverridesShipping({ shipping: 0 }) === true, '0 → overridden (explicit free)');
+  assert(ctx.projectOverridesShipping({}) === false, 'missing → not overridden (uses default)');
+  assert(ctx.projectOverridesShipping({ shipping: '' }) === false, 'blank → not overridden (uses default)');
+}
+
+section('77. Vendor name + edging material resolvers');
+{
+  const cat = { turf: [{ name:'Pro 90', tdName:'FieldTurf Vista 90' }, { name:'Plain' }],
+                edging: [{ id:'e1', name:'Bender Board', color:'Black', pricePerBoard:'18.50' },
+                         { id:'e2', name:'Steel Edge', color:'', pricePerBoard:'' }] };
+  // turf vendor name
+  assert(ctx.turfVendorName('Pro 90', cat) === 'FieldTurf Vista 90', 'vendor name uses tdName when set');
+  assert(ctx.turfVendorName('Plain', cat) === 'Plain', 'no tdName → internal name');
+  assert(ctx.turfVendorName('Unknown', cat) === 'Unknown', 'unknown product → passed-through name');
+  // edging material lookup + label
+  assert(ctx.getProjectEdgingMaterial({ edgingMaterialId:'e1' }, cat).name === 'Bender Board', 'edging material found by id');
+  assert(ctx.getProjectEdgingMaterial({ edgingMaterialId:'nope' }, cat) === null, 'unknown edging id → null');
+  assert(ctx.getProjectEdgingMaterial({}, cat) === null, 'no edging id → null');
+  assert(ctx.edgingMaterialLabel({ name:'Bender Board', color:'Black' }) === 'Bender Board — Black', 'label includes color');
+  assert(ctx.edgingMaterialLabel({ name:'Steel Edge', color:'' }) === 'Steel Edge', 'label omits empty color');
+  assert(ctx.edgingMaterialLabel(null) === 'bender board', 'null material → generic bender board');
+  // effective per-board cost: material overrides crew, else crew rate
+  assert(ctx.edgingBoardCost({ edgingMaterialId:'e1' }, { edgingBoard:55 }, cat) === 18.5, 'material price overrides crew rate');
+  assert(ctx.edgingBoardCost({ edgingMaterialId:'e2' }, { edgingBoard:55 }, cat) === 55, 'material with blank price → crew rate');
+  assert(ctx.edgingBoardCost({}, { edgingBoard:55 }, cat) === 55, 'no material → crew rate');
+  assert(ctx.edgingBoardCost({}, {}, cat) === 0, 'no material and no crew rate → 0');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

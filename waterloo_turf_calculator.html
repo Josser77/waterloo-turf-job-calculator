@@ -1265,6 +1265,11 @@
           </div>
           <div class="edging-grid">
             <div class="field-group">
+              <label>Edging Material</label>
+              <select id="edgingMaterialSelect" onchange="setEdgingMaterial(this.value)"></select>
+              <div class="hint">Manage in Settings → Edging Materials</div>
+            </div>
+            <div class="field-group">
               <label>Linear Feet of Edging</label>
               <input type="number" id="edgingLinFt" min="0" oninput="calcEdging()" placeholder="0">
             </div>
@@ -1316,8 +1321,8 @@
           </div>
           <div class="field-group" style="max-width:260px;margin-bottom:14px;">
             <label>Shipping / Freight ($)</label>
-            <input type="number" id="projectShipping" min="0" step="1" placeholder="0" oninput="setProjectShipping(this.value)">
-            <div style="font-size:11px;color:var(--text-light);margin-top:4px;line-height:1.4;">Added to every quote option's cost (new projects default to the value set in Settings → Default Shipping). Marked up by your profit margin like other costs.</div>
+            <input type="number" id="projectShipping" min="0" step="1" placeholder="150 (default)" oninput="setProjectShipping(this.value)">
+            <div style="font-size:11px;color:var(--text-light);margin-top:4px;line-height:1.4;">Leave blank to use the standard default (Settings → Default Shipping) — the placeholder shows it. Enter a number to override the freight for this one job; clear it to go back to the default. Added to every quote option and marked up by your profit margin.</div>
           </div>
           <div id="quoteOptionsContainer"></div>
         </div>
@@ -1678,6 +1683,16 @@
           <div id="settingsRockTable"></div>
         </div>
 
+        <!-- EDGING MATERIALS CATALOG -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Edging Materials</div>
+            <button class="btn btn-primary btn-sm" onclick="openAddItemModal('edging')">＋ Add Material</button>
+          </div>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">Edging/border products (bender board, etc.) with name, color, notes, and price per 20 ft board. Pick one per project on the Quote Builder's Edging card — its price feeds the quote and its name/color show on the supplier order.</p>
+          <div id="settingsEdgingTable"></div>
+        </div>
+
         <!-- MISCELLANEOUS ITEMS -->
         <div class="card">
           <div class="card-header">
@@ -1719,7 +1734,7 @@
           <div class="card-header">
             <div class="card-title">Default Shipping</div>
           </div>
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">Freight cost pre-filled on <strong>each new project</strong> (you can still change it per project on the Quote Builder tab). Change it here whenever your freight rate changes — it only affects projects created afterward, never existing ones.</p>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">The standard freight cost applied to <strong>every project</strong> that hasn't set its own. Change it whenever your freight rate changes and every non-overridden project updates to match. To charge a different amount for one job, override it on that project's Quote Builder tab — that override sticks regardless of this default.</p>
           <div class="field-group" style="max-width:200px;">
             <label>Default shipping cost ($)</label>
             <input type="number" id="defaultShippingInput" min="0" step="1" oninput="updateDefaultShipping(this.value)">
@@ -1842,6 +1857,18 @@
         <label>Price per SqFt at 1" Deep ($)</label>
         <input type="number" id="ciRockSqFtPrice" step="0.01" placeholder="0.00">
         <div class="hint">Price charged per sq ft at 1" depth</div>
+      </div>
+    </div>
+
+    <div id="ciEdgingFields" style="display:none;">
+      <div class="field-group">
+        <label>Color</label>
+        <input type="text" id="ciEdgingColor" placeholder="e.g. Black">
+      </div>
+      <div class="field-group">
+        <label>Price per Board ($)</label>
+        <input type="number" id="ciEdgingPrice" step="0.01" placeholder="0.00">
+        <div class="hint">Cost per 20 ft board — used for this material's edging cost in the quote</div>
       </div>
     </div>
 
@@ -2165,7 +2192,7 @@
         <p style="font-size:12px;color:var(--text-light);">Tip: Use the ↻ Refresh from SqFt button to re-sync infill sqft if you change turf quantities.</p>
 
         <div class="docs-h3">3. Edging (Bender Board)</div>
-        <p>Enter the total <strong>linear feet of edging</strong>. The tool automatically calculates: boards to order (rounded up to 20 ft boards), install labor cost, materials cost, and the total. Rates come from your active crew in Settings, and the per-ft / per-board rates shown next to each field always reflect that crew's actual numbers — if you switch crews or update rates, the labels update too.</p>
+        <p>Pick an <strong>Edging Material</strong> (managed in Settings → Edging Materials) and enter the total <strong>linear feet of edging</strong>. The tool automatically calculates: boards to order (rounded up to 20 ft boards), install labor cost, materials cost, and the total. The per-board materials cost uses the <strong>selected material's price</strong>; if no material is picked it falls back to the active crew's board rate. Install labor uses the active crew's per-ft rate, and the per-ft / per-board labels always reflect the effective numbers — switch crews, change the material, or update rates and the labels update too. The chosen material's name and color print on the Supplier Order and Installer Sheet.</p>
 
         <div class="docs-h3">4. Miscellaneous Items</div>
         <p>Click <strong>＋ Add Item</strong> to open a picker showing everything from your Settings → Miscellaneous Items catalog. You can also enter a one-off custom item inline. Set the <strong>Qty</strong> and the line total calculates automatically (Price/Unit × Qty). The <strong>Role</strong> dropdown controls which scenarios include this item's cost:</p>
@@ -2183,7 +2210,7 @@
           <li>Within each group, putting green variants appear side by side: one card without a putting green, one per Putting Green turf row</li>
         </ul>
         <p><strong>Example</strong> — Standard turf + 1 Alt turf, Standard + Upgraded infill, 1 putting green option → 4 groups, 2 cards each = 8 total quote options.</p>
-        <p><strong>What's included in each total:</strong> Labor (the turf-install rate — standard yard + putting green if applicable), turf material cost (ordered sqft × cost/sqft from Settings, with putting green turf on its own line), edging, infill materials (bags × cost/bag, with putting green infill on its own line), putting green fringe (if configured in the Layout tab — see Putting Green Fringe below), miscellaneous items (each shown as its own line, not lumped together), and <strong>shipping / freight</strong> (per project, the same on every scenario — defaults to the value in Settings → Default Shipping on new projects, editable on the Quote Builder tab) — all split correctly by role/tier per scenario. Shipping is part of COGS, so your profit margin applies to it like every other cost. Existing projects created before this feature carry no shipping (it shows as blank / $0) until you enter one, so their saved quotes don't change.</p>
+        <p><strong>What's included in each total:</strong> Labor (the turf-install rate — standard yard + putting green if applicable), turf material cost (ordered sqft × cost/sqft from Settings, with putting green turf on its own line), edging, infill materials (bags × cost/bag, with putting green infill on its own line), putting green fringe (if configured in the Layout tab — see Putting Green Fringe below), miscellaneous items (each shown as its own line, not lumped together), and <strong>shipping / freight</strong> (per project, the same on every scenario — every project uses the standard amount from Settings → Default Shipping unless you override it on the Quote Builder tab; leave that field blank to follow the default, or enter a number for a one-off job) — all split correctly by role/tier per scenario. Shipping is part of COGS, so your profit margin applies to it like every other cost. Changing the default in Settings updates every project that hasn't overridden it.</p>
         <p>When a profit margin is set, each card shows three figures: <strong>Cost (COGS)</strong>, your <strong>Margin</strong> in dollars (Price − Cost), and the customer <strong>Price</strong>. If a job is putting-green-only (no base/alt turf), the "No Putting Green" option is omitted since it would be an empty card.</p>
       </div>
 
@@ -2314,8 +2341,8 @@
         <div class="docs-h2" id="doc-exports">Supplier Order &amp; Installer Sheet</div>
         <p>At the top of the <strong>Quote Builder</strong> tab, the <strong>Job Info &amp; Exports</strong> card holds three fields — <strong>Job Address</strong>, <strong>Delivery Date</strong>, and <strong>Install Date</strong> — plus two export buttons. These are saved per project. (There's no Jobber link, so the address and dates are typed here or pasted in.)</p>
         <ul class="docs-list">
-          <li><strong>📦 Supplier Order</strong> — opens a ready-to-send block listing the job, delivery address, delivery date, and every orderable material with its order quantity: turf (ordered sqft and linear ft at 15 ft roll width), infill (bags), bender board edging (boards), and any misc items. <strong>Rock/base is intentionally excluded</strong> (you source it separately) — it's noted at the bottom but never listed.</li>
-          <li><strong>🔧 Installer Sheet</strong> — opens a block with the job, install address, install date, the <strong>turf to install per product</strong> with each installed sqft (base yard, putting green, etc.), and all misc items with quantities. Alt-turf rows (which share the base yard's area) aren't listed, since they carry no separate install area.</li>
+          <li><strong>📦 Supplier Order</strong> — a ready-to-send block listing the job, delivery address, delivery date, and every orderable material with its quantity: turf (by its <strong>Vendor Product Name</strong> from Settings, with ordered sqft and linear ft at 15 ft roll width), infill (bags), edging (the selected material's name &amp; color, with boards), and any misc items. <strong>Rock/base is excluded</strong> (you source it separately) and no longer prints a note.</li>
+          <li><strong>🔧 Installer Sheet</strong> — the job, install address, install date, the <strong>turf to install per product</strong> with each installed sqft (base yard, putting green, etc.), an <strong>Infill</strong> section (product + bags), an <strong>Edging</strong> section (material + boards + linear ft), all misc items, and two fixed sections spelling out responsibilities: <em>Waterloo Turf provides</em> turf, infill, edging, stakes, and screws; <em>Turf installer provides</em> rock, weed cloth, 12" seam tape, adhesive, 6" non-galvanized nails, install labor, and equipment. Alt-turf rows aren't listed (no separate install area).</li>
         </ul>
         <p>Both open a panel with the text and a <strong>⎘ Copy</strong> button — copy it and paste it straight into an email to your supplier or installer. Quantities come from whatever you've entered in the Quote Builder, so fill those in first.</p>
       </div>
@@ -2473,6 +2500,10 @@ const DEFAULT_ROCK_CATALOG = [
   { id:'minus',   name:'1/4" Minus',               defaultDepth:1, costPerTon:'', pricePerSqFt1in:'', notes:'' },
 ];
 
+const DEFAULT_EDGING_CATALOG = [
+  { id:'bender_black', name:'Bender Board', color:'Black', pricePerBoard:'', notes:'20 ft boards' },
+];
+
 function getCrews() {
   try {
     const d = JSON.parse(localStorage.getItem(CREWS_KEY));
@@ -2516,12 +2547,18 @@ function setDefaultShipping(val) {
   localStorage.setItem(SHIPPING_DEFAULT_KEY, String(v));
   return v;
 }
-// Resolver (testable): a project's shipping cost. Missing (older projects) → 0,
-// so existing saved quotes are never silently bumped; new projects seed the default.
+// Resolver (testable): a project's shipping cost = the global default UNLESS the
+// project overrides it. Blank/missing → default (so existing projects and new ones
+// all follow the $150 standard). An explicit number (incl. 0) is a per-job override.
 function resolveShipping(proj) {
-  if (!proj || proj.shipping == null || proj.shipping === '') return 0;
-  const v = parseFloat(proj.shipping);
-  return isNaN(v) ? 0 : Math.max(0, v);
+  if (proj && proj.shipping != null && proj.shipping !== '') {
+    const v = parseFloat(proj.shipping);
+    if (!isNaN(v)) return Math.max(0, v);
+  }
+  return getDefaultShipping();
+}
+function projectOverridesShipping(proj) {
+  return !!(proj && proj.shipping != null && proj.shipping !== '' && !isNaN(parseFloat(proj.shipping)));
 }
 // sellPrice = cogs / (1 - margin/100); guards against margin>=100 (division blowup)
 function applyMargin(cogs, marginPct) {
@@ -2644,10 +2681,11 @@ function getCatalog() {
     const c = JSON.parse(localStorage.getItem(CATALOG_KEY));
     if (c && c.turf && c.infill) {
       if (!c.rock) c.rock = DEFAULT_ROCK_CATALOG;
+      if (!c.edging) c.edging = DEFAULT_EDGING_CATALOG;
       return c;
     }
   } catch(e){}
-  return { turf: DEFAULT_TURF_CATALOG, infill: DEFAULT_INFILL_CATALOG, rock: DEFAULT_ROCK_CATALOG };
+  return { turf: DEFAULT_TURF_CATALOG, infill: DEFAULT_INFILL_CATALOG, rock: DEFAULT_ROCK_CATALOG, edging: DEFAULT_EDGING_CATALOG };
 }
 
 function saveCatalog(cat) {
@@ -3131,7 +3169,6 @@ function createProject() {
     rock: rockRows,
     edging,
     pgSqFt,
-    shipping: getDefaultShipping(),
     miscItems: [],
   };
 
@@ -3610,10 +3647,12 @@ function setInfillFromInstalled() {
 function calcEdging() {
   const proj = getCurrentProject(); if(!proj) return;
   const rates = getRates();
+  const cat = getCatalog();
   const linFt = parseFloat(document.getElementById('edgingLinFt').value)||0;
   const boards = linFt > 0 ? Math.ceil(linFt/20) : 0;
+  const boardCost = edgingBoardCost(proj, rates, cat);
   const installCost = linFt * rates.edging;
-  const materialsCost = boards * rates.edgingBoard;
+  const materialsCost = boards * boardCost;
   const totalCost = installCost + materialsCost;
 
   setVal('edgingBoards', boards||'');
@@ -3621,9 +3660,12 @@ function calcEdging() {
   setVal('edgingMaterialsCost', materialsCost ? materialsCost.toFixed(2) : '');
   setVal('edgingTotalCost', totalCost ? totalCost.toFixed(2) : '');
 
-  // Hints reflect the active crew's actual rates, not a hardcoded default
+  // Hints reflect the effective per-board cost (selected material overrides the crew rate)
+  const mat = getProjectEdgingMaterial(proj, cat);
   const boardsHint = document.getElementById('edgingBoardsHint');
-  if (boardsHint) boardsHint.textContent = rates.edgingBoard ? `$${rates.edgingBoard.toFixed(2)}/board (board, stakes, screws)` : 'board, stakes, screws — set rate in Settings';
+  if (boardsHint) boardsHint.textContent = boardCost
+    ? `$${boardCost.toFixed(2)}/board${mat ? ' · ' + edgingMaterialLabel(mat) : ' (board, stakes, screws)'}`
+    : 'set a material price in Settings → Edging Materials, or a board rate for this crew';
   const installHint = document.getElementById('edgingInstallHint');
   if (installHint) installHint.textContent = rates.edging ? `$${rates.edging.toFixed(2)}/lin ft` : 'rate not set in Settings';
 
@@ -3633,8 +3675,36 @@ function calcEdging() {
   updateMaterialsSummary();
 }
 
+// Effective cost per 20 ft board: the selected edging material's price if set,
+// otherwise the active crew's edging-board rate (backward compatible).
+function edgingBoardCost(proj, rates, cat) {
+  const mat = getProjectEdgingMaterial(proj, cat);
+  if (mat && mat.pricePerBoard !== '' && mat.pricePerBoard != null) {
+    const v = parseFloat(mat.pricePerBoard);
+    if (!isNaN(v)) return Math.max(0, v);
+  }
+  return parseFloat(rates && rates.edgingBoard) || 0;
+}
+
+function setEdgingMaterial(id) {
+  const proj = getCurrentProject(); if (!proj) return;
+  proj.edgingMaterialId = id || '';
+  save();
+  calcEdging(); // recompute the edging materials cost with the new material's price
+}
+
+function populateEdgingMaterialSelect(proj) {
+  const sel = document.getElementById('edgingMaterialSelect'); if (!sel) return;
+  const cat = getCatalog();
+  const opts = ['<option value="">— none (use crew board rate) —</option>']
+    .concat((cat.edging || []).map(e => `<option value="${e.id}">${e.name}${e.color ? ' — ' + e.color : ''}</option>`));
+  sel.innerHTML = opts.join('');
+  sel.value = (proj && proj.edgingMaterialId) ? proj.edgingMaterialId : '';
+}
+
 function loadEdging(proj) {
   const e = proj.edging || {};
+  populateEdgingMaterialSelect(proj);
   document.getElementById('edgingLinFt').value = e.linFt || '';
   setVal('edgingBoards', e.boards||'');
   setVal('edgingInstallCost', e.installCost ? parseFloat(e.installCost).toFixed(2) : '');
@@ -4237,6 +4307,7 @@ function renderSettingsTables() {
   renderSettingsTurfTable(cat.turf);
   renderSettingsInfillTable(cat.infill);
   renderSettingsRockTable(cat.rock || []);
+  renderSettingsEdgingTable(cat.edging || []);
   renderCrewTabs();
   renderLaborRatesTable();
   renderMiscItemsTable();
@@ -4254,7 +4325,12 @@ function updateProfitMargin(val) {
 }
 
 function updateDefaultShipping(val) {
-  setDefaultShipping(val); // affects only projects created afterward
+  setDefaultShipping(val);
+  // Every project that hasn't overridden shipping now uses the new default —
+  // refresh the current view (placeholder + quote) so it reflects immediately.
+  const shipEl = document.getElementById('projectShipping');
+  if (shipEl) shipEl.placeholder = getDefaultShipping() + ' (default)';
+  if (getCurrentProject()) calcQuote();
 }
 
 function renderSettingsTurfTable(items) {
@@ -4316,6 +4392,39 @@ function renderSettingsInfillTable(items) {
             <td><div class="item-actions">
               <button class="btn-edit" onclick="openEditItemModal('infill',${i})">Edit</button>
               <button class="btn-delete" onclick="deleteCatalogItem('infill',${i})">Delete</button>
+            </div></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+}
+
+function renderSettingsEdgingTable(items) {
+  const el = document.getElementById('settingsEdgingTable');
+  if (!el) return;
+  if (!items || !items.length) {
+    el.innerHTML = '<div class="empty" style="padding:24px"><div class="empty-msg">No edging materials yet.</div></div>';
+    return;
+  }
+  el.innerHTML = `
+    <table class="settings-table">
+      <thead><tr>
+        <th>Material Name</th>
+        <th>Color</th>
+        <th>$/Board</th>
+        <th>Notes</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        ${items.map((t,i)=>`
+          <tr>
+            <td><div class="item-name">${t.name}</div></td>
+            <td>${t.color || '—'}</td>
+            <td class="item-cost">${t.pricePerBoard ? '$'+parseFloat(t.pricePerBoard).toFixed(2) : '—'}</td>
+            <td style="color:var(--text-light);font-size:12px;">${t.notes || '—'}</td>
+            <td><div class="item-actions">
+              <button class="btn-edit" onclick="openEditItemModal('edging',${i})">Edit</button>
+              <button class="btn-delete" onclick="deleteCatalogItem('edging',${i})">Delete</button>
             </div></td>
           </tr>
         `).join('')}
@@ -4804,7 +4913,7 @@ let _ciIndex = null;  // null = new, number = edit
 function openAddItemModal(type) {
   _ciType = type; _ciIndex = null;
   document.getElementById('catalogItemModalTitle').textContent =
-    type === 'turf' ? 'Add Turf Product' : type === 'infill' ? 'Add Infill Product' : 'Add Rock Material';
+    type === 'turf' ? 'Add Turf Product' : type === 'infill' ? 'Add Infill Product' : type === 'edging' ? 'Add Edging Material' : 'Add Rock Material';
   clearCatalogModal();
   showCatalogFields(type);
   document.getElementById('catalogItemModal').classList.add('open');
@@ -4814,7 +4923,7 @@ function openAddItemModal(type) {
 function openEditItemModal(type, index) {
   _ciType = type; _ciIndex = index;
   document.getElementById('catalogItemModalTitle').textContent =
-    type === 'turf' ? 'Edit Turf Product' : type === 'infill' ? 'Edit Infill Product' : 'Edit Rock Material';
+    type === 'turf' ? 'Edit Turf Product' : type === 'infill' ? 'Edit Infill Product' : type === 'edging' ? 'Edit Edging Material' : 'Edit Rock Material';
   const cat = getCatalog();
   const item = cat[type][index];
   clearCatalogModal();
@@ -4833,6 +4942,9 @@ function openEditItemModal(type, index) {
   } else if (type === 'rock') {
     document.getElementById('ciDepth').value = item.defaultDepth || 4;
     document.getElementById('ciRockSqFtPrice').value = item.pricePerSqFt1in || '';
+  } else if (type === 'edging') {
+    document.getElementById('ciEdgingColor').value = item.color || '';
+    document.getElementById('ciEdgingPrice').value = item.pricePerBoard || '';
   }
 
   document.getElementById('catalogItemModal').classList.add('open');
@@ -4840,7 +4952,7 @@ function openEditItemModal(type, index) {
 }
 
 function clearCatalogModal() {
-  ['ciName','ciTurfTdName','ciTurfCost','ciCoverage','ciInfillCost','ciDepth','ciRockSqFtPrice','ciNotes']
+  ['ciName','ciTurfTdName','ciTurfCost','ciCoverage','ciInfillCost','ciDepth','ciRockSqFtPrice','ciEdgingColor','ciEdgingPrice','ciNotes']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   document.getElementById('ciTurfType').value = 'standard';
 }
@@ -4849,6 +4961,8 @@ function showCatalogFields(type) {
   document.getElementById('ciTurfFields').style.display   = type === 'turf'   ? 'block' : 'none';
   document.getElementById('ciInfillFields').style.display = type === 'infill' ? 'block' : 'none';
   document.getElementById('ciRockFields').style.display   = type === 'rock'   ? 'block' : 'none';
+  const ef = document.getElementById('ciEdgingFields');
+  if (ef) ef.style.display = type === 'edging' ? 'block' : 'none';
 }
 
 function closeCatalogModal() {
@@ -4899,6 +5013,17 @@ function saveCatalogItem() {
     };
     if (_ciIndex !== null) cat.rock[_ciIndex] = item;
     else cat.rock.push(item);
+  } else if (_ciType === 'edging') {
+    if (!cat.edging) cat.edging = [];
+    item = {
+      id: _ciIndex !== null ? cat.edging[_ciIndex].id : 'edging_' + Date.now(),
+      name,
+      color: document.getElementById('ciEdgingColor').value.trim(),
+      pricePerBoard: document.getElementById('ciEdgingPrice').value,
+      notes
+    };
+    if (_ciIndex !== null) cat.edging[_ciIndex] = item;
+    else cat.edging.push(item);
   }
 
   saveCatalog(cat);
@@ -9957,8 +10082,26 @@ function fmtExportDate(s) {
   return d.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+// Vendor/supplier product name for a turf row (falls back to the internal name).
+function turfVendorName(product, cat) {
+  const c = cat || getCatalog();
+  const item = (c.turf || []).find(t => t.name === product);
+  return (item && item.tdName) ? item.tdName : (product || 'turf');
+}
+// The edging material a project has selected for its quote (or null).
+function getProjectEdgingMaterial(proj, cat) {
+  if (!proj || !proj.edgingMaterialId) return null;
+  const c = cat || getCatalog();
+  return (c.edging || []).find(e => e.id === proj.edgingMaterialId) || null;
+}
+function edgingMaterialLabel(mat) {
+  if (!mat) return 'bender board';
+  return mat.name + (mat.color ? ' — ' + mat.color : '');
+}
+
 function buildSupplierOrderText(proj) {
   if (!proj) return '';
+  const cat = getCatalog();
   const L = [];
   L.push('WATERLOO TURF — MATERIAL ORDER');
   L.push('');
@@ -9976,7 +10119,7 @@ function buildSupplierOrderText(proj) {
       const qty = ordered
         ? (ordered + ' sq ft' + (lin ? ' (' + lin + ' lin ft × 15 ft roll)' : ''))
         : (lin + ' lin ft × 15 ft roll');
-      items.push('• Turf — ' + (t.product || 'turf') + ': ' + qty);
+      items.push('• Turf — ' + turfVendorName(t.product, cat) + ': ' + qty);
     }
   });
   (proj.infill || []).forEach(i => {
@@ -9986,7 +10129,10 @@ function buildSupplierOrderText(proj) {
   if (proj.edging) {
     const boards = parseFloat(proj.edging.boards) || 0;
     const linFt = parseFloat(proj.edging.linFt) || 0;
-    if (boards > 0) items.push('• Edging (bender board): ' + boards + ' board' + (boards === 1 ? '' : 's') + (linFt ? ' (' + linFt + ' lin ft)' : ''));
+    if (boards > 0) {
+      const mat = getProjectEdgingMaterial(proj, cat);
+      items.push('• Edging (' + edgingMaterialLabel(mat) + '): ' + boards + ' board' + (boards === 1 ? '' : 's') + (linFt ? ' (' + linFt + ' lin ft)' : ''));
+    }
   }
   (proj.miscItems || []).forEach(m => {
     const qty = parseFloat(m.qty) || 0;
@@ -9996,13 +10142,12 @@ function buildSupplierOrderText(proj) {
   if (items.length) L.push.apply(L, items);
   else L.push('(no orderable materials entered yet)');
 
-  L.push('');
-  L.push('Note: rock/base material is ordered separately and is not included above.');
   return L.join('\n');
 }
 
 function buildInstallerSheetText(proj) {
   if (!proj) return '';
+  const cat = getCatalog();
   const roleLabel = { base: 'base yard', 'putting-green': 'putting green', putting: 'putting green', alt: 'alt turf', upgraded: 'upgraded' };
   const L = [];
   L.push('WATERLOO TURF — INSTALL DETAILS');
@@ -10024,6 +10169,31 @@ function buildInstallerSheetText(proj) {
   if (turfLines.length) L.push.apply(L, turfLines);
   else L.push('(no installed turf area entered yet)');
 
+  // Infill
+  const infillLines = [];
+  (proj.infill || []).forEach(i => {
+    const bags = parseFloat(i.bags) || 0;
+    if (bags > 0) infillLines.push('• ' + (i.product || 'infill') + ': ' + bags + ' bag' + (bags === 1 ? '' : 's'));
+  });
+  if (infillLines.length) {
+    L.push('');
+    L.push('INFILL');
+    L.push.apply(L, infillLines);
+  }
+
+  // Edging
+  if (proj.edging) {
+    const boards = parseFloat(proj.edging.boards) || 0;
+    const linFt = parseFloat(proj.edging.linFt) || 0;
+    if (boards > 0 || linFt > 0) {
+      const mat = getProjectEdgingMaterial(proj, cat);
+      L.push('');
+      L.push('EDGING');
+      L.push('• ' + edgingMaterialLabel(mat) + ': ' + (boards ? boards + ' board' + (boards === 1 ? '' : 's') : '') + (boards && linFt ? ' ' : '') + (linFt ? '(' + linFt + ' lin ft)' : ''));
+    }
+  }
+
+  // Misc items
   const miscLines = [];
   (proj.miscItems || []).forEach(m => {
     const qty = parseFloat(m.qty) || 0;
@@ -10034,6 +10204,15 @@ function buildInstallerSheetText(proj) {
     L.push('MISC ITEMS');
     L.push.apply(L, miscLines);
   }
+
+  // Who supplies what
+  L.push('');
+  L.push('WATERLOO TURF PROVIDES');
+  L.push('• Turf, infill, edging, stakes, and screws');
+  L.push('');
+  L.push('TURF INSTALLER PROVIDES');
+  L.push('• Rock, weed cloth, 12" seam tape, adhesive, 6" non-galvanized nails, install labor, and equipment');
+
   return L.join('\n');
 }
 
@@ -10057,12 +10236,20 @@ function populateJobInfo(proj) {
   if (d) d.value = proj.deliveryDate || '';
   if (i) i.value = proj.installDate || '';
   const s = document.getElementById('projectShipping');
-  if (s) s.value = (proj.shipping == null || proj.shipping === '') ? '' : proj.shipping;
+  if (s) {
+    // Blank field = using the global default; a value = per-job override.
+    s.value = projectOverridesShipping(proj) ? proj.shipping : '';
+    s.placeholder = getDefaultShipping() + ' (default)';
+  }
 }
 
 function setProjectShipping(val) {
   const proj = getCurrentProject(); if (!proj) return;
-  proj.shipping = (val === '' || val == null) ? '' : Math.max(0, parseFloat(val) || 0);
+  if (val === '' || val == null) {
+    delete proj.shipping; // revert to the global default
+  } else {
+    proj.shipping = Math.max(0, parseFloat(val) || 0); // per-job override
+  }
   save();
   calcQuote();
   if (typeof renderSidebar === 'function') renderSidebar();

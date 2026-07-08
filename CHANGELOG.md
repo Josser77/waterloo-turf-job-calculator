@@ -5,7 +5,69 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 72) — Default shipping / freight cost
+## 2026-06-21 (cont'd, 74) — Supplier/Installer export upgrades + Edging Materials catalog
+
+**Supplier Order**
+- Turf now lists by its **Vendor Product Name** (`tdName` from Settings) instead of the internal name,
+  falling back to the internal name when no vendor name is set.
+- Removed the "rock is ordered separately" note (rock is still excluded from the list).
+
+**Installer Sheet**
+- Added an **Infill** section (product + bags) and an **Edging** section (material + boards + linear ft).
+- Added two fixed sections: **Waterloo Turf provides** — turf, infill, edging, stakes, and screws;
+  **Turf installer provides** — rock, weed cloth, 12" seam tape, adhesive, 6" non-galvanized nails,
+  install labor, and equipment.
+
+**Edging Materials catalog (new)**
+- Settings → **Edging Materials**: add/edit/delete materials with **name, color, notes, and price per
+  20 ft board** (uses the same catalog-item modal as turf/infill/rock).
+- Quote Builder → Edging card has an **Edging Material** dropdown. The selected material's price drives
+  the edging materials cost in the quote (overriding the crew's board rate; no selection falls back to
+  that rate — backward compatible). The material's name + color print on the Supplier Order and
+  Installer Sheet.
+- New helpers: `turfVendorName`, `getProjectEdgingMaterial`, `edgingMaterialLabel`, `edgingBoardCost`,
+  plus `edging` added to the catalog defaults/`getCatalog`.
+
+Tests **954 → 967** (README **1010**): 13 assertions on the resolvers (vendor-name fallback, edging
+lookup/label/price-override/crew-fallback), and the section-72 export tests updated for the new
+content (vendor name, no rock note, infill/edging/provides sections). Full supplier + installer output
+verified headlessly.
+
+**Note on pricing unit:** the edging material price is **per 20 ft board** (matches the existing boards
+model). Say so if you'd rather price edging per linear foot.
+
+---
+
+
+
+Replaced the "stamp $150 into new projects" model with a resolver, matching how roll settings work
+and the actual workflow (standard $150 on every job, change it for one-offs).
+
+- **`resolveShipping` now returns the Settings default unless the project overrides it.** Missing or
+  blank shipping → the default; an explicit number (including **0** for free freight) → a per-job
+  override. So *every* project — old or new — follows the $150 standard automatically; no more
+  old-vs-new split.
+- **New projects are no longer stamped** with a baked-in value (`createProject` seed removed), so they
+  follow the default like everything else.
+- **Quote Builder field:** blank = use the default (placeholder shows it, e.g. "150 (default)");
+  enter a number to override this one job; clear it to revert. `setProjectShipping` deletes the
+  override on blank.
+- **Changing Settings → Default Shipping updates every non-overridden project live** (`updateDefaultShipping`
+  refreshes the placeholder + recomputes the open quote).
+- New `projectOverridesShipping` helper.
+
+Tests **945 → 950** (README **993**): section 76 rewritten for resolver semantics (missing/blank/null
+→ default, override wins, explicit 0 respected, negative clamped, override-detection). The 13
+end-to-end COGS scenarios now seed `wt_shippingDefault=0` so they stay shipping-neutral (that they
+shifted by exactly +$150 first confirmed shipping is correctly flowing into COGS).
+
+**Migration note:** any project created under cont'd 72 has $150 *baked in as an override*; it'll show
+150 in the field and won't follow default changes until you clear that field. Truly-old projects and
+all new ones follow the default automatically.
+
+---
+
+
 
 New projects now carry a **shipping / freight** cost, defaulting to **$150**, editable per project and
 added to every quote option.
