@@ -5127,6 +5127,7 @@ section('72. Order / install export text builders');
   assert(/Pro 90: 1215 sq ft \(81 lin ft/.test(order), 'turf ordered sqft + linear ft listed');
   assert(order.indexOf('Envirofill: 40 bags') >= 0, 'infill bags listed');
   assert(order.indexOf('Edging (bender board): 6 boards (110 lin ft)') >= 0, 'edging boards listed');
+  assert(/Benderboard stakes: 120 \(20 per board × 6\)/.test(order), 'benderboard stakes = 20 per board (no color when no material)');
   assert(order.indexOf('Weed barrier: 2 roll') >= 0, 'misc item listed');
   assert(order.indexOf('Zero qty item') < 0, 'zero-qty misc item omitted');
   assert(order.indexOf('Minus') < 0, 'rock material still excluded from the supplier order');

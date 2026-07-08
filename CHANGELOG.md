@@ -5,7 +5,18 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 74) — Supplier/Installer export upgrades + Edging Materials catalog
+## 2026-06-21 (cont'd, 75) — Supplier order: benderboard stakes line
+
+The Supplier Order now adds a **Benderboard stakes** line whenever there are edging boards: **20 stakes
+per board** (`STAKES_PER_BOARD` constant), quantity shown as e.g. "120 (20 per board × 6)". The stakes
+**color matches the selected edging material's color** — if no material is picked, or it has no color,
+the stakes print without one. No stakes line when there's no edging.
+
+Tests **967 → 968** (README **1011**). Color-matched and no-material cases verified headlessly.
+
+---
+
+
 
 **Supplier Order**
 - Turf now lists by its **Vendor Product Name** (`tdName` from Settings) instead of the internal name,

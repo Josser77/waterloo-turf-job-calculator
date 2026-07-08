@@ -2341,7 +2341,7 @@
         <div class="docs-h2" id="doc-exports">Supplier Order &amp; Installer Sheet</div>
         <p>At the top of the <strong>Quote Builder</strong> tab, the <strong>Job Info &amp; Exports</strong> card holds three fields — <strong>Job Address</strong>, <strong>Delivery Date</strong>, and <strong>Install Date</strong> — plus two export buttons. These are saved per project. (There's no Jobber link, so the address and dates are typed here or pasted in.)</p>
         <ul class="docs-list">
-          <li><strong>📦 Supplier Order</strong> — a ready-to-send block listing the job, delivery address, delivery date, and every orderable material with its quantity: turf (by its <strong>Vendor Product Name</strong> from Settings, with ordered sqft and linear ft at 15 ft roll width), infill (bags), edging (the selected material's name &amp; color, with boards), and any misc items. <strong>Rock/base is excluded</strong> (you source it separately) and no longer prints a note.</li>
+          <li><strong>📦 Supplier Order</strong> — a ready-to-send block listing the job, delivery address, delivery date, and every orderable material with its quantity: turf (by its <strong>Vendor Product Name</strong> from Settings, with ordered sqft and linear ft at 15 ft roll width), infill (bags), edging (the selected material's name &amp; color, with boards), <strong>benderboard stakes</strong> (20 per board, colored to match the edging material), and any misc items. <strong>Rock/base is excluded</strong> (you source it separately) and no longer prints a note.</li>
           <li><strong>🔧 Installer Sheet</strong> — the job, install address, install date, the <strong>turf to install per product</strong> with each installed sqft (base yard, putting green, etc.), an <strong>Infill</strong> section (product + bags), an <strong>Edging</strong> section (material + boards + linear ft), all misc items, and two fixed sections spelling out responsibilities: <em>Waterloo Turf provides</em> turf, infill, edging, stakes, and screws; <em>Turf installer provides</em> rock, weed cloth, 12" seam tape, adhesive, 6" non-galvanized nails, install labor, and equipment. Alt-turf rows aren't listed (no separate install area).</li>
         </ul>
         <p>Both open a panel with the text and a <strong>⎘ Copy</strong> button — copy it and paste it straight into an email to your supplier or installer. Quantities come from whatever you've entered in the Quote Builder, so fill those in first.</p>
@@ -10083,6 +10083,7 @@ function fmtExportDate(s) {
 }
 
 // Vendor/supplier product name for a turf row (falls back to the internal name).
+const STAKES_PER_BOARD = 20; // benderboard stakes ordered per 20 ft board
 function turfVendorName(product, cat) {
   const c = cat || getCatalog();
   const item = (c.turf || []).find(t => t.name === product);
@@ -10132,6 +10133,10 @@ function buildSupplierOrderText(proj) {
     if (boards > 0) {
       const mat = getProjectEdgingMaterial(proj, cat);
       items.push('• Edging (' + edgingMaterialLabel(mat) + '): ' + boards + ' board' + (boards === 1 ? '' : 's') + (linFt ? ' (' + linFt + ' lin ft)' : ''));
+      // Stakes go with the boards — 20 per board, color matched to the edging material.
+      const stakes = boards * STAKES_PER_BOARD;
+      const stakeColor = (mat && mat.color) ? ' (' + mat.color + ')' : '';
+      items.push('• Benderboard stakes' + stakeColor + ': ' + stakes + ' (' + STAKES_PER_BOARD + ' per board × ' + boards + ')');
     }
   }
   (proj.miscItems || []).forEach(m => {
