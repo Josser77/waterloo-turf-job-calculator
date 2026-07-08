@@ -974,7 +974,9 @@
   .layout-subpanel.active { display: block; }
 
   #layoutSidebar {
-    max-height: calc(100vh - 140px);
+    /* Scrolls with the page (single scroll region); the canvas pane is sticky so
+       it stays pinned while these fields scroll. No internal scroll = no awkward
+       two-scrollbar fight between the shapes and the fields. */
   }
 
   #layoutSidebar .field-group {
@@ -1005,6 +1007,9 @@
   @media (max-width: 860px) {
     #layoutGrid { grid-template-columns: 1fr; }
     #layoutSidebar { max-height: none; }
+    /* Single column on phones/iPad-portrait: let the canvas scroll with the page
+       instead of pinning (a pinned canvas would eat half the screen). */
+    #layoutCanvasPane { position: static !important; }
   }
 
   /* ── Touch devices (iPhone / iPad): stop iOS focus-zoom, roomier tap targets ── */
@@ -1394,7 +1399,7 @@
           </div>
           <div id="layoutContent" style="display:none;">
             <div id="layoutGrid" style="display:grid;gap:20px;align-items:start;">
-              <div style="min-width:0;display:flex;flex-direction:column;position:sticky;top:8px;align-self:start;">
+              <div id="layoutCanvasPane" style="min-width:0;display:flex;flex-direction:column;position:sticky;top:8px;align-self:start;">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
                   <button class="btn btn-ghost btn-sm" data-lockok="1" onclick="layoutZoom(1.25)" title="Zoom in">＋</button>
                   <button class="btn btn-ghost btn-sm" data-lockok="1" onclick="layoutZoom(0.8)" title="Zoom out">－</button>
@@ -1409,7 +1414,7 @@
                   <canvas id="rollLayoutCanvas" style="display:block;"></canvas>
                 </div>
               </div>
-              <div id="layoutSidebar" style="overflow-y:auto;padding-right:2px;">
+              <div id="layoutSidebar" style="padding-right:2px;">
                 <!-- KEY METRICS — always visible at the top -->
                 <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:var(--bg-alt);">
                   <div class="field-group" style="margin-bottom:8px;">
@@ -1486,6 +1491,11 @@
                     <select id="rollApplyTarget" data-lockok="1" style="width:100%;margin-bottom:6px;"></select>
                     <button class="btn btn-primary btn-sm" data-lockok="1" style="width:100%;" onclick="applyRollLayoutToTurf()">Apply Ordered SqFt</button>
                     <div style="font-size:11px;color:var(--text-light);margin-top:5px;line-height:1.4;">Pushes <strong>Ordered SqFt</strong> (what you actually buy, incl. waste; already accounts for nested pieces) into the row's "SqFt to Order," <strong>and</strong> sets that row's <strong>Installed SqFt</strong> so infill, labor, and rock fill in from the same click. Usually the one you want.</div>
+                    <label style="display:flex;align-items:flex-start;gap:6px;margin-top:10px;font-size:12px;cursor:pointer;font-weight:600;" data-lockok="1" title="When on, this row stays in sync with the layout automatically: Ordered SqFt follows roll rotation/seam offset, and Installed SqFt follows the shape's area (which cascades to infill, rock, and labor). Rotating rolls doesn't change Installed, since it doesn't change how much ground you cover.">
+                      <input type="checkbox" id="rollLiveLink" data-lockok="1" onchange="toggleLayoutLiveLink()" style="width:auto;margin:2px 0 0 0;flex-shrink:0;">
+                      <span>🔗 Live — keep this row in sync with the layout automatically <span style="font-weight:normal;color:var(--text-light);">(rotation/seam → Ordered SqFt; shape edits → Installed SqFt, which cascades to infill/rock/labor)</span></span>
+                    </label>
+                    <div id="rollLiveLinkStatus" style="font-size:11px;color:var(--green);margin-top:5px;line-height:1.4;"></div>
                   </div>
                 </div>
 
@@ -2251,7 +2261,7 @@
         <p>Each roll strip only orders the length it actually needs based on where it intersects the shape — strips don't all buy the full bounding-box length. Ordered length is rounded up to the next whole foot, since turf is sold in Roll Width × 1ft increments. This produces accurate per-strip quantities and more realistic scrap percentages.</p>
 
         <div class="docs-h3">Roll Results</div>
-        <p>The <strong>Results</strong> tab shows the rolls/piece count and per-layer breakdown, with extra detail (cut/nest tools, Piece List) under a small <strong>Advanced</strong> twisty so a standard install isn't cluttered. Both <strong>Apply</strong> buttons — <em>Apply Installed SqFt → turf row</em> and <em>Apply Ordered SqFt → turf row</em> — live together on the <strong>Apply</strong> tab. <em>Apply Ordered SqFt</em> is usually the one you want: it sets the row's <strong>SqFt to Order</strong> <em>and</em> its <strong>Installed SqFt</strong>, so infill (which derives its area from Installed SqFt), labor, and rock all cascade from the one click. <em>Apply Installed SqFt</em> sets just the installed area. Each applies to the <strong>one row</strong> selected in its dropdown. <strong>Installed SqFt, Ordered SqFt, Ordered Linear Ft, Perimeter, and Scrap</strong> all live in the always-visible key-metrics block at the top of the right pane.</p>
+        <p>The <strong>Results</strong> tab shows the rolls/piece count and per-layer breakdown, with extra detail (cut/nest tools, Piece List) under a small <strong>Advanced</strong> twisty so a standard install isn't cluttered. Both <strong>Apply</strong> buttons — <em>Apply Installed SqFt → turf row</em> and <em>Apply Ordered SqFt → turf row</em> — live together on the <strong>Apply</strong> tab. <em>Apply Ordered SqFt</em> is usually the one you want: it sets the row's <strong>SqFt to Order</strong> <em>and</em> its <strong>Installed SqFt</strong>, so infill (which derives its area from Installed SqFt), labor, and rock all cascade from the one click. <em>Apply Installed SqFt</em> sets just the installed area. Each applies to the <strong>one row</strong> selected in its dropdown. <strong>🔗 Live link:</strong> under <em>Apply Ordered SqFt</em> there's a <strong>Live</strong> checkbox (on by default) that keeps the selected row in sync with the layout automatically — no button press. <strong>Ordered SqFt</strong> follows the roll plan, so it updates when you change <strong>roll rotation or seam offset</strong>. <strong>Installed SqFt</strong> follows the shape's area (role-aware — a Base Yard row includes the putting-green footprint; Alt Turf rows are skipped since they're priced on the base), so it updates when you <strong>edit the shape or its exclusions</strong>, and that cascades to infill, rock, and labor. Rotating rolls does <em>not</em> change Installed (it doesn't change how much ground you cover), so materials don't churn while you're just comparing roll options. Updates fire when you release a slider (not mid-drag), targeting the row picked in the dropdown; turn it off to explore freely without touching the quote. <strong>Installed SqFt, Ordered SqFt, Ordered Linear Ft, Perimeter, and Scrap</strong> all live in the always-visible key-metrics block at the top of the right pane.</p>
 
         <p><strong>Edging perimeter (per layer):</strong> the <strong>Layers</strong> tab lists the boundary length of <em>every</em> measured shape — the main outline plus each cutout (tree wells, beds, paver borders) — and a <strong>Total — all edges</strong> at the bottom. This is for ordering edging/border material that wraps every edge, and it's why a number here can exceed the <strong>Perimeter</strong> metric up top: that metric is the turf outline only (plus Install layers), while the edging total includes the inner cutout edges too. Perimeter is independent of where you drag a layer or how you rotate it.</p>
         <p>Open <strong>"⚙ Advanced details &amp; tools"</strong> for the rest: the Saved (nested) figure, the manual-cuts and nested-pieces lists, and the per-piece list. Entering Cut Mode opens this section automatically so the cut/nest tools are visible. (<strong>Scrap</strong> — Ordered minus the installed shape area, with % — now sits in the key-metrics block at the top of the pane; the purchased-rectangles toggle sits above the canvas.)</p>
@@ -5986,6 +5996,10 @@ function renderLayoutTab() {
   const rollSel = document.getElementById('rollApplyTarget');
   rollSel.innerHTML = sel.innerHTML;
 
+  const liveCb = document.getElementById('rollLiveLink');
+  if (liveCb) liveCb.checked = (proj.layout.liveLink !== false); // default on (undefined = on)
+  updateLiveLinkStatus();
+
   // Roll settings are per-project: load this project's saved width/length/trim/margin
   // (falling back to the legacy global seed or 15×100/4/4 for an untouched project).
   loadRollDefaultsToInputs();
@@ -7494,6 +7508,7 @@ function renderRollLayout() {
   renderLayoutElevation(proj);
   renderLayoutGradeNote(proj);
   applyLayoutLockState();
+  scheduleLinkedSync(); // if the live link is on, push Ordered SqFt to the selected row (debounced)
 }
 
 // Opt-in elevation readout. The checkbox state lives on the layout so it sticks
@@ -10256,6 +10271,93 @@ function computeApplyAreaForRow(proj, layout, row) {
   if (role === 'base') area += getPuttingGreenShapeArea(proj);
   if (!area) return { ok:false, reason:'no-area' };
   return { ok:true, area: Math.round(area * 100) / 100 };
+}
+
+// ── Live link: Ordered SqFt → selected turf row ───────────────────────────
+// When on (default), the primary roll layout's Ordered SqFt is pushed to the
+// selected turf row automatically whenever rotation / seam offset (or anything
+// that changes the roll plan) is committed. ORDERED ONLY — Installed SqFt is a
+// property of the shape, so infill, rock, and labor are left untouched.
+function isLiveLinkOn(proj) {
+  return !!(proj && proj.layout && proj.layout.liveLink !== false);
+}
+
+function toggleLayoutLiveLink() {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  const cb = document.getElementById('rollLiveLink');
+  proj.layout.liveLink = !!(cb && cb.checked);
+  save();
+  if (proj.layout.liveLink) syncLinkedTurfRow(); // apply immediately on enable
+  else updateLiveLinkStatus();
+}
+
+function updateLiveLinkStatus(msg) {
+  const el = document.getElementById('rollLiveLinkStatus'); if (!el) return;
+  if (msg != null) { el.textContent = msg; return; }
+  const proj = getCurrentProject();
+  el.textContent = isLiveLinkOn(proj) ? 'Live link on — Ordered SqFt tracks the roll layout.' : '';
+}
+
+// Pure: the Ordered SqFt value a layout contributes (combined across install
+// layers when present), rounded to 0.01. Returns null when unavailable.
+function orderedFromLayout(layout) {
+  if (!layout) return null;
+  const combined = layout._combined || null;
+  const ordered = combined ? combined.ordered : layout.totalOrdered;
+  return (ordered == null) ? null : Math.round(ordered * 100) / 100;
+}
+
+function syncLinkedTurfRow() {
+  const proj = getCurrentProject();
+  if (!isLiveLinkOn(proj)) return;
+  const sel = document.getElementById('rollApplyTarget');
+  if (!sel) return;
+  const i = parseInt(sel.value, 10);
+  if (isNaN(i) || !proj.turf || !proj.turf[i]) { updateLiveLinkStatus('Live link on — pick a target turf row above.'); return; }
+  const layout = window._wtCurrentRollLayout;
+  const row = proj.turf[i];
+  let changed = false;
+  const parts = [];
+
+  // Ordered SqFt ← roll plan. Moves with rotation / seam offset.
+  const ordered = orderedFromLayout(layout);
+  if (ordered != null) {
+    if (row.sqFtToOrder !== ordered) { row.sqFtToOrder = ordered; changed = true; }
+    parts.push('Ordered ' + ordered.toLocaleString());
+  }
+  // Installed SqFt ← shape area, role-aware. Moves only when the shape/exclusions
+  // change — a no-op on rotation/seam (area unchanged), so infill/rock/labor don't
+  // churn then. Alt-turf rows are skipped (priced on the base yard's area).
+  const inst = computeApplyAreaForRow(proj, layout, row);
+  if (inst && inst.ok) {
+    if (row.installedSqFt !== inst.area) { row.installedSqFt = inst.area; changed = true; }
+    parts.push('Installed ' + Math.round(inst.area).toLocaleString());
+  }
+
+  if (changed) {
+    save();
+    calcTurfRow(i);
+    renderTurfRows(proj);
+  }
+  updateLiveLinkStatus(parts.length
+    ? ('Live: ' + (row.product || ('Turf Row ' + (i + 1))) + ' — ' + parts.join(' · ') + ' ft²')
+    : 'Live link on.');
+}
+
+// Debounced so it fires once after you stop moving a slider, and never mid-drag
+// (which would rebuild the turf-row DOM while a slider is held).
+function scheduleLinkedSync() {
+  const proj = getCurrentProject();
+  if (!isLiveLinkOn(proj)) return;
+  if (typeof setTimeout !== 'function') { syncLinkedTurfRow(); return; } // non-browser env: run directly
+  clearTimeout(window._wtLinkSyncTimer);
+  window._wtLinkSyncTimer = setTimeout(function run() {
+    if (window._wtFreezeTransform || window._wtFreezeCanvasH) { // a drag is in progress
+      window._wtLinkSyncTimer = setTimeout(run, 150);
+      return;
+    }
+    syncLinkedTurfRow();
+  }, 250);
 }
 
 function applyLayoutAreaToTurf() {

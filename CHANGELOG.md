@@ -5,7 +5,57 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 69) — Make Layer: turn a drawn shape into a real install layer
+## 2026-06-21 (cont'd, 71) — Live link now syncs Installed too + Layout tab: canvas pinned, fields scroll
+
+**Live link — Installed SqFt follows the shape.** The Live link now keeps *both* fields on the
+selected row in sync, each with its own no-op guard:
+- **Ordered SqFt ← roll plan** (moves with rotation / seam offset), as before.
+- **Installed SqFt ← shape area, role-aware** (Base Yard adds the putting-green footprint; Alt Turf
+  rows are skipped, priced on base). Updates when the shape/exclusions change and cascades to infill,
+  rock, and labor.
+
+Because installed is gated on area, rotation/seam changes are a no-op for it — so materials don't
+churn while you compare roll options, honoring the earlier "rotation = ordered only" rule while still
+making installed auto-live on shape edits. Verified headlessly: rotation moves ordered only
+(installed held), a shape-area change moves both, alt rows skip installed, and the toggle-off path
+writes nothing.
+
+**Layout tab scrolling — one scroll region, canvas pinned.** The right-hand field pane no longer has
+its own scrollbar; it scrolls with the page while the canvas pane (already `position:sticky`) stays
+pinned, so the shapes don't drift out of view while you scroll the fields. Removed the sidebar's
+`overflow-y:auto` + `max-height`; the topbar and tabs sit outside the scroll region so they stay put.
+On phones / iPad-portrait (≤860px) the canvas reverts to static so it doesn't eat the screen.
+
+Suite unchanged at **980** (sandbox 937) — behavior is DOM/CSS-coupled; the sync math was verified
+headlessly and the layout change is visual (needs on-device confirmation).
+
+---
+
+
+
+Replaces the manual "Apply Ordered SqFt" click with an optional live link. A **🔗 Live** checkbox
+(on by default, saved per project) under *Apply Ordered SqFt* pushes the roll layout's Ordered SqFt
+to the selected turf row automatically whenever roll **rotation** or **seam offset** changes.
+
+- **Ordered only — by design.** It writes `sqFtToOrder` and never touches `installedSqFt`, so infill,
+  rock, and labor stay tied to the shape's area (rotating rolls changes what you *buy*, not what you
+  *cover*). This also means far less churn than a full re-apply: only turf material cost moves.
+- **Fires on release, not mid-drag.** A 250 ms debounce plus a freeze-flag guard defers the sync
+  until you let go of a slider, so it never rebuilds the turf-row DOM while a slider is held (the
+  known slider-breaking pattern). No-op when the value is unchanged, so no needless re-render.
+- Targets the row chosen in the existing *Apply Ordered SqFt* dropdown; the manual button stays as a
+  fallback. Combined install-layer totals are respected (`_combined.ordered`).
+- **Known gap (documented, not silently handled):** the link does *not* set Installed SqFt, so a new
+  shape still needs Installed applied once (import or the Installed button) or infill/rock/labor read
+  stale; and editing the shape won't refresh Installed through this link.
+
+Tests **931 → 937** (README **980**): 6 assertions on the pure `orderedFromLayout` (single vs
+combined, 0.01 rounding, null/zero handling). The ordered-only write, toggle-off no-op, combined
+totals, and no-churn-on-unchanged were verified headlessly (DOM-coupled path).
+
+---
+
+
 
 The Draw tool could only make markup. Now a **⬒ Make Layer** button in the draw toolbar converts
 the selected closed shape (Rectangle / Circle / Freehand — Lines are skipped, no area) into a full

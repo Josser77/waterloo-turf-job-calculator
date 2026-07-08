@@ -5188,6 +5188,16 @@ section('74. Draw shape → install layer (coordinate frame)');
   });
 }
 
+section('75. Live link — Ordered SqFt value from layout');
+{
+  assert(ctx.orderedFromLayout({ totalOrdered: 1477.5 }) === 1477.5, 'single layout → totalOrdered');
+  assert(ctx.orderedFromLayout({ totalOrdered: 100, _combined: { ordered: 2050.25 } }) === 2050.25, 'combined layers → combined.ordered (overrides total)');
+  assert(ctx.orderedFromLayout({ totalOrdered: 1477.556 }) === 1477.56, 'rounds to 0.01');
+  assert(ctx.orderedFromLayout(null) === null, 'no layout → null');
+  assert(ctx.orderedFromLayout({}) === null, 'layout without ordered → null');
+  assert(ctx.orderedFromLayout({ totalOrdered: 0 }) === 0, 'zero ordered is a real value, not null');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
