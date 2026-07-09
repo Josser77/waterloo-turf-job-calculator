@@ -5,7 +5,44 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 75) — Supplier order: benderboard stakes line
+## 2026-06-21 (cont'd, 78) — More layout canvas room: collapsible nav, narrower field pane
+
+The layout canvas fits to its container's width, so this widens that container three ways:
+
+- **Collapsible project-list nav (desktop).** A **«** button at the top of the left sidebar collapses
+  it to a thin 40 px rail; **»** brings it back. The state is remembered (`wt_navCollapsed`), and the
+  canvas re-fits to the new width on toggle. Mobile keeps its existing ☰ drawer, untouched.
+- **Narrower right field pane** — the layout grid's right column went from `clamp(300px,30vw,440px)`
+  to `clamp(280px,24vw,360px)`, handing the width to the canvas.
+- **Taller canvas box** — the canvas wrapper's max-height went 80vh → 86vh.
+
+No logic touched; suite unchanged at **1016** (sandbox 973). The collapse toggle/persist/restore was
+verified headlessly; the sizing is visual and needs on-device confirmation on both desktop and iPad.
+
+---
+
+
+
+Applied cont'd 76's treatment to the Installer Sheet too: misc items now read **name: quantity — notes**
+(unit dropped, note resolved via `miscItemNotes` the same way). Both exports are now consistent.
+Suite unchanged at **1016** (sandbox 973; the installer misc assertion updated for the new format).
+
+---
+
+
+
+On the Supplier Order, misc items now read **name: quantity — notes** instead of **name: quantity unit**:
+- **Unit dropped** — just the quantity.
+- **Notes added** — from the item's own stored notes, falling back to the matching Settings misc
+  catalog item by name. Notes are now copied onto a misc item when it's added from the catalog, and a
+  one-off custom item (not in the catalog) simply shows no note.
+
+Only the Supplier Order changed; the Installer Sheet still shows misc items with their unit. New pure
+`miscItemNotes(item, catalog)` helper. Tests **968 → 973** (README **1016**).
+
+---
+
+
 
 The Supplier Order now adds a **Benderboard stakes** line whenever there are edging boards: **20 stakes
 per board** (`STAKES_PER_BOARD` constant), quantity shown as e.g. "120 (20 per board × 6)". The stakes

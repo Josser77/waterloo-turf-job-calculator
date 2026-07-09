@@ -55,6 +55,28 @@
     flex-shrink: 0;
     color: #fff;
     overflow: hidden;
+    transition: width 0.18s ease;
+  }
+
+  /* Collapse toggle — desktop only (mobile uses the ☰ drawer button). */
+  .nav-toggle {
+    display: none;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    border: none;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    cursor: pointer;
+    padding: 8px;
+    font-size: 16px;
+    line-height: 1;
+    text-align: center;
+  }
+  .nav-toggle:hover { background: rgba(255,255,255,0.16); }
+  @media (min-width: 861px) {
+    .nav-toggle { display: block; }
+    .app.nav-collapsed .sidebar { width: 40px; }
+    .app.nav-collapsed .sidebar > *:not(.nav-toggle) { display: none; }
   }
 
   .sidebar-logo {
@@ -951,7 +973,7 @@
   #rollLayoutCanvas { display: block; }
 
   #layoutGrid {
-    grid-template-columns: 1fr clamp(300px, 30vw, 440px);
+    grid-template-columns: 1fr clamp(280px, 24vw, 360px);
   }
 
   /* Layout right-pane sub-tabs (replaced the old collapsible twisties) */
@@ -1033,6 +1055,7 @@
 
   <!-- SIDEBAR -->
   <div class="sidebar">
+    <button class="nav-toggle" onclick="toggleNavCollapse()" title="Show/hide the project list" aria-label="Toggle project list">«</button>
     <div class="sidebar-logo">
       <svg viewBox="0 0 944.71 807.55" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:160px;display:block;margin:0 auto 8px;">
         <defs><style>.cls-1{fill:#fff;}</style></defs>
@@ -1420,7 +1443,7 @@
                   <input type="checkbox" id="showRectanglesToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
                   Show purchased roll rectangles (waste) — needed to drag/nest pieces
                 </label>
-                <div id="layoutCanvasWrap" style="overflow:auto;max-height:80vh;overscroll-behavior:contain;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:default;">
+                <div id="layoutCanvasWrap" style="overflow:auto;max-height:86vh;overscroll-behavior:contain;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:default;">
                   <canvas id="rollLayoutCanvas" style="display:block;"></canvas>
                 </div>
               </div>
@@ -2277,7 +2300,7 @@
         <p>The canvas and the fields panel sit side-by-side — canvas on the left (fills all available width), fields on the right. The canvas is sized automatically to exactly fit the shape's aspect ratio with no dead whitespace, and adapts as the window resizes. On mobile (≤860px) the fields stack below the canvas.</p>
 
         <div class="docs-h3">Zoom &amp; Pan</div>
-        <p>The canvas always opens at the natural fit — no dead space, shape fills the available area. Use <strong>＋</strong> / <strong>－</strong> to zoom in/out (everything scales together — shapes and labels — and the view scrolls within its box), and <strong>⊙ Fit</strong> to snap back to the fitted view. Ctrl+scroll / two-finger trackpad pinch also zooms. <strong>To move a zoomed-in layout around:</strong> drag an empty part of the canvas to pan it (the cursor shows a hand when there's room to pan), or use the scrollbars / two-finger scroll; on a touch screen, drag with one finger. Grabbing a piece still nests it. All edit and drag interactions remain accurate at any zoom level.</p>
+        <p>The canvas always opens at the natural fit — no dead space, shape fills the available area. Use <strong>＋</strong> / <strong>－</strong> to zoom in/out (everything scales together — shapes and labels — and the view scrolls within its box), and <strong>⊙ Fit</strong> to snap back to the fitted view. Ctrl+scroll / two-finger trackpad pinch also zooms. <strong>To move a zoomed-in layout around:</strong> drag an empty part of the canvas to pan it (the cursor shows a hand when there's room to pan), or use the scrollbars / two-finger scroll; on a touch screen, drag with one finger. Grabbing a piece still nests it. All edit and drag interactions remain accurate at any zoom level. <strong>More canvas room:</strong> collapse the left project list to a thin rail with the <strong>«</strong> button at its top (click <strong>»</strong> to bring it back — the choice is remembered), which widens the whole layout area; the right-hand field pane is also narrower to give the shapes more width.</p>
 
         <div class="docs-h3">Editing the Shape (any layer)</div>
         <p>Click "✎ Edit Shape" to clean up an imported outline. This works on <strong>every visible layer</strong>, not just the main shape — grab a point on whichever layer you want to edit:</p>
@@ -2341,8 +2364,8 @@
         <div class="docs-h2" id="doc-exports">Supplier Order &amp; Installer Sheet</div>
         <p>At the top of the <strong>Quote Builder</strong> tab, the <strong>Job Info &amp; Exports</strong> card holds three fields — <strong>Job Address</strong>, <strong>Delivery Date</strong>, and <strong>Install Date</strong> — plus two export buttons. These are saved per project. (There's no Jobber link, so the address and dates are typed here or pasted in.)</p>
         <ul class="docs-list">
-          <li><strong>📦 Supplier Order</strong> — a ready-to-send block listing the job, delivery address, delivery date, and every orderable material with its quantity: turf (by its <strong>Vendor Product Name</strong> from Settings, with ordered sqft and linear ft at 15 ft roll width), infill (bags), edging (the selected material's name &amp; color, with boards), <strong>benderboard stakes</strong> (20 per board, colored to match the edging material), and any misc items. <strong>Rock/base is excluded</strong> (you source it separately) and no longer prints a note.</li>
-          <li><strong>🔧 Installer Sheet</strong> — the job, install address, install date, the <strong>turf to install per product</strong> with each installed sqft (base yard, putting green, etc.), an <strong>Infill</strong> section (product + bags), an <strong>Edging</strong> section (material + boards + linear ft), all misc items, and two fixed sections spelling out responsibilities: <em>Waterloo Turf provides</em> turf, infill, edging, stakes, and screws; <em>Turf installer provides</em> rock, weed cloth, 12" seam tape, adhesive, 6" non-galvanized nails, install labor, and equipment. Alt-turf rows aren't listed (no separate install area).</li>
+          <li><strong>📦 Supplier Order</strong> — a ready-to-send block listing the job, delivery address, delivery date, and every orderable material with its quantity: turf (by its <strong>Vendor Product Name</strong> from Settings, with ordered sqft and linear ft at 15 ft roll width), infill (bags), edging (the selected material's name &amp; color, with boards), <strong>benderboard stakes</strong> (20 per board, colored to match the edging material), and any misc items (shown as <strong>name: quantity — notes</strong>; the unit is dropped and the note comes from the item's Settings entry, blank for one-off custom items). <strong>Rock/base is excluded</strong> (you source it separately) and no longer prints a note.</li>
+          <li><strong>🔧 Installer Sheet</strong> — the job, install address, install date, the <strong>turf to install per product</strong> with each installed sqft (base yard, putting green, etc.), an <strong>Infill</strong> section (product + bags), an <strong>Edging</strong> section (material + boards + linear ft), all misc items (<strong>name: quantity — notes</strong>, same format as the supplier order), and two fixed sections spelling out responsibilities: <em>Waterloo Turf provides</em> turf, infill, edging, stakes, and screws; <em>Turf installer provides</em> rock, weed cloth, 12" seam tape, adhesive, 6" non-galvanized nails, install labor, and equipment. Alt-turf rows aren't listed (no separate install area).</li>
         </ul>
         <p>Both open a panel with the text and a <strong>⎘ Copy</strong> button — copy it and paste it straight into an email to your supplier or installer. Quantities come from whatever you've entered in the Quote Builder, so fill those in first.</p>
       </div>
@@ -2843,6 +2866,7 @@ function closeAutoBackupModal() {
 // ═══════════════════════════════════════════════════════
 
 window.onload = () => {
+  applyNavCollapsedState();
   renderSidebar();
   if (!localStorage.getItem(SETUP_KEY)) {
     // First launch — go straight to Settings
@@ -3801,7 +3825,7 @@ function addQuoteMiscFromCatalog(idx) {
   if (!item) return;
   const proj = getCurrentProject(); if(!proj) return;
   proj.miscItems = proj.miscItems||[];
-  proj.miscItems.push({ name: item.name, price: item.price||0, unit: item.unit||'each', qty: 1, role: 'base', fromCatalog: true });
+  proj.miscItems.push({ name: item.name, price: item.price||0, unit: item.unit||'each', qty: 1, role: 'base', notes: item.notes||'', fromCatalog: true });
   save();
   renderQuoteMiscRows();
   calcQuote();
@@ -10099,10 +10123,21 @@ function edgingMaterialLabel(mat) {
   if (!mat) return 'bender board';
   return mat.name + (mat.color ? ' — ' + mat.color : '');
 }
+// Notes for a project misc item: its own stored notes, else the matching Settings
+// catalog item's notes (by name). Custom one-off items have none.
+function miscItemNotes(item, miscCatalog) {
+  if (item && item.notes) return item.notes;
+  if (miscCatalog && item && item.name) {
+    const c = miscCatalog.find(x => x && x.name === item.name);
+    if (c && c.notes) return c.notes;
+  }
+  return '';
+}
 
 function buildSupplierOrderText(proj) {
   if (!proj) return '';
   const cat = getCatalog();
+  const miscCat = getMiscItems();
   const L = [];
   L.push('WATERLOO TURF — MATERIAL ORDER');
   L.push('');
@@ -10141,7 +10176,10 @@ function buildSupplierOrderText(proj) {
   }
   (proj.miscItems || []).forEach(m => {
     const qty = parseFloat(m.qty) || 0;
-    if (qty > 0 && m.name) items.push('• ' + m.name + ': ' + qty + ' ' + (m.unit || 'each'));
+    if (qty > 0 && m.name) {
+      const notes = miscItemNotes(m, miscCat);
+      items.push('• ' + m.name + ': ' + qty + (notes ? ' — ' + notes : ''));
+    }
   });
 
   if (items.length) L.push.apply(L, items);
@@ -10153,6 +10191,7 @@ function buildSupplierOrderText(proj) {
 function buildInstallerSheetText(proj) {
   if (!proj) return '';
   const cat = getCatalog();
+  const miscCat = getMiscItems();
   const roleLabel = { base: 'base yard', 'putting-green': 'putting green', putting: 'putting green', alt: 'alt turf', upgraded: 'upgraded' };
   const L = [];
   L.push('WATERLOO TURF — INSTALL DETAILS');
@@ -10202,7 +10241,10 @@ function buildInstallerSheetText(proj) {
   const miscLines = [];
   (proj.miscItems || []).forEach(m => {
     const qty = parseFloat(m.qty) || 0;
-    if (qty > 0 && m.name) miscLines.push('• ' + m.name + ': ' + qty + ' ' + (m.unit || 'each'));
+    if (qty > 0 && m.name) {
+      const notes = miscItemNotes(m, miscCat);
+      miscLines.push('• ' + m.name + ': ' + qty + (notes ? ' — ' + notes : ''));
+    }
   });
   if (miscLines.length) {
     L.push('');
@@ -10919,6 +10961,29 @@ function closeMergeConflictModal() {
 function toggleSidebar() {
   document.querySelector('.sidebar').classList.toggle('open');
   document.querySelector('.sidebar-backdrop').classList.toggle('open');
+}
+
+// Desktop: collapse the project-list nav to a thin rail (more canvas width).
+const NAV_COLLAPSED_KEY = 'wt_navCollapsed';
+function applyNavCollapsedState() {
+  const app = document.querySelector('.app'); if (!app) return;
+  const collapsed = localStorage.getItem(NAV_COLLAPSED_KEY) === '1';
+  app.classList.toggle('nav-collapsed', collapsed);
+  const btn = document.querySelector('.nav-toggle');
+  if (btn) btn.textContent = collapsed ? '»' : '«';
+}
+function toggleNavCollapse() {
+  const app = document.querySelector('.app'); if (!app) return;
+  const collapsed = app.classList.toggle('nav-collapsed');
+  localStorage.setItem(NAV_COLLAPSED_KEY, collapsed ? '1' : '0');
+  const btn = document.querySelector('.nav-toggle');
+  if (btn) btn.textContent = collapsed ? '»' : '«';
+  // The layout canvas fits to its container width — re-fit so it grows/shrinks.
+  setTimeout(() => {
+    if (typeof sizeLayoutCanvas === 'function') sizeLayoutCanvas();
+    const l = window._wtCurrentRollLayout;
+    if (l && typeof drawRollLayoutCanvas === 'function') drawRollLayoutCanvas(l);
+  }, 200); // after the width transition
 }
 
 function switchTab(name, el) {

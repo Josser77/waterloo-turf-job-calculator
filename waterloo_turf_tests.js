@@ -5128,7 +5128,7 @@ section('72. Order / install export text builders');
   assert(order.indexOf('Envirofill: 40 bags') >= 0, 'infill bags listed');
   assert(order.indexOf('Edging (bender board): 6 boards (110 lin ft)') >= 0, 'edging boards listed');
   assert(/Benderboard stakes: 120 \(20 per board × 6\)/.test(order), 'benderboard stakes = 20 per board (no color when no material)');
-  assert(order.indexOf('Weed barrier: 2 roll') >= 0, 'misc item listed');
+  assert(order.indexOf('Weed barrier: 2') >= 0 && order.indexOf('Weed barrier: 2 roll') < 0, 'misc item shows quantity only (unit removed) on supplier order');
   assert(order.indexOf('Zero qty item') < 0, 'zero-qty misc item omitted');
   assert(order.indexOf('Minus') < 0, 'rock material still excluded from the supplier order');
   assert(order.indexOf('Note: rock') < 0, 'rock note removed from supplier order');
@@ -5141,7 +5141,7 @@ section('72. Order / install export text builders');
   assert(sheet.indexOf('Pro 90 (base yard): 1200 sq ft') >= 0, 'base turf install sqft per product');
   assert(sheet.indexOf('Putt 56 (putting green): 300 sq ft') >= 0, 'putting green install sqft per product');
   assert(sheet.indexOf('Premium Alt') < 0, 'alt turf (no installed sqft) omitted from install sheet');
-  assert(sheet.indexOf('Weed barrier: 2 roll') >= 0 && sheet.indexOf('Nails 6": 5 box') >= 0, 'all misc items on the install sheet');
+  assert(sheet.indexOf('Weed barrier: 2') >= 0 && sheet.indexOf('Nails 6": 5') >= 0 && sheet.indexOf('Weed barrier: 2 roll') < 0, 'installer misc items show quantity only (unit removed)');
   assert(/INFILL\n• Envirofill: 40 bags/.test(sheet), 'installer sheet lists infill (product + bags)');
   assert(/EDGING\n• bender board: 6 boards \(110 lin ft\)/.test(sheet), 'installer sheet lists edging (material + boards + lin ft)');
   assert(sheet.indexOf('WATERLOO TURF PROVIDES') >= 0 && sheet.indexOf('Turf, infill, edging, stakes, and screws') >= 0, 'installer sheet has Waterloo-provides section');
@@ -5245,6 +5245,14 @@ section('77. Vendor name + edging material resolvers');
   assert(ctx.edgingBoardCost({ edgingMaterialId:'e2' }, { edgingBoard:55 }, cat) === 55, 'material with blank price → crew rate');
   assert(ctx.edgingBoardCost({}, { edgingBoard:55 }, cat) === 55, 'no material → crew rate');
   assert(ctx.edgingBoardCost({}, {}, cat) === 0, 'no material and no crew rate → 0');
+
+  // misc item notes resolver: stored notes win, else Settings catalog by name, else none
+  const miscCat = [{ name:'Seam tape', notes:'6 inch green' }, { name:'Nails' }];
+  assert(ctx.miscItemNotes({ name:'Seam tape', notes:'own note' }, miscCat) === 'own note', 'stored item notes win');
+  assert(ctx.miscItemNotes({ name:'Seam tape' }, miscCat) === '6 inch green', 'falls back to catalog notes by name');
+  assert(ctx.miscItemNotes({ name:'Nails' }, miscCat) === '', 'catalog item without notes → empty');
+  assert(ctx.miscItemNotes({ name:'Custom one-off' }, miscCat) === '', 'custom item not in catalog → empty');
+  assert(ctx.miscItemNotes({ name:'x' }, null) === '', 'no catalog → empty, no throw');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
