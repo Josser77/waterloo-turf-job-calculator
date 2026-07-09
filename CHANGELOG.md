@@ -5,7 +5,21 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 78) — More layout canvas room: collapsible nav, narrower field pane
+## 2026-06-21 (cont'd, 79) — Fix: tall layouts overflowed the canvas at 100%
+
+Follow-up to cont'd 78. The canvas fit was **width-only**, so after widening the container a tall
+shape (e.g. a narrow triangle) scaled up to fill the width and ran off the bottom of the view.
+`sizeLayoutCanvas` now **fits to the box**: it caps the canvas height at ~82vh and shrinks the width
+proportionally (preserving aspect), so a tall shape shows fully — letterboxed horizontally — at
+100%/Fit. Wide shapes are unchanged (still fill the width). `drawRollLayoutCanvas` already fit-to-box
+into the canvas dimensions, so the two stay consistent and all drag/edit transforms remain accurate.
+
+Verified headlessly: a 20×60 (tall) shape → 278×820 canvas (height capped, aspect preserved); a 60×20
+(wide) shape → 1400×488 (fills width). Suite unchanged at **1016** (sandbox 973).
+
+---
+
+
 
 The layout canvas fits to its container's width, so this widens that container three ways:
 

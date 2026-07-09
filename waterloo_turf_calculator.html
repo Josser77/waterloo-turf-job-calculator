@@ -10723,7 +10723,7 @@ function sizeLayoutCanvas() {
   const z = window._wtLayoutZoom || 1;
 
   // Base canvas width = wrapper content width
-  const baseW = Math.max(200, wrap.clientWidth || 600);
+  let baseW = Math.max(200, wrap.clientWidth || 600);
 
   let baseH;
   if (layout) {
@@ -10736,6 +10736,15 @@ function sizeLayoutCanvas() {
     const pad = 16;
     const scale = (baseW - 2*pad) / spanX;
     baseH = Math.round(spanY * scale + 2*pad);
+    // Fit to the BOX, not just the width: cap the height so a tall shape shows
+    // fully at 100% (letterboxed horizontally) instead of running off the bottom.
+    // Keep the shape's aspect ratio by shrinking width proportionally.
+    const availH = Math.max(300, Math.round((window.innerHeight || 800) * 0.82));
+    if (baseH > availH) {
+      const k = availH / baseH;
+      baseW = Math.max(200, Math.round(baseW * k));
+      baseH = availH;
+    }
   } else {
     baseH = Math.round(baseW * 0.6);
   }
