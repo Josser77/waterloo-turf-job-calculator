@@ -2297,7 +2297,7 @@
         <p>Cut positions are stored as a distance along the roll's length, so like nesting placements, they're tied to that roll's band position and persist across saves/reloads. If a major roll-setting change (direction, seam offset, width) causes that band to no longer exist, the cuts for it are simply dropped.</p>
 
         <div class="docs-h3">Canvas Layout</div>
-        <p>The canvas and the fields panel sit side-by-side — canvas on the left (fills all available width), fields on the right. The canvas is sized automatically to exactly fit the shape's aspect ratio with no dead whitespace, and adapts as the window resizes. On mobile (≤860px) the fields stack below the canvas.</p>
+        <p>The canvas and the fields panel sit side-by-side — canvas on the left (fills all available width), fields on the right. The canvas is sized automatically to fit the shape's aspect ratio, and it's <strong>capped to your screen height</strong> — it measures the space from the top of the canvas down to the bottom of the window, so the whole shape fits at 100% <strong>without vertical scrolling</strong>, on any monitor size. A tall, narrow shape is letterboxed (white space on the sides) so all of it stays visible. It re-fits automatically when you resize the window or collapse the project list. On mobile (≤860px) the fields stack below the canvas.</p>
 
         <div class="docs-h3">Zoom &amp; Pan</div>
         <p>The canvas always opens at the natural fit — no dead space, shape fills the available area. Use <strong>＋</strong> / <strong>－</strong> to zoom in/out (everything scales together — shapes and labels — and the view scrolls within its box), and <strong>⊙ Fit</strong> to snap back to the fitted view. Ctrl+scroll / two-finger trackpad pinch also zooms. <strong>To move a zoomed-in layout around:</strong> drag an empty part of the canvas to pan it (the cursor shows a hand when there's room to pan), or use the scrollbars / two-finger scroll; on a touch screen, drag with one finger. Grabbing a piece still nests it. All edit and drag interactions remain accurate at any zoom level. <strong>More canvas room:</strong> collapse the left project list to a thin rail with the <strong>«</strong> button at its top (click <strong>»</strong> to bring it back — the choice is remembered), which widens the whole layout area; the right-hand field pane is also narrower to give the shapes more width.</p>
@@ -2867,6 +2867,17 @@ function closeAutoBackupModal() {
 
 window.onload = () => {
   applyNavCollapsedState();
+  // Re-fit the layout canvas when the window resizes (height changes too, which the
+  // wrapper's ResizeObserver doesn't catch) so it always fills the screen without scroll.
+  window.addEventListener('resize', () => {
+    const layout = window._wtCurrentRollLayout;
+    if (!layout) return;
+    clearTimeout(window._wtResizeTimer);
+    window._wtResizeTimer = setTimeout(() => {
+      if (typeof sizeLayoutCanvas === 'function') sizeLayoutCanvas();
+      if (typeof drawRollLayoutCanvas === 'function') drawRollLayoutCanvas(layout);
+    }, 120);
+  });
   renderSidebar();
   if (!localStorage.getItem(SETUP_KEY)) {
     // First launch — go straight to Settings
@@ -10736,10 +10747,13 @@ function sizeLayoutCanvas() {
     const pad = 16;
     const scale = (baseW - 2*pad) / spanX;
     baseH = Math.round(spanY * scale + 2*pad);
-    // Fit to the BOX, not just the width: cap the height so a tall shape shows
-    // fully at 100% (letterboxed horizontally) instead of running off the bottom.
-    // Keep the shape's aspect ratio by shrinking width proportionally.
-    const availH = Math.max(300, Math.round((window.innerHeight || 800) * 0.82));
+    // Fit to the actual screen: cap the canvas at the space from the wrapper's top
+    // down to the bottom of the window, so the whole shape shows at 100% with NO
+    // vertical scroll. Measures the real position (accounts for the toolbar/zoom
+    // row/etc. above it) rather than guessing a fixed %. Aspect ratio preserved.
+    const rectTop = (wrap.getBoundingClientRect ? Math.max(0, wrap.getBoundingClientRect().top) : 0);
+    const availH = Math.max(280, Math.round((window.innerHeight || 800) - rectTop - 14));
+    if (wrap.style) wrap.style.maxHeight = availH + 'px';
     if (baseH > availH) {
       const k = availH / baseH;
       baseW = Math.max(200, Math.round(baseW * k));

@@ -5,7 +5,22 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 79) — Fix: tall layouts overflowed the canvas at 100%
+## 2026-06-21 (cont'd, 80) — Layout canvas fits the screen height (no scroll at 100%)
+
+Replaced the fixed ~82vh height cap (cont'd 79) with a **measured** one. `sizeLayoutCanvas` now reads
+the canvas wrapper's actual on-screen top (`getBoundingClientRect().top`) and caps the canvas to
+`window.innerHeight − top − 14px` — the exact space remaining below it — and sets the wrapper's
+max-height to match. So the whole shape shows at 100% with **no vertical scroll**, adapting to the
+real monitor/window size (accounts for the toolbar, zoom row, etc. stacked above the canvas). Aspect
+ratio preserved (tall shapes letterbox). Added a throttled `window` resize handler so a height-only
+resize re-fits too (the wrapper ResizeObserver only caught width changes).
+
+Verified headlessly: wrapper 330px down on a 1000px screen → 656px-tall canvas; 300px down on an
+800px screen → 486px; wide shapes still fill width. Suite unchanged at **1016** (sandbox 973).
+
+---
+
+
 
 Follow-up to cont'd 78. The canvas fit was **width-only**, so after widening the container a tall
 shape (e.g. a narrow triangle) scaled up to fill the width and ran off the bottom of the view.
