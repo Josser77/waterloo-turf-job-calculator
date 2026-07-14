@@ -5,6 +5,38 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-14 — Cut List: S-seam cut width + Print / PDF for installers
+
+**Cut width now accounts for the S-Seam Side Trim.** The Cut List's per-piece
+"× wide" figure was showing the *trimmed footprint* width (e.g. 14'8" = the 15'
+roll minus the 4" side trim), but installers cut the **full roll width** and
+trim the S-seam edge on site. New `seamCutWidth(footW, sideTrim, rollWidth) =
+min(footW + sideTrim, rollWidth)` makes the displayed width the **cut** width: a
+full-coverage strip now reads the full **15'0"** with a "cut full width, trim
+S-seam on site (covers 14'8")" note, while a genuinely narrow filler strip keeps
+its own width plus the same allowance, never exceeding the roll. The CAD drawing
+still shows the trimmed footprint at installed size. `buildCutList` attaches
+`cutW` per piece (deriving the trim from the layer's own setting, the parent
+layout, or `effW` as a fallback); `renderCutListHtml` falls back to the
+footprint width if `cutW` is ever absent.
+
+**🖨 Print / PDF button in the Cut List dialog.** Builds a one-shot printable
+sheet — job name, install address/date, the current roll-layout diagram
+(captured from the canvas via `toDataURL`), and the full cut list — then opens
+the print dialog for **Save as PDF** (or a printer) to hand installers. Done
+with an `@media print` stylesheet (`.printing-cutlist` on `<body>` plus an
+off-screen `#cutlistPrintRoot`), so it needs no PDF library and works in the
+Electron app and on GitHub Pages. Each cut piece is kept whole across page
+breaks; only the sheet prints, not the rest of the app.
+
+Tests **976 → 989** (README **1019 → 1032**): new `seamCutWidth` section
+(full-width caps to 15', narrow strips gain the 4" allowance, a zero-trim
+setting leaves width unchanged, and the effW + trim = roll invariant) plus
+cut-list render assertions for the new cut-width text and the "trim on site"
+note. In-app Cut List docs updated for both the cut-width behavior and Print/PDF.
+
+---
+
 ## 2026-06-21 (cont'd, 81) — Fix: cut list showed roll width (15.0) instead of the real cut size
 
 The per-piece cut text read "Cut 15.0 × 13.0 ft off the roll" — the **15.0 was the full roll width**,

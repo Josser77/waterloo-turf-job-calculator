@@ -1044,6 +1044,29 @@
     /* Momentum scrolling for the sideways-scrolling data grids and the canvas. */
     .card, .tabs, #layoutCanvasWrap, .modal-overlay .modal { -webkit-overflow-scrolling: touch; }
   }
+  /* ── Installer Cut List: print / Save-as-PDF layout ──────────────────
+     printCutListForInstallers() fills #cutlistPrintRoot and adds
+     .printing-cutlist to <body>; @media print then hides everything else
+     and shows only the print root. */
+  #cutlistPrintRoot { display: none; }
+  @media print {
+    body.printing-cutlist > *:not(#cutlistPrintRoot) { display: none !important; }
+    body.printing-cutlist #cutlistPrintRoot {
+      display: block !important;
+      color: #111; background: #fff; font-family: 'Raleway', Arial, sans-serif;
+    }
+    body.printing-cutlist { background: #fff; }
+    #cutlistPrintRoot .print-header { border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 14px; }
+    #cutlistPrintRoot .print-title { font-size: 20px; font-weight: 800; }
+    #cutlistPrintRoot .print-meta { font-size: 12px; color: #333; margin-top: 4px; }
+    #cutlistPrintRoot .print-diagram { text-align: center; margin: 10px 0 16px; break-inside: avoid; page-break-inside: avoid; }
+    #cutlistPrintRoot .print-diagram img { max-width: 100%; max-height: 8.5in; border: 1px solid #ccc; }
+    #cutlistPrintRoot .print-section-title { font-size: 15px; font-weight: 700; margin: 16px 0 8px; page-break-after: avoid; }
+    /* Keep each cut piece card whole on one page. */
+    #cutlistPrintRoot .print-cutlist-body > div > div { break-inside: avoid; page-break-inside: avoid; }
+    #cutlistPrintRoot svg { break-inside: avoid; page-break-inside: avoid; }
+    @page { margin: 0.5in; }
+  }
 
 </style>
 </head>
@@ -2279,7 +2302,9 @@
         <p>A layer that's been moved and/or rotated shows a "↺ Reset position" button in the Layers list to snap it back to its original (imported) position and orientation.</p>
 
         <div class="docs-h3">Cut List</div>
-        <p>Click <strong>"📋 Cut List"</strong> in the toolbar to open a dialog showing <strong>every turf piece to cut</strong>, grouped by layer. Each piece gets a <strong>CAD-style drawing</strong> of its actual trimmed shape with the piece's real <strong>length (along the roll) × width (across the roll) dimensioned in feet and inches</strong>, plus that same <strong>length × width as text</strong> and <strong>turf area</strong> below it. Irregular pieces (that don't fill their rectangle) are tagged <em>trim to shape</em> and drawn in amber; pieces tucked into another roll's waste are tagged <em>nested</em>. Each layer shows a subtotal (piece count, total cut length, area) and multi-layer jobs get a grand total. The drawings read from the same strips drawn on the canvas, so they always match. This is a <em>cut</em> list — the roll and area <em>order</em> quantities live on the layout panel and the Rock / Base card. Available even when the layout is locked.</p>
+        <p>Click <strong>"📋 Cut List"</strong> in the toolbar to open a dialog showing <strong>every turf piece to cut</strong>, grouped by layer. Each piece gets a <strong>CAD-style drawing</strong> of its actual trimmed shape, dimensioned in feet and inches, plus a <strong>text line</strong> and <strong>turf area</strong> below it. Irregular pieces (that don't fill their rectangle) are tagged <em>trim to shape</em> and drawn in amber; pieces tucked into another roll's waste are tagged <em>nested</em>. Each layer shows a subtotal (piece count, total cut length, area) and multi-layer jobs get a grand total. The drawings read from the same strips drawn on the canvas, so they always match. This is a <em>cut</em> list — the roll and area <em>order</em> quantities live on the layout panel and the Rock / Base card. Available even when the layout is locked.</p>
+        <p><strong>Cut width vs. footprint (S-seam):</strong> the <strong>"× wide" figure in the text line is the <em>cut</em> width</strong> — how wide to slice the piece off the roll — and it <strong>includes the S-Seam Side Trim</strong> (Settings → Roll Settings) that installers trim off on site. So a strip that fully spans the usable width reads the <strong>full roll width</strong> (e.g. <strong>15'0"</strong>) even though its installed coverage after trimming is 14'8"; a "cut full width, trim S-seam on site" note shows the covered width in that case. Narrow filler strips keep their own width plus the same allowance, never exceeding the roll. The <strong>drawing itself stays the trimmed footprint</strong> at installed size, so it shows what the piece actually covers. (Cut the full width, trim the seam edge on site.)</p>
+        <p><strong>🖨 Print / PDF:</strong> the <strong>Print / PDF</strong> button in the Cut List dialog builds a one-shot printable sheet — the job name, install address and date, the current <strong>roll-layout diagram</strong>, and the full cut list — then opens your print dialog. Choose <em>Save as PDF</em> (or a printer) to hand installers a paper or PDF cut sheet. It prints only that sheet, not the rest of the app, and each cut piece is kept whole on a page. Works in the desktop app and on the web.</p>
 
         <div class="docs-h3">Draw Tool (Markup)</div>
         <p>Click <strong>"✏️ Draw"</strong> in the toolbar to open the drawing toolbar, then pick <strong>Line</strong>, <strong>Rectangle</strong>, <strong>Circle</strong>, or <strong>Freehand</strong>, choose a <strong>color</strong> and line <strong>width</strong> (and optional <strong>Fill</strong> for rectangles/circles), and drag on the canvas. Use this to mark up the layout — show where pavers, borders, steppers, or other features go, or annotate for a customer.</p>
@@ -2449,14 +2474,23 @@
         <div style="font-family:'Raleway',sans-serif;font-size:20px;font-weight:800;color:var(--text);">Turf Cut List</div>
         <div style="font-size:12px;color:var(--text-light);margin-top:4px;">Every piece to cut from the rolls, with dimensions.</div>
       </div>
-      <button onclick="document.getElementById('cutListModal').classList.remove('open')"
-        style="background:none;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;color:var(--text-light);cursor:pointer;flex-shrink:0;">
-        Close ✕
-      </button>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <button onclick="printCutListForInstallers()"
+          style="background:var(--green,#2e7d32);border:1px solid var(--green,#2e7d32);border-radius:8px;padding:8px 14px;font-size:13px;color:#fff;cursor:pointer;font-weight:600;">
+          🖨 Print / PDF
+        </button>
+        <button onclick="document.getElementById('cutListModal').classList.remove('open')"
+          style="background:none;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;color:var(--text-light);cursor:pointer;">
+          Close ✕
+        </button>
+      </div>
     </div>
     <div id="cutListBody" style="font-size:13px;color:var(--text);line-height:1.5;"></div>
   </div>
 </div>
+
+<!-- Off-screen container populated by printCutListForInstallers(); shown only in @media print -->
+<div id="cutlistPrintRoot" aria-hidden="true"></div>
 
 <div class="modal-overlay" id="exportModal" style="z-index:1100;">
   <div class="modal" style="width:min(640px,95vw);max-height:90vh;overflow-y:auto;padding:28px 32px;">
@@ -9412,6 +9446,20 @@ function assignRollPieceLabels(layout) {
 // Pure (no DOM) so it's testable. Footprint = bounding box of the actual turf
 // coverage (roll-frame); Cut = the rectangle pulled off the roll (roll width ×
 // ordered length, which includes the cutting margin).
+// Cut width for an installer: the width to slice off the roll. Installers cut
+// the FULL roll width and trim the S-seam edge on site, so the cut width is the
+// piece's installed footprint width PLUS the S-seam side trim that gets removed,
+// capped at the full roll width. A full-coverage strip (footprint = usable width
+// = roll − trim, e.g. 14'8") therefore cuts back to the whole 15'0" roll, while a
+// genuinely narrow filler strip keeps its own footprint width plus the same
+// allowance and still never exceeds the roll. sideTrimInches is the global
+// "S-Seam Side Trim (in)" setting (default 4).
+function seamCutWidth(footW, sideTrimInches, rollWidth) {
+  const rw = parseFloat(rollWidth) || 15;
+  const allow = Math.max(0, parseFloat(sideTrimInches) || 0) / 12; // inches → feet
+  return Math.min(footW + allow, rw);
+}
+
 function buildCutList(layout) {
   const empty = { layers: [], totals: { pieces: 0, linearFt: 0, area: 0 } };
   if (!layout) return empty;
@@ -9448,10 +9496,17 @@ function buildCutList(layout) {
         const cutLength = u.orderedLength || (u.rfX1 - u.rfX0);
         const area = u.clippedArea;
         const irregular = area < (footW * footL) - 0.5;
+        // Width to cut off the roll = footprint + S-seam trim (trimmed on site),
+        // capped at the roll width. Prefer this layer's own trim/width; fall back
+        // to the parent layout, then derive the trim from effW as a last resort.
+        let sideTrimIn = (L.sideTrim != null ? L.sideTrim : (layout.sideTrim != null ? layout.sideTrim : null));
+        const pieceRollW = L.rollWidth || rollWidth;
+        if (sideTrimIn == null && L.effW && pieceRollW) sideTrimIn = Math.max(0, (pieceRollW - L.effW) * 12);
+        const cutW = seamCutWidth(footW, sideTrimIn || 0, pieceRollW);
         pieces.push({
           roll: lab.roll || 1, piece: lab.piece || 1,
           label: lab.roll ? ('Roll ' + lab.roll + ', Piece ' + lab.piece) : 'Piece',
-          cutLength, rollWidth, footW, footL, area, irregular, poly,
+          cutLength, rollWidth, footW, footL, cutW, area, irregular, poly,
           nested: (u.nestedInto != null),
         });
         sP++; sL += cutLength; sA += area;
@@ -9475,13 +9530,17 @@ function renderCutListHtml(data) {
     if (multi) html += '<div style="font-weight:700;margin:16px 0 8px;color:var(--green);">' + escAttr(layer.name) + '</div>';
     html += '<div style="display:flex;flex-wrap:wrap;gap:12px;">';
     layer.pieces.forEach(p => {
+      const cutW = (p.cutW != null ? p.cutW : p.footW);
       const badges = (p.irregular ? ' <span style="font-size:10px;color:#b45309;border:1px solid #f59e0b;border-radius:4px;padding:0 4px;">trim to shape</span>' : '')
         + (p.nested ? ' <span style="font-size:10px;color:#1d4ed8;border:1px solid #60a5fa;border-radius:4px;padding:0 4px;">nested</span>' : '');
       html += '<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--surface);">'
         + '<div style="font-weight:600;font-size:12px;margin-bottom:6px;">' + escAttr(p.label) + badges + '</div>'
         + '<div style="display:flex;justify-content:center;">' + cutPieceSvg(p) + '</div>'
         + '<div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.5;">'
-        + 'Cut ' + ftIn(p.footL) + ' long × ' + ftIn(p.footW) + ' wide<br>'
+        + 'Cut ' + ftIn(p.footL) + ' long × ' + ftIn(cutW) + ' wide<br>'
+        + (cutW - p.footW > 0.02
+            ? '<span style="color:#b45309;">Cut full width, trim S-seam on site (covers ' + ftIn(p.footW) + ')</span><br>'
+            : '')
         + 'Turf area ' + f1(p.area) + ' ft²'
         + '</div></div>';
     });
@@ -9496,8 +9555,8 @@ function renderCutListHtml(data) {
       + '<span>' + f1(data.totals.linearFt) + ' ft cut · ' + f1(data.totals.area) + ' ft²</span></div>';
   }
   html += '<div style="margin-top:14px;font-size:11px;color:var(--text-light);line-height:1.5;">'
-    + 'Each drawing is the <strong>trimmed turf footprint</strong>, dimensioned at its actual size: '
-    + '<strong>length</strong> runs along the roll (horizontal, below the shape) and <strong>width</strong> runs across the roll (vertical, on the left), both in feet and inches. '
+    + 'The <strong>“× wide” figure</strong> above each drawing is the <strong>cut width</strong> — how wide to slice the piece off the roll, including the S-seam side trim that comes off on site — so a full-coverage strip reads the full roll width (e.g. 15\'0"). '
+    + 'The <strong>drawing itself is the trimmed turf footprint</strong> at its installed size: <strong>length</strong> runs along the roll (horizontal, below the shape) and <strong>width</strong> across the roll (vertical, on the left), both in feet and inches. '
     + 'Pieces marked <em>trim to shape</em> don\'t fill their rectangle. This lists physical cuts; roll/area order totals are on the layout panel.</div>';
   return html;
 }
@@ -9565,6 +9624,61 @@ function openCutListModal() {
   if (body) body.innerHTML = renderCutListHtml(buildCutList(layout));
   const modal = document.getElementById('cutListModal');
   if (modal) modal.classList.add('open');
+}
+
+// Build a printer-friendly page (layout diagram + full cut list) and open the
+// print dialog, from which the user picks "Save as PDF" to hand installers a
+// sheet. Implemented with an @media-print stylesheet (.printing-cutlist on
+// <body>) rather than a popup window, so it behaves identically in Electron and
+// on GitHub Pages and needs no external PDF library.
+function printCutListForInstallers() {
+  const layout = window._wtCurrentRollLayout;
+  const root = document.getElementById('cutlistPrintRoot');
+  if (!root) return;
+  if (!layout) { alert('Import or draw a layout first, then print the cut list.'); return; }
+
+  const proj = (typeof getCurrentProject === 'function') ? getCurrentProject() : null;
+  const jobName = (proj && proj.name) ? proj.name : 'Turf Job';
+  const addr = (proj && proj.address) ? String(proj.address).replace(/\s*\n+\s*/g, ', ').trim() : '';
+  const dateStr = (proj && proj.installDate && typeof fmtExportDate === 'function')
+    ? fmtExportDate(proj.installDate) : '';
+
+  // Snapshot the current layout canvas, if it has actually been rendered.
+  let diagramImg = '';
+  try {
+    const canvas = document.getElementById('rollLayoutCanvas');
+    if (canvas && canvas.width > 0 && canvas.height > 0) {
+      diagramImg = '<div class="print-diagram"><img src="' + canvas.toDataURL('image/png') + '" alt="Roll layout diagram"></div>';
+    }
+  } catch (e) { diagramImg = ''; }
+
+  const metaBits = [];
+  if (addr) metaBits.push('Install address: ' + escAttr(addr));
+  if (dateStr) metaBits.push('Install date: ' + escAttr(dateStr));
+  metaBits.push('Printed: ' + escAttr(new Date().toLocaleDateString()));
+
+  root.innerHTML =
+      '<div class="print-header">'
+    +   '<div class="print-title">Turf Cut List — ' + escAttr(jobName) + '</div>'
+    +   '<div class="print-meta">' + metaBits.join(' &nbsp;·&nbsp; ') + '</div>'
+    + '</div>'
+    + (diagramImg ? '<div class="print-section-title">Roll Layout</div>' + diagramImg : '')
+    + '<div class="print-section-title">Cut Pieces</div>'
+    + '<div class="print-cutlist-body">' + renderCutListHtml(buildCutList(layout)) + '</div>';
+
+  const cleanup = () => {
+    document.body.classList.remove('printing-cutlist');
+    root.innerHTML = '';
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+  document.body.classList.add('printing-cutlist');
+  // Let the print layout paint before opening the dialog.
+  setTimeout(() => {
+    try { window.print(); } catch (e) { cleanup(); }
+    // Safety net in case 'afterprint' never fires in this environment.
+    setTimeout(() => { if (document.body.classList.contains('printing-cutlist')) cleanup(); }, 60000);
+  }, 60);
 }
 
 function startDragNesting(evt) {

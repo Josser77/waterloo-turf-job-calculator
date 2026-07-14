@@ -5105,6 +5105,43 @@ section('71. Cut-piece drawings (ft-in + SVG)');
   assert(html.indexOf("Cut 12' long × 7' 10\" wide") >= 0, 'cut text = actual length × width, labeled, in ft-in');
   assert(html.indexOf('15.0 ×') < 0, 'roll width (15.0) no longer shown as the cut size');
   assert(!/Cut [\d.]+ × [\d.]+ ft off the roll/.test(html), 'old "N × N ft off the roll" line removed');
+
+  // With cutW present, the WIDTH column shows the cut width (footprint + S-seam
+  // trim taken off on site), and a "trim on site" note appears when the cut
+  // width exceeds the footprint.
+  const seamData = { layers: [{ name: 'Turf', pieces: [
+    { label: 'Roll 1, Piece 1', footL: 20, footW: 14.6667, cutW: 15, area: 293, rollWidth: 15, cutLength: 21, irregular: false, nested: false,
+      poly: [{x:0,y:0},{x:20,y:0},{x:20,y:14.6667},{x:0,y:14.6667}] }
+  ], subtotal: { pieces: 1, linearFt: 21, area: 293 } }], totals: { pieces: 1, linearFt: 21, area: 293 } };
+  const seamHtml = ctx.renderCutListHtml(seamData);
+  assert(seamHtml.indexOf("\u00d7 15' wide") >= 0, 'full-coverage strip shows the full 15\' cut width, not 14\'8"');
+  assert(seamHtml.indexOf('trim S-seam on site') >= 0, 'cut-full-width note shown when cut width exceeds footprint');
+  assert(seamHtml.indexOf("covers 14' 8\"") >= 0, 'coverage note reports the trimmed footprint (14\' 8")');
+
+  // A narrow filler strip whose cut width equals its footprint shows no note.
+  const narrowData = { layers: [{ name: 'Turf', pieces: [
+    { label: 'Roll 2, Piece 1', footL: 10, footW: 6, cutW: 6, area: 60, rollWidth: 15, cutLength: 11, irregular: false, nested: false,
+      poly: [{x:0,y:0},{x:10,y:0},{x:10,y:6},{x:0,y:6}] }
+  ], subtotal: { pieces: 1, linearFt: 11, area: 60 } }], totals: { pieces: 1, linearFt: 11, area: 60 } };
+  const narrowHtml = ctx.renderCutListHtml(narrowData);
+  assert(narrowHtml.indexOf("\u00d7 6' wide") >= 0, 'narrow strip shows its own cut width');
+  assert(narrowHtml.indexOf('trim S-seam on site') < 0, 'no trim note when cut width equals footprint');
+}
+
+section('71b. seamCutWidth (installer cut width = footprint + S-seam trim)');
+{
+  const scw = ctx.seamCutWidth;
+  assert(near(scw(14.6667, 4, 15), 15, 0.01), 'full usable-width strip (14\'8" + 4") caps to the full 15\' roll');
+  assert(near(scw(6, 4, 15), 6.3333, 0.01), 'narrow 6\' strip + 4" trim = 6\'4"');
+  assert(near(scw(15, 4, 15), 15, 0.01), 'a strip already at full roll width never exceeds it');
+  assert(near(scw(14.9, 4, 15), 15, 0.01), 'footprint just under full width still caps at the roll');
+  assert(near(scw(14.6667, 0, 15), 14.6667, 0.01), 'no S-seam trim setting → width unchanged');
+  assert(near(scw(10, 4, 15), 10.3333, 0.01), 'mid-width strip gains exactly the 4" allowance');
+  // The invariant Brian cares about: a strip that spans the full USABLE width
+  // (effectiveRollWidth) cuts back to the full roll width.
+  const eff = ctx.effectiveRollWidth({ rollWidth: 15, sideTrim: 4 });
+  assert(near(eff, 14.6667, 0.01), 'effectiveRollWidth(15, 4") = 14\'8" usable');
+  assert(near(scw(eff, 4, 15), 15, 0.01), 'usable-width strip → full 15\' cut (effW + trim = roll)');
 }
 
 section('72. Order / install export text builders');

@@ -16,6 +16,7 @@ Built for Waterloo Turf's internal use.
 - Roll layout diagram showing strip/piece placement, seam lines, and scrap
 - Manual butt-seam cuts and drag-and-drop piece nesting into waste areas (in Cut Mode, a click toggles a cut and a press-and-drag nests a piece — no mode switching needed)
 - Piece List cut sheet: length × width for every piece (main yard + fringe), labeled by roll, with total linear footage
+- Cut List (📋): a CAD-style drawing of every piece with its cut dimensions in feet-and-inches. The width shown is the **full cut width including the S-seam side trim** — cut the full width and trim the seam on site — so a full-coverage strip reads the whole roll width (e.g. 15'0"), not the 14'8" it covers after trimming. A **🖨 Print / PDF** button prints the layout diagram + full cut list as a PDF for installers
 
 **Putting Green Fringe**
 - Mark a secondary Moasure layer as the Putting Green to unlock fringe config
@@ -82,7 +83,7 @@ Run the test suite before committing any changes to `waterloo_turf_calculator.ht
 node waterloo_turf_tests.js
 ```
 
-All tests should pass (currently **1019**). The `Sync and Push.command` script runs
+All tests should pass (currently **1032**). The `Sync and Push.command` script runs
 this suite as a gate and refuses to commit or push if any test fails.
 
 Each session that produces an updated calculator file also updates this README
