@@ -1414,7 +1414,7 @@
             </div>
           </div>
           <p id="editShapeHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
-            <strong>Edit mode:</strong> drag a point to move it — works on <strong>any layer</strong> (the main shape's points show green, each other layer's show blue). If you moved a layer, its points are edited <strong>right where it now sits</strong> (the move is baked in when you enter Edit mode). <strong>Double-click (or double-tap) a point to delete it</strong> (min. 3 points). <strong>Double-click/tap an edge to add a new point</strong> there. Click "✎ Edit Shape" again when done.
+            <strong>Edit mode:</strong> drag a point to move it — works on <strong>any layer</strong> (the main shape's points show green, each other layer's show blue). Every layer is <strong>outlined with a dashed line and named</strong> while editing, and <strong>nested pieces are shown back at their home position</strong> so each shape and its points are one object in one place — the nesting view (and your order) is unchanged and redraws as soon as you click "✓ Done Editing". If you moved a layer, its points are edited <strong>right where it now sits</strong> (the move is baked in when you enter Edit mode). <strong>Double-click (or double-tap) a point to delete it</strong> (min. 3 points). <strong>Double-click/tap an edge to add a new point</strong> there. Click "✎ Edit Shape" again when done.
           </p>
           <div id="editPointTools" style="display:none;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
             <span style="font-size:12px;color:var(--text-mid);font-weight:600;">Point tool:</span>
@@ -8205,7 +8205,10 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       const color = STRIP_COLORS[i % STRIP_COLORS.length];
       const units = s.pieces || [s];
       units.forEach(u => {
-        if (u.nestedInto != null) {
+        // See the install-layer draw below: while editing, pieces draw at their
+        // home position so the shape matches its outline/dots. Nesting redraws on
+        // exit; nothing about the order changes.
+        if (u.nestedInto != null && !window._wtEditMode) {
           // Draw this piece relocated to where it was dropped. Outline orange when
           // it sits clear in the leftover, RED when it overlaps the roll's turf
           // (so the user can see it won't actually fit there and move it).
@@ -8277,7 +8280,14 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
         il.layout.strips.forEach(st => {
           const us = st.pieces || [st];
           us.forEach(u => {
-            if (u.nestedInto != null) {
+            // While editing, draw every piece at its HOME position — ignore the
+            // nest relocation. Nesting is material accounting (where a piece gets
+            // cut from); editing is geometry (what shape the area is). Drawing the
+            // relocated pieces during an edit splits the layer into two disjoint
+            // things on screen — a body over in some roll's waste and an outline
+            // with the dots on it somewhere else — which is unusable. Edit Shape
+            // shows the shape. Exiting redraws the nesting; the order is untouched.
+            if (u.nestedInto != null && !window._wtEditMode) {
               // Drawn relocated to where it was dropped; orange when clear, RED
               // when it overlaps this layer's turf — mirrors the primary draw.
               let movedClipped;
@@ -8603,10 +8613,50 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
         ctx.stroke();
       });
     }
-    if (!layout.layerVisibility || layout.layerVisibility.primary !== false) drawHandles(layout.basePoints, 'primary', '#2e7d32');
+    // In Edit mode, always outline the shape each set of dots belongs to. An
+    // install layer normally draws its PIECES, not its outline — and once those
+    // pieces are nested into another roll's waste they're redrawn over there,
+    // leaving the outline's dots apparently stranded in empty space. Stroking the
+    // outline here means the dots always sit on a visible shape you can see and
+    // edit, wherever that layer actually lives in the yard.
+    function drawEditOutline(pts, color) {
+      if (!pts || pts.length < 3) return;
+      ctx.save();
+      ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      pts.forEach((p, i) => { const c = toCanvas(p); if (i === 0) ctx.moveTo(c.x, c.y); else ctx.lineTo(c.x, c.y); });
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (!layout.layerVisibility || layout.layerVisibility.primary !== false) {
+      drawEditOutline(layout.basePoints, 'rgba(46,125,50,0.75)');
+      drawHandles(layout.basePoints, 'primary', '#2e7d32');
+    }
     (layout.secondaryShapes || []).forEach((s, idx) => {
       if (layout.layerVisibility && layout.layerVisibility[idx] === false) return;
-      if (s.displayPoints && s.displayPoints.length >= 3) drawHandles(s.displayPoints, idx, '#1565c0');
+      if (s.displayPoints && s.displayPoints.length >= 3) {
+        drawEditOutline(s.displayPoints, 'rgba(21,101,192,0.75)');
+        drawHandles(s.displayPoints, idx, '#1565c0');
+        // Name the outline at its own centroid. An install layer's main label
+        // follows its pieces (which may be nested far away), so without this the
+        // outline you're editing would be unidentifiable.
+        const n = s.displayPoints.length;
+        const ox = s.displayPoints.reduce((a,p)=>a+p.x,0)/n;
+        const oy = s.displayPoints.reduce((a,p)=>a+p.y,0)/n;
+        const oc = toCanvas({ x: ox, y: oy });
+        const oLabel = (s.name || ('Layer ' + (idx + 1))) + ' — outline';
+        ctx.save();
+        ctx.font = '11px sans-serif';
+        const otw = ctx.measureText(oLabel).width;
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillRect(oc.x - otw/2 - 2, oc.y - 11, otw + 4, 14);
+        ctx.fillStyle = '#1565c0';
+        ctx.fillText(oLabel, oc.x - otw/2, oc.y);
+        ctx.restore();
+      }
     });
   }
 

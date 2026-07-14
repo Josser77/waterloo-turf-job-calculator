@@ -5,6 +5,55 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-14 (cont'd 14) — Edit Shape shows the shape: nested pieces draw at home while editing
+
+Editing a layer whose pieces were nested elsewhere split it into two disjoint things
+on screen: the body over in some roll's waste, and the outline with its edit dots
+somewhere else entirely. Adding a dashed outline (cont'd 13) made the dots visible
+but left the incoherence — you still had to edit one object while looking at another
+in a different part of the canvas.
+
+Fix: **while Edit Shape is active, every piece draws at its home position** — the
+nest relocation is suppressed at draw time (both the primary's pieces and each
+install layer's). Each shape and its points are one object in one place. Nesting is
+material accounting (where a piece is *cut from*); editing is geometry (what shape
+the area *is*) — so the roll plan, Ordered SqFt, Linear Ft, roll count, and every
+nest placement are untouched, and the nesting view redraws the instant you click
+"✓ Done Editing".
+
+The dashed per-layer outline + name from (cont'd 13) is kept: it still identifies
+which layer each set of dots belongs to.
+
+Tests unchanged at **1031** (README **1074**) — canvas drawing isn't reachable by the
+Node harness; verified on-device.
+
+---
+
+## 2026-07-14 (cont'd 13) — Edit dots now always sit on a visible outline
+
+The edit dots for an added (install) layer appeared to float in empty white space
+instead of on the shape. They weren't misplaced — they were on the layer's real
+outline, but **nothing was drawn there**: an install layer renders its *pieces*, not
+its outline, and once those pieces are nested into another roll's waste they're
+redrawn over at the target roll. The body moves; the outline stays where the yard
+area actually is; the dots look orphaned.
+
+Fix: Edit mode now strokes a **dashed outline** around every visible layer (green
+for the primary, blue for the others) and labels each one "<layer name> — outline"
+at its centroid. The dots always land on a shape you can see and identify, wherever
+that layer lives. Nothing about placement or math changed — this is purely making
+the thing you're editing visible.
+
+The dots deliberately do **not** follow the nested pieces: a layer's pieces can nest
+into several different rolls, while its outline is a single polygon — it can't be in
+two places. The outline stays at the layer's true position, which is the geometry the
+points actually describe.
+
+Tests unchanged at **1031** (README **1074**) — canvas drawing isn't reachable by the
+Node harness; verified on-device.
+
+---
+
 ## 2026-07-14 (cont'd 12) — Install-layer outlines no longer wander away from their pieces
 
 Root cause of the long-running "moved layer edits in the wrong place" bug — and it
