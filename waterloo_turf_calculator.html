@@ -247,13 +247,14 @@
     flex-shrink: 0;
     align-items: stretch;
   }
-  /* Always-visible layout totals, pinned to the right of the tab bar. */
+  /* Always-visible layout totals, anchored to the LEFT next to the Settings tab. */
   .top-metrics {
     display: flex;
     align-items: center;
     gap: 16px;
-    margin-left: auto;
-    padding-left: 18px;
+    margin-left: 24px;
+    padding-left: 20px;
+    border-left: 1px solid var(--border);
     flex-shrink: 0;
   }
   .top-metrics .tm { display: flex; flex-direction: column; line-height: 1.15; }
@@ -262,13 +263,16 @@
     color: var(--text-light); font-weight: 700;
   }
   .top-metrics .tm-v {
-    width: 76px; border: none; background: transparent; padding: 0; margin: 0;
+    /* Hug the value so long readouts (e.g. scrap "601 ft² (49.5%)") never clip;
+       falls back to the default input width where field-sizing is unsupported. */
+    field-sizing: content;
+    min-width: 28px; max-width: 170px;
+    border: none; background: transparent; padding: 0; margin: 0;
     font-size: 13px; font-weight: 700; color: var(--text); font-family: inherit;
   }
   .top-metrics .tm-v:focus { outline: none; }
   @media (max-width: 860px) {
-    .top-metrics { gap: 12px; padding-left: 12px; }
-    .top-metrics .tm-v { width: 62px; }
+    .top-metrics { gap: 12px; margin-left: 14px; padding-left: 12px; }
   }
   .tab {
     padding: 12px 20px;

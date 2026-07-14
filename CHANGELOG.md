@@ -5,6 +5,22 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-14 (cont'd 9) — Top-bar metrics no longer clip at the right edge
+
+The always-visible layout totals (Installed / Ordered / Linear ft / Perimeter /
+Scrap) were pinned to the far right of the tab bar (`margin-left: auto`), so on a
+full-width screen the last two (Perimeter, Scrap) ran off the right edge and were
+cut off. The strip is now **anchored on the left, immediately after the Settings
+tab**, with a divider (`border-left`) and a fixed gap — empty space now lives on
+the right instead of clipping the values. Each value field also switched from a
+fixed `76px` width to `field-sizing: content` (min 28px / max 170px), so long
+readouts like the scrap `"601 ft² (49.5%)"` hug their own width and never truncate;
+browsers without `field-sizing` fall back to the default input width (still no clip).
+
+CSS-only change — tests unchanged at **1005** (README **1048**). Verified in-browser.
+
+---
+
 ## 2026-07-14 (cont'd 8) — Quiet the benign "ResizeObserver loop" console error
 
 The layout canvas's `ResizeObserver` called `sizeLayoutCanvas()` synchronously,
