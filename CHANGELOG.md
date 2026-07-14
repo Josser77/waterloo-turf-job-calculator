@@ -5,6 +5,57 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-14 (cont'd 11) — Moved shapes are now edited in place, not back at the origin
+
+After moving a layer with Move Layers, entering Edit Shape mode dropped you back at
+the shape's pre-move origin to drag its points — the move was saved (it lived as a
+separate visual offset in `layerOffsets`), but the edit round-trip kept reverting
+the shape to its un-moved canonical position. You couldn't edit the shape where you
+actually put it.
+
+Fix: entering Edit mode now **commits** each layer's move offset into its real
+points (`commitLayerOffsetsToPoints`) and zeroes the offset, so the moved position
+*becomes* the canonical geometry. Vertices are then edited exactly where the shape
+sits — what you see is what you edit — with no offset round-trip left to misapply.
+The bake re-applies the forward transform (view-rotate → in-place layer-rotate →
+translate) and backs out only the view rotation; per-point elevation (z) is
+preserved by index. Translation and rotation don't change area or the roll plan, so
+this is math-neutral — Ordered SqFt, roll counts, and scrap are unaffected.
+
+One behavior note: once you enter Edit mode, a moved layer's position is baked in,
+so the old "reset position" no longer snaps it back to the import origin — the move
+is now part of the shape. Re-move it with Move Layers if you need to reposition.
+
+Tests **1005 → 1019** (README **1048 → 1062**): added coverage for
+`commitLayerOffsetsToPoints` — translation and primary/secondary paths fold
+correctly, offsets zero out, area stays invariant under translation and rotation, a
+no-op case reports no change, and z elevation is preserved by index. The Edit-mode
+wiring itself (canvas) is verified on-device.
+
+---
+
+## 2026-07-14 (cont'd 10) — Zoom now works while in Move Layers mode
+
+Zoom was a no-op the entire time Move Layers mode was on — you couldn't enlarge
+the canvas to place shapes precisely. Cause: Move Layers holds
+`_wtFreezeTransform = true` for the whole mode (so dragging one shape doesn't
+reflow the canvas or make the others jump), and `sizeLayoutCanvas` bailed out at
+the very top whenever that flag was set — *before* it applied the display-size
+zoom. The freeze and the zoom are separable: the freeze pins the fitted **bitmap**
+(the auto-fit), while zoom is a separate **CSS display scale** on top. The frozen
+early-return now still applies the current zoom to the canvas's CSS width/height
+before returning, so the fit stays steady while zoom enlarges the view. Dragging
+stays accurate at any zoom because `canvasEventToData` already divides cursor
+position by the CSS/bitmap ratio. Updated the in-app Move Layers help to note zoom
+works while arranging.
+
+DOM/canvas behavior (freeze gating + CSS sizing) isn't reachable by the Node
+harness, so tests are unchanged at **1005** (README **1048**) and this is verified
+on-device: in Move Layers mode, the zoom controls / Ctrl+Cmd-scroll enlarge the
+canvas, shapes still drop where aimed, and other shapes don't jump.
+
+---
+
 ## 2026-07-14 (cont'd 9) — Top-bar metrics no longer clip at the right edge
 
 The always-visible layout totals (Installed / Ordered / Linear ft / Perimeter /

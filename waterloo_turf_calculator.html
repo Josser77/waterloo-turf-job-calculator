@@ -1414,7 +1414,7 @@
             </div>
           </div>
           <p id="editShapeHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
-            <strong>Edit mode:</strong> drag a point to move it — works on <strong>any layer</strong> (the main shape's points show green, each other layer's show blue). <strong>Double-click (or double-tap) a point to delete it</strong> (min. 3 points). <strong>Double-click/tap an edge to add a new point</strong> there. Click "✎ Edit Shape" again when done.
+            <strong>Edit mode:</strong> drag a point to move it — works on <strong>any layer</strong> (the main shape's points show green, each other layer's show blue). If you moved a layer, its points are edited <strong>right where it now sits</strong> (the move is baked in when you enter Edit mode). <strong>Double-click (or double-tap) a point to delete it</strong> (min. 3 points). <strong>Double-click/tap an edge to add a new point</strong> there. Click "✎ Edit Shape" again when done.
           </p>
           <div id="editPointTools" style="display:none;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
             <span style="font-size:12px;color:var(--text-mid);font-weight:600;">Point tool:</span>
@@ -1424,7 +1424,7 @@
             <span id="editPtModeHint" style="font-size:11px;color:var(--text-light);"></span>
           </div>
           <p id="moveLayersHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
-            <strong>Move Layers mode:</strong> click and drag any layer (the main shape outline, or any additional shape) to reposition it on the canvas. The view now <strong>stays put while you arrange</strong>, so each shape stays exactly where you drop it — spread several out to lay out a full yard. Use <strong>⤢ Fit view</strong> to frame everything again. Purely visual — it doesn't change area or roll calculations. Click "✓ Done Moving" when finished (that also re-fits the view).
+            <strong>Move Layers mode:</strong> click and drag any layer (the main shape outline, or any additional shape) to reposition it on the canvas. The view now <strong>stays put while you arrange</strong>, so each shape stays exactly where you drop it — spread several out to lay out a full yard. Use <strong>⤢ Fit view</strong> to frame everything again, or zoom in (zoom controls / Ctrl+Cmd scroll) to place shapes precisely. Purely visual — it doesn't change area or roll calculations. Click "✓ Done Moving" when finished (that also re-fits the view).
           </p>
           <p id="cutModeHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
             <strong>Cut mode:</strong> a quick <em>click</em> anywhere along a roll adds a butt-seam cut at that point, splitting it into separate pieces (each piece gets its own cutting margin); click an existing cut line to remove it. With "Show purchased roll rectangles" on, you can also <em>press-and-drag</em> any piece onto another roll's waste area to nest it — without leaving Cut Mode (a click toggles a cut, a drag moves a piece). Click "✂ Cut Mode" again when done.
@@ -2278,7 +2278,7 @@
         <p>Fringe material cost is added to any quote option that includes a putting green (it has no effect on "No Putting Green" options), using the same turf material pricing as the main yard's products.</p>
 
         <div class="docs-h3">Moving &amp; Rotating Layers</div>
-        <p>Click <strong>"✋ Move Layers"</strong> to enter move mode. Click and drag any visible layer — the main shape outline or any additional shape — to reposition it on the canvas. <strong>The view is held steady the entire time you're in this mode</strong>, so each shape stays exactly where you drop it and moving one layer never makes the others slide or the whole canvas rescale. That lets you <strong>spread several shapes out to lay out a full yard</strong> (e.g. main yard plus separately-measured side yards) and have them stay put. When shapes spread past the edge of the view, click <strong>"⤢ Fit view"</strong> (next to the Move Layers button) to re-frame everything without leaving the mode; exiting with <strong>"✓ Done Moving"</strong> also re-fits. This is purely visual: it doesn't change area, roll counts, scrap, or any other calculation, only where things are drawn. Each layer has its own independent position. Move Layers mode is mutually exclusive with Edit Shape mode.</p>
+        <p>Click <strong>"✋ Move Layers"</strong> to enter move mode. Click and drag any visible layer — the main shape outline or any additional shape — to reposition it on the canvas. <strong>The view is held steady the entire time you're in this mode</strong>, so each shape stays exactly where you drop it and moving one layer never makes the others slide or the whole canvas rescale. That lets you <strong>spread several shapes out to lay out a full yard</strong> (e.g. main yard plus separately-measured side yards) and have them stay put. When shapes spread past the edge of the view, click <strong>"⤢ Fit view"</strong> (next to the Move Layers button) to re-frame everything without leaving the mode; exiting with <strong>"✓ Done Moving"</strong> also re-fits. <strong>Zoom still works while arranging</strong> — use the zoom controls (or Ctrl/Cmd + scroll) to enlarge the canvas and place shapes more precisely; the auto-fit is what's held steady, not the zoom. This is purely visual: it doesn't change area, roll counts, scrap, or any other calculation, only where things are drawn. Each layer has its own independent position. Move Layers mode is mutually exclusive with Edit Shape mode.</p>
         <p>When shapes overlap, clicking grabs the <strong>topmost</strong> one (the shape you see under the cursor), and a brief <strong>"Moving: &lt;layer&gt;"</strong> note confirms which layer you picked up — so with several stacked shapes you always move the one you meant.</p>
         <p>Each additional (non-primary) layer also has a <strong>Rotate</strong> slider (0-359°) in the Layers list. This rotates that shape in place about its own center — useful when Moasure captured a shape (e.g. a putting green outline) at the wrong orientation and you need to spin it to match how it actually sits in the yard. Combine with dragging to both rotate and position the shape correctly. Rotation, like position, is purely visual and doesn't affect Installed Area, scrap, or roll calculations.</p>
         <p>A layer that's been moved and/or rotated shows a "↺ Reset position" button in the Layers list to snap it back to its original (imported) position and orientation.</p>
@@ -6151,6 +6151,48 @@ function displayPointToLayerCanonical(proj, layerId, P) {
   return p;
 }
 
+// Fold each layer's visual move offset (translation + in-place rotation) into its
+// canonical points, then zero the offset. Called when entering Edit mode so a
+// vertex is edited exactly where the shape currently sits — not back at its
+// pre-move origin. The move is applied in the view-rotated display frame, so we
+// re-apply the forward transform (view-rotate → layer-rotate → translate) and
+// then back out ONLY the view rotation, leaving the moved position as the new
+// canonical geometry. Translation and rotation are area- and roll-invariant, so
+// this changes nothing in the math — only "what you see is what you edit". Per-
+// point extras (e.g. z elevation) are preserved by index. Returns true if any
+// layer changed.
+function commitLayerOffsetsToPoints(proj) {
+  if (!proj || !proj.layout) return false;
+  const offs = proj.layout.layerOffsets || {};
+  const viewRotation = proj.layout.viewRotation || 0;
+  const v = viewRotation ? getViewCentroid(proj) : { cx: 0, cy: 0 };
+  const bake = (canonicalPts, off) => {
+    let pts = canonicalPts.map(p => ({ x: p.x, y: p.y }));
+    if (viewRotation) pts = rotateAround(pts, viewRotation, v.cx, v.cy);
+    if (off.rotation) { const c = centroidOf(pts); pts = rotateAround(pts, off.rotation, c.cx, c.cy); }
+    if (off.dx || off.dy) pts = pts.map(p => ({ x: p.x + (off.dx || 0), y: p.y + (off.dy || 0) }));
+    if (viewRotation) pts = rotateAround(pts, -viewRotation, v.cx, v.cy);
+    return pts.map((p, i) => ({ ...canonicalPts[i], x: p.x, y: p.y }));
+  };
+  let changed = false;
+  const po = offs.primary;
+  if (po && (po.dx || po.dy || po.rotation) && Array.isArray(proj.layout.points)) {
+    proj.layout.points = bake(proj.layout.points, po);
+    offs.primary = { dx: 0, dy: 0, rotation: 0 };
+    changed = true;
+  }
+  (proj.layout.secondaryShapes || []).forEach((s, i) => {
+    const o = offs[i];
+    if (o && (o.dx || o.dy || o.rotation) && s && Array.isArray(s.points)) {
+      s.points = bake(s.points, o);
+      offs[i] = { dx: 0, dy: 0, rotation: 0 };
+      changed = true;
+    }
+  });
+  if (changed) proj.layout.layerOffsets = offs;
+  return changed;
+}
+
 // Nearest vertex across ALL visible layers (primary + secondaries), in canvas
 // pixels. Returns { layerId, index } or null.
 function findNearestVertexAnyLayer(canvasX, canvasY, maxDist, layout) {
@@ -8659,6 +8701,11 @@ function toggleEditMode() {
     if (window._wtMoveLayersMode) toggleMoveLayersMode();
     if (window._wtCutMode) toggleCutMode();
     if (window._wtDrawMode) toggleDrawMode();
+    // Bake any layer move into its actual points so you edit the shape where it
+    // now sits, not back at its pre-move origin. Math-neutral (translation/
+    // rotation don't change area or roll plan); only affects where vertices draw.
+    const eProj = getCurrentProject();
+    if (eProj && commitLayerOffsetsToPoints(eProj)) save();
     btn.classList.add('btn-primary');
     btn.textContent = '✓ Done Editing';
     hint.style.display = '';
@@ -10925,7 +10972,16 @@ function sizeLayoutCanvas() {
   // During a live slider drag, keep the current canvas size so the panel below
   // doesn't jump. Also hold size during a layer move/transform drag so the
   // frozen view stays put. The draw still fits the content inside this box.
-  if ((window._wtFreezeCanvasH || window._wtFreezeTransform) && canvas.width > 0 && canvas.height > 0) return;
+  // BUT still honor zoom: the freeze only pins the fitted BITMAP (so arranging
+  // layers doesn't reflow the canvas or make shapes jump) — the display-size
+  // zoom is a separate CSS scale on top, so apply it here and return, otherwise
+  // zoom becomes a no-op the entire time Move Layers mode is on.
+  if ((window._wtFreezeCanvasH || window._wtFreezeTransform) && canvas.width > 0 && canvas.height > 0) {
+    const zf = window._wtLayoutZoom || 1;
+    canvas.style.width = Math.round(canvas.width * zf) + 'px';
+    canvas.style.height = Math.round(canvas.height * zf) + 'px';
+    return;
+  }
 
   const layout = window._wtCurrentRollLayout;
   const z = window._wtLayoutZoom || 1;

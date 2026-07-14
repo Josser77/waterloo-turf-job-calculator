@@ -5348,6 +5348,56 @@ section('77. Vendor name + edging material resolvers');
   assert(ctx.miscItemNotes({ name:'x' }, null) === '', 'no catalog → empty, no throw');
 }
 
+section('78. commitLayerOffsetsToPoints — bake move into points so edits happen in place');
+{
+  // viewRotation 0: a translation offset folds straight into the points.
+  const proj = { layout: {
+    viewRotation: 0,
+    points: [{x:0,y:0},{x:10,y:0},{x:10,y:10},{x:0,y:10}],
+    secondaryShapes: [{ name:'L0', points:[{x:0,y:0},{x:4,y:0},{x:4,y:4},{x:0,y:4}], area:16 }],
+    layerOffsets: { primary:{dx:0,dy:0,rotation:0}, 0:{dx:35,dy:-3,rotation:0} }
+  }};
+  const changed = ctx.commitLayerOffsetsToPoints(proj);
+  assert(changed === true, 'reports changed when a non-zero offset exists');
+  const p0 = proj.layout.secondaryShapes[0].points;
+  assert(near(p0[0].x,35) && near(p0[0].y,-3), 'secondary vertex 0 shifted by (35,-3)');
+  assert(near(p0[1].x,39) && near(p0[1].y,-3), 'secondary vertex 1 shifted by (35,-3)');
+  assert(proj.layout.layerOffsets[0].dx===0 && proj.layout.layerOffsets[0].dy===0, 'secondary offset zeroed after commit');
+  assert(near(ctx.polygonArea(p0), 16), 'baked shape keeps its area (translation-invariant)');
+  assert(near(proj.layout.points[2].x,10) && near(proj.layout.points[2].y,10), 'primary with zero offset left untouched');
+
+  // primary offset uses its own path.
+  const projP = { layout: { viewRotation:0,
+    points:[{x:0,y:0},{x:10,y:0},{x:10,y:10},{x:0,y:10}],
+    secondaryShapes:[], layerOffsets:{ primary:{dx:-5,dy:2,rotation:0} } }};
+  assert(ctx.commitLayerOffsetsToPoints(projP) === true, 'primary offset commits');
+  assert(near(projP.layout.points[0].x,-5) && near(projP.layout.points[0].y,2), 'primary vertex 0 shifted by (-5,2)');
+  assert(projP.layout.layerOffsets.primary.dx===0 && projP.layout.layerOffsets.primary.dy===0, 'primary offset zeroed');
+
+  // no-op when every offset is already zero.
+  const proj2 = { layout: { viewRotation:0, points:[{x:0,y:0},{x:1,y:0},{x:1,y:1}],
+    secondaryShapes:[{points:[{x:0,y:0},{x:2,y:0},{x:2,y:2}]}], layerOffsets:{ 0:{dx:0,dy:0,rotation:0} } }};
+  assert(ctx.commitLayerOffsetsToPoints(proj2) === false, 'all-zero offsets → reports no change');
+
+  // per-point extras (z elevation) preserved by index through the bake.
+  const proj3 = { layout: { viewRotation:0, points:[],
+    secondaryShapes:[{ points:[{x:0,y:0,z:5},{x:2,y:0,z:7},{x:0,y:2,z:9}] }],
+    layerOffsets:{ 0:{dx:1,dy:1,rotation:0} } }};
+  ctx.commitLayerOffsetsToPoints(proj3);
+  const q = proj3.layout.secondaryShapes[0].points;
+  assert(q[0].z===5 && q[1].z===7 && q[2].z===9, 'z elevation preserved by index');
+  assert(near(q[0].x,1) && near(q[0].y,1), 'z-bearing vertex also translated');
+
+  // rotation-only offset preserves area and zeroes the offset.
+  const proj4 = { layout: { viewRotation:0, points:[],
+    secondaryShapes:[{ points:[{x:0,y:0},{x:6,y:0},{x:6,y:2},{x:0,y:2}] }],
+    layerOffsets:{ 0:{dx:0,dy:0,rotation:37} } }};
+  const beforeArea = ctx.polygonArea(proj4.layout.secondaryShapes[0].points);
+  ctx.commitLayerOffsetsToPoints(proj4);
+  assert(near(ctx.polygonArea(proj4.layout.secondaryShapes[0].points), beforeArea, 0.01), 'rotation-only bake preserves area');
+  assert(proj4.layout.layerOffsets[0].rotation===0, 'rotation offset zeroed after commit');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
