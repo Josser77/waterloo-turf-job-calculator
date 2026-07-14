@@ -5,6 +5,42 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-14 (cont'd 12) — Install-layer outlines no longer wander away from their pieces
+
+Root cause of the long-running "moved layer edits in the wrong place" bug — and it
+was never a coordinate problem. **An install (added) layer's visible body is its cut
+pieces, which are always drawn where the roll plan nests them** (they tuck into roll
+waste to save material). The layer's polygon is only a *boundary* used to compute
+those pieces. So a move offset on an install layer moved the **outline** while the
+**pieces** stayed in roll space — the outline (and its edit dots) wandered off into
+empty space, away from the shape it was supposed to bound, and the body appeared to
+"snap back to the original location."
+
+Fix: install layers carry no move offset. `clearInstallLayerOffsets` zeroes any that
+exist — including ones saved by older builds, so stranded outlines snap back onto
+their pieces on the next render — and Move Layers now refuses to grab an install
+layer, explaining why in the toast instead of silently doing nothing. Layer types
+whose drawn body *is* their outline (overlay, subtracted, putting-green, ignore)
+are unaffected and still move freely.
+
+Tests **1019 → 1031** (README **1062 → 1074**): install offsets clear while
+overlay/putting-green/ignore offsets survive, rotation-only offsets clear, the
+helper is idempotent, unmoded layers default to `ignore` and keep their offset, and
+null/missing layout doesn't throw. Canvas wiring verified on-device.
+
+**Discoverability — the reason this bug was chased for so long:** the moves were an
+attempt to *reduce waste* by dragging layers into roll waste. Move Layers can't do
+that (it's cosmetic and never touches Ordered SqFt), and it actively **disables**
+nesting — the tool that does. So the mode being used was the one mode that turns the
+wanted feature off. The refusal toast now names the right tool ("exit Move Layers and
+drag a piece onto a roll's red waste"), and the Move Layers help states plainly that
+it doesn't reduce waste and points at nesting.
+
+Note: the earlier (cont'd 11) offset-baking on Edit-mode entry is retained — it's
+correct for the layer types that *can* move.
+
+---
+
 ## 2026-07-14 (cont'd 11) — Moved shapes are now edited in place, not back at the origin
 
 After moving a layer with Move Layers, entering Edit Shape mode dropped you back at

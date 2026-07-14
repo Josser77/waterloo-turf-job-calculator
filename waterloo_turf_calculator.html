@@ -1424,7 +1424,7 @@
             <span id="editPtModeHint" style="font-size:11px;color:var(--text-light);"></span>
           </div>
           <p id="moveLayersHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
-            <strong>Move Layers mode:</strong> click and drag any layer (the main shape outline, or any additional shape) to reposition it on the canvas. The view now <strong>stays put while you arrange</strong>, so each shape stays exactly where you drop it — spread several out to lay out a full yard. Use <strong>⤢ Fit view</strong> to frame everything again, or zoom in (zoom controls / Ctrl+Cmd scroll) to place shapes precisely. Purely visual — it doesn't change area or roll calculations. Click "✓ Done Moving" when finished (that also re-fits the view).
+            <strong>Move Layers mode:</strong> click and drag any layer (the main shape outline, or any additional shape) to reposition it on the canvas. The view now <strong>stays put while you arrange</strong>, so each shape stays exactly where you drop it — spread several out to lay out a full yard. Use <strong>⤢ Fit view</strong> to frame everything again, or zoom in (zoom controls / Ctrl+Cmd scroll) to place shapes precisely. <strong>Added (install) layers can't be moved</strong> — their cut pieces are always drawn where the roll plan nests them, so the outline stays with its pieces. Overlay, subtracted, and putting-green layers move freely. <strong>Move Layers does not reduce waste</strong> — it's purely visual and never changes area, Ordered SqFt, or roll counts. <strong>To cut waste, exit Move Layers and nest pieces instead:</strong> with "Show purchased roll rectangles" on, press-and-drag a piece onto another roll's red hatched waste (nesting is disabled while Move Layers is on). Click "✓ Done Moving" when finished (that also re-fits the view).
           </p>
           <p id="cutModeHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
             <strong>Cut mode:</strong> a quick <em>click</em> anywhere along a roll adds a butt-seam cut at that point, splitting it into separate pieces (each piece gets its own cutting margin); click an existing cut line to remove it. With "Show purchased roll rectangles" on, you can also <em>press-and-drag</em> any piece onto another roll's waste area to nest it — without leaving Cut Mode (a click toggles a cut, a drag moves a piece). Click "✂ Cut Mode" again when done.
@@ -6193,6 +6193,32 @@ function commitLayerOffsetsToPoints(proj) {
   return changed;
 }
 
+// An install layer's visible body is its CUT PIECES, which are always drawn where
+// the roll plan puts them (they nest into roll waste). Its polygon is only a
+// boundary used to compute those pieces. So a move offset on an install layer
+// moves the outline while the pieces stay in roll space — the outline wanders off
+// into empty space, away from the shape it's supposed to bound. Install layers
+// therefore carry no offset: this zeroes any that exist (including ones saved by
+// older builds) so the outline stays with its pieces. Other modes (overlay,
+// exclude, putting-green, ignore) ARE their own drawn body, so their offsets are
+// left alone and stay movable. Returns true if anything changed.
+function clearInstallLayerOffsets(proj) {
+  if (!proj || !proj.layout) return false;
+  const offs = proj.layout.layerOffsets;
+  if (!offs) return false;
+  const modes = proj.layout.secondaryShapeModes || {};
+  let changed = false;
+  (proj.layout.secondaryShapes || []).forEach((s, i) => {
+    if ((modes[i] || 'ignore') !== 'install') return;
+    const o = offs[i];
+    if (o && (o.dx || o.dy || o.rotation)) {
+      offs[i] = { dx: 0, dy: 0, rotation: 0 };
+      changed = true;
+    }
+  });
+  return changed;
+}
+
 // Nearest vertex across ALL visible layers (primary + secondaries), in canvas
 // pixels. Returns { layerId, index } or null.
 function findNearestVertexAnyLayer(canvasX, canvasY, maxDist, layout) {
@@ -7565,6 +7591,11 @@ function sumInstallLayouts(list) {
 function renderRollLayout() {
   const proj = getCurrentProject();
   if (!proj || !proj.layout) return;
+
+  // Install layers carry no move offset (their pieces follow the roll plan), so
+  // drop any that exist — including ones saved by older builds, which is what
+  // left outlines stranded out in empty space away from their own pieces.
+  clearInstallLayerOffsets(proj);
 
   const opts = getRollOpts(proj);
   const rotation = parseFloat(document.getElementById('rollRotationInput').value) || 0;
@@ -9975,6 +10006,15 @@ function startDragLayer(evt) {
   const hitIdx = pickTopLayerIndex(dataPt, secondary, layout.layerVisibility);
   if (hitIdx >= 0) {
     const s = secondary[hitIdx];
+    // An install layer's pieces always draw where the roll plan puts them, so
+    // moving its outline would only walk the outline away from its own pieces.
+    // Refuse the grab and say why, rather than silently doing nothing.
+    const dProj = getCurrentProject();
+    const dModes = (dProj && dProj.layout && dProj.layout.secondaryShapeModes) || {};
+    if ((dModes[hitIdx] || 'ignore') === 'install') {
+      showLayoutToast((s.name || ('Layer ' + (hitIdx + 1))) + ': outline follows its pieces. To cut waste, exit Move Layers and drag a piece onto a roll\u2019s red waste.');
+      return;
+    }
     evt.preventDefault();
     window._wtDragLayerId = hitIdx;
     window._wtDragLayerStart = dataPt;

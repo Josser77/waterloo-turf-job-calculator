@@ -5398,6 +5398,43 @@ section('78. commitLayerOffsetsToPoints — bake move into points so edits happe
   assert(proj4.layout.layerOffsets[0].rotation===0, 'rotation offset zeroed after commit');
 }
 
+section('79. clearInstallLayerOffsets — install outlines stay with their pieces');
+{
+  // install layer's offset is dropped; non-install layers keep theirs.
+  const proj = { layout: {
+    secondaryShapes: [{ name:'Front 1' }, { name:'Patio' }, { name:'Green' }],
+    secondaryShapeModes: { 0:'install', 1:'overlay', 2:'putting-green' },
+    layerOffsets: { 0:{dx:35,dy:-3,rotation:0}, 1:{dx:8,dy:2,rotation:0}, 2:{dx:-4,dy:6,rotation:15} }
+  }};
+  assert(ctx.clearInstallLayerOffsets(proj) === true, 'reports changed when an install layer had an offset');
+  assert(proj.layout.layerOffsets[0].dx===0 && proj.layout.layerOffsets[0].dy===0, 'install layer offset zeroed');
+  assert(proj.layout.layerOffsets[1].dx===8 && proj.layout.layerOffsets[1].dy===2, 'overlay layer offset untouched');
+  assert(proj.layout.layerOffsets[2].dx===-4 && proj.layout.layerOffsets[2].rotation===15, 'putting-green offset untouched');
+
+  // idempotent: running again reports no change.
+  assert(ctx.clearInstallLayerOffsets(proj) === false, 'second run → no change (idempotent)');
+
+  // install layer with rotation only is also cleared.
+  const projR = { layout: { secondaryShapes:[{}], secondaryShapeModes:{0:'install'},
+    layerOffsets:{ 0:{dx:0,dy:0,rotation:22} } }};
+  assert(ctx.clearInstallLayerOffsets(projR) === true, 'rotation-only install offset cleared');
+  assert(projR.layout.layerOffsets[0].rotation===0, 'install rotation zeroed');
+
+  // install layer with no offset at all → no change, no throw.
+  const projZ = { layout: { secondaryShapes:[{}], secondaryShapeModes:{0:'install'}, layerOffsets:{} }};
+  assert(ctx.clearInstallLayerOffsets(projZ) === false, 'install layer with no offset → no change');
+
+  // default mode (missing) is 'ignore', not install → offset preserved.
+  const projD = { layout: { secondaryShapes:[{}], secondaryShapeModes:{},
+    layerOffsets:{ 0:{dx:9,dy:9,rotation:0} } }};
+  assert(ctx.clearInstallLayerOffsets(projD) === false, 'unmoded layer defaults to ignore → offset kept');
+  assert(projD.layout.layerOffsets[0].dx===9, 'ignore-mode offset preserved');
+
+  // defensive: missing layout / offsets don't throw.
+  assert(ctx.clearInstallLayerOffsets(null) === false, 'null project → false, no throw');
+  assert(ctx.clearInstallLayerOffsets({ layout:{} }) === false, 'no layerOffsets → false, no throw');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
