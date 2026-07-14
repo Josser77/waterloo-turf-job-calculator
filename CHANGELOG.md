@@ -5,6 +5,97 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-14 (cont'd 8) — Quiet the benign "ResizeObserver loop" console error
+
+The layout canvas's `ResizeObserver` called `sizeLayoutCanvas()` synchronously,
+which resizes the canvas *inside* the observed wrapper — re-entering the observer
+in the same frame, which browsers surface as **"ResizeObserver loop completed with
+undelivered notifications."** It's benign (no functional effect) but noisy in the
+console/preview. The observer callback now defers its resize + redraw to
+`requestAnimationFrame`, with a flag that coalesces bursts of resize events, so it
+no longer loops within a frame. Added a narrowly-scoped `window` `error` handler
+that swallows *only* that exact message as a safety net — it touches nothing else.
+
+Tests unchanged at **1005** (README **1048**): `ResizeObserver` isn't present in the
+Node harness, so this is verified in-browser.
+
+---
+
+## 2026-07-14 (cont'd 7) — Removed the duplicate Roll Direction / Seam Offset block from Layers
+
+The Roll Direction + Seam Offset sliders that (cont'd 5) placed at the top of the
+Layers tab duplicated the per-layer controls: the primary shape already has its own
+**Roll dir / Seam off** sliders (with Horizontal / Vertical) in its Layers-list
+card via `setPrimaryRollDirection` / `setPrimarySeamOffset`, and each install layer
+has the same. Removed the visible block. The two inputs (`rollRotationInput`,
+`rollTranslationInput`) and their value spans stay in the DOM as **hidden state** —
+`renderRollLayout` reads rotation/translation from them and
+`setPrimaryRollDirection` / `setRollDirection` / auto-rotate write to them, so no
+logic had to be rewired. Added an **Auto** (minimize-waste) button to the primary
+card, since that button previously only lived in the removed block. Docs updated.
+
+Tests unchanged at **1005** (README **1048**): a markup-only removal — render paths
+and element IDs are unchanged.
+
+---
+
+## 2026-07-14 (cont'd 6) — Fix: first-launch crash after moving totals to the top bar
+
+Moving the totals strip into the `.tabs` bar (cont'd 5) made it the last child of
+that bar, so `.tab:last-child` — used on first launch to route to the Settings
+tab — matched the metrics strip (not a `.tab`) and returned null. `switchTab(name,
+null)` then threw **"Cannot read properties of null (reading 'classList')"** on a
+fresh load with no saved data. Gave the Settings tab a stable `id="tabSettings"`
+and select it by id, and null-guarded `switchTab` (it now falls back to finding
+the tab by its onclick target and skips the panel if absent) so a missing element
+can never crash tab routing again.
+
+Tests unchanged at **1005** (README **1048**): the first-launch/onload path isn't
+exercised by the headless harness — its DOM stubs never return null — so this was
+verified by removing the null source and guarding the consumer.
+
+---
+
+## 2026-07-14 (cont'd 5) — Layout: totals moved to the top bar; Roll & Seam folded into Layers
+
+Moved the five live layout totals — **Installed SqFt, Ordered SqFt, Ordered
+Linear Ft, Perimeter, Scrap** — out of the right pane and into the **top toolbar**,
+just right of the ⚙ Settings tab, so they stay visible on every tab (the strip
+scrolls horizontally on narrow screens). The readouts keep their element IDs
+(`layoutArea`, `rollOrderedOut`, `rollLinearOut`, `layoutPerimeterOut`,
+`rollWasteOut`), so the existing render logic writes to them unchanged; the
+overlay/nest warnings stay in the right pane, in context. Removed the separate
+**Roll & Seam** sub-tab and merged its Roll Direction + Seam Offset controls into
+the top of the **Layers** tab — **Layers is now the default sub-tab**, and the
+fringe-tab fallback points there. With the metrics block gone, the sub-tab row
+(Layers, Results, Apply, Display, Fringe) sits higher. In-app docs updated.
+
+Tests unchanged at **1005** (README **1048**): a layout/markup restructure — the
+render code paths and IDs are unchanged, so the suite covers the logic as before;
+the visual layout is verified on-device.
+
+---
+
+## 2026-07-14 (cont'd 4) — Move Layers: grab the shape you clicked (topmost) + "Moving:" confirmation
+
+With several shapes arranged into one yard, dragging a layer could grab a
+*different* shape sitting underneath the one you clicked. The hit-test scanned
+secondary layers low-index-first, but they're *drawn* low-index-underneath, so on
+an overlap the bottom shape won. Moving that hidden shape while the one you aimed
+at stayed put looked like "the layer snaps back where it was." The hit-test now
+resolves **top-down** — `pickTopLayerIndex`, extracted from `startDragLayer` so it
+can be unit-tested — so the shape you see under the cursor is the one that moves.
+Added a brief **"Moving: &lt;layer&gt;"** toast on grab so you can confirm which
+layer you picked up. Also hardened the visibility guard against a missing
+`layerVisibility` map.
+
+Tests **998 → 1005** (README **1041 → 1048**): `pickTopLayerIndex` returns the
+higher (top) index when shapes overlap, grabs the lower layer when only it is hit,
+skips hidden layers, ignores degenerate/absent polygons, and returns -1 off every
+shape.
+
+---
+
 ## 2026-07-14 (cont'd 3) — Move Layers: view stays put so shapes stay where you drop them
 
 Dragging a layer in Move Layers mode dropped it, then the canvas immediately

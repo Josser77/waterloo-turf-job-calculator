@@ -5167,6 +5167,29 @@ section('71c. buildCutListPrintDoc (installer print sheet)');
   assert(empty.indexOf('Turf Job') >= 0 && empty.indexOf('</html>') >= 0, 'defaults to a valid doc with no args');
 }
 
+section('71d. pickTopLayerIndex (Move Layers grabs the topmost shape)');
+{
+  const pick = ctx.pickTopLayerIndex;
+  // Two overlapping shapes; a point inside both must resolve to the higher index
+  // (drawn last / on top), not the first one found.
+  const shapes = [
+    { name: 'A', displayPoints: rect(0, 0, 10, 10) },   // index 0, underneath
+    { name: 'B', displayPoints: rect(2, 2, 6, 6) },      // index 1, on top, inside A
+  ];
+  assert(pick({ x: 5, y: 5 }, shapes, {}) === 1, 'point inside both grabs the TOP (higher-index) layer');
+  assert(pick({ x: 1, y: 1 }, shapes, {}) === 0, 'point only inside the lower layer grabs it');
+  assert(pick({ x: 20, y: 20 }, shapes, {}) === -1, 'point outside every layer returns -1');
+
+  // A hidden top layer is skipped so the visible one underneath is grabbed.
+  assert(pick({ x: 5, y: 5 }, shapes, { 1: false }) === 0, 'hidden top layer is skipped, lower visible layer wins');
+  assert(pick({ x: 5, y: 5 }, shapes, { 0: false, 1: false }) === -1, 'all layers hidden → -1');
+
+  // Degenerate / missing polygons are ignored without throwing.
+  const degen = [{ name: 'X', displayPoints: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }, { name: 'Y' }];
+  assert(pick({ x: 0.5, y: 0.5 }, degen, {}) === -1, 'shapes with <3 points or no displayPoints are ignored');
+  assert(pick({ x: 5, y: 5 }, [], {}) === -1, 'no layers → -1');
+}
+
 section('72. Order / install export text builders');
 {
   const proj = {

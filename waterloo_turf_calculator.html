@@ -245,6 +245,30 @@
     border-bottom: 1px solid var(--border);
     padding: 0 28px;
     flex-shrink: 0;
+    align-items: stretch;
+  }
+  /* Always-visible layout totals, pinned to the right of the tab bar. */
+  .top-metrics {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-left: auto;
+    padding-left: 18px;
+    flex-shrink: 0;
+  }
+  .top-metrics .tm { display: flex; flex-direction: column; line-height: 1.15; }
+  .top-metrics .tm-l {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-light); font-weight: 700;
+  }
+  .top-metrics .tm-v {
+    width: 76px; border: none; background: transparent; padding: 0; margin: 0;
+    font-size: 13px; font-weight: 700; color: var(--text); font-family: inherit;
+  }
+  .top-metrics .tm-v:focus { outline: none; }
+  @media (max-width: 860px) {
+    .top-metrics { gap: 12px; padding-left: 12px; }
+    .top-metrics .tm-v { width: 62px; }
   }
   .tab {
     padding: 12px 20px;
@@ -1183,7 +1207,14 @@
     <div class="tabs">
       <div class="tab active" onclick="switchTab('quote',this)">Quote Builder</div>
       <div class="tab" onclick="switchTab('layout',this)">Layout</div>
-      <div class="tab" onclick="switchTab('settings',this)">⚙ Settings</div>
+      <div class="tab" id="tabSettings" onclick="switchTab('settings',this)">⚙ Settings</div>
+      <div class="top-metrics" id="topMetrics" title="Live layout totals — from the roll plan">
+        <div class="tm"><span class="tm-l">Installed</span><input type="text" id="layoutArea" class="tm-v" readonly></div>
+        <div class="tm"><span class="tm-l">Ordered</span><input type="text" id="rollOrderedOut" class="tm-v" readonly></div>
+        <div class="tm"><span class="tm-l">Linear ft</span><input type="text" id="rollLinearOut" class="tm-v" readonly></div>
+        <div class="tm"><span class="tm-l">Perimeter</span><input type="text" id="layoutPerimeterOut" class="tm-v" readonly></div>
+        <div class="tm"><span class="tm-l">Scrap</span><input type="text" id="rollWasteOut" class="tm-v" readonly></div>
+      </div>
     </div>
 
     <div class="content">
@@ -1452,65 +1483,30 @@
                 </div>
               </div>
               <div id="layoutSidebar" style="padding-right:2px;">
-                <!-- KEY METRICS — always visible at the top -->
-                <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:var(--bg-alt);">
-                  <div class="field-group" style="margin-bottom:8px;">
-                    <label>Installed SqFt</label>
-                    <input type="text" id="layoutArea" class="auto-filled" readonly>
-                    <div id="layoutOverlayWarn" style="display:none;font-size:11px;color:#b26a00;margin-top:4px;line-height:1.35;"></div>
-                    <div id="layoutNestWarn" style="display:none;font-size:11px;color:#b71c1c;background:#fdecea;border:1px solid #f5c2c0;border-radius:5px;padding:5px 7px;margin-top:5px;line-height:1.35;font-weight:600;"></div>
-                  </div>
-                  <div class="field-group" style="margin-bottom:8px;">
-                    <label>Ordered SqFt</label>
-                    <input type="text" id="rollOrderedOut" class="auto-filled" readonly>
-                  </div>
-                  <div class="field-group" style="margin-bottom:8px;">
-                    <label>Ordered Linear Ft</label>
-                    <input type="text" id="rollLinearOut" class="auto-filled" readonly>
-                  </div>
-                  <div class="field-group" style="margin-bottom:8px;">
-                    <label>Perimeter (linear ft)</label>
-                    <input type="text" id="layoutPerimeterOut" class="auto-filled" readonly>
-                  </div>
-                  <div class="field-group" style="margin-bottom:0;">
-                    <label>Scrap</label>
-                    <input type="text" id="rollWasteOut" class="auto-filled" readonly>
-                  </div>
-                </div>
+                <!-- Installed / Ordered / Linear / Perimeter / Scrap now live in the top bar.
+                     Layout warnings stay here in context, just under the toolbar. -->
+                <div id="layoutOverlayWarn" style="display:none;font-size:11px;color:#b26a00;margin-bottom:8px;line-height:1.35;"></div>
+                <div id="layoutNestWarn" style="display:none;font-size:11px;color:#b71c1c;background:#fdecea;border:1px solid #f5c2c0;border-radius:5px;padding:5px 7px;margin-bottom:8px;line-height:1.35;font-weight:600;"></div>
 
                 <div class="layout-subtabs" id="layoutSubtabs">
-                  <button type="button" class="layout-subtab-btn active" data-lockok="1" data-tab="roll" onclick="switchLayoutSubtab('roll')">Roll &amp; Seam</button>
-                  <button type="button" class="layout-subtab-btn" data-lockok="1" data-tab="layers" onclick="switchLayoutSubtab('layers')">Layers</button>
+                  <button type="button" class="layout-subtab-btn active" data-lockok="1" data-tab="layers" onclick="switchLayoutSubtab('layers')">Layers</button>
                   <button type="button" class="layout-subtab-btn" data-lockok="1" data-tab="results" onclick="switchLayoutSubtab('results')">Results</button>
                   <button type="button" class="layout-subtab-btn" data-lockok="1" data-tab="apply" onclick="switchLayoutSubtab('apply')">Apply</button>
                   <button type="button" class="layout-subtab-btn" data-lockok="1" data-tab="display" onclick="switchLayoutSubtab('display')">Display</button>
                   <button type="button" class="layout-subtab-btn" data-lockok="1" data-tab="fringe" id="layoutSubtabFringeBtn" style="display:none;" onclick="switchLayoutSubtab('fringe')">Fringe</button>
                 </div>
 
-                <div class="layout-subpanel active" data-panel="roll">
-                  <div style="padding-top:8px;">
-                    <div style="font-size:11px;color:var(--text-light);margin-bottom:8px;">Roll dimensions (width, length, trim, cutting margin) now live under the <strong>⚙ Settings</strong> tab → Roll Settings.</div>
-                    <div class="field-group">
-                      <label>Roll Direction (°)</label>
-                      <input type="range" id="rollRotationInput" min="0" max="179" step="1" value="0" oninput="renderRollLayout()" style="width:100%;">
-                      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text-light);gap:6px;">
-                        <span id="rollRotationValue">0°</span>
-                        <div style="display:flex;gap:6px;">
-                          <button class="btn btn-ghost" style="padding:2px 8px;font-size:11px;" onclick="setRollDirection(0)">Horizontal</button>
-                          <button class="btn btn-ghost" style="padding:2px 8px;font-size:11px;" onclick="setRollDirection(90)">Vertical</button>
-                          <button class="btn btn-ghost" style="padding:2px 8px;font-size:11px;" onclick="autoRotateRollLayout()">Auto-minimize waste</button>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="field-group">
-                      <label>Seam Offset (ft)</label>
-                      <input type="range" id="rollTranslationInput" min="0" max="14.9" step="0.1" value="0" oninput="renderRollLayout()" style="width:100%;">
-                      <div style="font-size:11px;color:var(--text-light);"><span id="rollTranslationValue">0 ft</span></div>
-                    </div>
+                <div class="layout-subpanel active" data-panel="layers">
+                  <!-- Roll Direction / Seam Offset are set per layer below: the primary
+                       card and each install layer have their own Roll dir / Seam off
+                       sliders. These hidden inputs remain the state the render reads and
+                       that setPrimaryRollDirection / setRollDirection / auto-rotate write. -->
+                  <div style="display:none;" aria-hidden="true">
+                    <input type="range" id="rollRotationInput" min="0" max="179" step="1" value="0">
+                    <span id="rollRotationValue">0°</span>
+                    <input type="range" id="rollTranslationInput" min="0" max="14.9" step="0.1" value="0">
+                    <span id="rollTranslationValue">0 ft</span>
                   </div>
-                </div>
-
-                <div class="layout-subpanel" data-panel="layers">
                   <div id="layoutLayersGroup">
                     <div id="layoutLayersList" style="display:grid;grid-template-columns:1fr;gap:10px;font-size:11px;align-items:start;"></div>
                   </div>
@@ -2279,6 +2275,7 @@
 
         <div class="docs-h3">Moving &amp; Rotating Layers</div>
         <p>Click <strong>"✋ Move Layers"</strong> to enter move mode. Click and drag any visible layer — the main shape outline or any additional shape — to reposition it on the canvas. <strong>The view is held steady the entire time you're in this mode</strong>, so each shape stays exactly where you drop it and moving one layer never makes the others slide or the whole canvas rescale. That lets you <strong>spread several shapes out to lay out a full yard</strong> (e.g. main yard plus separately-measured side yards) and have them stay put. When shapes spread past the edge of the view, click <strong>"⤢ Fit view"</strong> (next to the Move Layers button) to re-frame everything without leaving the mode; exiting with <strong>"✓ Done Moving"</strong> also re-fits. This is purely visual: it doesn't change area, roll counts, scrap, or any other calculation, only where things are drawn. Each layer has its own independent position. Move Layers mode is mutually exclusive with Edit Shape mode.</p>
+        <p>When shapes overlap, clicking grabs the <strong>topmost</strong> one (the shape you see under the cursor), and a brief <strong>"Moving: &lt;layer&gt;"</strong> note confirms which layer you picked up — so with several stacked shapes you always move the one you meant.</p>
         <p>Each additional (non-primary) layer also has a <strong>Rotate</strong> slider (0-359°) in the Layers list. This rotates that shape in place about its own center — useful when Moasure captured a shape (e.g. a putting green outline) at the wrong orientation and you need to spin it to match how it actually sits in the yard. Combine with dragging to both rotate and position the shape correctly. Rotation, like position, is purely visual and doesn't affect Installed Area, scrap, or roll calculations.</p>
         <p>A layer that's been moved and/or rotated shows a "↺ Reset position" button in the Layers list to snap it back to its original (imported) position and orientation.</p>
 
@@ -2322,7 +2319,7 @@
         <p>Rotates the drawing to match how you're viewing the yard on-site. Purely cosmetic — does not affect area, roll counts, or any calculations.</p>
 
         <div class="docs-h3">Roll Settings &amp; the Layout key metrics</div>
-        <p>The four roll <strong>dimensions</strong> live under the <strong>⚙ Settings</strong> tab → <em>Roll Settings</em>. They're a <strong>global default</strong> shared by every project. With a project open, changing any value pops a quick dialog — <strong>Every project (global default)</strong> or <strong>Only this project</strong> — so you decide the scope of each change; <em>Cancel</em> reverts it. A per-project override is field-granular (overriding one field still tracks the global for the others), and a status line shows whether the open job is on the global or overriding, with <em>Reset this job to the global default</em> to drop it. With no project open, editing just sets the global default. Standard rolls are 15 ft × 100 ft. The <strong>Layout</strong> sidebar leads with a fixed <strong>key-metrics</strong> block that's always visible: <strong>Installed SqFt</strong> (the total installed turf across <em>all</em> Install layers, primary plus every secondary marked Install, plus any Free-fill layers, minus any cutouts), <strong>Ordered SqFt</strong>, <strong>Ordered Linear Ft</strong>, and <strong>Perimeter (linear ft)</strong>, which sums the same Install/Free-fill layers. Below that, the rest of the controls are split into <strong>sub-tabs</strong> across the top of the right pane — <em>Roll &amp; Seam</em> (the day-to-day control, shown first), <em>Layers</em>, <em>Results</em>, <em>Apply</em>, <em>Display</em>, and (only when a putting green exists) <em>Fringe</em> — so each section is one click away with no long scroll. The <em>Layers &amp; roll grouping</em> controls live on the <em>Layers</em> tab, back in the right pane. While you drag a roll-direction, seam, or rotate slider, the canvas holds its current size so nothing jumps — it re-fits to the shape when you release. Each layer's name is shown on the diagram. The roll dimensions themselves:</p>
+        <p>The four roll <strong>dimensions</strong> live under the <strong>⚙ Settings</strong> tab → <em>Roll Settings</em>. They're a <strong>global default</strong> shared by every project. With a project open, changing any value pops a quick dialog — <strong>Every project (global default)</strong> or <strong>Only this project</strong> — so you decide the scope of each change; <em>Cancel</em> reverts it. A per-project override is field-granular (overriding one field still tracks the global for the others), and a status line shows whether the open job is on the global or overriding, with <em>Reset this job to the global default</em> to drop it. With no project open, editing just sets the global default. Standard rolls are 15 ft × 100 ft. The <strong>live layout totals</strong> — <strong>Installed SqFt</strong> (the total installed turf across <em>all</em> Install layers, primary plus every secondary marked Install, plus any Free-fill layers, minus any cutouts), <strong>Ordered SqFt</strong>, <strong>Ordered Linear Ft</strong>, <strong>Perimeter</strong>, and <strong>Scrap</strong> — sit in the <strong>top toolbar</strong>, just right of the <strong>⚙ Settings</strong> tab, so they stay visible on every tab. The rest of the controls are split into <strong>sub-tabs</strong> at the top of the right pane — <em>Layers</em> (the per-layer list — the day-to-day controls, shown first), <em>Results</em>, <em>Apply</em>, <em>Display</em>, and (only when a putting green exists) <em>Fringe</em> — so each section is one click away with no long scroll. <strong>Roll direction &amp; seam offset are set per layer:</strong> the <em>primary shape</em> has its own <strong>Roll dir / Seam off</strong> sliders (plus Horizontal / Vertical / Auto) in its card at the top of the <em>Layers</em> list, and each install layer has the same in its own card (until changed, a secondary layer "matches primary"). While you drag a roll-direction, seam, or rotate slider, the canvas holds its current size so nothing jumps — it re-fits to the shape when you release. Each layer's name is shown on the diagram. The roll dimensions themselves:</p>
         <ul class="docs-list">
           <li><strong>Roll Width</strong> — width of the turf roll as purchased.</li>
           <li><strong>Roll Length</strong> — maximum length of a single piece; longer runs are split, each adding a Cutting Margin.</li>
@@ -2334,10 +2331,10 @@
         <p>Each roll strip only orders the length it actually needs based on where it intersects the shape — strips don't all buy the full bounding-box length. Ordered length is rounded up to the next whole foot, since turf is sold in Roll Width × 1ft increments. This produces accurate per-strip quantities and more realistic scrap percentages.</p>
 
         <div class="docs-h3">Roll Results</div>
-        <p>The <strong>Results</strong> tab shows the rolls/piece count and per-layer breakdown, with extra detail (cut/nest tools, Piece List) under a small <strong>Advanced</strong> twisty so a standard install isn't cluttered. Both <strong>Apply</strong> buttons — <em>Apply Installed SqFt → turf row</em> and <em>Apply Ordered SqFt → turf row</em> — live together on the <strong>Apply</strong> tab. <em>Apply Ordered SqFt</em> is usually the one you want: it sets the row's <strong>SqFt to Order</strong> <em>and</em> its <strong>Installed SqFt</strong>, so infill (which derives its area from Installed SqFt), labor, and rock all cascade from the one click. <em>Apply Installed SqFt</em> sets just the installed area. Each applies to the <strong>one row</strong> selected in its dropdown. <strong>🔗 Live link:</strong> under <em>Apply Ordered SqFt</em> there's a <strong>Live</strong> checkbox (on by default) that keeps the selected row in sync with the layout automatically — no button press. <strong>Ordered SqFt</strong> follows the roll plan, so it updates when you change <strong>roll rotation or seam offset</strong>. <strong>Installed SqFt</strong> follows the shape's area (role-aware — a Base Yard row includes the putting-green footprint; Alt Turf rows are skipped since they're priced on the base), so it updates when you <strong>edit the shape or its exclusions</strong>, and that cascades to infill, rock, and labor. Rotating rolls does <em>not</em> change Installed (it doesn't change how much ground you cover), so materials don't churn while you're just comparing roll options. Updates fire when you release a slider (not mid-drag), targeting the row picked in the dropdown; turn it off to explore freely without touching the quote. <strong>Installed SqFt, Ordered SqFt, Ordered Linear Ft, Perimeter, and Scrap</strong> all live in the always-visible key-metrics block at the top of the right pane.</p>
+        <p>The <strong>Results</strong> tab shows the rolls/piece count and per-layer breakdown, with extra detail (cut/nest tools, Piece List) under a small <strong>Advanced</strong> twisty so a standard install isn't cluttered. Both <strong>Apply</strong> buttons — <em>Apply Installed SqFt → turf row</em> and <em>Apply Ordered SqFt → turf row</em> — live together on the <strong>Apply</strong> tab. <em>Apply Ordered SqFt</em> is usually the one you want: it sets the row's <strong>SqFt to Order</strong> <em>and</em> its <strong>Installed SqFt</strong>, so infill (which derives its area from Installed SqFt), labor, and rock all cascade from the one click. <em>Apply Installed SqFt</em> sets just the installed area. Each applies to the <strong>one row</strong> selected in its dropdown. <strong>🔗 Live link:</strong> under <em>Apply Ordered SqFt</em> there's a <strong>Live</strong> checkbox (on by default) that keeps the selected row in sync with the layout automatically — no button press. <strong>Ordered SqFt</strong> follows the roll plan, so it updates when you change <strong>roll rotation or seam offset</strong>. <strong>Installed SqFt</strong> follows the shape's area (role-aware — a Base Yard row includes the putting-green footprint; Alt Turf rows are skipped since they're priced on the base), so it updates when you <strong>edit the shape or its exclusions</strong>, and that cascades to infill, rock, and labor. Rotating rolls does <em>not</em> change Installed (it doesn't change how much ground you cover), so materials don't churn while you're just comparing roll options. Updates fire when you release a slider (not mid-drag), targeting the row picked in the dropdown; turn it off to explore freely without touching the quote. <strong>Installed SqFt, Ordered SqFt, Ordered Linear Ft, Perimeter, and Scrap</strong> all live in the always-visible totals strip in the top toolbar (right of ⚙ Settings).</p>
 
         <p><strong>Edging perimeter (per layer):</strong> the <strong>Layers</strong> tab lists the boundary length of <em>every</em> measured shape — the main outline plus each cutout (tree wells, beds, paver borders) — and a <strong>Total — all edges</strong> at the bottom. This is for ordering edging/border material that wraps every edge, and it's why a number here can exceed the <strong>Perimeter</strong> metric up top: that metric is the turf outline only (plus Install layers), while the edging total includes the inner cutout edges too. Perimeter is independent of where you drag a layer or how you rotate it.</p>
-        <p>Open <strong>"⚙ Advanced details &amp; tools"</strong> for the rest: the Saved (nested) figure, the manual-cuts and nested-pieces lists, and the per-piece list. Entering Cut Mode opens this section automatically so the cut/nest tools are visible. (<strong>Scrap</strong> — Ordered minus the installed shape area, with % — now sits in the key-metrics block at the top of the pane; the purchased-rectangles toggle sits above the canvas.)</p>
+        <p>Open <strong>"⚙ Advanced details &amp; tools"</strong> for the rest: the Saved (nested) figure, the manual-cuts and nested-pieces lists, and the per-piece list. Entering Cut Mode opens this section automatically so the cut/nest tools are visible. (<strong>Scrap</strong> — Ordered minus the installed shape area, with % — now sits in the totals strip in the top toolbar; the purchased-rectangles toggle sits above the canvas.)</p>
         <p>The roll/piece count shows just <strong>"N rolls"</strong> when the number of rolls to purchase equals the number of installed pieces — the normal case. It shows <strong>"N rolls / M pieces"</strong> only when these differ.</p>
         <p><strong>Pieces</strong> = total separately-installed pieces across the whole job: one per band/strip normally, more if a strip is manually cut into butt-seamed sections, or if a single strip is longer than Max Roll Length (which forces an inherent seam even without a manual cut).</p>
         <p><strong>Rolls</strong> = a global count based on total linear footage: <code>ceil(sum of every piece's ordered length ÷ Max Roll Length)</code>. All pieces run the same direction at the same Roll Width, so pieces from different bands/strips can be cut from the same physical roll as long as their combined length fits. For example, 3 separate pieces totaling 75 linear ft all come from a single 100ft roll — shown as "1 roll / 3 pieces" — while 3 pieces totaling 180ft need "2 rolls / 3 pieces".</p>
@@ -2878,6 +2875,18 @@ function closeAutoBackupModal() {
 // ═══════════════════════════════════════════════════════
 
 window.onload = () => {
+  // The "ResizeObserver loop completed with undelivered notifications" message is a
+  // benign browser notification (not a real error). Our observer already defers its
+  // work to rAF; this narrowly swallows only that exact message so it can't surface
+  // as an uncaught error in the console or a dev overlay. Nothing else is affected.
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('error', (e) => {
+      if (e && e.message && e.message.indexOf('ResizeObserver loop') !== -1) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      }
+    });
+  }
   applyNavCollapsedState();
   // Re-fit the layout canvas when the window resizes (height changes too, which the
   // wrapper's ResizeObserver doesn't catch) so it always fills the screen without scroll.
@@ -2893,7 +2902,7 @@ window.onload = () => {
   renderSidebar();
   if (!localStorage.getItem(SETUP_KEY)) {
     // First launch — go straight to Settings
-    const settingsTab = document.querySelector('.tab:last-child');
+    const settingsTab = document.getElementById('tabSettings');
     switchTab('settings', settingsTab);
     showFirstLaunchBanner();
   } else if (projects.length) {
@@ -5831,6 +5840,7 @@ function renderLayersList(proj) {
         <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:3px;">
           <button class="btn btn-ghost" style="padding:2px 7px;font-size:10px;" onclick="setPrimaryRollDirection(0)">Horizontal</button>
           <button class="btn btn-ghost" style="padding:2px 7px;font-size:10px;" onclick="setPrimaryRollDirection(90)">Vertical</button>
+          <button class="btn btn-ghost" style="padding:2px 7px;font-size:10px;" onclick="autoRotateRollLayout()" title="Rotate the primary roll direction to minimize waste">Auto</button>
         </div>
         <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
           <span style="color:var(--text-light);white-space:nowrap;">Seam off</span>
@@ -6000,7 +6010,7 @@ function renderFringeSection(proj) {
   if (pgIdx < 0) {
     if (fringeBtn) fringeBtn.style.display = 'none';
     // Don't strand the user on a now-hidden Fringe tab.
-    if (window._wtLayoutSubtab === 'fringe') switchLayoutSubtab('roll');
+    if (window._wtLayoutSubtab === 'fringe') switchLayoutSubtab('layers');
     return;
   }
   if (fringeBtn) fringeBtn.style.display = '';
@@ -9886,6 +9896,20 @@ function endDragNesting(evt) {
   }
 }
 
+// Pick which secondary layer sits under a data-space point, TOP-DOWN. Layers are
+// drawn in index order (later index on top), so overlapping shapes are resolved by
+// scanning highest index first — the shape you see under the cursor wins. Hidden
+// layers are skipped. Returns the layer index, or -1 if the point is on no layer.
+function pickTopLayerIndex(dataPt, secondaryShapes, layerVisibility) {
+  const secondary = secondaryShapes || [];
+  for (let i = secondary.length - 1; i >= 0; i--) {
+    const s = secondary[i];
+    if (layerVisibility && layerVisibility[i] === false) continue;
+    if (s && s.displayPoints && s.displayPoints.length >= 3 && pointInPoly(dataPt, s.displayPoints)) return i;
+  }
+  return -1;
+}
+
 function startDragLayer(evt) {
   if (!window._wtMoveLayersMode) return;
   const layout = window._wtCurrentRollLayout; if (!layout) return;
@@ -9893,27 +9917,29 @@ function startDragLayer(evt) {
   const t = window._wtCanvasTransform; if (!t) return;
   const dataPt = { x: t.minX + (pos.canvasX - t.pad) / t.scale, y: t.minY + (t.h - t.pad - pos.canvasY) / t.scale };
 
-  // Check secondary shapes first (drawn on top of / inside the primary,
-  // so they should take priority for hit-testing).
+  // Secondary shapes take priority over the primary, resolved top-down so the
+  // shape you see under the cursor is the one grabbed — not one hidden beneath it
+  // (which looked like "it snaps back" because a different, underneath layer moved).
   const secondary = layout.secondaryShapes || [];
-  for (let i = 0; i < secondary.length; i++) {
-    const s = secondary[i];
-    if (layout.layerVisibility[i] === false) continue;
-    if (s.displayPoints && s.displayPoints.length >= 3 && pointInPoly(dataPt, s.displayPoints)) {
-      evt.preventDefault();
-      window._wtDragLayerId = i;
-      window._wtDragLayerStart = dataPt;
-      window._wtFreezeTransform = true;
-      return;
-    }
+  const hitIdx = pickTopLayerIndex(dataPt, secondary, layout.layerVisibility);
+  if (hitIdx >= 0) {
+    const s = secondary[hitIdx];
+    evt.preventDefault();
+    window._wtDragLayerId = hitIdx;
+    window._wtDragLayerStart = dataPt;
+    window._wtFreezeTransform = true;
+    showLayoutToast('Moving: ' + (s.name || ('Layer ' + (hitIdx + 1))));
+    return;
   }
 
   // Then the primary shape
-  if (layout.layerVisibility.primary !== false && pointInPoly(dataPt, layout.basePoints)) {
+  if ((!layout.layerVisibility || layout.layerVisibility.primary !== false) && pointInPoly(dataPt, layout.basePoints)) {
     evt.preventDefault();
     window._wtDragLayerId = 'primary';
     window._wtDragLayerStart = dataPt;
     window._wtFreezeTransform = true;
+    const proj = getCurrentProject();
+    showLayoutToast('Moving: ' + ((proj && proj.layout && proj.layout.primaryLayerName) || 'Primary shape'));
   }
 }
 
@@ -10962,11 +10988,23 @@ function setupLayoutZoomWheel() {
 
   // Re-size canvas when the wrapper width changes (window resize, sidebar toggle, etc.)
   if (typeof ResizeObserver !== 'undefined') {
+    let roScheduled = false;
     const ro = new ResizeObserver(() => {
-      const layout = window._wtCurrentRollLayout;
-      if (!layout) return;
-      sizeLayoutCanvas();
-      drawRollLayoutCanvas(layout);
+      if (!window._wtCurrentRollLayout) return;
+      // Defer to the next frame: sizeLayoutCanvas() resizes the canvas INSIDE the
+      // observed wrapper, so doing it synchronously re-enters the observer in the
+      // same frame — which browsers report as the (benign) "ResizeObserver loop
+      // completed with undelivered notifications." rAF breaks that loop; the flag
+      // coalesces bursts of resize events into a single re-fit.
+      if (roScheduled) return;
+      roScheduled = true;
+      requestAnimationFrame(() => {
+        roScheduled = false;
+        const layout = window._wtCurrentRollLayout;
+        if (!layout) return;
+        sizeLayoutCanvas();
+        drawRollLayoutCanvas(layout);
+      });
     });
     ro.observe(wrap);
     wrap._wtRO = ro;
@@ -11179,8 +11217,13 @@ function toggleNavCollapse() {
 function switchTab(name, el) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('panel-'+name).classList.add('active');
+  // el may be null when switchTab is called programmatically (e.g. first-launch
+  // routing) — fall back to finding the tab button by its onclick target so a
+  // null element can never throw on .classList.
+  const tabEl = el || document.querySelector('.tab[onclick*="' + name + '"]');
+  if (tabEl) tabEl.classList.add('active');
+  const panel = document.getElementById('panel-'+name);
+  if (panel) panel.classList.add('active');
   if (name==='quote') updateMaterialsSummary();
   if (name==='layout') renderLayoutTab();
   if (name==='settings') renderSettingsTables();
