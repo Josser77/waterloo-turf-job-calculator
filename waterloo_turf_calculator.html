@@ -2279,7 +2279,7 @@
         <p>A layer that's been moved and/or rotated shows a "↺ Reset position" button in the Layers list to snap it back to its original (imported) position and orientation.</p>
 
         <div class="docs-h3">Cut List</div>
-        <p>Click <strong>"📋 Cut List"</strong> in the toolbar to open a dialog showing <strong>every turf piece to cut</strong>, grouped by layer. Each piece gets a <strong>CAD-style drawing</strong> of its actual trimmed shape with the overall <strong>width × length dimensioned in feet and inches</strong>, plus the <strong>cut size</strong> (full roll width × ordered length, including the cutting margin) and <strong>turf area</strong> below it. Irregular pieces (that don't fill their rectangle) are tagged <em>trim to shape</em> and drawn in amber; pieces tucked into another roll's waste are tagged <em>nested</em>. Each layer shows a subtotal (piece count, total cut length, area) and multi-layer jobs get a grand total. The drawings read from the same strips drawn on the canvas, so they always match. This is a <em>cut</em> list — the roll and area <em>order</em> quantities live on the layout panel and the Rock / Base card. Available even when the layout is locked.</p>
+        <p>Click <strong>"📋 Cut List"</strong> in the toolbar to open a dialog showing <strong>every turf piece to cut</strong>, grouped by layer. Each piece gets a <strong>CAD-style drawing</strong> of its actual trimmed shape with the piece's real <strong>length (along the roll) × width (across the roll) dimensioned in feet and inches</strong>, plus that same <strong>length × width as text</strong> and <strong>turf area</strong> below it. Irregular pieces (that don't fill their rectangle) are tagged <em>trim to shape</em> and drawn in amber; pieces tucked into another roll's waste are tagged <em>nested</em>. Each layer shows a subtotal (piece count, total cut length, area) and multi-layer jobs get a grand total. The drawings read from the same strips drawn on the canvas, so they always match. This is a <em>cut</em> list — the roll and area <em>order</em> quantities live on the layout panel and the Rock / Base card. Available even when the layout is locked.</p>
 
         <div class="docs-h3">Draw Tool (Markup)</div>
         <p>Click <strong>"✏️ Draw"</strong> in the toolbar to open the drawing toolbar, then pick <strong>Line</strong>, <strong>Rectangle</strong>, <strong>Circle</strong>, or <strong>Freehand</strong>, choose a <strong>color</strong> and line <strong>width</strong> (and optional <strong>Fill</strong> for rectangles/circles), and drag on the canvas. Use this to mark up the layout — show where pavers, borders, steppers, or other features go, or annotate for a customer.</p>
@@ -9481,7 +9481,7 @@ function renderCutListHtml(data) {
         + '<div style="font-weight:600;font-size:12px;margin-bottom:6px;">' + escAttr(p.label) + badges + '</div>'
         + '<div style="display:flex;justify-content:center;">' + cutPieceSvg(p) + '</div>'
         + '<div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.5;">'
-        + 'Cut ' + f1(p.rollWidth) + ' × ' + f1(p.cutLength) + ' ft off the roll<br>'
+        + 'Cut ' + ftIn(p.footL) + ' long × ' + ftIn(p.footW) + ' wide<br>'
         + 'Turf area ' + f1(p.area) + ' ft²'
         + '</div></div>';
     });
@@ -9496,8 +9496,8 @@ function renderCutListHtml(data) {
       + '<span>' + f1(data.totals.linearFt) + ' ft cut · ' + f1(data.totals.area) + ' ft²</span></div>';
   }
   html += '<div style="margin-top:14px;font-size:11px;color:var(--text-light);line-height:1.5;">'
-    + 'Each drawing is the <strong>trimmed turf footprint</strong> with its overall width × length (feet and inches). '
-    + '<strong>Cut off the roll</strong> is the rectangle to pull — full roll width × the ordered length (includes the cutting margin). '
+    + 'Each drawing is the <strong>trimmed turf footprint</strong>, dimensioned at its actual size: '
+    + '<strong>length</strong> runs along the roll (horizontal, below the shape) and <strong>width</strong> runs across the roll (vertical, on the left), both in feet and inches. '
     + 'Pieces marked <em>trim to shape</em> don\'t fill their rectangle. This lists physical cuts; roll/area order totals are on the layout panel.</div>';
   return html;
 }

@@ -5095,6 +5095,16 @@ section('71. Cut-piece drawings (ft-in + SVG)');
   // a degenerate piece (no poly) still renders from its bbox without throwing
   const tiny = ctx.cutPieceSvg({ footW: 0.1, footL: 0.1, rollWidth: 15, cutLength: 1, area: 0.01, irregular: false });
   assert(tiny.indexOf('<svg') === 0 && tiny.indexOf('</svg>') > 0, 'degenerate piece still yields valid SVG');
+
+  // Cut-list text shows the piece's ACTUAL length × width (ft-in), not the roll width.
+  const data = { layers: [{ name: 'Turf', pieces: [
+    { label: 'Roll 1, Piece 1', footL: 12, footW: 7.833, area: 69.2, rollWidth: 15, cutLength: 13, irregular: true, nested: true,
+      poly: [{x:0,y:0},{x:12,y:0},{x:12,y:7.833},{x:0,y:7.833}] }
+  ], subtotal: { pieces: 1, linearFt: 13, area: 69.2 } }], totals: { pieces: 1, linearFt: 13, area: 69.2 } };
+  const html = ctx.renderCutListHtml(data);
+  assert(html.indexOf("Cut 12' long × 7' 10\" wide") >= 0, 'cut text = actual length × width, labeled, in ft-in');
+  assert(html.indexOf('15.0 ×') < 0, 'roll width (15.0) no longer shown as the cut size');
+  assert(!/Cut [\d.]+ × [\d.]+ ft off the roll/.test(html), 'old "N × N ft off the roll" line removed');
 }
 
 section('72. Order / install export text builders');

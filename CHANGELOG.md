@@ -5,7 +5,22 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-06-21 (cont'd, 80) — Layout canvas fits the screen height (no scroll at 100%)
+## 2026-06-21 (cont'd, 81) — Fix: cut list showed roll width (15.0) instead of the real cut size
+
+The per-piece cut text read "Cut 15.0 × 13.0 ft off the roll" — the **15.0 was the full roll width**,
+printed for every piece even though each trimmed piece is narrower, and it didn't say which number was
+length vs width. Now it reads **"Cut {length} long × {width} wide"** using the piece's actual footprint
+(`footL` along the roll, `footW` across it) in feet-and-inches, matching the dimensions already drawn on
+the diagram (e.g. "Cut 12' long × 7' 10" wide"). The explanatory note and in-app docs were updated to
+spell out that length runs along the roll (horizontal) and width across it (vertical); the misleading
+"full roll width × ordered length" wording is gone.
+
+Tests **973 → 976** (README **1019**): assert the cut text uses actual ft-in length × width, no longer
+shows 15.0, and drops the old "off the roll" line. Confirmed against the screenshot's pieces headlessly.
+
+---
+
+
 
 Replaced the fixed ~82vh height cap (cont'd 79) with a **measured** one. `sizeLayoutCanvas` now reads
 the canvas wrapper's actual on-screen top (`getBoundingClientRect().top`) and caps the canvas to
