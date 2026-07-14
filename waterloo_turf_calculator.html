@@ -1044,29 +1044,9 @@
     /* Momentum scrolling for the sideways-scrolling data grids and the canvas. */
     .card, .tabs, #layoutCanvasWrap, .modal-overlay .modal { -webkit-overflow-scrolling: touch; }
   }
-  /* ── Installer Cut List: print / Save-as-PDF layout ──────────────────
-     printCutListForInstallers() fills #cutlistPrintRoot and adds
-     .printing-cutlist to <body>; @media print then hides everything else
-     and shows only the print root. */
-  #cutlistPrintRoot { display: none; }
-  @media print {
-    body.printing-cutlist > *:not(#cutlistPrintRoot) { display: none !important; }
-    body.printing-cutlist #cutlistPrintRoot {
-      display: block !important;
-      color: #111; background: #fff; font-family: 'Raleway', Arial, sans-serif;
-    }
-    body.printing-cutlist { background: #fff; }
-    #cutlistPrintRoot .print-header { border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 14px; }
-    #cutlistPrintRoot .print-title { font-size: 20px; font-weight: 800; }
-    #cutlistPrintRoot .print-meta { font-size: 12px; color: #333; margin-top: 4px; }
-    #cutlistPrintRoot .print-diagram { text-align: center; margin: 10px 0 16px; break-inside: avoid; page-break-inside: avoid; }
-    #cutlistPrintRoot .print-diagram img { max-width: 100%; max-height: 8.5in; border: 1px solid #ccc; }
-    #cutlistPrintRoot .print-section-title { font-size: 15px; font-weight: 700; margin: 16px 0 8px; page-break-after: avoid; }
-    /* Keep each cut piece card whole on one page. */
-    #cutlistPrintRoot .print-cutlist-body > div > div { break-inside: avoid; page-break-inside: avoid; }
-    #cutlistPrintRoot svg { break-inside: avoid; page-break-inside: avoid; }
-    @page { margin: 0.5in; }
-  }
+  /* ── Installer Cut List prints via an isolated hidden iframe
+     (printCutListForInstallers → buildCutListPrintDoc); the iframe carries its
+     own styles, so no app-level print stylesheet is needed here. ── */
 
 </style>
 </head>
@@ -1387,6 +1367,7 @@
               <button id="lockLayoutBtn" class="btn btn-ghost btn-sm" data-lockok="1" onclick="toggleLayoutLock()" title="Lock the layout to prevent accidental changes to sliders, edits, and adjustments.">🔓 Lock</button>
               <button id="editShapeBtn" class="btn btn-ghost btn-sm" onclick="toggleEditMode()">✎ Edit Shape</button>
               <button id="moveLayersBtn" class="btn btn-ghost btn-sm" onclick="toggleMoveLayersMode()">✋ Move Layers</button>
+              <button id="fitLayoutViewBtn" class="btn btn-ghost btn-sm" onclick="fitLayoutViewNow()" title="Re-fit the view to frame every shape — use after spreading shapes out to lay out a full yard." style="display:none;">⤢ Fit view</button>
               <button id="cutModeBtn" class="btn btn-ghost btn-sm" onclick="toggleCutMode()">✂ Cut Mode</button>
               <button id="drawModeBtn" class="btn btn-ghost btn-sm" onclick="toggleDrawMode()" title="Draw markup shapes (pavers, notes, etc.) over the layout. Visual only — does not change turf or the quote.">✏️ Draw</button>
               <button id="undoShapeBtn" class="btn btn-ghost btn-sm" onclick="undoLayoutEdit()" style="display:none;">↶ Undo</button>
@@ -1408,7 +1389,7 @@
             <span id="editPtModeHint" style="font-size:11px;color:var(--text-light);"></span>
           </div>
           <p id="moveLayersHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
-            <strong>Move Layers mode:</strong> click and drag any layer (the main shape outline, or any additional shape) to reposition it on the canvas. This is purely visual — it doesn't change area or roll calculations. Click "✋ Move Layers" again when done.
+            <strong>Move Layers mode:</strong> click and drag any layer (the main shape outline, or any additional shape) to reposition it on the canvas. The view now <strong>stays put while you arrange</strong>, so each shape stays exactly where you drop it — spread several out to lay out a full yard. Use <strong>⤢ Fit view</strong> to frame everything again. Purely visual — it doesn't change area or roll calculations. Click "✓ Done Moving" when finished (that also re-fits the view).
           </p>
           <p id="cutModeHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
             <strong>Cut mode:</strong> a quick <em>click</em> anywhere along a roll adds a butt-seam cut at that point, splitting it into separate pieces (each piece gets its own cutting margin); click an existing cut line to remove it. With "Show purchased roll rectangles" on, you can also <em>press-and-drag</em> any piece onto another roll's waste area to nest it — without leaving Cut Mode (a click toggles a cut, a drag moves a piece). Click "✂ Cut Mode" again when done.
@@ -2297,7 +2278,7 @@
         <p>Fringe material cost is added to any quote option that includes a putting green (it has no effect on "No Putting Green" options), using the same turf material pricing as the main yard's products.</p>
 
         <div class="docs-h3">Moving &amp; Rotating Layers</div>
-        <p>Click <strong>"✋ Move Layers"</strong> to enter move mode. Click and drag any visible layer — the main shape outline or any additional shape — to reposition it on the canvas. The view stays fixed while you drag, so moving one layer doesn't make the others appear to slide around. This is purely visual: it doesn't change area, roll counts, scrap, or any other calculation, only where things are drawn. Each layer has its own independent position. Click "✓ Done Moving" to exit. Move Layers mode is mutually exclusive with Edit Shape mode.</p>
+        <p>Click <strong>"✋ Move Layers"</strong> to enter move mode. Click and drag any visible layer — the main shape outline or any additional shape — to reposition it on the canvas. <strong>The view is held steady the entire time you're in this mode</strong>, so each shape stays exactly where you drop it and moving one layer never makes the others slide or the whole canvas rescale. That lets you <strong>spread several shapes out to lay out a full yard</strong> (e.g. main yard plus separately-measured side yards) and have them stay put. When shapes spread past the edge of the view, click <strong>"⤢ Fit view"</strong> (next to the Move Layers button) to re-frame everything without leaving the mode; exiting with <strong>"✓ Done Moving"</strong> also re-fits. This is purely visual: it doesn't change area, roll counts, scrap, or any other calculation, only where things are drawn. Each layer has its own independent position. Move Layers mode is mutually exclusive with Edit Shape mode.</p>
         <p>Each additional (non-primary) layer also has a <strong>Rotate</strong> slider (0-359°) in the Layers list. This rotates that shape in place about its own center — useful when Moasure captured a shape (e.g. a putting green outline) at the wrong orientation and you need to spin it to match how it actually sits in the yard. Combine with dragging to both rotate and position the shape correctly. Rotation, like position, is purely visual and doesn't affect Installed Area, scrap, or roll calculations.</p>
         <p>A layer that's been moved and/or rotated shows a "↺ Reset position" button in the Layers list to snap it back to its original (imported) position and orientation.</p>
 
@@ -2488,9 +2469,6 @@
     <div id="cutListBody" style="font-size:13px;color:var(--text);line-height:1.5;"></div>
   </div>
 </div>
-
-<!-- Off-screen container populated by printCutListForInstallers(); shown only in @media print -->
-<div id="cutlistPrintRoot" aria-hidden="true"></div>
 
 <div class="modal-overlay" id="exportModal" style="z-index:1100;">
   <div class="modal" style="width:min(640px,95vw);max-height:90vh;overflow-y:auto;padding:28px 32px;">
@@ -8745,6 +8723,7 @@ function toggleMoveLayersMode() {
   window._wtFreezeTransform = false;
   const btn = document.getElementById('moveLayersBtn');
   const hint = document.getElementById('moveLayersHint');
+  const fitBtn = document.getElementById('fitLayoutViewBtn');
   const canvas = document.getElementById('rollLayoutCanvas');
   if (window._wtMoveLayersMode) {
     // Mutually exclusive with Edit Shape and Cut modes
@@ -8754,14 +8733,22 @@ function toggleMoveLayersMode() {
     btn.classList.add('btn-primary');
     btn.textContent = '✓ Done Moving';
     hint.style.display = '';
+    if (fitBtn) fitBtn.style.display = '';
     if (canvas) canvas.style.cursor = 'grab';
   } else {
     btn.classList.remove('btn-primary');
     btn.textContent = '✋ Move Layers';
     hint.style.display = 'none';
+    if (fitBtn) fitBtn.style.display = 'none';
     if (canvas) canvas.style.cursor = 'default';
   }
   renderRollLayout();
+  if (window._wtMoveLayersMode) {
+    // Hold the view steady for the WHOLE arranging session (not just per-drag) so
+    // each dropped layer stays exactly where you place it — no re-fit/rescale
+    // between drops. The fit only recomputes on exit or via "⤢ Fit view".
+    window._wtFreezeTransform = true;
+  }
 }
 
 function toggleCutMode() {
@@ -9626,15 +9613,49 @@ function openCutListModal() {
   if (modal) modal.classList.add('open');
 }
 
-// Build a printer-friendly page (layout diagram + full cut list) and open the
+// Assemble the self-contained HTML document that gets printed. Pure string
+// output (no DOM), so it's unit-testable. It carries its OWN <style> — including
+// the CSS variables the cut-list cards/SVG reference — because it renders inside
+// an isolated iframe with none of the app's stylesheet available.
+function buildCutListPrintDoc(opts) {
+  opts = opts || {};
+  const jobName = opts.jobName || 'Turf Job';
+  const metaHtml = opts.metaHtml || '';
+  const diagramImg = opts.diagramImg || '';
+  const cutListHtml = opts.cutListHtml || '';
+  return '<!DOCTYPE html><html><head><meta charset="utf-8">'
+    + '<title>Turf Cut List \u2014 ' + escAttr(jobName) + '</title>'
+    + '<style>'
+    +   ':root{--surface:#fff;--border:#ccc;--text:#111;--text-light:#555;--text-mid:#333;--green:#2e7d32;}'
+    +   '*{box-sizing:border-box;}'
+    +   "body{font-family:'Raleway',Arial,sans-serif;color:#111;margin:18px;}"
+    +   '.print-header{border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:14px;}'
+    +   '.print-title{font-size:20px;font-weight:800;}'
+    +   '.print-meta{font-size:12px;color:#333;margin-top:4px;}'
+    +   '.print-section-title{font-size:15px;font-weight:700;margin:16px 0 8px;}'
+    +   '.print-diagram{text-align:center;margin:10px 0 16px;}'
+    +   '.print-diagram img{max-width:100%;max-height:8.5in;border:1px solid #ccc;}'
+    +   '.print-cutlist-body > div > div{break-inside:avoid;page-break-inside:avoid;}'
+    +   'svg{break-inside:avoid;page-break-inside:avoid;}'
+    +   '@page{margin:0.5in;}'
+    + '</style></head><body>'
+    + '<div class="print-header"><div class="print-title">Turf Cut List \u2014 ' + escAttr(jobName) + '</div>'
+    +   '<div class="print-meta">' + metaHtml + '</div></div>'
+    + (diagramImg ? '<div class="print-section-title">Roll Layout</div>' + diagramImg : '')
+    + '<div class="print-section-title">Cut Pieces</div>'
+    + '<div class="print-cutlist-body">' + cutListHtml + '</div>'
+    + '</body></html>';
+}
+
+// Build a printer-friendly sheet (layout diagram + full cut list) and open the
 // print dialog, from which the user picks "Save as PDF" to hand installers a
-// sheet. Implemented with an @media-print stylesheet (.printing-cutlist on
-// <body>) rather than a popup window, so it behaves identically in Electron and
-// on GitHub Pages and needs no external PDF library.
+// sheet. Rendered inside a hidden IFRAME with its own document/styles, so it's
+// fully isolated from the app's DOM nesting and CSS — the earlier @media-print
+// approach printed blank because the print node lived inside the .app wrapper,
+// which the "hide everything else" rule hid along with it. The iframe works in
+// the Electron app and on GitHub Pages with no external PDF library.
 function printCutListForInstallers() {
   const layout = window._wtCurrentRollLayout;
-  const root = document.getElementById('cutlistPrintRoot');
-  if (!root) return;
   if (!layout) { alert('Import or draw a layout first, then print the cut list.'); return; }
 
   const proj = (typeof getCurrentProject === 'function') ? getCurrentProject() : null;
@@ -9657,28 +9678,47 @@ function printCutListForInstallers() {
   if (dateStr) metaBits.push('Install date: ' + escAttr(dateStr));
   metaBits.push('Printed: ' + escAttr(new Date().toLocaleDateString()));
 
-  root.innerHTML =
-      '<div class="print-header">'
-    +   '<div class="print-title">Turf Cut List — ' + escAttr(jobName) + '</div>'
-    +   '<div class="print-meta">' + metaBits.join(' &nbsp;·&nbsp; ') + '</div>'
-    + '</div>'
-    + (diagramImg ? '<div class="print-section-title">Roll Layout</div>' + diagramImg : '')
-    + '<div class="print-section-title">Cut Pieces</div>'
-    + '<div class="print-cutlist-body">' + renderCutListHtml(buildCutList(layout)) + '</div>';
+  const docHtml = buildCutListPrintDoc({
+    jobName: jobName,
+    metaHtml: metaBits.join(' &nbsp;\u00b7&nbsp; '),
+    diagramImg: diagramImg,
+    cutListHtml: renderCutListHtml(buildCutList(layout)),
+  });
 
-  const cleanup = () => {
-    document.body.classList.remove('printing-cutlist');
-    root.innerHTML = '';
-    window.removeEventListener('afterprint', cleanup);
+  // (Re)create the hidden print iframe.
+  let frame = document.getElementById('cutlistPrintFrame');
+  if (frame && frame.parentNode) frame.parentNode.removeChild(frame);
+  frame = document.createElement('iframe');
+  frame.id = 'cutlistPrintFrame';
+  frame.setAttribute('aria-hidden', 'true');
+  // Off-screen but fully rendered at a real page-ish size. A 0×0 or
+  // visibility:hidden iframe is not laid out by Chromium/Electron, so printing
+  // it yields a blank page (the original bug) — position it off-screen instead.
+  frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:816px;height:1056px;border:0;';
+  document.body.appendChild(frame);
+
+  const win = frame.contentWindow;
+  const fdoc = win.document;
+  fdoc.open(); fdoc.write(docHtml); fdoc.close();
+
+  let printed = false;
+  const doPrint = () => {
+    if (printed) return; printed = true;
+    try { win.focus(); win.print(); } catch (e) { /* ignore */ }
+    // Remove the frame after the dialog has had time to grab the content.
+    setTimeout(() => { if (frame && frame.parentNode) frame.parentNode.removeChild(frame); }, 2000);
   };
-  window.addEventListener('afterprint', cleanup);
-  document.body.classList.add('printing-cutlist');
-  // Let the print layout paint before opening the dialog.
-  setTimeout(() => {
-    try { window.print(); } catch (e) { cleanup(); }
-    // Safety net in case 'afterprint' never fires in this environment.
-    setTimeout(() => { if (document.body.classList.contains('printing-cutlist')) cleanup(); }, 60000);
-  }, 60);
+
+  // Wait for the base64 diagram image to decode before printing, or it prints
+  // without the diagram. Fall back to a timer if there's no image or it stalls.
+  const img = fdoc.querySelector('img');
+  if (img && !img.complete) {
+    img.addEventListener('load', doPrint);
+    img.addEventListener('error', doPrint);
+    setTimeout(doPrint, 1500);
+  } else {
+    setTimeout(doPrint, 150);
+  }
 }
 
 function startDragNesting(evt) {
@@ -9902,7 +9942,10 @@ function endDragLayer(evt) {
   if (window._wtDragLayerId == null) return;
   window._wtDragLayerId = null;
   window._wtDragLayerStart = null;
-  window._wtFreezeTransform = false; // release the frozen view and re-fit
+  // Keep the view frozen while still arranging (Move Layers mode) so the layer
+  // stays exactly where it was dropped, instead of the whole canvas re-fitting and
+  // rescaling under it. The fit recomputes only on exit or via "⤢ Fit view".
+  if (!window._wtMoveLayersMode) window._wtFreezeTransform = false;
   save();
   renderRollLayout();
   renderLayersList(getCurrentProject()); // refresh reset-position buttons in the Layers list
@@ -9914,6 +9957,16 @@ function resetLayerPosition(layerId) {
   delete proj.layout.layerOffsets[layerId];
   save();
   renderRollLayout();
+}
+
+// Re-fit the view to frame every shape at its current position, then (if still in
+// Move Layers mode) re-freeze so continued arranging stays stable. Lets the user
+// spread shapes out to build a full-yard layout and snap the whole thing back
+// into view without leaving the mode.
+function fitLayoutViewNow() {
+  window._wtFreezeTransform = false;
+  renderRollLayout();
+  if (window._wtMoveLayersMode) window._wtFreezeTransform = true;
 }
 
 // ── Cut Mode: click along a roll to add/remove a manual butt-seam cut ──

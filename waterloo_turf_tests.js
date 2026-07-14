@@ -5144,6 +5144,29 @@ section('71b. seamCutWidth (installer cut width = footprint + S-seam trim)');
   assert(near(scw(eff, 4, 15), 15, 0.01), 'usable-width strip → full 15\' cut (effW + trim = roll)');
 }
 
+section('71c. buildCutListPrintDoc (installer print sheet)');
+{
+  const doc = ctx.buildCutListPrintDoc({
+    jobName: 'Smith Backyard',
+    metaHtml: 'Install date: 2026-07-18',
+    diagramImg: '<div class="print-diagram"><img src="data:image/png;base64,AAAA" alt="d"></div>',
+    cutListHtml: '<div id="marker">CUTLISTBODY</div>',
+  });
+  assert(doc.indexOf('<!DOCTYPE html') === 0, 'returns a full standalone HTML document');
+  assert(doc.indexOf('Smith Backyard') >= 0, 'includes the job name');
+  assert(doc.indexOf('CUTLISTBODY') >= 0, 'embeds the supplied cut-list html');
+  assert(doc.indexOf(':root{') >= 0, 'carries its own CSS variables (self-contained for the iframe)');
+  assert(doc.indexOf('@page') >= 0, 'sets print page margins');
+  assert(doc.indexOf('Roll Layout') >= 0 && doc.indexOf('data:image/png') >= 0, 'shows the diagram section when an image is supplied');
+
+  const noImg = ctx.buildCutListPrintDoc({ jobName: 'X', cutListHtml: '<p>p</p>' });
+  assert(noImg.indexOf('Roll Layout') < 0, 'omits the diagram section when no image is supplied');
+  assert(noImg.indexOf('Cut Pieces') >= 0, 'still shows the cut-pieces section without a diagram');
+
+  const empty = ctx.buildCutListPrintDoc();
+  assert(empty.indexOf('Turf Job') >= 0 && empty.indexOf('</html>') >= 0, 'defaults to a valid doc with no args');
+}
+
 section('72. Order / install export text builders');
 {
   const proj = {

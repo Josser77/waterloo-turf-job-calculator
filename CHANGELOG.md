@@ -5,6 +5,65 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-14 (cont'd 3) — Move Layers: view stays put so shapes stay where you drop them
+
+Dragging a layer in Move Layers mode dropped it, then the canvas immediately
+**re-fit to frame everything** — rescaling and recentering the whole view, so the
+layer appeared to jump somewhere other than where you placed it. You couldn't
+spread shapes out to lay out a full yard because every release reflowed the view.
+The freeze that held the view steady only lasted for the duration of a single
+drag (`endDragLayer` set `_wtFreezeTransform = false` on drop, and the next render
+recomputed the fit). Now the view is **held steady for the entire Move Layers
+session**: `endDragLayer` keeps the frozen transform while the mode is active, and
+`toggleMoveLayersMode` re-freezes right after its initial fit. Each dropped shape
+stays exactly where you put it. Added a **⤢ Fit view** button (shown only in Move
+Layers mode) backed by `fitLayoutViewNow()` to re-frame everything on demand when
+shapes spread past the edge; exiting the mode ("✓ Done Moving") re-fits as before.
+In-app docs and the mode hint updated.
+
+Tests unchanged at **998** (README **1041**): a canvas-interaction fix, verified
+on-device — the freeze/re-fit timing isn't headlessly testable.
+
+---
+
+## 2026-07-14 (cont'd 2) — Fix: Print / PDF still printed nothing (iframe wasn't laid out)
+
+The previous fix moved printing into a hidden `<iframe>`, but styled it
+`visibility:hidden; width:0; height:0`. Chromium/Electron don't lay out or paint
+a zero-size, visibility-hidden iframe, so `contentWindow.print()` fired on an
+empty render — the dialog showed a blank page or never opened. Changed the iframe
+to render **off-screen at a real page size** (`position:fixed; left:-10000px;
+width:816px; height:1056px`, no `visibility:hidden`), so its document is fully
+laid out and prints. Print-document assembly and the diagram capture are
+unchanged.
+
+Tests unchanged at **998** (README **1041**): a print-rendering fix, not
+headlessly verifiable — confirmed by printing a real job on-device.
+
+---
+
+## 2026-07-14 (cont'd) — Fix: Cut List "Print / PDF" printed a blank page
+
+The first cut of the Print/PDF button used an `@media print` stylesheet that hid
+every element except an off-screen print node — but that node lived **inside the
+`.app` wrapper**, and the "hide everything else" rule hid `.app` (and with it the
+print node), so the dialog opened on a blank page. `display:block` on the node
+couldn't override an ancestor set to `display:none`. Rewrote it to render the
+sheet inside an **isolated hidden `<iframe>`** with its own self-contained
+document and styles: immune to the app's DOM nesting and CSS, works in the
+Electron app and on GitHub Pages, still no PDF library. The print document is now
+assembled by a pure `buildCutListPrintDoc()` (job header, optional roll-layout
+diagram, cut list) so it's unit-testable; printing waits for the base64 diagram
+image to decode before opening the dialog. Removed the dead `#cutlistPrintRoot`
+node and the `@media print` block.
+
+Tests **989 → 998** (README **1032 → 1041**): `buildCutListPrintDoc` returns a
+standalone document carrying its own `:root` vars and `@page` margins, embeds the
+job name and cut list, shows the diagram section only when an image is supplied,
+and has valid defaults with no args.
+
+---
+
 ## 2026-07-14 — Cut List: S-seam cut width + Print / PDF for installers
 
 **Cut width now accounts for the S-Seam Side Trim.** The Cut List's per-piece
