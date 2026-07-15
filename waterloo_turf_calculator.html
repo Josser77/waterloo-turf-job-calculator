@@ -7220,17 +7220,33 @@ function resetRollOverride() {
 
 // Called from a roll-setting input on change. No project → write straight to the
 // global default. Project open → ask whether the change is global or job-only.
+// Roll settings are numbers except the butt-seam toggle, which is a checkbox — its
+// value lives on .checked, and parseFloat(el.value) on a checkbox reads "on" → NaN,
+// which would silently bail out and discard the change. Route booleans separately.
+function isRollBoolField(el) { return !!(el && el.type === 'checkbox'); }
+function rollElValue(el) { return isRollBoolField(el) ? !!el.checked : parseFloat(el.value); }
+function setRollElValue(el, val) {
+  if (!el) return;
+  if (isRollBoolField(el)) el.checked = (val === true || val === 'true');
+  else el.value = val;
+}
+
 function onRollSettingEdit(field, el) {
   const proj = (typeof getCurrentProject === 'function') ? getCurrentProject() : null;
-  const newVal = parseFloat(el.value);
-  if (isNaN(newVal)) { el.value = el.dataset.prev != null ? el.dataset.prev : ''; return; }
+  const isBool = isRollBoolField(el);
+  const newVal = rollElValue(el);
+  if (!isBool && isNaN(newVal)) { el.value = el.dataset.prev != null ? el.dataset.prev : ''; return; }
   if (!proj) {
     saveGlobalRollDefaults({ [field]: newVal });
-    el.dataset.prev = el.value;
+    el.dataset.prev = isBool ? String(newVal) : el.value;
     renderRollLayout();
     return;
   }
-  const prevVal = el.dataset.prev != null ? el.dataset.prev : el.value;
+  // A checkbox has no onfocus to stash the previous value, but it's a toggle — the
+  // previous value is simply the opposite of what it now reads.
+  const prevVal = isBool
+    ? String(!newVal)
+    : (el.dataset.prev != null ? el.dataset.prev : el.value);
   openRollScopeDialog(field, newVal, prevVal, el);
 }
 
@@ -7241,7 +7257,8 @@ function openRollScopeDialog(field, newVal, prevVal, el) {
   const msg = document.getElementById('rollScopeMsg');
   const proj = (typeof getCurrentProject === 'function') ? getCurrentProject() : null;
   const label = ROLL_FIELD_LABELS[field] || field;
-  if (msg) msg.innerHTML = `You changed <strong>${label}</strong> to <strong>${newVal}</strong>. Make this the <strong>global default</strong> for every project, or apply it only to <strong>"${proj ? proj.name : ''}"</strong>?`;
+  const shownVal = (typeof newVal === 'boolean') ? (newVal ? 'On' : 'Off') : newVal;
+  if (msg) msg.innerHTML = `You changed <strong>${label}</strong> to <strong>${shownVal}</strong>. Make this the <strong>global default</strong> for every project, or apply it only to <strong>"${proj ? proj.name : ''}"</strong>?`;
   const g = document.getElementById('rollScopeGlobalBtn');
   const p = document.getElementById('rollScopeProjectBtn');
   const c = document.getElementById('rollScopeCancelBtn');
@@ -7269,7 +7286,9 @@ function applyRollScope(scope, field, newVal, el) {
   renderRollLayout();
 }
 function cancelRollScope(prevVal, el) {
-  if (el) el.value = prevVal;
+  // prevVal arrives as a string; setRollElValue puts it back on the right property
+  // (a checkbox reverts .checked, a number input reverts .value).
+  setRollElValue(el, prevVal);
   closeRollScopeDialog();
 }
 

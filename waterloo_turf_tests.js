@@ -2701,7 +2701,7 @@ section('38. Piece List shows length/width/sqft for every roll piece and fringe 
       // Mirrors the real page: the butt-seam checkbox ships checked. The generic
       // mock element defaults checked:false, which would silently test the
       // opposite of the shipped default.
-      allowJoinSeamsInput:{checked:true},
+      allowJoinSeamsInput:{type:'checkbox',checked:true},
     };
     const mockCtx2d = { clearRect:()=>{},beginPath:()=>{},moveTo:()=>{},lineTo:()=>{},closePath:()=>{},fill:()=>{},stroke:()=>{},save:()=>{},restore:()=>{},setLineDash:()=>{},arc:()=>{},fillRect:()=>{},fillText:()=>{},measureText:()=>({width:10}),translate:()=>{},rect:()=>{},clip:()=>{} };
     const mockCanvas = { width:700,height:350,getContext:()=>mockCtx2d,getBoundingClientRect:()=>({left:0,top:0,width:700,height:350}),addEventListener:()=>{},style:{},classList:{add:()=>{},remove:()=>{}},textContent:'' };
@@ -5539,6 +5539,41 @@ section('80. packPiecesIntoRolls — butt seams across roll joins are a choice')
   assert(P([], 100, true).length === 0, 'no pieces → no rolls');
   assert(P([10], 0, true).length === 1, 'invalid roll length falls back to 100');
   assert(P([0,0], 100, false).length === 1, 'zero-length pieces still land on a roll');
+}
+
+section('81. Roll settings: the butt-seam toggle is a checkbox, not a number');
+{
+  // parseFloat(checkbox.value) reads "on" → NaN, which used to make the edit
+  // handler bail out and silently discard the change. Booleans route separately.
+  const cb = { type:'checkbox', checked:true, value:'on', dataset:{} };
+  const num = { type:'number', value:'100', dataset:{} };
+  assert(ctx.isRollBoolField(cb) === true, 'checkbox is recognised as a boolean field');
+  assert(ctx.isRollBoolField(num) === false, 'number input is not a boolean field');
+  assert(ctx.isRollBoolField(null) === false, 'null element is safe');
+
+  assert(ctx.rollElValue(cb) === true, 'checkbox value reads .checked (true), not parseFloat("on")');
+  cb.checked = false;
+  assert(ctx.rollElValue(cb) === false, 'unchecked reads false — the value that used to be lost');
+  assert(ctx.rollElValue(num) === 100, 'number input still reads .value');
+
+  // Reverting (Cancel in the scope dialog) must restore .checked, not .value.
+  ctx.setRollElValue(cb, 'true');
+  assert(cb.checked === true, "cancel restores a checkbox's checked state from 'true'");
+  ctx.setRollElValue(cb, 'false');
+  assert(cb.checked === false, "cancel restores a checkbox's checked state from 'false'");
+  ctx.setRollElValue(num, 90);
+  assert(num.value === 90, 'cancel restores a number input via .value');
+
+  // The setting must survive the resolver as a real boolean (false is meaningful,
+  // and must not be treated as "missing" and replaced by the default).
+  const g = { rollWidth:15, rollLength:100, sideTrim:4, cuttingMargin:4, allowJoinSeams:true };
+  const off = ctx.resolveRollSettings({ rollSettings:{ allowJoinSeams:false } }, g);
+  assert(off.allowJoinSeams === false, 'a project can override butt seams to OFF');
+  assert(off.rollLength === 100, 'other roll settings still resolve from the global default');
+  const on = ctx.resolveRollSettings({}, g);
+  assert(on.allowJoinSeams === true, 'no override → global default (on)');
+  const dflt = ctx.resolveRollSettings(null, {});
+  assert(dflt.allowJoinSeams === true, 'fallback default is butt seams ON (matches long-standing behaviour)');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

@@ -5,6 +5,36 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-14 (cont'd 18) — Fix: the butt-seam checkbox didn't do anything
+
+Unticking "Allow butt seams across roll joins" had no effect — the layout still drew
+seams, and returning to Settings showed the box ticked again. The setting shipped
+(cont'd 16) non-functional.
+
+Cause: `onRollSettingEdit` was written for the four number inputs and read
+`parseFloat(el.value)`. On a checkbox `el.value` is the string `"on"`, so
+`parseFloat` returned `NaN` and the handler hit its "invalid number" guard on the
+third line — bailing out before saving anything, and never reaching
+`renderRollLayout()`. The box appeared to untick only because the browser had
+already toggled it; nothing was stored, so the next `loadRollDefaultsToInputs()`
+repainted it from the unchanged default.
+
+Boolean fields now route separately (`isRollBoolField` / `rollElValue` /
+`setRollElValue`): the value is read from `.checked`, the global/project scope
+dialog shows "On"/"Off" instead of `true`/`false`, and Cancel restores `.checked`
+rather than writing a string into `.value`. A checkbox has no `onfocus` to stash a
+previous value, so for a toggle the previous value is taken as the opposite of the
+new one.
+
+Tests **1081 → 1094** (README **1124 → 1137**): a checkbox reads `.checked` (not
+`parseFloat("on")`); unchecked reads `false` — the value that was being discarded;
+number inputs still read `.value`; Cancel reverts the right property for each; and a
+project can override butt seams to **off** through `resolveRollSettings` without
+`false` being mistaken for "missing" and replaced by the default. These fail against
+the previous build.
+
+---
+
 ## 2026-07-14 (cont'd 17) — Roll-join butt seams are drawn on the diagram
 
 The seam forced by a roll join was in the numbers and the Piece List but not on the
