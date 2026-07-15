@@ -1855,7 +1855,7 @@ section('28. Rolls vs Pieces counting (manual cuts don\'t add rolls)');
     assert(totalRolls === 1, '3 pieces totaling 75ft (<100ft) all come from 1 roll');
   }
 
-  // ── Multiple strips whose combined length exceeds Max Roll Length needs 2 rolls ──
+  // ── Pieces can't span a roll join, so rolls come from PACKING, not division ──
   {
     const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{}, manualCuts:{} };
     const shape = [{x:0,y:0},{x:60,y:0},{x:60,y:45},{x:0,y:45}]; // 3 bands of 60ft each -> 180ft total
@@ -1863,7 +1863,16 @@ section('28. Rolls vs Pieces counting (manual cuts don\'t add rolls)');
     const { totalRolls, totalPieces } = totalRollsAndPieces(l);
 
     assert(totalPieces === 3, '3 bands = 3 pieces');
-    assert(totalRolls === 2, '3 pieces totaling 180ft needs ceil(180/100)=2 rolls');
+    // Butt seams allowed (the default): roll 1 gives 60 + the first 40ft of the
+    // next run, roll 2 gives its remaining 20 + the last 60. 2 rolls, 2 butt seams.
+    assert(totalRolls === 2, '3x60ft = 2 rolls when butt seams across joins are allowed');
+
+    // Butt seams off: a 60ft run can't finish on another roll, so each takes its
+    // own and the leftover 40ft on each is scrap. More rolls, every run seamless.
+    const lNoSeam = ctx.computeRollLayout(shape, 0, 0, {...opts, allowJoinSeams:false});
+    const noSeam = totalRollsAndPieces(lNoSeam);
+    assert(noSeam.totalRolls === 3, '3x60ft = 3 rolls when butt seams are not allowed');
+    assert(noSeam.totalPieces === 3, 'piece count is unchanged by the seam setting');
   }
 }
 
@@ -2239,7 +2248,7 @@ section('34. Global "Roll N / Piece M" labeling across all strips');
     });
   }
 
-  // ── 3 bands of 60ft (180ft total) -> Roll 1: pieces 1-2, Roll 2: piece 1 ──
+  // ── 3 bands of 60ft: only one fits per 100ft roll, so each gets its own roll ──
   {
     const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{}, manualCuts:{} };
     const shape = [{x:0,y:0},{x:60,y:0},{x:60,y:45},{x:0,y:45}];
@@ -2251,12 +2260,29 @@ section('34. Global "Roll N / Piece M" labeling across all strips');
     const lab0 = labels.get(occupied[0]);
     const lab1 = labels.get(occupied[1]);
     const lab2 = labels.get(occupied[2]);
+    // Seams allowed (default): band 1 takes roll 1's last 40ft and is butt-seamed
+    // onto roll 2 for its remaining 20ft — and the label now SAYS so, instead of
+    // silently implying a 120ft piece came off a 100ft roll.
     assert(lab0.roll === 1 && lab0.piece === 1, `band 0 = Roll 1 / Piece 1 (got Roll ${lab0.roll} / Piece ${lab0.piece})`);
-    assert(lab1.roll === 1 && lab1.piece === 2, `band 1 = Roll 1 / Piece 2 (got Roll ${lab1.roll} / Piece ${lab1.piece})`);
-    assert(lab2.roll === 2 && lab2.piece === 1, `band 2 (starts at 120ft, crosses into Roll 2) = Roll 2 / Piece 1 (got Roll ${lab2.roll} / Piece ${lab2.piece})`);
+    assert(lab1.roll === 1 && lab1.piece === 2, `band 1 starts on Roll 1 as Piece 2 (got Roll ${lab1.roll} / Piece ${lab1.piece})`);
+    assert(lab1.parts === 2 && lab1.part === 1, 'band 1 is flagged as butt-seamed: part 1 of 2');
+    assert(near(lab1.partLength, 40), `band 1's first part is roll 1's last 40ft (got ${lab1.partLength})`);
+    assert(lab1.extraParts && lab1.extraParts.length === 1, 'band 1 records its continuation');
+    assert(lab1.extraParts[0].roll === 2 && lab1.extraParts[0].part === 2, 'band 1 part 2 of 2 continues on Roll 2');
+    assert(near(lab1.extraParts[0].partLength, 20), 'band 1 continuation is the remaining 20ft');
+    assert(lab2.roll === 2 && lab2.piece === 2, `band 2 = Roll 2 / Piece 2 (got Roll ${lab2.roll} / Piece ${lab2.piece})`);
+
+    // Seams off: no piece is ever split; each 60ft band gets its own roll.
+    const lNS = ctx.computeRollLayout(shape, 0, 0, {...opts, allowJoinSeams:false});
+    const labNS = ctx.assignRollPieceLabels(lNS);
+    const occNS = lNS.strips.filter(s=>s.clippedArea>0.5);
+    const n0 = labNS.get(occNS[0]), n1 = labNS.get(occNS[1]), n2 = labNS.get(occNS[2]);
+    assert(n0.roll===1 && n1.roll===2 && n2.roll===3, 'seams off: each 60ft band gets its own roll');
+    assert(!n1.parts && !n2.parts, 'seams off: no piece is butt-seamed');
   }
 
-  // ── Manual cuts: a band split into 3 pieces, all within Roll 1; the next band continues Roll 1 ──
+  // ── Manual cuts: 3 small pieces share Roll 1; a following 60ft band can't fit
+  //    the 40ft remainder, so it starts Roll 2 ──
   {
     const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{}, manualCuts:{} };
     const shape = [{x:0,y:0},{x:60,y:0},{x:60,y:45},{x:0,y:45}];
@@ -2271,17 +2297,27 @@ section('34. Global "Roll N / Piece M" labeling across all strips');
     const lastStrip = l.strips.find(s=>s.key==='y30.00');
 
     assert(cutStrip.pieces && cutStrip.pieces.length === 3, 'strip y0.00 has 3 pieces from manual cuts');
+    // 20+20+20 = 60ft, all fit on Roll 1 together.
     cutStrip.pieces.forEach((p, idx) => {
       const lab = labels.get(p);
       assert(lab.roll === 1, `cut piece ${idx} is in Roll 1 (got Roll ${lab.roll})`);
       assert(lab.piece === idx+1, `cut piece ${idx} is Piece ${idx+1} (got Piece ${lab.piece})`);
     });
 
+    // Roll 1 has 40ft left; the next band is 60ft. With seams allowed it takes the
+    // 40ft and is butt-seamed onto Roll 2 for the last 20ft.
     const labNext = labels.get(nextStrip);
-    assert(labNext.roll === 1 && labNext.piece === 4, `next band continues Roll 1 as Piece 4 (got Roll ${labNext.roll} / Piece ${labNext.piece})`);
+    assert(labNext.roll === 1 && labNext.piece === 4, `60ft band starts on Roll 1 as Piece 4 (got Roll ${labNext.roll} / Piece ${labNext.piece})`);
+    assert(labNext.parts === 2, '60ft band is butt-seamed across the join (part 1 of 2)');
 
     const labLast = labels.get(lastStrip);
-    assert(labLast.roll === 2 && labLast.piece === 1, `third band (cumulative 120ft, starts >=100) is Roll 2 / Piece 1 (got Roll ${labLast.roll} / Piece ${labLast.piece})`);
+    assert(labLast.roll === 2 && labLast.piece === 2, `third band = Roll 2 / Piece 2 (got Roll ${labLast.roll} / Piece ${labLast.piece})`);
+
+    // Seams off: the 60ft band can't use the 40ft remainder at all.
+    const lNS = ctx.computeRollLayout(shape, 0, 0, {...cutOpts, allowJoinSeams:false});
+    const labNS = ctx.assignRollPieceLabels(lNS);
+    const nextNS = labNS.get(lNS.strips.find(s=>s.key==='y15.00'));
+    assert(nextNS.roll === 2 && nextNS.piece === 1 && !nextNS.parts, 'seams off: 60ft band starts a fresh Roll 2, unseamed');
   }
 
   // ── countRollsAndPieces totals match the max roll/piece-in-roll from assignRollPieceLabels ──
@@ -2662,6 +2698,10 @@ section('38. Piece List shows length/width/sqft for every roll piece and fringe 
       fringeConfigFields:{style:{}}, fringeEnabled:{checked:false}, fringeTurfProduct:{innerHTML:'',value:''}, fringeWidth:{value:''},
       layoutLayersList:{innerHTML:''}, pieceListGroup:{style:{}}, pieceListTable:{innerHTML:''},
       manualCutsGroup:{style:{}}, manualCutsList:{innerHTML:''},
+      // Mirrors the real page: the butt-seam checkbox ships checked. The generic
+      // mock element defaults checked:false, which would silently test the
+      // opposite of the shipped default.
+      allowJoinSeamsInput:{checked:true},
     };
     const mockCtx2d = { clearRect:()=>{},beginPath:()=>{},moveTo:()=>{},lineTo:()=>{},closePath:()=>{},fill:()=>{},stroke:()=>{},save:()=>{},restore:()=>{},setLineDash:()=>{},arc:()=>{},fillRect:()=>{},fillText:()=>{},measureText:()=>({width:10}),translate:()=>{},rect:()=>{},clip:()=>{} };
     const mockCanvas = { width:700,height:350,getContext:()=>mockCtx2d,getBoundingClientRect:()=>({left:0,top:0,width:700,height:350}),addEventListener:()=>{},style:{},classList:{add:()=>{},remove:()=>{}},textContent:'' };
@@ -2691,9 +2731,14 @@ section('38. Piece List shows length/width/sqft for every roll piece and fringe 
       },
     });
     const html = inputs.pieceListTable.innerHTML;
+    // Default (butt seams allowed): band 2 is seamed across the roll 1/2 join.
     assert(html.includes('Roll 1 / Piece 1'), 'piece list shows Roll 1 / Piece 1');
     assert(html.includes('Roll 1 / Piece 2'), 'piece list shows Roll 1 / Piece 2');
-    assert(html.includes('Roll 2 / Piece 1'), 'piece list shows Roll 2 / Piece 1');
+    assert(html.includes('Roll 2 / Piece 2'), 'piece list shows Roll 2 / Piece 2');
+    // The seam must be visible to whoever cuts it, not just implied by the numbers.
+    assert(html.includes('butt seam'), 'piece list flags the butt-seamed run');
+    assert(html.includes('2 parts'), 'piece list says how many parts the seamed run has');
+    assert(/from Roll 1/.test(html) && /from Roll 2/.test(html), 'piece list names both rolls the seamed run comes from');
     // Each piece: 60ft length x 15ft width = 900 sqft
     const lengths = [...html.matchAll(/(\d+\.\d) ft<\/div>\s*<div>(\d+\.\d) ft<\/div>/g)];
     assert(lengths.length === 3, '3 length/width pairs found');
@@ -5433,6 +5478,67 @@ section('79. clearInstallLayerOffsets — install outlines stay with their piece
   // defensive: missing layout / offsets don't throw.
   assert(ctx.clearInstallLayerOffsets(null) === false, 'null project → false, no throw');
   assert(ctx.clearInstallLayerOffsets({ layout:{} }) === false, 'no layerOffsets → false, no throw');
+}
+
+section('80. packPiecesIntoRolls — butt seams across roll joins are a choice');
+{
+  const P = ctx.packPiecesIntoRolls;
+  const used = roll => roll.reduce((a,e)=>a+e.length,0);
+
+  // ── Seams allowed: use the remainder, seam onto the next roll. Least material.
+  const s3 = P([60,60,60], 100, true);
+  assert(s3.length === 2, '3x60ft packs into 2 rolls when butt seams are allowed');
+  s3.forEach((r,i)=>assert(used(r) <= 100+1e-9, `roll ${i+1} holds ${used(r)}ft — never exceeds 100ft`));
+  assert(s3[0].length === 2 && s3[0][1].parts === 2, 'the second 60ft run is butt-seamed across the join');
+  assert(near(s3[0][1].length, 40), "first part takes roll 1's remaining 40ft");
+  assert(s3[1][0].part === 2 && near(s3[1][0].length, 20), 'second part is the 20ft continuation on roll 2');
+  assert(s3[0][0].parts === 1, 'the first run needs no seam');
+
+  // ── Seams off: seamless runs, more rolls.
+  const n3 = P([60,60,60], 100, false);
+  assert(n3.length === 3, '3x60ft needs 3 rolls when butt seams are not allowed');
+  n3.forEach(r => r.forEach(e => assert(e.parts === 1, 'no piece is split when seams are off')));
+  n3.forEach((r,i)=>assert(used(r) <= 100+1e-9, `seamless roll ${i+1} never exceeds 100ft`));
+
+  // ── The live job that surfaced this: 18/10/42/43 were labelled Roll 1 = 113ft.
+  const j = P([18,10,42,43,44], 100, false);
+  assert(j.length === 2, 'live job packs into 2 rolls, seamless');
+  j.forEach((r,i)=>assert(used(r) <= 100+1e-9, `roll ${i+1} holds ${used(r)}ft — the 113ft overrun is gone`));
+  assert(j[0].map(e=>e.index).join(',') === '0,1,2', 'Roll 1 takes 18+10+42 = 70ft');
+  assert(j[1].map(e=>e.index).join(',') === '3,4', 'Roll 2 takes 43+44 — the 43 could NOT finish Roll 1');
+
+  const js = P([18,10,42,43,44], 100, true);
+  assert(js.length === 2, 'same job with seams allowed also fits 2 rolls');
+  assert(near(used(js[0]), 100), 'with seams allowed roll 1 is used to the full 100ft');
+  assert(js[0][3].parts === 2, 'the 43ft run is butt-seamed to fill roll 1');
+
+  // ── Exact fits never spill to an extra roll (float guard).
+  assert(P([50,50], 100, false).length === 1, '50+50 = exactly 100 → 1 roll');
+  assert(P([50,50], 100, true).length === 1, 'exact fit needs no seam');
+  assert(P([50,51], 100, false).length === 2, '50+51 = 101 → 2 rolls');
+
+  // ── A run longer than a whole roll must be seamed either way.
+  const big = P([120,30], 100, true);
+  assert(big.length === 2, '120ft run spans 2 rolls');
+  assert(big[0][0].parts === 2, '120ft run is butt-seamed — it cannot be cut in one piece');
+  assert(P([120], 100, false).length === 1, 'seams off: oversized run still takes its own roll');
+
+  // ── Cut order is preserved (labels depend on it).
+  const seq = P([30,30,30,30,30], 100, false);
+  assert(seq.length === 2, '5x30ft = 150ft packs into 2 rolls, seamless');
+  assert(seq[0].map(e=>e.index).join(',') === '0,1,2', 'Roll 1 takes the first three 30ft runs (90ft)');
+
+  // ── A zero-length entry (how a nested piece is packed) consumes no roll and
+  //    never forces a new one — it just holds its place in the sequence.
+  const withNested = P([60, 0, 60], 100, false);
+  assert(withNested.length === 2, 'a zero-length (nested) piece adds no roll');
+  assert(withNested[0].map(e=>e.index).join(',') === '0,1', 'nested piece stays in sequence on the current roll');
+  assert(withNested[0][1].parts === 1, 'nested piece is never marked butt-seamed');
+
+  // ── Degenerate inputs don't throw.
+  assert(P([], 100, true).length === 0, 'no pieces → no rolls');
+  assert(P([10], 0, true).length === 1, 'invalid roll length falls back to 100');
+  assert(P([0,0], 100, false).length === 1, 'zero-length pieces still land on a roll');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

@@ -5,6 +5,107 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-14 (cont'd 17) — Roll-join butt seams are drawn on the diagram
+
+The seam forced by a roll join was in the numbers and the Piece List but not on the
+CAD drawing — no use to a crew working off the diagram. Each forced seam is now
+drawn as a **dashed red line** across the strip at exactly the point along the run
+where it falls, tagged **"roll join"**. Dashed distinguishes it from your own Cut
+Mode seams, which stay solid: one is forced by the roll length, the other is your
+decision. Seams are only drawn when "Allow butt seams across roll joins" is on —
+with it off there are none to draw, by definition.
+
+Also fixed a real inconsistency introduced in (cont'd 16): `assignRollPieceLabels`
+packed **nested** pieces at full length while `countRollsAndPieces` excluded them,
+so labels and the roll count could disagree on a job with nesting. A nested piece is
+cut from another roll's already-purchased waste and consumes no new roll length, so
+it now packs at **zero length** — keeping its place in the sequence and its
+"Roll N / Piece M" identity without pushing anything onto a new roll. Nested pieces
+are never marked butt-seamed and get no seam line.
+
+Tests **1078 → 1081** (README **1121 → 1124**): a zero-length (nested) entry adds no
+roll, holds its sequence position, and is never flagged as seamed. The seam
+*drawing* itself is canvas work and isn't reachable by the Node harness — verified
+on-device.
+
+---
+
+## 2026-07-14 (cont'd 16) — Butt seams across roll joins are now a setting, not an assumption
+
+**Correction to (cont'd 15).** That entry claimed `ceil(totalLinearFt ÷ rollLength)`
+*under-orders*. It doesn't — it's correct **if** you butt-seam across the roll join
+(three 60 ft runs on 100 ft rolls really do fit on 2 rolls: 60 + 40 | 20 + 60). The
+old math wasn't wrong about the count; it silently **assumed** a seam nobody chose,
+and the labels never admitted it. The (cont'd 15) packer then swung to the opposite
+extreme — every run seamless — which quietly made every job buy more rolls. Both
+behaviours are legitimate; the defect was that the choice was invisible.
+
+New Roll Setting: **"Allow butt seams across roll joins"** (default **on**, matching
+long-standing behaviour, so no job's roll count changes on upgrade).
+
+- **On** — a piece that won't fit uses the remainder and finishes on the next roll,
+  joined by a butt seam. Fewest rolls, least material.
+- **Off** — the remainder is scrap and the piece starts a fresh roll. Every run
+  seamless, more rolls.
+
+`packPiecesIntoRolls(lengths, rollLength, allowJoinSeams)` now returns placements
+(`{index, length, part, parts}`) rather than bare indices, so a seamed run is
+explicit: which rolls it spans and how much comes off each. The roll count, the
+"Roll N / Piece M" labels, and the Piece List all read the same packing. The Piece
+List spells the seam out — *"butt seam — 2 parts: 40'0" from Roll 1 + 20'0" from
+Roll 2"* — so it reaches the person holding the knife. A run longer than a whole roll
+is always seamed regardless of the setting; it can't be cut in one piece.
+
+Tests **1050 → 1078** (README **1093 → 1121**): both modes for 3×60 ft (2 rolls
+seamed / 3 rolls seamless) at the packer, layout, and label level; the live
+18/10/42/43/44 job in both modes with no roll ever exceeding 100 ft; part/parts and
+per-roll footage on a seamed run; exact fits (50+50) needing no seam or extra roll;
+oversized runs always seamed; cut order preserved; degenerate input safe; and the
+Piece List surfacing the seam note. Also fixed the test harness's element mock,
+which returned `checked:false` for every unknown checkbox — it was silently
+exercising the opposite of the shipped default.
+
+---
+
+## 2026-07-14 (cont'd 15) — Rolls are packed, not divided: pieces can no longer span a roll join
+
+**Material bug.** Reported from a live job: Roll 1 was labelled with pieces of 18 +
+10 + 42 + 43 ft = **113 ft on a 100 ft roll**. A piece is cut in one continuous run
+and cannot start on one roll and finish on the next.
+
+Two places assumed it could:
+
+1. `assignRollPieceLabels` only started a new roll once the *cumulative* length had
+   already passed a roll boundary — it never checked whether the piece **fits** in
+   what's left. A 43 ft piece beginning at 70 ft was still labelled Roll 1 and ran
+   to 113 ft.
+2. `countRollsAndPieces` computed `ceil(totalLinearFt / rollLength)` — pure
+   division, which silently assumes turf can be split across the join. **This
+   under-counts rolls and under-orders material:** three 60 ft pieces total 180 ft,
+   so division says 2 rolls, but only one 60 ft piece fits per 100 ft roll — it
+   really needs 3. A crew would have arrived a roll short.
+
+Both now go through one pure `packPiecesIntoRolls(lengths, rollLength)` — next-fit
+in cut order, matching how a crew actually rolls out and cuts: when the next piece
+won't fit the remainder, that remainder is scrap and the piece starts a new roll.
+Labels and the roll count are derived from the same packing, so they can't disagree.
+
+**The old test suite asserted the bug** — including, verbatim, "3 pieces totaling
+180ft needs ceil(180/100)=2 rolls" — which is why this survived ~1000 tests. Those
+expectations are corrected to physical reality, and the in-app docs (which stated
+the same wrong rule and example) are rewritten.
+
+Tests **1031 → 1050** (README **1074 → 1093**): the live 18/10/42/43/44 job packs
+into 2 rolls with no roll exceeding 100 ft; 3×60 ft needs 3 rolls; exact fits (50+50
+= 100) don't spill to a second roll; 50+51 does; cut order is preserved; an
+oversized piece takes its own roll; empty/invalid input doesn't throw. Six existing
+tests updated from the divisive assumption to packing.
+
+Note: this can **increase** the roll count on jobs with several long pieces — that's
+the correction, not a regression. Ordered SqFt (manual) is unchanged.
+
+---
+
 ## 2026-07-14 (cont'd 14) — Edit Shape shows the shape: nested pieces draw at home while editing
 
 Editing a layer whose pieces were nested elsewhere split it into two disjoint things

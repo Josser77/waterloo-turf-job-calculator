@@ -1678,6 +1678,17 @@
             <div style="align-self:start;font-size:11px;color:var(--text-light);line-height:1.4;">Trimmed off each roll's edge for the S-seam (usable width = roll width − trim).</div>
             <div style="align-self:start;font-size:11px;color:var(--text-light);line-height:1.4;">Extra length added to <strong>every cut piece</strong> before rounding up to the next whole foot.</div>
           </div>
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+            <label style="display:flex;align-items:flex-start;gap:8px;margin:0;cursor:pointer;">
+              <input type="checkbox" id="allowJoinSeamsInput" checked onchange="onRollSettingEdit('allowJoinSeams', this)" style="margin-top:2px;">
+              <span>
+                <strong>Allow butt seams across roll joins</strong>
+                <div style="font-size:11px;color:var(--text-light);line-height:1.4;margin-top:3px;">
+                  What happens when a piece won't fit in what's left of a roll. <strong>On</strong> — use up the remainder and finish the piece on the next roll, joined by a <strong>butt seam</strong>: fewest rolls, least material. <strong>Off</strong> — the remainder is scrap and the piece starts a fresh roll, so <strong>every run is seamless</strong>: more rolls, no extra seams. Example: three 60 ft runs on 100 ft rolls = <strong>2 rolls with butt seams</strong>, or <strong>3 rolls and no seams</strong>. A run longer than a whole roll is always seamed — it can't be cut in one piece.
+                </div>
+              </span>
+            </label>
+          </div>
         </div>
 
         <!-- TURF CATALOG -->
@@ -2341,7 +2352,10 @@
         <p>Open <strong>"⚙ Advanced details &amp; tools"</strong> for the rest: the Saved (nested) figure, the manual-cuts and nested-pieces lists, and the per-piece list. Entering Cut Mode opens this section automatically so the cut/nest tools are visible. (<strong>Scrap</strong> — Ordered minus the installed shape area, with % — now sits in the totals strip in the top toolbar; the purchased-rectangles toggle sits above the canvas.)</p>
         <p>The roll/piece count shows just <strong>"N rolls"</strong> when the number of rolls to purchase equals the number of installed pieces — the normal case. It shows <strong>"N rolls / M pieces"</strong> only when these differ.</p>
         <p><strong>Pieces</strong> = total separately-installed pieces across the whole job: one per band/strip normally, more if a strip is manually cut into butt-seamed sections, or if a single strip is longer than Max Roll Length (which forces an inherent seam even without a manual cut).</p>
-        <p><strong>Rolls</strong> = a global count based on total linear footage: <code>ceil(sum of every piece's ordered length ÷ Max Roll Length)</code>. All pieces run the same direction at the same Roll Width, so pieces from different bands/strips can be cut from the same physical roll as long as their combined length fits. For example, 3 separate pieces totaling 75 linear ft all come from a single 100ft roll — shown as "1 roll / 3 pieces" — while 3 pieces totaling 180ft need "2 rolls / 3 pieces".</p>
+        <p><strong>Rolls</strong> = the number of physical rolls the pieces actually pack into, laid on in cut order. What happens when a piece won't fit in what's left of a roll is a real choice, controlled by <strong>"Allow butt seams across roll joins"</strong> (Settings → Roll Settings):</p>
+        <p><strong>On (default)</strong> — the piece uses up the remainder and finishes on the next roll, joined by a <strong>butt seam</strong>. Fewest rolls, least material. Three 60 ft runs on 100 ft rolls = <strong>2 rolls</strong> (roll 1: 60 + the first 40 ft of the next run; roll 2: its last 20 ft + the final 60). Each forced seam is <strong>drawn on the diagram</strong> as a dashed red line tagged <strong>"roll join"</strong> exactly where it lands along the run — dashed to distinguish it from your own Cut Mode seams, which are solid — and the Piece List spells it out: "butt seam — 2 parts: 40'0" from Roll 1 + 20'0" from Roll 2". So whoever cuts it can see the seam on the drawing and read it on the cut sheet.</p>
+        <p><strong>Off</strong> — the remainder is scrap and the piece starts a fresh roll, so <strong>every run is seamless</strong>. Same three 60 ft runs = <strong>3 rolls</strong>, with 40 ft of scrap on each. More material, no extra seams.</p>
+        <p>Either way pieces from different bands/strips <em>can</em> share a roll when their combined length fits (3 pieces totaling 75 ft = "1 roll / 3 pieces"), and a run longer than a whole roll is <strong>always</strong> seamed — it can't be cut in one piece. Note that <code>total linear ft ÷ roll length</code> only ever describes the seams-on case; with seams off it under-counts, because it assumes turf can be split across a join.</p>
         <p>The <strong>"Show purchased roll rectangles (waste)"</strong> checkbox sits right above the canvas, always visible no matter which tab you're on, so it's a one-click toggle. On, it overlays each roll's full purchased rectangle with the unused (waste) portion hatched in red — which is what enables drag-and-drop nesting.</p>
 
         <div class="docs-h3">Piece List (Length × Width)</div>
@@ -6671,37 +6685,58 @@ function clipPolygonToRect(poly, xmin, xmax, ymin, ymax) {
 }
 
 // Count total rolls and total installed pieces across all strips in a layout.
-// "Rolls" = physical rolls of turf to purchase (numSegments per strip, based
-// on Max Roll Length). "Pieces" = separate installed pieces (1 per roll
-// segment normally, or more if a strip was manually cut into butt-seamed
-// sections). A strip cut into 3 pieces that still fits in 1 roll counts as
-// 1 roll / 3 pieces; an uncut 150ft strip needing 2 rolls counts as 2 rolls
-// / 2 pieces (one piece per roll).
 // Count total rolls and total installed pieces across the whole layout.
 // All strips run the same direction at the same Roll Width, so pieces from
-// different strips can be cut from the same physical roll as long as their
-// combined length fits within Max Roll Length. "Rolls" = ceil(total linear ft
-// of all pieces / Max Roll Length) — a global count, not per-strip. "Pieces" =
-// total count of separately-installed pieces (one per strip normally, or more
-// if a strip was manually cut into butt-seamed sections).
+// different strips can share a physical roll as long as their combined length
+// fits within Max Roll Length. "Rolls" is therefore the result of PACKING the
+// pieces (see packPiecesIntoRolls) — not ceil(total linear ft / Max Roll Length),
+// which under-counts because it assumes a piece can be split across the join
+// between two rolls. It can't: each piece is cut in one continuous run, so when a
+// piece doesn't fit the remainder of the current roll, that remainder is scrap and
+// the piece starts a new roll. "Pieces" = separately-installed pieces (one per
+// strip normally, more if a strip was manually cut into butt-seamed sections, or
+// if a strip is longer than Max Roll Length and is inherently segmented).
 function countRollsAndPieces(layout) {
+  const rollLength = layout.rollLength || 100;
   let totalLinearFt = 0, totalPieces = 0;
+  const unitLengths = []; // each physical piece that must be cut from a roll, in order
   layout.strips.forEach(strip => {
     if (strip.clippedArea <= 1e-9) return;
     if (strip.pieces) {
       // A nested piece is re-used from another roll's waste, so it adds no roll
       // length — but it's still a separately-installed piece.
-      strip.pieces.forEach(p => { if (p.nestedInto == null) totalLinearFt += p.orderedLength; });
+      strip.pieces.forEach(p => {
+        if (p.nestedInto == null) { totalLinearFt += p.orderedLength; unitLengths.push(p.orderedLength); }
+      });
       totalPieces += strip.pieces.length;
     } else {
-      if (strip.nestedInto == null) totalLinearFt += strip.orderedLength;
       // A strip longer than Max Roll Length is inherently split into
       // numSegments physical pieces, even without a manual cut.
-      totalPieces += Math.max(1, strip.numSegments);
+      const segs = Math.max(1, strip.numSegments || 1);
+      if (strip.nestedInto == null) {
+        totalLinearFt += strip.orderedLength;
+        if (segs <= 1) {
+          unitLengths.push(strip.orderedLength);
+        } else {
+          // Segments are roll-length runs (the last one is the remainder).
+          let rem = strip.orderedLength;
+          for (let k = 0; k < segs; k++) {
+            const seg = Math.min(rollLength, rem);
+            unitLengths.push(seg);
+            rem -= seg;
+          }
+        }
+      }
+      totalPieces += segs;
     }
   });
-  const rollLength = layout.rollLength || 100;
-  const totalRolls = totalLinearFt > 0 ? Math.max(1, Math.ceil(totalLinearFt / rollLength - 1e-9)) : 0;
+  // Rolls come from PACKING, not from totalLinearFt / rollLength. What happens when
+  // a piece doesn't fit the remainder of a roll is a real choice, so it follows the
+  // Butt Seams setting: seam across the join (fewest rolls, extra seam) or start a
+  // fresh roll (seamless runs, more rolls).
+  const totalRolls = unitLengths.length
+    ? packPiecesIntoRolls(unitLengths, rollLength, !!layout.allowJoinSeams).length
+    : 0;
   return { totalRolls, totalPieces };
 }
 
@@ -7060,6 +7095,7 @@ function computeRollLayout(basePoints, rotationDeg, translation, opts) {
   return {
     basePoints, rotated, minX, maxX, minY, maxY, widthDim, lengthDim,
     rollWidth, rollLength, sideTrim, cuttingMargin, effW, translation: t,
+    allowJoinSeams: opts.allowJoinSeams !== false,
     numStrips, cx, cy, rotationDeg,
     shapeArea, totalOrdered, totalUsable, totalClipped, totalSaved, scrap,
     wastePct: totalOrdered > 0 ? (scrap/totalOrdered*100) : 0,
@@ -7074,6 +7110,9 @@ function getRollOpts(proj) {
     rollLength: document.getElementById('rollLengthInput').value,
     sideTrim: document.getElementById('sideTrimInput').value,
     cuttingMargin: document.getElementById('cuttingMarginInput').value,
+    // Butt seams across roll joins: a real trade-off (fewest rolls vs seamless
+    // runs), so it flows through to packing the same way the dimensions do.
+    allowJoinSeams: (function(){ const el = document.getElementById('allowJoinSeamsInput'); return (el && typeof el.checked === 'boolean') ? el.checked : true; })(),
     nesting: (proj && proj.layout && proj.layout.nesting) || {},
     nestPos: (proj && proj.layout && proj.layout.nestPos) || {},
     nestRot: (proj && proj.layout && proj.layout.nestRot) || {},
@@ -7086,7 +7125,7 @@ function getRollOpts(proj) {
 // A project "overrides" iff proj.rollSettings exists; otherwise it resolves to the
 // global default. Cutting Margin is the usual per-job override lever.
 const ROLL_DEFAULTS_KEY = 'wt_rollDefaults'; // global default store
-const ROLL_DEFAULTS_FALLBACK = { rollWidth: 15, rollLength: 100, sideTrim: 4, cuttingMargin: 4 };
+const ROLL_DEFAULTS_FALLBACK = { rollWidth: 15, rollLength: 100, sideTrim: 4, cuttingMargin: 4, allowJoinSeams: true };
 
 function getGlobalRollDefaults() {
   try {
@@ -7122,6 +7161,7 @@ function rollDefaultsFromInputs() {
     rollLength: num('rollLengthInput', 100),
     sideTrim: num('sideTrimInput', 0),
     cuttingMargin: num('cuttingMarginInput', 0),
+    allowJoinSeams: (function(){ const el = document.getElementById('allowJoinSeamsInput'); return (el && typeof el.checked === 'boolean') ? el.checked : true; })(),
   };
 }
 function loadRollDefaultsToInputs() {
@@ -7131,6 +7171,8 @@ function loadRollDefaultsToInputs() {
   set('rollLengthInput', d.rollLength);
   set('sideTrimInput', d.sideTrim);
   set('cuttingMarginInput', d.cuttingMargin);
+  const js = document.getElementById('allowJoinSeamsInput');
+  if (js) js.checked = d.allowJoinSeams !== false;
   updateRollOverrideUI();
 }
 // Reflect override state in the status line + reset link.
@@ -7144,7 +7186,7 @@ function updateRollOverrideUI() {
     if (!proj) note.textContent = 'No project open — editing sets the global default.';
     else if (overriding) {
       const keys = Object.keys(proj.rollSettings || {});
-      const labels = { rollWidth:'width', rollLength:'length', sideTrim:'trim', cuttingMargin:'cutting margin' };
+      const labels = { rollWidth:'width', rollLength:'length', sideTrim:'trim', cuttingMargin:'cutting margin', allowJoinSeams:'butt seams' };
       const named = keys.map(k => labels[k] || k).join(', ');
       note.textContent = `"${proj.name}" overrides the global default${named ? ` (${named})` : ''}.`;
     } else {
@@ -7192,7 +7234,7 @@ function onRollSettingEdit(field, el) {
   openRollScopeDialog(field, newVal, prevVal, el);
 }
 
-const ROLL_FIELD_LABELS = { rollWidth:'Roll Width', rollLength:'Roll Length', sideTrim:'S-seam Side Trim', cuttingMargin:'Cutting Margin' };
+const ROLL_FIELD_LABELS = { rollWidth:'Roll Width', rollLength:'Roll Length', sideTrim:'S-seam Side Trim', cuttingMargin:'Cutting Margin', allowJoinSeams:'Butt Seams Across Roll Joins' };
 
 function openRollScopeDialog(field, newVal, prevVal, el) {
   const modal = document.getElementById('rollScopeModal');
@@ -8429,6 +8471,52 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     ctx.restore();
   }
 
+  // Roll-join butt seams: where a run had to be finished on the next roll, the
+  // seam falls partway along the piece. Drawn DASHED (manual cuts are solid) in the
+  // same red, with a "roll join" tag — so the crew can see the seam is forced by
+  // the roll length, not one of your cuts, and knows exactly where it lands.
+  if (primaryVisible && layout.allowJoinSeams) {
+    const joinLabels = assignRollPieceLabels(layout);
+    ctx.save();
+    ctx.strokeStyle = '#d32f2f';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([9, 5]);
+    layout.strips.forEach(s => {
+      if (s.clippedArea <= 1e-9) return;
+      (s.pieces || [s]).forEach(u => {
+        if (u.nestedInto != null) return; // cut from waste — no roll join involved
+        const rp = joinLabels.get(u);
+        if (!rp || !(rp.parts > 1)) return;
+        const startX = s.sMinX + (u.start || 0);
+        const parts = [rp].concat(rp.extraParts || []);
+        let acc = 0;
+        for (let k = 0; k < parts.length - 1; k++) {
+          acc += parts[k].partLength || 0;
+          const jx = startX + acc;
+          const line = rotateAround([{x:jx,y:s.y0},{x:jx,y:s.y1}], layout.rotationDeg, layout.cx, layout.cy);
+          const c1 = toCanvas(line[0]), c2 = toCanvas(line[1]);
+          ctx.beginPath();
+          ctx.moveTo(c1.x, c1.y);
+          ctx.lineTo(c2.x, c2.y);
+          ctx.stroke();
+          // Tag it, at the midpoint of the seam.
+          const mx = (c1.x + c2.x) / 2, my = (c1.y + c2.y) / 2;
+          ctx.save();
+          ctx.setLineDash([]);
+          ctx.font = '10px sans-serif';
+          const tag = 'roll join';
+          const tw = ctx.measureText(tag).width;
+          ctx.fillStyle = 'rgba(255,255,255,0.9)';
+          ctx.fillRect(mx - tw/2 - 3, my - 7, tw + 6, 13);
+          ctx.fillStyle = '#d32f2f';
+          ctx.fillText(tag, mx - tw/2, my + 3);
+          ctx.restore();
+        }
+      });
+    });
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
   // Strip boundary lines (dashed), rotated back to display frame
   ctx.save();
   ctx.setLineDash([6,4]);
@@ -9543,29 +9631,107 @@ function displayPointToRollFrame(dataPt, layerGroup) {
 // starts whenever the running total crosses a multiple of rollLength. Each
 // unit is assigned to the roll it STARTS in, and numbered sequentially
 // within that roll (Piece 1, Piece 2, ...).
-function assignRollPieceLabels(layout) {
-  const rollLength = layout.rollLength || 100;
-  const labels = new Map(); // unit -> {roll, piece}
-  let cum = 0;        // cumulative ordered length consumed so far
-  let rollNum = 1;
-  let pieceInRoll = 0;
+// Pack pieces onto physical rolls in cut order, and decide what happens when the
+// next piece doesn't fit the remainder of the current roll. There are only two
+// physically honest answers, and they're a real trade-off:
+//
+//   allowJoinSeams = true  → fill the remainder and continue the piece on the next
+//                            roll, joining the two parts with a BUTT SEAM. Uses the
+//                            least material (this is what ceil(total ÷ rollLength)
+//                            silently assumed), at the cost of an extra seam.
+//   allowJoinSeams = false → the remainder is scrap and the piece starts a fresh
+//                            roll, so every run is seamless. Costs more rolls.
+//
+// A piece longer than a whole roll must be seamed either way — it cannot be cut in
+// one run — so it always splits.
+//
+// `lengths` is ordered piece lengths (ft). Returns an array of rolls; each roll is
+// an array of placements: { index, length, part, parts }, where `index` points into
+// `lengths`, `length` is the footage taken off THIS roll, and part/parts describe a
+// butt-seamed split (part 1 of 2, 2 of 2 …). parts === 1 means a single clean run.
+// Pure — no DOM.
+function packPiecesIntoRolls(lengths, rollLength, allowJoinSeams) {
+  const rl = parseFloat(rollLength) > 0 ? parseFloat(rollLength) : 100;
+  const rolls = [];
+  let cur = [];
+  let used = 0;
+  const closeRoll = () => { rolls.push(cur); cur = []; used = 0; };
 
-  layout.strips.forEach(s => {
-    if (s.clippedArea <= 1e-9) return;
-    const units = s.pieces || [s];
-    units.forEach(u => {
-      // Start a new roll if this unit begins at/after the next rollLength boundary
-      const rollStartThreshold = (rollNum) * rollLength;
-      if (cum >= rollStartThreshold - 1e-9 && pieceInRoll > 0) {
-        rollNum++;
-        pieceInRoll = 0;
-      }
-      pieceInRoll++;
-      labels.set(u, { roll: rollNum, piece: pieceInRoll });
-      cum += u.orderedLength;
-    });
+  (lengths || []).forEach((len, i) => {
+    const L = Math.max(0, parseFloat(len) || 0);
+
+    if (!allowJoinSeams) {
+      // Never split at a join. Oversized pieces still can't be helped — they get a
+      // roll to themselves and are seamed by the upstream segmentation.
+      if (cur.length && used + L > rl + 1e-9) closeRoll();
+      cur.push({ index: i, length: L, part: 1, parts: 1 });
+      used += L;
+      return;
+    }
+
+    if (L <= 1e-9) { cur.push({ index: i, length: 0, part: 1, parts: 1 }); return; }
+
+    // Split across joins: take whatever fits, seam, continue on the next roll.
+    const placements = [];
+    let remaining = L;
+    while (remaining > 1e-9) {
+      let space = rl - used;
+      if (space <= 1e-9) { closeRoll(); space = rl; }
+      const take = Math.min(space, remaining);
+      const entry = { index: i, length: take, part: placements.length + 1, parts: 1 };
+      cur.push(entry);
+      placements.push(entry);
+      used += take;
+      remaining -= take;
+      if (remaining > 1e-9) closeRoll();
+    }
+    placements.forEach(e => { e.parts = placements.length; });
   });
 
+  if (cur.length) closeRoll();
+  return rolls;
+}
+
+function assignRollPieceLabels(layout) {
+  const rollLength = layout.rollLength || 100;
+  const labels = new Map(); // unit -> {roll, piece} (+ part/parts when butt-seamed)
+  const units = [];
+  layout.strips.forEach(s => {
+    if (s.clippedArea <= 1e-9) return;
+    (s.pieces || [s]).forEach(u => units.push(u));
+  });
+  // Pack rather than run a cumulative counter: the old logic only started a new
+  // roll once the running total had already PASSED a roll boundary, so a piece
+  // that began at 70 ft on a 100 ft roll was still labelled for that roll even
+  // though it ran to 113 ft — an impossible cut. Now a piece either fits, or it's
+  // explicitly butt-seamed across the join (and labelled as such), or it starts a
+  // new roll — depending on the Butt Seams setting.
+  // A nested piece is cut from another roll's already-purchased waste, so it
+  // consumes NO new roll length — but it still needs an identity in the list. Pack
+  // it at zero length: it keeps its place in the sequence and gets a label without
+  // pushing anything onto a new roll. (This also keeps the labels agreeing with
+  // countRollsAndPieces, which excludes nested pieces from its footage.)
+  const rolls = packPiecesIntoRolls(
+    units.map(u => (u.nestedInto == null ? u.orderedLength : 0)),
+    rollLength,
+    !!layout.allowJoinSeams
+  );
+  rolls.forEach((placements, r) => {
+    placements.forEach((pl, p) => {
+      const u = units[pl.index];
+      if (!u) return;
+      const lab = { roll: r + 1, piece: p + 1 };
+      if (pl.parts > 1) { lab.part = pl.part; lab.parts = pl.parts; lab.partLength = pl.length; }
+      // A butt-seamed piece appears on two rolls; keep the FIRST label as the
+      // unit's primary identity and record the rest so callers can show both.
+      if (labels.has(u)) {
+        const prev = labels.get(u);
+        (prev.extraParts || (prev.extraParts = [])).push(lab);
+      } else {
+        labels.set(u, lab);
+      }
+    });
+  });
   return labels;
 }
 
@@ -10162,8 +10328,17 @@ function renderPieceList(layout, proj) {
     const length = u.orderedLength;
     const width = rollWidth;
     const sqft = length * width;
-    const note = u.nestedInto != null ? `cut from ${u.nestedIntoLabel} waste` : '';
-    return { label, length, width, sqft, note, sortKey: rp ? rp.roll*10000 + rp.piece : 0 };
+    const notes = [];
+    if (u.nestedInto != null) notes.push(`cut from ${u.nestedIntoLabel} waste`);
+    // A run that had to be finished on the next roll is butt-seamed — say so and
+    // where, so the installer knows a seam is coming and doesn't cut it blind.
+    if (rp && rp.parts > 1) {
+      const conts = [rp].concat(rp.extraParts || [])
+        .map(x => `${ftIn(x.partLength)} from Roll ${x.roll}`)
+        .join(' + ');
+      notes.push(`butt seam — ${rp.parts} parts: ${conts}`);
+    }
+    return { label, length, width, sqft, note: notes.join('; '), sortKey: rp ? rp.roll*10000 + rp.piece : 0 };
   }).sort((a,b) => a.sortKey - b.sortKey);
 
   // Fringe pieces, if enabled
