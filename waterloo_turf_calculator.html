@@ -1680,11 +1680,13 @@
           </div>
           <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
             <label style="display:flex;align-items:flex-start;gap:8px;margin:0;cursor:pointer;">
-              <input type="checkbox" id="allowJoinSeamsInput" checked onchange="onRollSettingEdit('allowJoinSeams', this)" style="margin-top:2px;">
+              <input type="checkbox" id="allowJoinSeamsInput" onchange="onRollSettingEdit('allowJoinSeams', this)" style="margin-top:2px;">
               <span>
                 <strong>Allow butt seams across roll joins</strong>
                 <div style="font-size:11px;color:var(--text-light);line-height:1.4;margin-top:3px;">
-                  What happens when a piece won't fit in what's left of a roll. <strong>On</strong> — use up the remainder and finish the piece on the next roll, joined by a <strong>butt seam</strong>: fewest rolls, least material. <strong>Off</strong> — the remainder is scrap and the piece starts a fresh roll, so <strong>every run is seamless</strong>: more rolls, no extra seams. Example: three 60 ft runs on 100 ft rolls = <strong>2 rolls with butt seams</strong>, or <strong>3 rolls and no seams</strong>. A run longer than a whole roll is always seamed — it can't be cut in one piece.
+                  <strong>Leave this off if your supplier cuts rolls to length</strong> — it saves you nothing and costs you a seam. Total footage is the same either way (three 60 ft runs = 180 ft whether that's 2 rolls or 3); butt seams only change how the footage is split across rolls. They pay off <em>only</em> when you must buy fixed-length rolls and eat the leftover.
+                  <br><strong>Off</strong> — a piece that won't fit the remainder starts a fresh roll, so <strong>every run is seamless</strong>. More rolls, but each is only as long as it needs to be.
+                  <br><strong>On</strong> — the piece uses the remainder and finishes on the next roll, joined by a <strong>butt seam</strong>: fewer, longer rolls. A run longer than a whole roll is always seamed — it can't be cut in one piece.
                 </div>
               </span>
             </label>
@@ -2352,13 +2354,15 @@
         <p>Open <strong>"⚙ Advanced details &amp; tools"</strong> for the rest: the Saved (nested) figure, the manual-cuts and nested-pieces lists, and the per-piece list. Entering Cut Mode opens this section automatically so the cut/nest tools are visible. (<strong>Scrap</strong> — Ordered minus the installed shape area, with % — now sits in the totals strip in the top toolbar; the purchased-rectangles toggle sits above the canvas.)</p>
         <p>The roll/piece count shows just <strong>"N rolls"</strong> when the number of rolls to purchase equals the number of installed pieces — the normal case. It shows <strong>"N rolls / M pieces"</strong> only when these differ.</p>
         <p><strong>Pieces</strong> = total separately-installed pieces across the whole job: one per band/strip normally, more if a strip is manually cut into butt-seamed sections, or if a single strip is longer than Max Roll Length (which forces an inherent seam even without a manual cut).</p>
-        <p><strong>Rolls</strong> = the number of physical rolls the pieces actually pack into, laid on in cut order. What happens when a piece won't fit in what's left of a roll is a real choice, controlled by <strong>"Allow butt seams across roll joins"</strong> (Settings → Roll Settings):</p>
-        <p><strong>On (default)</strong> — the piece uses up the remainder and finishes on the next roll, joined by a <strong>butt seam</strong>. Fewest rolls, least material. Three 60 ft runs on 100 ft rolls = <strong>2 rolls</strong> (roll 1: 60 + the first 40 ft of the next run; roll 2: its last 20 ft + the final 60). Each forced seam is <strong>drawn on the diagram</strong> as a dashed red line tagged <strong>"roll join"</strong> exactly where it lands along the run — dashed to distinguish it from your own Cut Mode seams, which are solid — and the Piece List spells it out: "butt seam — 2 parts: 40'0" from Roll 1 + 20'0" from Roll 2". So whoever cuts it can see the seam on the drawing and read it on the cut sheet.</p>
-        <p><strong>Off</strong> — the remainder is scrap and the piece starts a fresh roll, so <strong>every run is seamless</strong>. Same three 60 ft runs = <strong>3 rolls</strong>, with 40 ft of scrap on each. More material, no extra seams.</p>
+        <p><strong>Rolls</strong> = the number of physical rolls the pieces actually pack into, laid on in cut order. What happens when a piece won't fit in what's left of a roll is controlled by <strong>"Allow butt seams across roll joins"</strong> (Settings → Roll Settings), which defaults to <strong>off</strong>:</p>
+        <p><strong>On</strong> — the piece uses up the remainder and finishes on the next roll, joined by a <strong>butt seam</strong>. Fewest rolls, least material. Three 60 ft runs on 100 ft rolls = <strong>2 rolls</strong> (roll 1: 60 + the first 40 ft of the next run; roll 2: its last 20 ft + the final 60). Each forced seam is <strong>drawn on the diagram</strong> as a dashed red line tagged <strong>"roll join"</strong> exactly where it lands along the run — dashed to distinguish it from your own Cut Mode seams, which are solid — and the Piece List spells it out: "butt seam — 2 parts: 40'0" from Roll 1 + 20'0" from Roll 2". So whoever cuts it can see the seam on the drawing and read it on the cut sheet.</p>
+        <p><strong>Off (default)</strong> — the piece starts a fresh roll, so <strong>every run is seamless</strong>. Same three 60 ft runs = <strong>3 rolls</strong> of 60 ft. That's still 180 ft: with a cut-to-length supplier each roll is only cut as long as it needs to be, so the extra rolls cost nothing and you avoid two seams.</p>
         <p>Either way pieces from different bands/strips <em>can</em> share a roll when their combined length fits (3 pieces totaling 75 ft = "1 roll / 3 pieces"), and a run longer than a whole roll is <strong>always</strong> seamed — it can't be cut in one piece. Note that <code>total linear ft ÷ roll length</code> only ever describes the seams-on case; with seams off it under-counts, because it assumes turf can be split across a join.</p>
         <p>The <strong>"Show purchased roll rectangles (waste)"</strong> checkbox sits right above the canvas, always visible no matter which tab you're on, so it's a one-click toggle. On, it overlays each roll's full purchased rectangle with the unused (waste) portion hatched in red — which is what enables drag-and-drop nesting.</p>
 
         <div class="docs-h3">Piece List (Length × Width)</div>
+        <p><strong>Rolls to order:</strong> below the piece list, each physical roll is listed with <strong>the length it actually needs to be</strong>, rounded up to the whole foot — the figure to give a supplier who cuts rolls to length. E.g. Roll 1 = 70 ft, Roll 2 = 87 ft, 157 ft total.</p>
+        <p><strong>The total footage is the same whether butt seams are on or off</strong> — three 60 ft runs are 180 ft whether that's 3 seamless rolls or 2 seamed ones. Seams only change how the footage is split across rolls, never how much you buy. So with a cut-to-length supplier, leaving butt seams <strong>off</strong> is free: same order, one less seam. Butt seams only save material if you're forced to buy fixed-length rolls and eat the leftover.</p>
         <p>A table listing every individual piece that will be cut for this job — each row shows its <strong>Roll N / Piece M</strong> label, <strong>Length</strong> (its ordered length along the roll), <strong>Width</strong> (the roll width), and resulting <strong>SqFt</strong>. This is the cut sheet for your installers: it tells them exactly how long to cut each piece from the roll, and the total linear footage at the bottom helps you sanity-check how many rolls to bring and plan seam placement to minimize butt seams. Pieces created by Manual Cuts or that have been nested into another roll's waste show a note (e.g. "cut from Roll N / Piece M waste"). If a Putting Green Fringe is configured, the fringe pieces ("Fringe 1", "Fringe 2", ...) are listed too, with their own length/width/sqft.</p>
 
         <div class="docs-h3">Drag-and-Drop Nesting</div>
@@ -7095,7 +7099,7 @@ function computeRollLayout(basePoints, rotationDeg, translation, opts) {
   return {
     basePoints, rotated, minX, maxX, minY, maxY, widthDim, lengthDim,
     rollWidth, rollLength, sideTrim, cuttingMargin, effW, translation: t,
-    allowJoinSeams: opts.allowJoinSeams !== false,
+    allowJoinSeams: opts.allowJoinSeams === true,
     numStrips, cx, cy, rotationDeg,
     shapeArea, totalOrdered, totalUsable, totalClipped, totalSaved, scrap,
     wastePct: totalOrdered > 0 ? (scrap/totalOrdered*100) : 0,
@@ -7112,7 +7116,7 @@ function getRollOpts(proj) {
     cuttingMargin: document.getElementById('cuttingMarginInput').value,
     // Butt seams across roll joins: a real trade-off (fewest rolls vs seamless
     // runs), so it flows through to packing the same way the dimensions do.
-    allowJoinSeams: (function(){ const el = document.getElementById('allowJoinSeamsInput'); return (el && typeof el.checked === 'boolean') ? el.checked : true; })(),
+    allowJoinSeams: (function(){ const el = document.getElementById('allowJoinSeamsInput'); return (el && typeof el.checked === 'boolean') ? el.checked : false; })(),
     nesting: (proj && proj.layout && proj.layout.nesting) || {},
     nestPos: (proj && proj.layout && proj.layout.nestPos) || {},
     nestRot: (proj && proj.layout && proj.layout.nestRot) || {},
@@ -7125,7 +7129,7 @@ function getRollOpts(proj) {
 // A project "overrides" iff proj.rollSettings exists; otherwise it resolves to the
 // global default. Cutting Margin is the usual per-job override lever.
 const ROLL_DEFAULTS_KEY = 'wt_rollDefaults'; // global default store
-const ROLL_DEFAULTS_FALLBACK = { rollWidth: 15, rollLength: 100, sideTrim: 4, cuttingMargin: 4, allowJoinSeams: true };
+const ROLL_DEFAULTS_FALLBACK = { rollWidth: 15, rollLength: 100, sideTrim: 4, cuttingMargin: 4, allowJoinSeams: false };
 
 function getGlobalRollDefaults() {
   try {
@@ -7161,7 +7165,7 @@ function rollDefaultsFromInputs() {
     rollLength: num('rollLengthInput', 100),
     sideTrim: num('sideTrimInput', 0),
     cuttingMargin: num('cuttingMarginInput', 0),
-    allowJoinSeams: (function(){ const el = document.getElementById('allowJoinSeamsInput'); return (el && typeof el.checked === 'boolean') ? el.checked : true; })(),
+    allowJoinSeams: (function(){ const el = document.getElementById('allowJoinSeamsInput'); return (el && typeof el.checked === 'boolean') ? el.checked : false; })(),
   };
 }
 function loadRollDefaultsToInputs() {
@@ -7172,7 +7176,7 @@ function loadRollDefaultsToInputs() {
   set('sideTrimInput', d.sideTrim);
   set('cuttingMarginInput', d.cuttingMargin);
   const js = document.getElementById('allowJoinSeamsInput');
-  if (js) js.checked = d.allowJoinSeams !== false;
+  if (js) js.checked = d.allowJoinSeams === true;
   updateRollOverrideUI();
 }
 // Reflect override state in the status line + reset link.
@@ -9711,6 +9715,38 @@ function packPiecesIntoRolls(lengths, rollLength, allowJoinSeams) {
   return rolls;
 }
 
+// How long each physical roll actually needs to be — the ordering answer, since
+// suppliers cut rolls to length. Without this the Piece List only gives the total
+// footage and a roll COUNT, which hides the fact that (say) roll 1 needs 70 ft and
+// roll 2 needs 87 ft: you'd order two full 100 ft rolls and pay for 43 ft you never
+// use. Matters most with butt seams OFF, where a roll is deliberately left part-used
+// so a run stays seamless.
+// Returns { rolls: [{ roll, usedFt, scrapFt }], totalFt, fullRollFt } where usedFt
+// is rounded UP to the whole foot (you can't buy 69.4 ft) and scrapFt is what's left
+// of a full roll if you bought one instead. Pure — no DOM.
+function rollLengthSummary(layout) {
+  const rollLength = (layout && layout.rollLength) || 100;
+  const units = [];
+  (layout && layout.strips || []).forEach(s => {
+    if (s.clippedArea <= 1e-9) return;
+    (s.pieces || [s]).forEach(u => units.push(u));
+  });
+  const packed = packPiecesIntoRolls(
+    units.map(u => (u.nestedInto == null ? u.orderedLength : 0)),
+    rollLength,
+    !!(layout && layout.allowJoinSeams)
+  );
+  const rolls = packed.map((placements, i) => {
+    const usedFt = Math.ceil(placements.reduce((a, e) => a + (e.length || 0), 0) - 1e-9);
+    return { roll: i + 1, usedFt, scrapFt: Math.max(0, rollLength - usedFt) };
+  });
+  return {
+    rolls,
+    totalFt: rolls.reduce((a, r) => a + r.usedFt, 0),
+    fullRollFt: rolls.length * rollLength,
+  };
+}
+
 function assignRollPieceLabels(layout) {
   const rollLength = layout.rollLength || 100;
   const labels = new Map(); // unit -> {roll, piece} (+ part/parts when butt-seamed)
@@ -10380,6 +10416,9 @@ function renderPieceList(layout, proj) {
 
   const totalLinearFt = rows.reduce((s,r)=>s+r.length, 0);
 
+  const rollSummary = rollLengthSummary(layout);
+  const seamsOn = !!layout.allowJoinSeams;
+
   table.innerHTML = `
     <div style="display:grid;grid-template-columns:1.4fr 0.8fr 0.8fr 0.8fr 1.2fr;gap:6px;font-weight:600;color:var(--text-light);padding:2px 4px;">
       <div>Piece</div><div>Length</div><div>Width</div><div>SqFt</div><div>Notes</div>
@@ -10396,6 +10435,28 @@ function renderPieceList(layout, proj) {
       <span>${rows.length} piece${rows.length===1?'':'s'}</span>
       <span>${totalLinearFt.toFixed(1)} ft total linear footage</span>
     </div>
+    ${rollSummary.rolls.length ? `
+    <div style="margin-top:10px;padding-top:8px;border-top:2px solid var(--border);">
+      <div style="font-weight:700;color:var(--text-light);padding:0 4px 4px;">ROLLS TO ORDER (${rollSummary.rolls.length} × ${rollWidth.toFixed(1)} ft wide)</div>
+      <div style="font-size:10px;color:var(--text-light);padding:0 4px 6px;line-height:1.4;">
+        Cut-to-length: order each roll at this length.${seamsOn
+          ? ' Butt seams are on, so rolls are filled end to end and runs are seamed at the joins.'
+          : ' Butt seams are off, so every run is seamless.'}
+      </div>
+      ${rollSummary.rolls.map(r => `
+        <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:6px;padding:3px 4px;border-top:1px solid var(--border);align-items:center;">
+          <div>Roll ${r.roll}</div>
+          <div style="font-weight:600;">${r.usedFt.toFixed(1)} ft</div>
+        </div>`).join('')}
+      <div style="display:flex;justify-content:space-between;padding:6px 4px 2px;border-top:1px solid var(--border);font-weight:600;color:var(--text-mid);">
+        <span>${rollSummary.rolls.length} roll${rollSummary.rolls.length===1?'':'s'}</span>
+        <span>${rollSummary.totalFt.toFixed(1)} ft to order</span>
+      </div>
+      ${seamsOn ? `
+      <div style="font-size:10px;color:#b45309;padding:4px;line-height:1.4;">
+        Turning butt seams <strong>off</strong> would order the same ${rollSummary.totalFt.toFixed(1)} ft with no seams — cut-to-length means seams save no material.
+      </div>` : ''}
+    </div>` : ''}
   `;
 }
 

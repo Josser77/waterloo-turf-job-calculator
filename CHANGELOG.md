@@ -5,6 +5,66 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-14 (cont'd 20) — Butt seams now default OFF: they save nothing on a cut-to-length supply
+
+Confirmed the supplier **cuts rolls to length**. That collapses the trade-off the
+(cont'd 16) setting was built around: **butt seams save no material.** Total footage
+is identical either way — three 60 ft runs are 180 ft whether that's 3 seamless rolls
+of 60 ft or 2 seamed rolls of 100 + 80; the live job is 157 ft in both modes. Seams
+only redistribute footage across rolls. They pay off *only* when you must buy
+fixed-length rolls and eat the leftover — which doesn't apply here. So seams-on was
+pure downside: same order, extra seam.
+
+**"Allow butt seams across roll joins" now defaults to OFF** (fallback, checkbox,
+opts, and layout flag all flipped). Every run is seamless, each roll is cut only as
+long as it needs to be, and the order total is unchanged. The setting stays for the
+case of a fixed-length supply, and the Roll Settings help now leads with when *not*
+to use it.
+
+Also simplified **Rolls to order**: the "X ft would go unused on a full roll" column
+and the full-roll comparison were noise for a cut-to-length order — dropped. It now
+reads "Cut-to-length: order each roll at this length", lists each roll's length and
+the total, and (only when seams are on) points out that turning them off would order
+the same footage with no seams.
+
+Tests **1117 → 1119** (README **1160 → 1162**): the three roll-count/label/manual-cut
+suites now assert seams-**off** as the default and opt in explicitly to cover the
+seamed path; the resolver's fallback default is off, a project can override in either
+direction, and `false` is still treated as a real value rather than "missing"; the
+piece-list render asserts no seam note, no roll padded to 100 ft, each roll at 60 ft,
+and the same 180 ft total as the seamed case. The harness's checkbox stub was
+flipped to unchecked to mirror the shipped page — the same mock-vs-reality trap
+called out in (cont'd 16).
+
+---
+
+## 2026-07-14 (cont'd 19) — "Rolls to order": the length each roll actually needs to be
+
+The Piece List gave total linear footage and a roll count, but never the figure you
+order against: **how long each individual roll needs to be**. That gap costs money
+with butt seams off, where a roll is deliberately left part-used to keep a run
+seamless — the live job needs Roll 1 = 70 ft and Roll 2 = 87 ft, but nothing said
+so, so you'd buy two full 100 ft rolls and pay for 43 ft you never lay.
+
+New **Rolls to order** section under the Piece List: every roll with its required
+length (rounded **up** to the whole foot — you can't buy 69.4 ft), how much of a full
+roll would go unused, a total to order, and a note of what buying full rolls instead
+would waste. It follows the butt-seam setting, since that's what decides whether a
+roll gets filled end to end or left short.
+
+Backed by a pure `rollLengthSummary(layout)` reading the same
+`packPiecesIntoRolls` as the roll count and the labels, so all three agree. Nested
+pieces are cut from already-purchased waste and add nothing to any roll's length.
+
+Tests **1094 → 1117** (README **1137 → 1160**): the live 18/10/42/43/44 job in both
+modes (seams off → 70 + 87 with 30/13 ft unused; seams on → 100 + 57, no scrap on
+the filled roll) and the same 157 ft total either way — only its distribution
+differs; 3×60 ft (3 rolls of 60, wasting 40 ft each if bought full, vs 2 rolls
+seamed); fractional lengths rounding up (50.5 → 51); nested pieces adding no length;
+empty/degenerate layouts safe; plus the summary actually rendering in the piece list.
+
+---
+
 ## 2026-07-14 (cont'd 18) — Fix: the butt-seam checkbox didn't do anything
 
 Unticking "Allow butt seams across roll joins" had no effect — the layout still drew
