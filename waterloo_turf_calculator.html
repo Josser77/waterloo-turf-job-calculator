@@ -2297,7 +2297,7 @@
         <p>A layer that's been moved and/or rotated shows a "↺ Reset position" button in the Layers list to snap it back to its original (imported) position and orientation.</p>
 
         <div class="docs-h3">Cut List</div>
-        <p>Click <strong>"📋 Cut List"</strong> in the toolbar to open a dialog showing <strong>every turf piece to cut</strong>, grouped by layer. Each piece gets a <strong>CAD-style drawing</strong> of its actual trimmed shape, dimensioned in feet and inches, plus a <strong>text line</strong> and <strong>turf area</strong> below it. Irregular pieces (that don't fill their rectangle) are tagged <em>trim to shape</em> and drawn in amber; pieces tucked into another roll's waste are tagged <em>nested</em>. Each layer shows a subtotal (piece count, total cut length, area) and multi-layer jobs get a grand total. The drawings read from the same strips drawn on the canvas, so they always match. This is a <em>cut</em> list — the roll and area <em>order</em> quantities live on the layout panel and the Rock / Base card. Available even when the layout is locked.</p>
+        <p>Click <strong>"📋 Cut List"</strong> in the toolbar to open a dialog showing <strong>every turf piece to cut</strong>, grouped by layer. Each piece gets a <strong>CAD-style drawing</strong> of its actual trimmed shape, dimensioned in feet and inches, plus a <strong>text line</strong> and <strong>turf area</strong> below it. Irregular pieces (that don't fill their rectangle) are tagged <em>trim to shape</em> and drawn in amber; pieces tucked into another roll's waste are tagged <em>nested</em>. Each layer shows a subtotal (piece count, total cut length, area) and multi-layer jobs get a grand total. <strong>The subtotal is the sum of the lengths printed above it</strong> — the trimmed footprints you actually cut — shown in feet and inches. It is deliberately <strong>not</strong> an order quantity: ordered length adds the cutting margin and rounds each piece up to the whole foot, and a piece tagged <em>nested</em> is cut from another roll's waste so it costs no roll length at all. Order against <strong>"ft to order"</strong> in <strong>Rolls to order</strong>. The drawings read from the same strips drawn on the canvas, so they always match. This is a <em>cut</em> list — the roll and area <em>order</em> quantities live on the layout panel and the Rock / Base card. Available even when the layout is locked.</p>
         <p><strong>Cut width vs. footprint (S-seam):</strong> the <strong>"× wide" figure in the text line is the <em>cut</em> width</strong> — how wide to slice the piece off the roll — and it <strong>includes the S-Seam Side Trim</strong> (Settings → Roll Settings) that installers trim off on site. So a strip that fully spans the usable width reads the <strong>full roll width</strong> (e.g. <strong>15'0"</strong>) even though its installed coverage after trimming is 14'8"; a "cut full width, trim S-seam on site" note shows the covered width in that case. Narrow filler strips keep their own width plus the same allowance, never exceeding the roll. The <strong>drawing itself stays the trimmed footprint</strong> at installed size, so it shows what the piece actually covers. (Cut the full width, trim the seam edge on site.)</p>
         <p><strong>🖨 Print / PDF:</strong> the <strong>Print / PDF</strong> button in the Cut List dialog builds a one-shot printable sheet — the job name, install address and date, the current <strong>roll-layout diagram</strong>, and the full cut list — then opens your print dialog. Choose <em>Save as PDF</em> (or a printer) to hand installers a paper or PDF cut sheet. It prints only that sheet, not the rest of the app, and each cut piece is kept whole on a page. Works in the desktop app and on the web.</p>
 
@@ -2363,7 +2363,7 @@
         <div class="docs-h3">Piece List (Length × Width)</div>
         <p><strong>Rolls to order:</strong> below the piece list, each physical roll is listed with <strong>the length it actually needs to be</strong>, rounded up to the whole foot — the figure to give a supplier who cuts rolls to length. E.g. Roll 1 = 70 ft, Roll 2 = 87 ft, 157 ft total.</p>
         <p><strong>The total footage is the same whether butt seams are on or off</strong> — three 60 ft runs are 180 ft whether that's 3 seamless rolls or 2 seamed ones. Seams only change how the footage is split across rolls, never how much you buy. So with a cut-to-length supplier, leaving butt seams <strong>off</strong> is free: same order, one less seam. Butt seams only save material if you're forced to buy fixed-length rolls and eat the leftover.</p>
-        <p>A table listing every individual piece that will be cut for this job — each row shows its <strong>Roll N / Piece M</strong> label, <strong>Length</strong> (its ordered length along the roll), <strong>Width</strong> (the roll width), and resulting <strong>SqFt</strong>. This is the cut sheet for your installers: it tells them exactly how long to cut each piece from the roll, and the total linear footage at the bottom helps you sanity-check how many rolls to bring and plan seam placement to minimize butt seams. Pieces created by Manual Cuts or that have been nested into another roll's waste show a note (e.g. "cut from Roll N / Piece M waste"). If a Putting Green Fringe is configured, the fringe pieces ("Fringe 1", "Fringe 2", ...) are listed too, with their own length/width/sqft.</p>
+        <p>A table listing every individual piece that will be cut for this job — each row shows its <strong>Roll N / Piece M</strong> label, <strong>Length</strong> (its ordered length along the roll), <strong>Width</strong> (the roll width), and resulting <strong>SqFt</strong>. This is the cut sheet for your installers: it tells them exactly how long to cut each piece from the roll, and the total linear footage at the bottom helps you sanity-check how many rolls to bring and plan seam placement to minimize butt seams. That total is what you <strong>order</strong>, so it <strong>excludes nested pieces</strong> — a nested piece is cut from the waste of a roll you're already buying, so counting its length again would charge you for the same turf twice. When any piece is nested, a line underneath spells the difference out (e.g. "33.0 ft of pieces get cut, but 8.0 ft of that is nested from another roll's waste — only the 25.0 ft above is ordered"), and it matches both the <strong>Linear Ft</strong> in the top bar and <strong>ft to order</strong> in Rolls to order. Pieces created by Manual Cuts or that have been nested into another roll's waste show a note (e.g. "cut from Roll N / Piece M waste"). If a Putting Green Fringe is configured, the fringe pieces ("Fringe 1", "Fringe 2", ...) are listed too, with their own length/width/sqft.</p>
 
         <div class="docs-h3">Drag-and-Drop Nesting</div>
         <p>With "Show purchased roll rectangles" on, drag a roll's colored shape (the installed piece) onto another roll's hatched waste area to indicate it can be cut from that roll's offcut rather than ordered separately. Valid drop targets highlight with a green dashed border while dragging — across <em>every</em> layer, since a piece can be nested into a different layer's roll waste, not just its own. You can aim at any part of a roll's rectangle, including a spot that already has turf: the piece still lands where you drop it and is flagged <strong>red</strong> ("overlaps turf") so an impossible spot is obvious instead of the drop silently doing nothing. On a successful drop the piece is redrawn relocated to the target roll's waste area, outlined in orange and labeled "from Roll N / Piece M waste," and its area is removed from Ordered SqFt. <strong>The piece lands exactly where you drop it</strong> — its centroid goes to the drop point, clamped only so the whole piece stays within that roll's purchased rectangle (and nudged just enough to not stack on another piece already nested there). The tool does not relocate or refuse the piece: you place it manually, the way you'd lay it out in the yard. If where you dropped it overlaps that roll's installed turf, the piece is outlined <strong>red</strong> (instead of orange) and its label adds "— overlaps turf," a <strong>toast pops up immediately</strong> ("placed on existing turf — it won't fit there"), and a <strong>persistent red warning shows under Installed SqFt</strong> counting how many placed pieces overlap turf — so an impossible placement can't be missed. Drag it to a clear spot to clear the warning. Drop it again to move it elsewhere. To undo a move, use the piece's <strong>"↩ Put back"</strong> button in the Nested Pieces list — that's the reliable way; you can also drag the orange piece fully off every waste area onto open space, but that gesture is fiddly. You can move several pieces independently and put any one of them back without affecting the others. Works whether or not Cut Mode is active — in Cut Mode a quick click still toggles a cut, while a press-and-drag on a piece nests it. Disabled only in Edit Shape and Move Layers modes. <strong>Nesting reduces what you order:</strong> a nested piece is cut from another roll's already-purchased waste, so it drops out of Linear Ft and the roll count (not just the Ordered SqFt figure) — it still counts as an installed piece. You can also nest a cut piece into the <strong>same roll's</strong> own leftover (drop it on a sibling piece's waste), which shortens that roll. Eligibility is based on the piece's <em>installed</em> turf area fitting the leftover, so a piece tucks in whenever its actual shape (not its full 15ft rectangle) fits. <strong>On a multi-layer job you can nest across layers:</strong> drag a piece from any install layer onto another roll's waste in the <em>same</em> layer or a <em>different</em> one. A cross-layer nest means the piece is cut from the other layer's roll waste — so it drops out of <em>its own</em> layer's Ordered SqFt, Linear Ft, and roll count, while the layer it's tucked into keeps its order unchanged (that roll was already bought) and only its scrap falls. The piece is redrawn in the target layer's waste at your drop point and labeled "from &lt;layer name&gt; waste." Cross-layer placement is approximate — it lands in the target's waste near where you drop it; treat the orange/red outline as the confirmation and nudge it if needed.</p>
@@ -9843,7 +9843,10 @@ function buildCutList(layout) {
           footW = (u.rfY1 - u.rfY0);
           poly = [{x:0,y:0},{x:footL,y:0},{x:footL,y:footW},{x:0,y:footW}];
         }
-        const cutLength = u.orderedLength || (u.rfX1 - u.rfX0);
+        // What this piece consumes off a roll (ordered length: footprint + cutting
+        // margin, rounded up to the whole foot). NOT the same as footL, which is the
+        // trimmed footprint shown in the drawing and the "Cut X long" line.
+        const rollLength = u.orderedLength || (u.rfX1 - u.rfX0);
         const area = u.clippedArea;
         const irregular = area < (footW * footL) - 0.5;
         // Width to cut off the roll = footprint + S-seam trim (trimmed on site),
@@ -9856,10 +9859,14 @@ function buildCutList(layout) {
         pieces.push({
           roll: lab.roll || 1, piece: lab.piece || 1,
           label: lab.roll ? ('Roll ' + lab.roll + ', Piece ' + lab.piece) : 'Piece',
-          cutLength, rollWidth, footW, footL, cutW, area, irregular, poly,
+          cutLength: footL, rollLength, rollWidth, footW, footL, cutW, area, irregular, poly,
           nested: (u.nestedInto != null),
         });
-        sP++; sL += cutLength; sA += area;
+        // Sum the lengths this list actually PRINTS. It used to add orderedLength
+        // while each piece displayed footL, so the subtotal contradicted the pieces
+        // above it (7'1" + 23'8" = 30'9" printed, but "33.0 ft total cut" shown).
+        // This is a cut list — the order quantity lives in Rolls to order.
+        sP++; sL += footL; sA += area;
       });
     });
     if (!pieces.length) return;
@@ -9897,17 +9904,20 @@ function renderCutListHtml(data) {
     html += '</div>';
     html += '<div style="margin-top:10px;font-size:12px;color:var(--text-mid);font-weight:600;">'
       + layer.subtotal.pieces + ' piece' + (layer.subtotal.pieces === 1 ? '' : 's') + ' · '
-      + f1(layer.subtotal.linearFt) + ' ft total cut · ' + f1(layer.subtotal.area) + ' ft²</div>';
+      + ftIn(layer.subtotal.linearFt) + ' total cut · ' + f1(layer.subtotal.area) + ' ft²</div>';
   });
   if (multi) {
     html += '<div style="margin-top:14px;padding-top:10px;border-top:2px solid var(--border);font-weight:700;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">'
       + '<span>All layers: ' + data.totals.pieces + ' pieces</span>'
-      + '<span>' + f1(data.totals.linearFt) + ' ft cut · ' + f1(data.totals.area) + ' ft²</span></div>';
+      + '<span>' + ftIn(data.totals.linearFt) + ' cut · ' + f1(data.totals.area) + ' ft²</span></div>';
   }
   html += '<div style="margin-top:14px;font-size:11px;color:var(--text-light);line-height:1.5;">'
     + 'The <strong>“× wide” figure</strong> above each drawing is the <strong>cut width</strong> — how wide to slice the piece off the roll, including the S-seam side trim that comes off on site — so a full-coverage strip reads the full roll width (e.g. 15\'0"). '
     + 'The <strong>drawing itself is the trimmed turf footprint</strong> at its installed size: <strong>length</strong> runs along the roll (horizontal, below the shape) and <strong>width</strong> across the roll (vertical, on the left), both in feet and inches. '
-    + 'Pieces marked <em>trim to shape</em> don\'t fill their rectangle. This lists physical cuts; roll/area order totals are on the layout panel.</div>';
+    + 'Pieces marked <em>trim to shape</em> don\'t fill their rectangle. '
+    + 'The <strong>total cut</strong> is the sum of the lengths printed above — it is <strong>not</strong> what you order. '
+    + 'Ordered length adds the cutting margin and rounds each piece up to the whole foot, and a piece marked <em>nested</em> is cut from another roll\'s waste, so it costs no roll length at all. '
+    + 'The figure to order against is <strong>“ft to order”</strong> in <strong>Rolls to order</strong> on the layout panel.</div>';
   return html;
 }
 
@@ -10393,7 +10403,7 @@ function renderPieceList(layout, proj) {
         .join(' + ');
       notes.push(`butt seam — ${rp.parts} parts: ${conts}`);
     }
-    return { label, length, width, sqft, note: notes.join('; '), sortKey: rp ? rp.roll*10000 + rp.piece : 0 };
+    return { label, length, width, sqft, nested: u.nestedInto != null, note: notes.join('; '), sortKey: rp ? rp.roll*10000 + rp.piece : 0 };
   }).sort((a,b) => a.sortKey - b.sortKey);
 
   // Fringe pieces, if enabled
@@ -10406,7 +10416,7 @@ function renderPieceList(layout, proj) {
     const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layout.rollLength) : null;
     if (plan) {
       plan.pieces.forEach((p, i) => {
-        rows.push({ label: `Fringe ${i+1}`, length: p.length, width: p.width, sqft: p.length*p.width, note: 'PG fringe', sortKey: Infinity });
+        rows.push({ label: `Fringe ${i+1}`, length: p.length, width: p.width, sqft: p.length*p.width, nested: false, note: 'PG fringe', sortKey: Infinity });
       });
     }
   }
@@ -10414,7 +10424,14 @@ function renderPieceList(layout, proj) {
   if (!rows.length) { group.style.display = 'none'; table.innerHTML = ''; return; }
   group.style.display = '';
 
-  const totalLinearFt = rows.reduce((s,r)=>s+r.length, 0);
+  // A nested piece is cut from a roll you're ALREADY buying, so it adds no linear
+  // footage — counting it here would charge for the same turf twice (once inside the
+  // host roll's length, once as its own). That's the whole point of nesting, and it's
+  // why this total must match the Linear Ft in the top bar and "ft to order" below;
+  // summing every row made them disagree.
+  const cutLinearFt = rows.reduce((s,r)=>s+r.length, 0);
+  const nestedLinearFt = rows.reduce((s,r)=>s + (r.nested ? r.length : 0), 0);
+  const totalLinearFt = cutLinearFt - nestedLinearFt;
 
   const rollSummary = rollLengthSummary(layout);
   const seamsOn = !!layout.allowJoinSeams;
@@ -10435,6 +10452,10 @@ function renderPieceList(layout, proj) {
       <span>${rows.length} piece${rows.length===1?'':'s'}</span>
       <span>${totalLinearFt.toFixed(1)} ft total linear footage</span>
     </div>
+    ${nestedLinearFt > 0 ? `
+    <div style="font-size:10px;color:var(--text-light);padding:2px 4px 0;line-height:1.4;">
+      ${cutLinearFt.toFixed(1)} ft of pieces get cut, but ${nestedLinearFt.toFixed(1)} ft of that is nested from another roll's waste — turf you're already buying. Only the ${totalLinearFt.toFixed(1)} ft above is ordered.
+    </div>` : ''}
     ${rollSummary.rolls.length ? `
     <div style="margin-top:10px;padding-top:8px;border-top:2px solid var(--border);">
       <div style="font-weight:700;color:var(--text-light);padding:0 4px 4px;">ROLLS TO ORDER (${rollSummary.rolls.length} × ${rollWidth.toFixed(1)} ft wide)</div>

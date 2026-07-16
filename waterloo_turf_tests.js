@@ -2760,6 +2760,36 @@ section('38. Piece List shows length/width/sqft for every roll piece and fringe 
     assert(inputs.pieceListGroup.style.display === '', 'pieceListGroup is visible');
   }
 
+  // ── A NESTED piece must not add linear footage (real job, 2026-07-15) ──
+  // An L-shape: a 25ft band, plus an 8ft band nested into the 25ft band's waste.
+  // The 8ft piece is cut from a roll already being bought, so the order is 25ft —
+  // NOT 33ft. Summing every row charged for that 8ft twice and made the piece list
+  // disagree with both the top-bar Linear Ft and "ft to order".
+  {
+    // Band y0 (25ft long) is only partly covered, leaving waste — same situation as
+    // the real job, where a 25ft roll had 118 sqft of scrap to nest into.
+    const lShape = [{x:0,y:0},{x:25,y:0},{x:25,y:7},{x:8,y:7},{x:8,y:30},{x:0,y:30}];
+    const { inputs } = makeHarness38({
+      proj: {
+        id:'p1', name:'Test', created:1000, edging:{}, pgSqFt:0, miscItems:[],
+        turf:[{ product:'Turf', installedSqFt:359, sqFtToOrder:359, orderedSqFt:359, role:'base' }],
+        infill:[], rock:[],
+        layout: { points: lShape, area:359, rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, rotation:0, translation:0,
+                  nesting: { 'y15.00': 'y0.00' } },
+      },
+    });
+    const html = inputs.pieceListTable.innerHTML;
+    assert(/cut from .*waste/.test(html), 'the nested piece is flagged as cut from waste');
+    // The order figure excludes the nested piece.
+    assert(html.includes('25.0 ft total linear footage'), `nested piece excluded: order is 25ft, not 33ft (got: ${(html.match(/[\d.]+ ft total linear footage/)||[])[0]})`);
+    assert(!html.includes('33.0 ft total linear footage'), 'the 8ft nested piece is NOT charged as extra linear footage');
+    // But the cut footage is still shown, so the installer knows what gets cut.
+    assert(html.includes('33.0 ft of pieces get cut'), 'cut footage (33ft) is still surfaced');
+    assert(html.includes('8.0 ft of that is nested'), 'the nested portion is named');
+    // And it reconciles with rolls-to-order.
+    assert(html.includes('25.0 ft to order'), 'rolls-to-order agrees at 25ft');
+  }
+
   // ── L-shape with a manual cut producing a small offcut ──
   {
     const mainShape = [{x:0,y:0},{x:40,y:0},{x:40,y:15},{x:10,y:15},{x:10,y:30},{x:0,y:30}];
@@ -5102,6 +5132,27 @@ section('69. Cut list');
   assert(cl.layers[0].pieces.every(p => near(p.rollWidth, 15)), 'cut width is the roll width');
   const lf = cl.layers[0].pieces.reduce((s,p) => s + p.cutLength, 0);
   assert(near(cl.totals.linearFt, lf), 'total cut length is the sum of piece cut lengths');
+
+  // The subtotal must sum the lengths the panel PRINTS (the trimmed footprint,
+  // "Cut 40'0" long"), not the ordered length. It used to add orderedLength while
+  // printing footL, so the total contradicted the pieces listed above it — a real
+  // job printed 7'1" + 23'8" (= 30'9") under a "33.0 ft total cut" subtotal.
+  // The old test compared the total against p.cutLength, which WAS orderedLength —
+  // self-consistent, but never checked against the displayed dimension.
+  assert(cl.layers[0].pieces.every(p => near(p.cutLength, p.footL)),
+    'the piece\'s cut length IS the printed footprint length');
+  const printedLf = cl.layers[0].pieces.reduce((s,p) => s + p.footL, 0);
+  assert(near(cl.totals.linearFt, printedLf), 'total cut = sum of the printed footprint lengths');
+  // 3 bands: the 4" side trim drops the effective width to 14'8", so a 30ft depth
+  // takes three passes (the third a sliver). Each prints 40ft → 120ft total cut.
+  assert(near(cl.totals.linearFt, 120), '3 bands of 40ft print a 120ft total cut (not the 123ft of ordered length)');
+
+  // Ordered length is a DIFFERENT number: footprint + 4" cutting margin, rounded up
+  // to the whole foot. It's what a roll gives up, and it lives in Rolls to order.
+  assert(cl.layers[0].pieces.every(p => p.rollLength >= p.footL), 'ordered length is never shorter than the piece cut from it');
+  assert(cl.layers[0].pieces.every(p => near(p.rollLength, 41)), 'a 40ft piece consumes 41ft of roll (40 + 4" margin, rounded up)');
+  const orderedLf = cl.layers[0].pieces.reduce((s,p) => s + p.rollLength, 0);
+  assert(near(orderedLf, 123) && !near(orderedLf, cl.totals.linearFt), 'ordered (123ft) and printed cut (120ft) are genuinely different totals');
 
   const Lshape = ctx.computeRollLayout([{x:0,y:0},{x:40,y:0},{x:40,y:15},{x:20,y:15},{x:20,y:30},{x:0,y:30}], 0, 0, opts);
   const cl2 = ctx.buildCutList(Lshape);

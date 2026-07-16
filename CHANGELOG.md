@@ -5,6 +5,69 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-15 (cont'd) — Fix: the Cut List subtotal contradicted the pieces it listed
+
+Reported from a live job: the Cut List printed **Piece 1 = 7'1"** and **Piece 2 =
+23'8"** — 30'9" between them — under a subtotal reading **"33.0 ft total cut"**.
+
+Cause: `buildCutList` summed `u.orderedLength` (8 + 25 = 33) into the subtotal while
+each piece *displayed* `footL`, the trimmed footprint (7'1", 23'8"). Two different
+definitions of "length" in one panel. The local was even named `cutLength` while
+holding the ordered length, which is what made it look right.
+
+The subtotal now sums the lengths the panel actually prints, and is shown in feet
+and inches to match them ("30'9" total cut"). The ordered length is kept per piece as
+`rollLength` — a genuinely different number (footprint + cutting margin, rounded up
+to the whole foot) that belongs to ordering, not cutting. The footer now says so
+outright, and points at "ft to order" in Rolls to order as the figure to buy against.
+
+**The Cut List total is not an order quantity** — the order is smaller here, not
+bigger: Piece 1 is nested into Piece 2's waste, so it costs no roll length. 25 ft is
+correct and reconciles (375 ft² ordered − 256.82 installed = 118 ft² scrap).
+
+Tests **1125 → 1131** (README **1168 → 1174**): the printed subtotal equals the sum
+of the printed footprints; each piece's `cutLength` **is** its `footL`; ordered
+length is never shorter than the piece cut from it; and ordered vs printed totals are
+asserted to be genuinely different numbers (123 ft vs 120 ft on a 40×30 shape).
+The old test compared the total against `p.cutLength` — which *was* `orderedLength` —
+so it was self-consistent and never checked the displayed dimension. That tautology
+is why this shipped.
+
+---
+
+## 2026-07-15 — Fix: the Piece List counted nested pieces as linear footage to order
+
+Reported from a live job: the top bar read **Linear Ft 25**, Rolls to order read
+**25.0 ft**, but the Piece List read **33.0 ft total linear footage** — three numbers,
+two answers. The 25 was right.
+
+The job's two pieces were a 25 ft band and an 8 ft band **nested into the 25 ft
+band's waste** (the piece list even noted "cut from Roll 1 / Piece 2 waste", and the
+job showed "SAVED (NESTED) 120 ft²"). A nested piece is cut from a roll that's
+already being bought, so it adds **no** linear footage — that's the entire point of
+nesting. Everything else reconciled at 25 ft: Ordered 375 ft² = 25 ft × 15 ft, minus
+256.82 ft² installed = 118 ft² scrap.
+
+Cause: the Piece List totalled `rows.reduce((s,r) => s + r.length, 0)` — every row,
+nested or not — while `computeRollLayout` correctly subtracts nested pieces from
+`totalLinearFt` (hence the correct 25 in the top bar and in Rolls to order). Ordering
+33 ft would have paid for that 8 ft **twice**: once inside the host roll's length,
+and again as its own.
+
+The Piece List total now excludes nested pieces, so it matches the top bar and Rolls
+to order. The cut footage isn't lost — when anything is nested, a line underneath
+reads "33.0 ft of pieces get cut, but 8.0 ft of that is nested from another roll's
+waste — only the 25.0 ft above is ordered", which is what an installer needs while
+keeping the order figure honest. Fringe pieces are real material and still count.
+
+Tests **1119 → 1125** (README **1162 → 1168**): a rendered regression case built to
+mirror the real job — a 25 ft band with genuine waste plus an 8 ft band nested into
+it — asserting the order reads 25 ft and *not* 33 ft, that the cut footage and the
+nested portion are both surfaced, and that Rolls to order agrees at 25 ft. These fail
+against the previous build (it reported "33.0 ft total linear footage").
+
+---
+
 ## 2026-07-14 (cont'd 20) — Butt seams now default OFF: they save nothing on a cut-to-length supply
 
 Confirmed the supplier **cuts rolls to length**. That collapses the trade-off the
