@@ -5697,6 +5697,39 @@ section('82. rollLengthSummary — how long each roll actually needs to be');
   assert(ctx.rollLengthSummary({}).rolls.length === 0, 'empty layout → no rolls, no throw');
 }
 
+section('83. pointsFitInView — re-fit on drop only when a shape lands out of view');
+{
+  const F = ctx.pointsFitInView;
+  // A 800x600 canvas, 16px padding, 10 px/ft: the visible data window is
+  // x: -1.6 .. 78.4, y: -1.6 .. 58.4 (from minX/minY = 0).
+  const t = { minX: 0, minY: 0, scale: 10, pad: 16, w: 800, h: 600 };
+
+  assert(F([{x:0,y:0},{x:70,y:50}], t) === true, 'shapes inside the viewport need no re-fit');
+  assert(F([{x:10,y:10}], t) === true, 'a point well inside fits');
+
+  // Dragged off the right / top / left / bottom — each must trigger a re-fit.
+  assert(F([{x:0,y:0},{x:120,y:10}], t) === false, 'a shape dragged off the right edge does NOT fit');
+  assert(F([{x:0,y:0},{x:10,y:90}], t) === false, 'a shape dragged off the top does NOT fit');
+  assert(F([{x:-40,y:10}], t) === false, 'a shape dragged off the left does NOT fit');
+  assert(F([{x:10,y:-40}], t) === false, 'a shape dragged off the bottom does NOT fit');
+
+  // The slack keeps a shape grazing the edge from re-fitting on every nudge.
+  assert(F([{x:78.5,y:10}], t) === true, 'a point just past the edge is within tolerance');
+  assert(F([{x:79.0,y:10}], t) === false, 'a point clearly past the edge is not');
+  assert(F([{x:78.5,y:10}], t, 0) === false, 'zero tolerance is strict');
+
+  // Padding is on the data side of the edge, so slightly negative coords are visible.
+  assert(F([{x:-1.5,y:-1.5}], t) === true, 'the padded margin is still visible');
+
+  // Degenerate inputs must never force a spurious re-fit (which would rescale the
+  // view under the user for no reason).
+  assert(F([{x:1,y:1}], null) === true, 'no transform → assume it fits, do not re-fit');
+  assert(F([], t) === true, 'no points → nothing to reveal');
+  assert(F(null, t) === true, 'null points → no re-fit');
+  assert(F([{x:1,y:1}], { ...t, scale: 0 }) === true, 'zero scale → no divide-by-zero, no re-fit');
+  assert(F([{x:1,y:1}], { ...t, scale: NaN }) === true, 'NaN scale → no re-fit');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

@@ -1424,7 +1424,7 @@
             <span id="editPtModeHint" style="font-size:11px;color:var(--text-light);"></span>
           </div>
           <p id="moveLayersHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
-            <strong>Move Layers mode:</strong> click and drag any layer (the main shape outline, or any additional shape) to reposition it on the canvas. The view now <strong>stays put while you arrange</strong>, so each shape stays exactly where you drop it — spread several out to lay out a full yard. Use <strong>⤢ Fit view</strong> to frame everything again, or zoom in (zoom controls / Ctrl+Cmd scroll) to place shapes precisely. <strong>Every layer can be moved</strong>, including added (install) layers — each imported Moasure CSV arrives on its own origin, so a second measured area lands on top of the primary and needs positioning by hand. A layer's cut pieces follow it, <em>except</em> pieces you've <strong>nested</strong> into another roll's waste: those are cut from their host roll and stay drawn there (the toast says how many when you grab the layer). <strong>Move Layers does not reduce waste</strong> — it's purely visual and never changes area, Ordered SqFt, or roll counts. <strong>To cut waste, exit Move Layers and nest pieces instead:</strong> with "Show purchased roll rectangles" on, press-and-drag a piece onto another roll's red hatched waste (nesting is disabled while Move Layers is on). Click "✓ Done Moving" when finished (that also re-fits the view).
+            <strong>Move Layers mode:</strong> click and drag any layer (the main shape outline, or any additional shape) to reposition it on the canvas. The view <strong>stays put while you drag</strong>, so shapes don't rescale under your cursor and each one stays exactly where you drop it — spread several out to lay out a full yard. If you drop a shape <strong>outside the visible area the view re-fits automatically</strong> (once, on release — never mid-drag) so nothing gets cut off. Use <strong>⤢ Fit view</strong> to re-frame at any time, or zoom in (zoom controls / Ctrl+Cmd scroll) to place shapes precisely. <strong>Every layer can be moved</strong>, including added (install) layers — each imported Moasure CSV arrives on its own origin, so a second measured area lands on top of the primary and needs positioning by hand. A layer's cut pieces follow it, <em>except</em> pieces you've <strong>nested</strong> into another roll's waste: those are cut from their host roll and stay drawn there (the toast says how many when you grab the layer). <strong>Move Layers does not reduce waste</strong> — it's purely visual and never changes area, Ordered SqFt, or roll counts. <strong>To cut waste, exit Move Layers and nest pieces instead:</strong> with "Show purchased roll rectangles" on, press-and-drag a piece onto another roll's red hatched waste (nesting is disabled while Move Layers is on). Click "✓ Done Moving" when finished (that also re-fits the view).
           </p>
           <p id="cutModeHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
             <strong>Cut mode:</strong> a quick <em>click</em> anywhere along a roll adds a butt-seam cut at that point, splitting it into separate pieces (each piece gets its own cutting margin); click an existing cut line to remove it. With "Show purchased roll rectangles" on, you can also <em>press-and-drag</em> any piece onto another roll's waste area to nest it — without leaving Cut Mode (a click toggles a cut, a drag moves a piece). Click "✂ Cut Mode" again when done.
@@ -10317,16 +10317,53 @@ function moveDragLayer(evt) {
   renderRollLayout();
 }
 
+// Does every point fit inside the viewport described by a frozen canvas transform?
+// toCanvas maps x -> pad + (x-minX)*scale and y -> h - pad - (y-minY)*scale, so the
+// visible data window is minX-pad/scale .. minX+(w-pad)/scale (and likewise in y).
+// Used on drop: while dragging, the view is deliberately frozen so shapes don't
+// rescale under the cursor — but that also means a shape dragged past the edge just
+// gets clipped. Re-fitting only when something actually landed out of view keeps the
+// arrangement stable AND stops the canvas silently cutting shapes off.
+// `tol` is a small slack in feet so a shape grazing the edge doesn't re-fit.
+// Pure — no DOM.
+function pointsFitInView(pts, t, tol) {
+  if (!t || !pts || !pts.length) return true;
+  const scale = t.scale;
+  if (!scale || !isFinite(scale) || scale <= 0) return true;
+  const slack = tol == null ? 0.25 : tol;
+  const x0 = t.minX - t.pad / scale, x1 = t.minX + (t.w - t.pad) / scale;
+  const y0 = t.minY - t.pad / scale, y1 = t.minY + (t.h - t.pad) / scale;
+  return pts.every(p =>
+    p.x >= x0 - slack && p.x <= x1 + slack &&
+    p.y >= y0 - slack && p.y <= y1 + slack);
+}
+
 function endDragLayer(evt) {
   if (window._wtDragLayerId == null) return;
   window._wtDragLayerId = null;
   window._wtDragLayerStart = null;
   // Keep the view frozen while still arranging (Move Layers mode) so the layer
   // stays exactly where it was dropped, instead of the whole canvas re-fitting and
-  // rescaling under it. The fit recomputes only on exit or via "⤢ Fit view".
+  // rescaling under it.
   if (!window._wtMoveLayersMode) window._wtFreezeTransform = false;
   save();
   renderRollLayout();
+  // ...but a frozen view can't grow, so dragging a shape past the edge silently cut
+  // it off. If anything now sits outside the viewport, re-fit ONCE, here on release
+  // — never mid-drag, where rescaling under the cursor is what the freeze prevents.
+  if (window._wtMoveLayersMode && window._wtCurrentRollLayout) {
+    // Same toggle the draw path uses for its fit (showRectsFit), so this check sees
+    // exactly the points that get framed — otherwise it could re-fit for rectangles
+    // that aren't drawn, or miss ones that are.
+    const rectsEl = document.getElementById('showRectanglesToggle');
+    const pts = layoutFitPoints(window._wtCurrentRollLayout, !!(rectsEl && rectsEl.checked));
+    if (!pointsFitInView(pts, window._wtCanvasTransform)) {
+      window._wtFreezeTransform = false;
+      renderRollLayout();
+      window._wtFreezeTransform = true;
+      showLayoutToast('View re-fit to show everything');
+    }
+  }
   renderLayersList(getCurrentProject()); // refresh reset-position buttons in the Layers list
 }
 

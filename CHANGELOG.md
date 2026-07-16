@@ -5,6 +5,39 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-15 (cont'd 3) — Move Layers: the view now grows when a shape is dropped out of frame
+
+Dragging a layer past the edge of the canvas cut it off, and the view never expanded
+to show it. Reported straight after (cont'd 2) unblocked moving a second CSV — the
+first thing you do with two imported shapes is drag one clear of the other, which is
+exactly the case that ran off the edge.
+
+Cause: this was the (cont'd 3, 2026-07-14) view-freeze doing its job too well. Move
+Layers holds `_wtFreezeTransform` so the canvas doesn't re-fit and rescale under the
+cursor mid-drag (without it, moving one shape made every other shape appear to jump).
+But the frozen branch reuses `minX/minY/scale` verbatim, so the view can never grow —
+anything dragged outside is simply clipped.
+
+Dropping the freeze would bring the jumping back. Instead the fit is re-checked
+**once, on release**: if any point now sits outside the viewport, the view re-fits and
+re-freezes, with a "View re-fit to show everything" toast. Inside the viewport,
+nothing moves — arranging stays stable. Never mid-drag, which is what the freeze is
+for. "⤢ Fit view" still re-frames on demand.
+
+Backed by a pure `pointsFitInView(pts, transform, tol)` that inverts the same mapping
+the draw path uses, and the check reads the same `showRectanglesToggle` the renderer
+does — so it frames exactly the points that get drawn, rather than re-fitting for
+rectangles that aren't shown.
+
+Tests **1129 → 1144** (README **1172 → 1187**): shapes inside need no re-fit; off the
+right/left/top/bottom each trigger one; the tolerance keeps an edge-grazing shape from
+re-fitting on every nudge while a clearly-outside point still does; the padded margin
+counts as visible; and degenerate input (no transform, no points, zero/NaN scale)
+never forces a spurious re-fit — which would rescale the view under the user for no
+reason.
+
+---
+
 ## 2026-07-15 (cont'd 2) — Revert: install layers are movable again (multi-CSV jobs were unlayoutable)
 
 **Reverts the ban added in (cont'd 12).** Reported from a live job: importing a
