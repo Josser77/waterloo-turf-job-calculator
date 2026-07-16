@@ -5,6 +5,38 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-15 (cont'd 2) — Revert: install layers are movable again (multi-CSV jobs were unlayoutable)
+
+**Reverts the ban added in (cont'd 12).** Reported from a live job: importing a
+primary Moasure CSV and then a second one ("Shed yard — Base Layer") gave two shapes
+sitting on top of each other, with no way to separate them. Each CSV arrives on its
+own origin, so a second measured area *always* needs positioning by hand — and
+(cont'd 12) had made exactly that impossible: `clearInstallLayerOffsets` zeroed
+install-layer offsets on every render, and `startDragLayer` refused the grab.
+
+The ban was an over-correction. Install-layer outlines wandered away from their
+bodies only when their pieces were **nested** into another roll's waste — the pieces
+are redrawn at the host roll, so the outline was left marking an area with nothing
+drawn on it. Banning all movement treated a nesting-display problem as a movement
+problem. (cont'd 13) then drew a dashed, named outline for every layer and (cont'd
+14) made Edit Shape draw pieces at their home position, which fixed the visibility
+properly — leaving the ban as dead weight that blocked real work.
+
+`clearInstallLayerOffsets` is removed and the grab refusal with it: **every layer
+mode is movable.** Un-nested pieces follow the shape (they're built from its moved
+points). Nested pieces are cut from their host roll's waste and stay drawn there,
+which is correct but easy to misread, so the grab toast now names the count:
+*"Moving: Shed yard — 2 nested pieces stay in the host roll's waste"*.
+
+Tests **1131 → 1129** (README **1174 → 1172**): section 79 previously asserted the
+ban (offsets cleared for install layers). It now asserts the opposite — an install
+layer's move offset survives and commits like any other layer's, and moving it
+doesn't change its area — plus `countNestedPiecesForLayer` across nested/un-nested/
+primary/unknown/null/bare-strip cases. Net −2 tests: the ban's coverage is gone
+because the ban is gone.
+
+---
+
 ## 2026-07-15 (cont'd) — Fix: the Cut List subtotal contradicted the pieces it listed
 
 Reported from a live job: the Cut List printed **Piece 1 = 7'1"** and **Piece 2 =
