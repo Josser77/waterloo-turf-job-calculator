@@ -5730,6 +5730,175 @@ section('83. pointsFitInView — re-fit on drop only when a shape lands out of v
   assert(F([{x:1,y:1}], { ...t, scale: NaN }) === true, 'NaN scale → no re-fit');
 }
 
+section('84. Multi-layer: every install layer counts toward the rolls to order');
+{
+  const strip = (len, nested) => ({ key:'k'+len, clippedArea:1, orderedLength:len, nestedInto: nested === undefined ? null : nested });
+
+  // layoutUnitLengths is the single definition of "what consumes roll length".
+  assert(JSON.stringify(ctx.layoutUnitLengths({ rollLength:100, strips:[strip(23), strip(19)] })) === '[23,19]',
+    'unit lengths are the pieces in cut order');
+  assert(JSON.stringify(ctx.layoutUnitLengths({ rollLength:100, strips:[strip(23), strip(19, 0)] })) === '[23]',
+    'a nested piece consumes no roll length');
+  assert(ctx.layoutUnitLengths({ rollLength:100, strips:[{ key:'z', clippedArea:0, orderedLength:50 }] }).length === 0,
+    'an empty strip contributes nothing');
+  assert(ctx.layoutUnitLengths({}).length === 0, 'no strips → nothing, no throw');
+  assert(ctx.layoutUnitLengths(null).length === 0, 'null layout → nothing, no throw');
+  // A strip longer than the roll is inherently segmented into roll-length runs.
+  assert(JSON.stringify(ctx.layoutUnitLengths({ rollLength:100, strips:[{ key:'s', clippedArea:1, orderedLength:250, numSegments:3, nestedInto:null }] })) === '[100,100,50]',
+    'an over-long strip splits into roll-length runs');
+
+  // The real job: primary = 23 + 19 = 42lf, shed yard = 13lf, both SHARED. The
+  // piece list showed only the primary's 42ft under a 55ft header — the shed
+  // layer's pieces were missing because the walk only saw layout.strips.
+  const twoLayer = {
+    rollLength: 100, allowJoinSeams: false, strips: [strip(23), strip(19)],
+    _installLayers: [
+      { id:'primary', name:'Primary Shape', rollGroup:'shared', layout:{ rollLength:100, strips:[strip(23), strip(19)] } },
+      { id:0, name:'Shed yard', rollGroup:'shared', layout:{ rollLength:100, strips:[strip(13)] } },
+    ],
+  };
+  const sum = ctx.rollLengthSummary(twoLayer);
+  assert(sum.totalFt === 55, `shared layers pool: 42 + 13 = 55ft to order (got ${sum.totalFt})`);
+  assert(sum.rolls.length === 1, 'they pool onto 1 roll (55ft < 100ft)');
+  assert(sum.rolls[0].usedFt === 55, 'the single roll needs 55ft');
+
+  // A layer rolled "on its own" gets its own roll, never pooled.
+  const ownLayer = {
+    rollLength: 100, allowJoinSeams: false, strips: [strip(23)],
+    _installLayers: [
+      { id:'primary', name:'Primary', rollGroup:'shared', layout:{ rollLength:100, strips:[strip(23)] } },
+      { id:0, name:'Shed', rollGroup:'own', layout:{ rollLength:100, strips:[strip(13)] } },
+    ],
+  };
+  const own = ctx.rollLengthSummary(ownLayer);
+  assert(own.rolls.length === 2, '"roll on its own" is not pooled — 2 rolls');
+  assert(own.rolls[0].usedFt === 23 && own.rolls[1].usedFt === 13, 'each roll carries only its own layer');
+  assert(own.totalFt === 36, 'total to order is still 23 + 13 = 36ft');
+
+  // Pooling honours the roll length: 60 + 60 shared can't share a 100ft roll.
+  const big = {
+    rollLength: 100, allowJoinSeams: false, strips: [strip(60)],
+    _installLayers: [
+      { id:'primary', rollGroup:'shared', layout:{ rollLength:100, strips:[strip(60)] } },
+      { id:0, rollGroup:'shared', layout:{ rollLength:100, strips:[strip(60)] } },
+    ],
+  };
+  assert(ctx.rollLengthSummary(big).rolls.length === 2, 'pooled 60+60 needs 2 rolls with seams off');
+  assert(ctx.rollLengthSummary({ ...big, allowJoinSeams:true }).rolls.length === 2, 'pooled 60+60 = 120ft → 2 rolls with seams on too');
+
+  // No _installLayers (single-layer job) still works off layout.strips.
+  const single = ctx.rollLengthSummary({ rollLength:100, allowJoinSeams:false, strips:[strip(23), strip(19)] });
+  assert(single.totalFt === 42 && single.rolls.length === 1, 'single-layer job unchanged: 42ft on 1 roll');
+}
+
+section('85. totalLayerPerimeter — the one-click edging starting point');
+{
+  const sq = (n) => [{x:0,y:0},{x:n,y:0},{x:n,y:n},{x:0,y:n}]; // perimeter = 4n
+
+  const proj = { layout: {
+    points: sq(10), // 40 ft
+    secondaryShapes: [{ name:'Shed yard', points: sq(5) }], // 20 ft
+  }};
+  assert(near(ctx.totalLayerPerimeter(proj), 60), 'total = main 40ft + layer 20ft = 60ft');
+
+  // Every measured shape counts, including cutouts — this is the ceiling for edging.
+  const three = { layout: {
+    points: sq(10),
+    secondaryShapes: [{ points: sq(5) }, { points: sq(2) }], // 20 + 8
+  }};
+  assert(near(ctx.totalLayerPerimeter(three), 68), 'all shapes count: 40 + 20 + 8 = 68ft');
+
+  // Perimeter is rotation/translation invariant, so a moved layer must not change it.
+  const moved = { layout: {
+    points: sq(10),
+    secondaryShapes: [{ points: sq(5) }],
+    layerOffsets: { 0: { dx: 35, dy: -3, rotation: 45 } },
+  }};
+  assert(near(ctx.totalLayerPerimeter(moved), 60), 'moving/rotating a layer does not change its perimeter');
+
+  // Degenerate shapes contribute nothing and must not throw.
+  const degen = { layout: { points: sq(10), secondaryShapes: [{ points: [{x:0,y:0}] }] } };
+  assert(near(ctx.totalLayerPerimeter(degen), 40), 'a single-point shape adds nothing');
+  assert(ctx.totalLayerPerimeter({ layout: {} }) === 0, 'no shapes → 0');
+  assert(ctx.totalLayerPerimeter(null) === 0, 'null project → 0, no throw');
+  assert(ctx.totalLayerPerimeter({}) === 0, 'project with no layout → 0, no throw');
+
+  // It matches the sum the Layers panel prints, since both read layerPerimeters.
+  const perims = ctx.layerPerimeters(proj);
+  assert(near(ctx.totalLayerPerimeter(proj), perims.reduce((a,p)=>a+p.perimeter,0)),
+    'the button figure is exactly the "Total — all edges" the Layers panel shows');
+}
+
+section('86. Apply Area is layer-aware (Installed SqFt must match the header)');
+{
+  const proj = { layout: { points:[], secondaryShapes:[], secondaryShapeModes:{} } };
+  const base = { role:'base' };
+
+  // The real 2-layer job: primary 422.4 + shed yard 144.5 = 566.8 installed.
+  // Apply used to push only the primary's 422.4 while Ordered SqFt (which reads
+  // _combined) pushed the layer-aware figure — two sources on one click.
+  const twoLayer = {
+    shapeArea: 422.4, adjustedShapeArea: 422.4,
+    _combined: { area: 566.9 },
+    _installLayers: [{ id:'primary' }, { id:0 }],
+  };
+  const r = ctx.computeApplyAreaForRow(proj, twoLayer, base);
+  assert(r.ok === true, 'a 2-layer job has an area to apply');
+  assert(near(r.area, 566.9), `Apply pushes the COMBINED area, not just the primary's 422.4 (got ${r.area})`);
+
+  // The primary's own exclusions must still come off, while other layers stay raw.
+  const withExclusions = {
+    shapeArea: 422.4, adjustedShapeArea: 400,   // 22.4 ft² excluded from the primary
+    _combined: { area: 566.9 },
+  };
+  const rx = ctx.computeApplyAreaForRow(proj, withExclusions, base);
+  assert(near(rx.area, 544.5), 'primary exclusions still apply: 566.9 - 422.4 + 400 = 544.5');
+
+  // Single-layer jobs are unchanged.
+  const single = { shapeArea: 422.4, adjustedShapeArea: 400 };
+  assert(near(ctx.computeApplyAreaForRow(proj, single, base).area, 400), 'single-layer job still applies its adjusted area');
+
+  // Alt-turf is still blocked — it's priced on the base yard, so its own Installed
+  // SqFt is never read and writing one would be a lie.
+  const alt = ctx.computeApplyAreaForRow(proj, twoLayer, { role:'alt-turf' });
+  assert(alt.ok === false && alt.reason === 'alt-turf-priced-on-base', 'alt-turf rows are still blocked');
+
+  // No area at all is still reported, not silently applied as 0.
+  const none = ctx.computeApplyAreaForRow(proj, { shapeArea:0, adjustedShapeArea:0 }, base);
+  assert(none.ok === false && none.reason === 'no-area', 'a zero-area layout reports no-area');
+}
+
+section('87. Live link (auto-apply) is ON by default');
+{
+  // The layout auto-applies to the selected turf row unless explicitly switched off.
+  // `undefined` must mean ON: a project saved before the flag existed, or a brand new
+  // one, gets auto-apply without anyone opting in.
+  assert(ctx.isLiveLinkOn({ layout: {} }) === true, 'undefined → live link ON (the default)');
+  assert(ctx.isLiveLinkOn({ layout: { liveLink: true } }) === true, 'explicitly on → ON');
+  assert(ctx.isLiveLinkOn({ layout: { liveLink: false } }) === false, 'explicitly off → OFF (a real choice, respected)');
+  assert(ctx.isLiveLinkOn({}) === false, 'no layout → nothing to sync');
+  assert(ctx.isLiveLinkOn(null) === false, 'null project → off, no throw');
+
+  // The shipped checkbox markup must agree with that default. It previously shipped
+  // UNCHECKED while isLiveLinkOn() returned true, so the UI said "off" while the link
+  // was live — and any stray toggle would then write liveLink=false permanently.
+  // Same mock-vs-reality trap the butt-seam checkbox had.
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  const tag = (html.match(/<input[^>]*id="rollLiveLink"[^>]*>/) || [''])[0];
+  assert(tag !== '', 'the live link checkbox exists in the markup');
+  assert(/\bchecked\b/.test(tag), 'the live link checkbox ships CHECKED, matching isLiveLinkOn()\'s default');
+
+  // What the link pushes must be layer-aware on both sides, or a multi-layer job
+  // auto-applies a wrong number on every render.
+  assert(ctx.orderedFromLayout({ totalOrdered: 422, _combined: { ordered: 825 } }) === 825,
+    'auto-applied Ordered SqFt uses the combined (all-layer) figure');
+  const inst = ctx.computeApplyAreaForRow(
+    { layout: { points: [], secondaryShapes: [], secondaryShapeModes: {} } },
+    { shapeArea: 422.4, adjustedShapeArea: 422.4, _combined: { area: 566.9 } },
+    { role: 'base' });
+  assert(inst.ok && near(inst.area, 566.9), 'auto-applied Installed SqFt counts every layer too');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

@@ -1333,6 +1333,8 @@
             <div class="field-group">
               <label>Linear Feet of Edging</label>
               <input type="number" id="edgingLinFt" min="0" oninput="calcEdging()" placeholder="0">
+              <button type="button" id="useLayoutPerimeterBtn" class="btn btn-ghost" onclick="useLayoutPerimeterForEdging()" style="display:none;margin-top:5px;width:100%;padding:6px 10px;font-size:12px;"></button>
+              <div class="hint" id="useLayoutPerimeterHint" style="display:none;">Every edge of every shape — trim to the runs that actually need edging (not walls, patios, or driveways).</div>
             </div>
             <div class="field-group">
               <label>20 ft Boards to Order ↑</label>
@@ -1529,7 +1531,7 @@
                     <button class="btn btn-primary btn-sm" data-lockok="1" style="width:100%;" onclick="applyRollLayoutToTurf()">Apply Ordered SqFt</button>
                     <div style="font-size:11px;color:var(--text-light);margin-top:5px;line-height:1.4;">Pushes <strong>Ordered SqFt</strong> (what you actually buy, incl. waste; already accounts for nested pieces) into the row's "SqFt to Order," <strong>and</strong> sets that row's <strong>Installed SqFt</strong> so infill, labor, and rock fill in from the same click. Usually the one you want.</div>
                     <label style="display:flex;align-items:flex-start;gap:6px;margin-top:10px;font-size:12px;cursor:pointer;font-weight:600;" data-lockok="1" title="When on, this row stays in sync with the layout automatically: Ordered SqFt follows roll rotation/seam offset, and Installed SqFt follows the shape's area (which cascades to infill, rock, and labor). Rotating rolls doesn't change Installed, since it doesn't change how much ground you cover.">
-                      <input type="checkbox" id="rollLiveLink" data-lockok="1" onchange="toggleLayoutLiveLink()" style="width:auto;margin:2px 0 0 0;flex-shrink:0;">
+                      <input type="checkbox" id="rollLiveLink" checked data-lockok="1" onchange="toggleLayoutLiveLink()" style="width:auto;margin:2px 0 0 0;flex-shrink:0;">
                       <span>🔗 Live — keep this row in sync with the layout automatically <span style="font-weight:normal;color:var(--text-light);">(rotation/seam → Ordered SqFt; shape edits → Installed SqFt, which cascades to infill/rock/labor)</span></span>
                     </label>
                     <div id="rollLiveLinkStatus" style="font-size:11px;color:var(--green);margin-top:5px;line-height:1.4;"></div>
@@ -2350,6 +2352,7 @@
         <div class="docs-h3">Roll Results</div>
         <p>The <strong>Results</strong> tab shows the rolls/piece count and per-layer breakdown, with extra detail (cut/nest tools, Piece List) under a small <strong>Advanced</strong> twisty so a standard install isn't cluttered. Both <strong>Apply</strong> buttons — <em>Apply Installed SqFt → turf row</em> and <em>Apply Ordered SqFt → turf row</em> — live together on the <strong>Apply</strong> tab. <em>Apply Ordered SqFt</em> is usually the one you want: it sets the row's <strong>SqFt to Order</strong> <em>and</em> its <strong>Installed SqFt</strong>, so infill (which derives its area from Installed SqFt), labor, and rock all cascade from the one click. <em>Apply Installed SqFt</em> sets just the installed area. Each applies to the <strong>one row</strong> selected in its dropdown. <strong>🔗 Live link:</strong> under <em>Apply Ordered SqFt</em> there's a <strong>Live</strong> checkbox (on by default) that keeps the selected row in sync with the layout automatically — no button press. <strong>Ordered SqFt</strong> follows the roll plan, so it updates when you change <strong>roll rotation or seam offset</strong>. <strong>Installed SqFt</strong> follows the shape's area (role-aware — a Base Yard row includes the putting-green footprint; Alt Turf rows are skipped since they're priced on the base), so it updates when you <strong>edit the shape or its exclusions</strong>, and that cascades to infill, rock, and labor. Rotating rolls does <em>not</em> change Installed (it doesn't change how much ground you cover), so materials don't churn while you're just comparing roll options. Updates fire when you release a slider (not mid-drag), targeting the row picked in the dropdown; turn it off to explore freely without touching the quote. <strong>Installed SqFt, Ordered SqFt, Ordered Linear Ft, Perimeter, and Scrap</strong> all live in the always-visible totals strip in the top toolbar (right of ⚙ Settings).</p>
 
+        <p><strong>Use layout perimeter (X ft):</strong> a button under <em>Linear Feet of Edging</em> on the Quote Builder fills the field with the layout's <strong>total boundary length across every shape</strong> — the same "Total — all edges" the Layers tab shows. It's a <strong>click, not an automatic fill</strong>, and that's deliberate: this is the <em>maximum</em> possible edging, but edging only goes where turf meets soil or a bed — any run against a house, patio, or driveway needs none. So the number is offered as a starting point for you to trim down, rather than silently over-quoting every job with a hardscape edge. The button only appears once a layout exists, and its figure updates as shapes are added or edited.</p>
         <p><strong>Edging perimeter (per layer):</strong> the <strong>Layers</strong> tab lists the boundary length of <em>every</em> measured shape — the main outline plus each cutout (tree wells, beds, paver borders) — and a <strong>Total — all edges</strong> at the bottom. This is for ordering edging/border material that wraps every edge, and it's why a number here can exceed the <strong>Perimeter</strong> metric up top: that metric is the turf outline only (plus Install layers), while the edging total includes the inner cutout edges too. Perimeter is independent of where you drag a layer or how you rotate it.</p>
         <p>Open <strong>"⚙ Advanced details &amp; tools"</strong> for the rest: the Saved (nested) figure, the manual-cuts and nested-pieces lists, and the per-piece list. Entering Cut Mode opens this section automatically so the cut/nest tools are visible. (<strong>Scrap</strong> — Ordered minus the installed shape area, with % — now sits in the totals strip in the top toolbar; the purchased-rectangles toggle sits above the canvas.)</p>
         <p>The roll/piece count shows just <strong>"N rolls"</strong> when the number of rolls to purchase equals the number of installed pieces — the normal case. It shows <strong>"N rolls / M pieces"</strong> only when these differ.</p>
@@ -2363,7 +2366,7 @@
         <div class="docs-h3">Piece List (Length × Width)</div>
         <p><strong>Rolls to order:</strong> below the piece list, each physical roll is listed with <strong>the length it actually needs to be</strong>, rounded up to the whole foot — the figure to give a supplier who cuts rolls to length. E.g. Roll 1 = 70 ft, Roll 2 = 87 ft, 157 ft total.</p>
         <p><strong>The total footage is the same whether butt seams are on or off</strong> — three 60 ft runs are 180 ft whether that's 3 seamless rolls or 2 seamed ones. Seams only change how the footage is split across rolls, never how much you buy. So with a cut-to-length supplier, leaving butt seams <strong>off</strong> is free: same order, one less seam. Butt seams only save material if you're forced to buy fixed-length rolls and eat the leftover.</p>
-        <p>A table listing every individual piece that will be cut for this job — each row shows its <strong>Roll N / Piece M</strong> label, <strong>Length</strong> (its ordered length along the roll), <strong>Width</strong> (the roll width), and resulting <strong>SqFt</strong>. This is the cut sheet for your installers: it tells them exactly how long to cut each piece from the roll, and the total linear footage at the bottom helps you sanity-check how many rolls to bring and plan seam placement to minimize butt seams. That total is what you <strong>order</strong>, so it <strong>excludes nested pieces</strong> — a nested piece is cut from the waste of a roll you're already buying, so counting its length again would charge you for the same turf twice. When any piece is nested, a line underneath spells the difference out (e.g. "33.0 ft of pieces get cut, but 8.0 ft of that is nested from another roll's waste — only the 25.0 ft above is ordered"), and it matches both the <strong>Linear Ft</strong> in the top bar and <strong>ft to order</strong> in Rolls to order. Pieces created by Manual Cuts or that have been nested into another roll's waste show a note (e.g. "cut from Roll N / Piece M waste"). If a Putting Green Fringe is configured, the fringe pieces ("Fringe 1", "Fringe 2", ...) are listed too, with their own length/width/sqft.</p>
+        <p>A table listing every individual piece that will be cut for this job — each row shows its <strong>Roll N / Piece M</strong> label, <strong>Length</strong> (its ordered length along the roll), <strong>Width</strong> (the roll width), and resulting <strong>SqFt</strong>. This is the cut sheet for your installers: it tells them exactly how long to cut each piece from the roll, and the total linear footage at the bottom helps you sanity-check how many rolls to bring and plan seam placement to minimize butt seams. That total is what you <strong>order</strong>, so it <strong>excludes nested pieces</strong> — a nested piece is cut from the waste of a roll you're already buying, so counting its length again would charge you for the same turf twice. When any piece is nested, a line underneath spells the difference out (e.g. "33.0 ft of pieces get cut, but 8.0 ft of that is nested from another roll's waste — only the 25.0 ft above is ordered"), and it matches both the <strong>Linear Ft</strong> in the top bar and <strong>ft to order</strong> in Rolls to order. Pieces created by Manual Cuts or that have been nested into another roll's waste show a note (e.g. "cut from Roll N / Piece M waste"). If a Putting Green Fringe is configured, the fringe pieces ("Fringe 1", "Fringe 2", ...) are listed too, with their own length/width/sqft. <strong>Every install layer is listed</strong>, not just the main shape — when a job has more than one, each piece is prefixed with its layer name (e.g. "Shed yard — Roll 1 / Piece 1") and the list is grouped layer by layer. Layers set to <strong>share rolls</strong> are pooled onto the same rolls in <em>Rolls to order</em>; a layer set to <strong>roll on its own</strong> gets its own.</p>
 
         <div class="docs-h3">Drag-and-Drop Nesting</div>
         <p>With "Show purchased roll rectangles" on, drag a roll's colored shape (the installed piece) onto another roll's hatched waste area to indicate it can be cut from that roll's offcut rather than ordered separately. Valid drop targets highlight with a green dashed border while dragging — across <em>every</em> layer, since a piece can be nested into a different layer's roll waste, not just its own. You can aim at any part of a roll's rectangle, including a spot that already has turf: the piece still lands where you drop it and is flagged <strong>red</strong> ("overlaps turf") so an impossible spot is obvious instead of the drop silently doing nothing. On a successful drop the piece is redrawn relocated to the target roll's waste area, outlined in orange and labeled "from Roll N / Piece M waste," and its area is removed from Ordered SqFt. <strong>The piece lands exactly where you drop it</strong> — its centroid goes to the drop point, clamped only so the whole piece stays within that roll's purchased rectangle (and nudged just enough to not stack on another piece already nested there). The tool does not relocate or refuse the piece: you place it manually, the way you'd lay it out in the yard. If where you dropped it overlaps that roll's installed turf, the piece is outlined <strong>red</strong> (instead of orange) and its label adds "— overlaps turf," a <strong>toast pops up immediately</strong> ("placed on existing turf — it won't fit there"), and a <strong>persistent red warning shows under Installed SqFt</strong> counting how many placed pieces overlap turf — so an impossible placement can't be missed. Drag it to a clear spot to clear the warning. Drop it again to move it elsewhere. To undo a move, use the piece's <strong>"↩ Put back"</strong> button in the Nested Pieces list — that's the reliable way; you can also drag the orange piece fully off every waste area onto open space, but that gesture is fiddly. You can move several pieces independently and put any one of them back without affecting the others. Works whether or not Cut Mode is active — in Cut Mode a quick click still toggles a cut, while a press-and-drag on a piece nests it. Disabled only in Edit Shape and Move Layers modes. <strong>Nesting reduces what you order:</strong> a nested piece is cut from another roll's already-purchased waste, so it drops out of Linear Ft and the roll count (not just the Ordered SqFt figure) — it still counts as an installed piece. You can also nest a cut piece into the <strong>same roll's</strong> own leftover (drop it on a sibling piece's waste), which shortens that roll. Eligibility is based on the piece's <em>installed</em> turf area fitting the leftover, so a piece tucks in whenever its actual shape (not its full 15ft rectangle) fits. <strong>On a multi-layer job you can nest across layers:</strong> drag a piece from any install layer onto another roll's waste in the <em>same</em> layer or a <em>different</em> one. A cross-layer nest means the piece is cut from the other layer's roll waste — so it drops out of <em>its own</em> layer's Ordered SqFt, Linear Ft, and roll count, while the layer it's tucked into keeps its order unchanged (that roll was already bought) and only its scrap falls. The piece is redrawn in the target layer's waste at your drop point and labeled "from &lt;layer name&gt; waste." Cross-layer placement is approximate — it lands in the target's waste near where you drop it; treat the orange/red outline as the confirmation and nudge it if needed.</p>
@@ -3296,6 +3299,7 @@ function loadProject(id) {
   (proj.rock||[]).forEach((_,i) => calcRockRow(i));
   calcTurfTotals();
   calcEdging();
+  refreshUseLayoutPerimeterBtn(); // show/update "Use layout perimeter (X ft)" for this project
   renderQuoteMiscRows();
   calcQuote();
   renderSidebar();
@@ -5977,6 +5981,9 @@ function renderLayersList(proj) {
   }
 
   list.innerHTML = rows.join('');
+  // The Edging card's "Use layout perimeter" figure is derived from these shapes, so
+  // keep it current as layers are added, edited, or removed.
+  refreshUseLayoutPerimeterBtn();
   // Keep dynamically-built per-layer controls in sync with the lock state.
   if (window._wtLayoutLocked) applyLayoutLockState();
 }
@@ -6381,6 +6388,52 @@ function layerPerimeters(proj) {
   return out;
 }
 
+// Total boundary length across every measured shape — the main outline plus each
+// cutout/added layer. This is the ceiling for edging: the most you could possibly
+// need if every edge got a border. It is deliberately NOT applied automatically,
+// because edging only goes where turf meets soil or a bed — any run against a house,
+// patio, or driveway needs none, so auto-filling would silently over-quote every job
+// with a hardscape edge. The Edging card offers it as a one-click starting point
+// instead, and you trim it to the runs that actually need it. Pure — no DOM.
+function totalLayerPerimeter(proj) {
+  return layerPerimeters(proj).reduce((sum, p) => sum + (p.perimeter || 0), 0);
+}
+
+// Show the "Use layout perimeter (X ft)" button on the Edging card only when there's
+// a layout to take a number from, and keep the figure current as shapes are edited.
+function refreshUseLayoutPerimeterBtn() {
+  const btn = document.getElementById('useLayoutPerimeterBtn');
+  const hint = document.getElementById('useLayoutPerimeterHint');
+  if (!btn) return;
+  const proj = (typeof getCurrentProject === 'function') ? getCurrentProject() : null;
+  const total = proj && proj.layout ? totalLayerPerimeter(proj) : 0;
+  const show = total > 0;
+  btn.style.display = show ? '' : 'none';
+  if (hint) hint.style.display = show ? '' : 'none';
+  if (show) {
+    const n = layerPerimeters(proj).length;
+    btn.textContent = '↧ Use layout perimeter (' + total.toFixed(1) + ' ft'
+      + (n > 1 ? ', ' + n + ' shapes' : '') + ')';
+  }
+}
+
+// Fill Linear Feet of Edging from the layout's total boundary length. A click, not an
+// automatic fill: this is the maximum possible edging, and most yards don't edge
+// against the house or hardscape — so the number is offered, shown, and left for the
+// user to trim down rather than quietly inflating the quote.
+function useLayoutPerimeterForEdging() {
+  const proj = getCurrentProject();
+  if (!proj || !proj.layout) return;
+  const total = totalLayerPerimeter(proj);
+  if (!(total > 0)) return;
+  const el = document.getElementById('edgingLinFt');
+  if (!el) return;
+  el.value = Math.round(total * 10) / 10;
+  calcEdging();
+  save();
+  showLayoutToast('Edging set to ' + total.toFixed(1) + ' ft — trim it to the runs that actually need edging');
+}
+
 // Compute a putting-green fringe (border strip) cutting plan: one rectangular
 // piece per edge of the PG polygon, each running along that edge and offset
 // outward by `width`. Each piece's length is the edge length plus `width` —
@@ -6687,38 +6740,48 @@ function clipPolygonToRect(poly, xmin, xmax, ymin, ymax) {
 // the piece starts a new roll. "Pieces" = separately-installed pieces (one per
 // strip normally, more if a strip was manually cut into butt-seamed sections, or
 // if a strip is longer than Max Roll Length and is inherently segmented).
+// Every physical piece that must be cut from a roll, in cut order, as lengths (ft).
+// Nested pieces are cut from another roll's already-purchased waste, so they're
+// excluded. A strip longer than the roll is inherently split into numSegments
+// roll-length runs. This is THE definition of what consumes roll length — the roll
+// count, the shared-layer pooling, and Rolls to order all read it, so they can't
+// drift apart. Pure — no DOM.
+function layoutUnitLengths(layout) {
+  const rollLength = (layout && layout.rollLength) || 100;
+  const unitLengths = [];
+  (layout && layout.strips || []).forEach(strip => {
+    if (strip.clippedArea <= 1e-9) return;
+    if (strip.pieces) {
+      strip.pieces.forEach(p => { if (p.nestedInto == null) unitLengths.push(p.orderedLength); });
+      return;
+    }
+    if (strip.nestedInto != null) return;
+    const segs = Math.max(1, strip.numSegments || 1);
+    if (segs <= 1) { unitLengths.push(strip.orderedLength); return; }
+    let rem = strip.orderedLength;
+    for (let k = 0; k < segs; k++) {
+      const seg = Math.min(rollLength, rem);
+      unitLengths.push(seg);
+      rem -= seg;
+    }
+  });
+  return unitLengths;
+}
+
 function countRollsAndPieces(layout) {
   const rollLength = layout.rollLength || 100;
   let totalLinearFt = 0, totalPieces = 0;
-  const unitLengths = []; // each physical piece that must be cut from a roll, in order
+  const unitLengths = layoutUnitLengths(layout);
   layout.strips.forEach(strip => {
     if (strip.clippedArea <= 1e-9) return;
     if (strip.pieces) {
       // A nested piece is re-used from another roll's waste, so it adds no roll
       // length — but it's still a separately-installed piece.
-      strip.pieces.forEach(p => {
-        if (p.nestedInto == null) { totalLinearFt += p.orderedLength; unitLengths.push(p.orderedLength); }
-      });
+      strip.pieces.forEach(p => { if (p.nestedInto == null) totalLinearFt += p.orderedLength; });
       totalPieces += strip.pieces.length;
     } else {
-      // A strip longer than Max Roll Length is inherently split into
-      // numSegments physical pieces, even without a manual cut.
-      const segs = Math.max(1, strip.numSegments || 1);
-      if (strip.nestedInto == null) {
-        totalLinearFt += strip.orderedLength;
-        if (segs <= 1) {
-          unitLengths.push(strip.orderedLength);
-        } else {
-          // Segments are roll-length runs (the last one is the remainder).
-          let rem = strip.orderedLength;
-          for (let k = 0; k < segs; k++) {
-            const seg = Math.min(rollLength, rem);
-            unitLengths.push(seg);
-            rem -= seg;
-          }
-        }
-      }
-      totalPieces += segs;
+      if (strip.nestedInto == null) totalLinearFt += strip.orderedLength;
+      totalPieces += Math.max(1, strip.numSegments || 1);
     }
   });
   // Rolls come from PACKING, not from totalLinearFt / rollLength. What happens when
@@ -7617,7 +7680,9 @@ function resolveCrossLayerNesting(list, nesting, nestPos, nestRot) {
 function sumInstallLayouts(list) {
   let ordered = 0, usable = 0, linear = 0, area = 0, saved = 0, pieces = 0;
   let ownRolls = 0, sharedLinear = 0, sharedCount = 0;
+  const sharedLengths = []; // every shared layer's pieces, pooled onto the same rolls
   const rollLength = (list && list[0] && list[0].layout && list[0].layout.rollLength) || 100;
+  const allowJoinSeams = !!(list && list[0] && list[0].layout && list[0].layout.allowJoinSeams);
   (list || []).forEach(item => {
     const L = item && item.layout; if (!L) return;
     ordered += L.totalOrdered || 0;
@@ -7631,10 +7696,17 @@ function sumInstallLayouts(list) {
       ownRolls += rp.totalRolls;
     } else {
       sharedLinear += L.linearFt || 0; // pool with other shared layers
+      sharedLengths.push(...layoutUnitLengths(L));
       sharedCount += 1;
     }
   });
-  const sharedRolls = sharedLinear > 0 ? Math.max(1, Math.ceil(sharedLinear / rollLength - 1e-9)) : 0;
+  // Shared layers are cut from the same rolls, so pool their pieces and PACK them —
+  // dividing pooled linear feet by roll length assumes a piece can be split across a
+  // roll join, which is only true when butt seams are allowed (and is the very
+  // assumption the single-layer path stopped making).
+  const sharedRolls = sharedLengths.length
+    ? packPiecesIntoRolls(sharedLengths, rollLength, allowJoinSeams).length
+    : 0;
   const rolls = ownRolls + sharedRolls;
   const scrap = ordered - area;
   return { ordered, usable, linear, area, saved, rolls, pieces, scrap, sharedCount, sharedRolls, ownRolls, wastePct: ordered > 0 ? (scrap / ordered * 100) : 0 };
@@ -9708,16 +9780,27 @@ function packPiecesIntoRolls(lengths, rollLength, allowJoinSeams) {
 // of a full roll if you bought one instead. Pure — no DOM.
 function rollLengthSummary(layout) {
   const rollLength = (layout && layout.rollLength) || 100;
-  const units = [];
-  (layout && layout.strips || []).forEach(s => {
-    if (s.clippedArea <= 1e-9) return;
-    (s.pieces || [s]).forEach(u => units.push(u));
+  // Walk EVERY install layer, not just the primary — a second imported CSV set to
+  // "Share rolls with other layers" is cut from these same rolls, so leaving it out
+  // under-states the length to order (a 2-layer job read 42 ft when the real answer
+  // was 55 ft). Layers rolled "on their own" are packed separately, after.
+  const entries = (layout && layout._installLayers && layout._installLayers.length)
+    ? layout._installLayers
+    : [{ id: 'primary', rollGroup: 'shared', layout }];
+  const sharedLengths = [];
+  const ownGroups = [];
+  entries.forEach(item => {
+    const L = item && item.layout;
+    if (!L || !Array.isArray(L.strips)) return;
+    const lens = layoutUnitLengths(L);
+    if (!lens.length) return;
+    if (item.rollGroup === 'own') ownGroups.push(lens);
+    else sharedLengths.push(...lens);
   });
-  const packed = packPiecesIntoRolls(
-    units.map(u => (u.nestedInto == null ? u.orderedLength : 0)),
-    rollLength,
-    !!(layout && layout.allowJoinSeams)
-  );
+  const seams = !!(layout && layout.allowJoinSeams);
+  const packed = [];
+  if (sharedLengths.length) packed.push(...packPiecesIntoRolls(sharedLengths, rollLength, seams));
+  ownGroups.forEach(lens => packed.push(...packPiecesIntoRolls(lens, rollLength, seams)));
   const rolls = packed.map((placements, i) => {
     const usedFt = Math.ceil(placements.reduce((a, e) => a + (e.length || 0), 0) - 1e-9);
     return { roll: i + 1, usedFt, scrapFt: Math.max(0, rollLength - usedFt) };
@@ -10399,13 +10482,33 @@ function renderPieceList(layout, proj) {
   const table = document.getElementById('pieceListTable');
   if (!group || !table) return;
 
-  const units = getNestableUnits(layout).filter(u => u.clippedArea > 1e-6 || u.purchasedArea > 1e-6);
-  if (!units.length) { group.style.display = 'none'; table.innerHTML = ''; return; }
-
-  const rollPieceLabels = assignRollPieceLabels(layout);
+  // Walk EVERY install layer, the way the Cut List does. getNestableUnits(layout)
+  // only ever sees layout.strips — the PRIMARY layer — so a second imported CSV was
+  // silently missing from this list even though its footage was in the top-bar total
+  // (a 2-layer job listed 42 ft of pieces under a 55 ft header). Each layer numbers
+  // its own rolls/pieces, so when there's more than one the label is prefixed with
+  // the layer name to keep a flat list unambiguous.
+  const entries = (layout._installLayers && layout._installLayers.length)
+    ? layout._installLayers
+    : [{ id: 'primary', name: layout.primaryLayerName || 'Turf', layout }];
+  const multiLayer = entries.filter(e => e && e.layout && Array.isArray(e.layout.strips)).length > 1;
   const rollWidth = layout.rollWidth || 15;
 
-  const rows = units.map(u => {
+  const rows = [];
+  entries.forEach((entry, li) => {
+    const L = entry && entry.layout;
+    if (!L || !Array.isArray(L.strips)) return;
+    const rollPieceLabels = assignRollPieceLabels(L);
+    const layerRollWidth = L.rollWidth || rollWidth;
+    const layerName = entry.name || (entry.id === 'primary' ? 'Turf' : ('Layer ' + (li + 1)));
+    getNestableUnits(L)
+      .filter(u => u.clippedArea > 1e-6 || u.purchasedArea > 1e-6)
+      .forEach(u => rows.push(pieceRow(u, rollPieceLabels, layerRollWidth, multiLayer ? layerName : null, li)));
+  });
+  if (!rows.length) { group.style.display = 'none'; table.innerHTML = ''; return; }
+  rows.sort((a, b) => a.sortKey - b.sortKey);
+
+  function pieceRow(u, rollPieceLabels, rollWidth, layerName, layerIdx) {
     const rp = rollPieceLabels.get(u);
     const label = rp ? `Roll ${rp.roll} / Piece ${rp.piece}` : '?';
     const length = u.orderedLength;
@@ -10421,8 +10524,15 @@ function renderPieceList(layout, proj) {
         .join(' + ');
       notes.push(`butt seam — ${rp.parts} parts: ${conts}`);
     }
-    return { label, length, width, sqft, nested: u.nestedInto != null, note: notes.join('; '), sortKey: rp ? rp.roll*10000 + rp.piece : 0 };
-  }).sort((a,b) => a.sortKey - b.sortKey);
+    return {
+      label: (layerName ? layerName + ' — ' : '') + label,
+      length, width, sqft,
+      nested: u.nestedInto != null,
+      note: notes.join('; '),
+      // Group by layer first so a flat list still reads layer-by-layer.
+      sortKey: (layerIdx || 0) * 1e6 + (rp ? rp.roll*10000 + rp.piece : 0),
+    };
+  }
 
   // Fringe pieces, if enabled
   const fringe = getFringeConfig(proj);
@@ -11223,8 +11333,22 @@ function applyRollLayoutToTurf() {
 function computeApplyAreaForRow(proj, layout, row) {
   const role = (row && row.role) || 'base';
   if (role === 'alt-turf') return { ok:false, reason:'alt-turf-priced-on-base' };
-  let area = layout ? (layout.adjustedShapeArea != null ? layout.adjustedShapeArea : layout.shapeArea)
-                    : getAdjustedShapeArea(proj, (proj.layout && proj.layout.area) || 0);
+  let area;
+  if (layout) {
+    // Include EVERY install layer, not just the primary. A second imported CSV set
+    // to Install is turf you lay and infill, so its area belongs in the row's
+    // Installed SqFt — otherwise Apply pushed a layer-aware Ordered SqFt (which
+    // reads _combined) next to a primary-only Installed SqFt on the same click, and
+    // a 2-layer job wrote 422 ft² under a 566.8 ft² header.
+    // This is the same expression the Installed metric uses: take the combined raw
+    // area, but swap the primary's raw area for its ADJUSTED one so the primary's
+    // exclusions/cutouts still come off.
+    const combo = layout._combined;
+    const adj = layout.adjustedShapeArea != null ? layout.adjustedShapeArea : layout.shapeArea;
+    area = combo ? (combo.area - layout.shapeArea + adj) : adj;
+  } else {
+    area = getAdjustedShapeArea(proj, (proj.layout && proj.layout.area) || 0);
+  }
   if (role === 'base') area += getPuttingGreenShapeArea(proj);
   if (!area) return { ok:false, reason:'no-area' };
   return { ok:true, area: Math.round(area * 100) / 100 };

@@ -5,6 +5,116 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-15 (cont'd 7) — Live link ships ON; README test count corrected (the "+43 offset" was just wrong)
+
+**Auto-apply already existed and was already the default** — `isLiveLinkOn()` returns
+`liveLink !== false`, `scheduleLinkedSync()` runs at the end of every
+`renderRollLayout()` (so every rotation, seam, shape edit, layer move, CSV import and
+roll-setting change triggers it, debounced 250ms and deferred while a drag is live),
+and `syncLinkedTurfRow()` pushes **both** Ordered SqFt (via `orderedFromLayout`,
+which reads `_combined`) and Installed SqFt (via `computeApplyAreaForRow`, made
+layer-aware in cont'd 6). So a multi-layer job now auto-applies all-layer figures on
+both sides.
+
+But the checkbox **shipped unchecked** while the logic defaulted to on. `loadProject`
+papered over it by assigning `.checked` on load, so the mismatch was invisible — until
+any stray `toggleLayoutLiveLink()` fired against an unchecked box and wrote
+`liveLink = false` **permanently** for that project, silently killing auto-apply. That
+is the most likely way a project ends up with it off. The markup now ships `checked`,
+matching `isLiveLinkOn()`. (An explicit `false` is still respected — a real choice
+isn't overridden.) This is the same DOM-default-vs-logic-default trap as the butt-seam
+checkbox in cont'd 18.
+
+**README test count fixed — and the convention killed.** The README claimed **1216**
+while `node waterloo_turf_tests.js` printed **1173**. There is exactly one test file
+and no skipped tests: the "+43 offset" had no basis. It was a stale error frozen into
+a convention and then faithfully preserved on roughly ten bumps this session — a
+wrong number kept in lockstep with a right one. The README now states exactly what the
+runner prints, with an inline note to copy it from the runner rather than add to the
+previous figure.
+
+Tests **1173 → 1182** (README **1182**, no offset): the live-link default across
+undefined / true / false / no-layout / null; an assertion that the shipped `<input
+id="rollLiveLink">` markup actually carries `checked`, so the DOM default can't drift
+from the logic default again (this fails against the previous build); and that both
+auto-applied figures are layer-aware (Ordered 825 not 422, Installed 566.9 not 422.4).
+
+---
+
+## 2026-07-15 (cont'd 6) — "Use layout perimeter" for edging; Apply Area now counts every layer
+
+**New: one-click edging from the layout.** A *"↧ Use layout perimeter (X ft)"* button
+under **Linear Feet of Edging** fills the field with the layout's total boundary
+length across every shape — the same "Total — all edges" the Layers tab shows, via a
+pure `totalLayerPerimeter(proj)` reading the same `layerPerimeters` the panel does.
+The button only appears once a layout exists and its figure tracks shape edits.
+
+It is a **click, not an automatic fill**, on purpose. That total is the *maximum*
+possible edging: edging only goes where turf meets soil or a bed, so any run against
+a house, patio, or driveway needs none. Auto-filling would silently over-quote every
+job with a hardscape edge — and invisibly, because the number looks authoritative. So
+it's offered, shown, and left to be trimmed, with a toast saying as much.
+
+**Fix: Apply Area ignored install layers.** On a 2-layer job, one click on Apply
+pushed a layer-aware **Ordered SqFt** (`applyRollLayoutToTurf` reads `_combined`)
+alongside a primary-only **Installed SqFt** — 422 ft² written under a 566.8 ft²
+header, with infill, labor, and rock all sized off the wrong number.
+`computeApplyAreaForRow` read `layout.adjustedShapeArea ?? layout.shapeArea`, which
+is the primary alone. It now uses the same expression as the Installed metric —
+`_combined.area - shapeArea + adjustedShapeArea` — so every install layer counts while
+the primary's own exclusions still come off. Both Apply buttons (Apply Area and Apply
+Roll Layout) share this function, so both are fixed.
+
+Tests **1159 → 1173** (README **1202 → 1216**): `totalLayerPerimeter` across
+multi-shape, cutout, moved/rotated (perimeter is transform-invariant), degenerate,
+and null cases, and agreeing exactly with the Layers panel's printed total; plus
+Apply pushing the combined 566.9 ft² rather than the primary's 422.4 (the old build
+returns 422.4), primary exclusions still coming off, single-layer jobs unchanged,
+alt-turf still blocked, and zero-area still reported rather than silently applied.
+
+Known gap: overlay ("free fill from scrap") area is counted in the top-bar Installed
+metric but still not in Apply — unchanged behaviour, called out here rather than
+quietly bundled into this fix.
+
+---
+
+## 2026-07-15 (cont'd 5) — Multi-layer: the Piece List and Rolls to order now see every layer
+
+Reported from a live 2-layer job: the top bar read **Linear Ft 55**, the panel showed
+**Primary Shape 42 lf + Shed yard 13 lf**, but the Piece List listed only the
+primary's two pieces (23 + 19 = 42 ft). The Shed yard's piece was missing from the
+list entirely.
+
+Cause: `renderPieceList` enumerated with `getNestableUnits(layout)`, which only ever
+walks `layout.strips` — the **primary** layer. (`buildCutList` already iterated
+`_installLayers`, which is why the Cut List was complete.) `rollLengthSummary` had
+the same blind spot, so a shared second layer was silently absent from the length to
+order — 42 ft when the answer was 55 ft.
+
+Both now walk every install layer. Each layer numbers its own rolls/pieces, so with
+more than one layer each row is prefixed with the layer name ("Shed yard — Roll 1 /
+Piece 1") and the flat list is grouped layer by layer. In Rolls to order, layers set
+to **share rolls** are pooled onto the same rolls; a layer set to **roll on its own**
+is packed separately.
+
+**Also fixed — the division bug, third instance.** `sumInstallLayouts` still computed
+pooled shared rolls as `ceil(sharedLinear / rollLength)`, ignoring both the packing
+introduced for single-layer jobs and the butt-seam setting entirely. Shared layers now
+pool their **pieces** and pack them like everything else.
+
+All three paths (roll count, shared pooling, Rolls to order) now read one extracted
+`layoutUnitLengths(layout)` — the single definition of what consumes roll length —
+so they can't drift apart again. That drift is what produced today's roll-count,
+label, footage, and now layer bugs.
+
+Tests **1144 → 1159** (README **1187 → 1202**): `layoutUnitLengths` across plain,
+nested, empty-strip, over-long-segmented, and null inputs; the real job pooling to
+55 ft on one roll (the old build returned 42); "roll on its own" staying unpooled at
+23 + 13 across 2 rolls; pooled 60+60 needing 2 rolls in both seam modes; and
+single-layer jobs unchanged.
+
+---
+
 ## 2026-07-15 (cont'd 4) — A layer drag no longer dies at the edge of the canvas
 
 A shape couldn't be dragged past a point well short of the visible panel — most

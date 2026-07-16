@@ -84,7 +84,10 @@ Run the test suite before committing any changes to `waterloo_turf_calculator.ht
 node waterloo_turf_tests.js
 ```
 
-All tests should pass (currently **1187**). The `Sync and Push.command` script runs
+All tests should pass (currently **1182** — this is exactly what
+`node waterloo_turf_tests.js` prints on its `Tests:` line; if you're updating this
+number, copy it from the runner rather than adding to the previous figure). The
+`Sync and Push.command` script runs
 this suite as a gate and refuses to commit or push if any test fails.
 
 Each session that produces an updated calculator file also updates this README
