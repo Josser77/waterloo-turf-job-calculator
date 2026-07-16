@@ -5,6 +5,90 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-15 (cont'd 10) — Removed the butt-seam setting: it could only ever make a job worse
+
+The supplier cuts rolls to length, which makes butt seams across a roll join a switch
+with no upside. Demonstrated across every combination on a job of primary 60+30 and
+shed 40:
+
+| | rolls | lengths | total to order |
+|---|---|---|---|
+| shared, seams off | 2 | [90, 40] | **130 ft** |
+| shared, seams on | 2 | [100, 30] | **130 ft** |
+| own, seams off | 2 | [90, 40] | **130 ft** |
+| own, seams on | 2 | [90, 40] | **130 ft** |
+
+The total never moves. Seaming a run across a join only **redistributes** footage
+between rolls; it never reduces it. So the setting's best case was "no change" and its
+worst case was an unnecessary seam in a customer's lawn — one mis-click from a worse
+product, for nothing. Removed rather than left as a trap.
+
+Gone: the checkbox, both `getElementById('allowJoinSeamsInput')` reads, the
+`loadRollDefaultsToInputs` sync, the scope-dialog field labels, and the now-dead
+`seamsOn` branches in the Piece List. `getRollOpts` hard-wires `allowJoinSeams: false`.
+
+**Kept deliberately:** `packPiecesIntoRolls(lengths, rollLength, allowJoinSeams)` still
+takes the flag and is still tested both ways, and the roll-join seam drawing and Piece
+List seam note remain. A fixed-length supply is a one-line revert (flip the hard-wired
+false), not a rewrite. The generic `isRollBoolField`/`rollElValue`/`setRollElValue`
+helpers stay too — they're what stop the next checkbox repeating the `parseFloat("on")
+→ NaN` bug from cont'd 18.
+
+**The per-layer Rolls dropdown stays.** It's a different mechanism, not a duplicate:
+it decides how the same footage splits into physical rolls (one 55 ft roll vs a 42 ft
+plus a 13 ft). Also verified `resolveCrossLayerNesting` doesn't read `rollGroup` — so
+sharing rolls doesn't gate cross-layer nesting; the dropdown's only effect is the roll
+count and each roll's length. It's cost-neutral and already defaults to `shared`, which
+is the standing rule ("include a separate layer on a roll if it fits within 100 and the
+direction works") — so it needs no attention, and the packer handles the "if it fits"
+clause automatically.
+
+Tests **1227 → 1235** (README **1235**): the checkbox and its DOM reads are gone, opts
+hard-wire seams off, a layout built through the real path never seams and no piece
+carries `parts`, the packer still behaves correctly in *both* modes for the revert
+path, and seamed vs seamless footage is asserted identical — the fact that made the
+setting pointless.
+
+---
+
+## 2026-07-15 (cont'd 9) — Delete a layer
+
+Each additional layer now has a **✕** button in the Layers list. Until now a layer
+imported by mistake could only be hidden or set to "Measure only" — never removed.
+
+The confirmation is mode-aware: if the layer is set to anything other than "Measure
+only" it says outright that deleting will change Installed/Ordered SqFt and the quote,
+rather than letting the numbers move silently. Deleting takes the shape's cuts and
+nesting with it. Not undoable — re-import the CSV to get the shape back.
+
+**The real work was reindexing, not removing.** Every per-layer setting is keyed by
+the layer's **array index**, so splicing a shape out of `secondaryShapes` re-points
+everything above it. Delete layer 1 and old layer 2 — now index 1 — would read the
+**deleted** layer's mode, offset, roll direction, visibility, and roll group. Strip
+keys are worse: `manualCuts` / `nestPos` / `nestRot` / `nesting` are namespaced
+`L<idx>_y0.00` (see `keyPrefix`), so old layer 2 would look up `L1_` and inherit the
+deleted layer's cuts. Not data loss — **wrong data silently applied to the wrong
+shape**, which is worse, and invisible until a crew cut to it.
+
+So deletion goes through pure helpers: `reindexLayerIndexMap` (drop the index, shift
+higher ones down, leave non-numeric keys like `'primary'` alone),
+`remapLayerStripKey` / `reindexLayerStripKeyMap` (renumber the `L<idx>_` prefix; the
+primary's un-prefixed keys are never touched), and `reindexNestingMap` — which remaps
+**both** sides, since nesting is `{sourceStripKey: targetStripKey}`, and drops any
+entry whose source *or* target lived on the deleted layer (a piece can't nest into a
+roll that no longer exists). `deleteSecondaryLayer(proj, idx)` applies all of them.
+
+Tests **1189 → 1227** (README **1227**): index maps for first/middle/last deletion
+and non-numeric key survival; strip-key remapping including multi-digit indices and
+the primary's un-prefixed keys; nesting remapped on both sides and dropped from either
+end; and a full delete asserting that layer C's mode, offset, visibility, roll
+rotation, roll group, cuts, nest position/rotation and nesting all follow it down to
+index 1 while B's are gone rather than inherited. Plus guards: out-of-range, negative,
+null project, no layout, no shapes — all refused without mutating — and deleting the
+only layer leaving no orphaned settings.
+
+---
+
 ## 2026-07-15 (cont'd 8) — "Use CSV perimeter" on the New Project dialog too
 
 The cont'd 6 button went on the **Quote Builder's** Edging card — which you only reach

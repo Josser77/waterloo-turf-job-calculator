@@ -1680,19 +1680,6 @@
             <div style="align-self:start;font-size:11px;color:var(--text-light);line-height:1.4;">Trimmed off each roll's edge for the S-seam (usable width = roll width − trim).</div>
             <div style="align-self:start;font-size:11px;color:var(--text-light);line-height:1.4;">Extra length added to <strong>every cut piece</strong> before rounding up to the next whole foot.</div>
           </div>
-          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
-            <label style="display:flex;align-items:flex-start;gap:8px;margin:0;cursor:pointer;">
-              <input type="checkbox" id="allowJoinSeamsInput" onchange="onRollSettingEdit('allowJoinSeams', this)" style="margin-top:2px;">
-              <span>
-                <strong>Allow butt seams across roll joins</strong>
-                <div style="font-size:11px;color:var(--text-light);line-height:1.4;margin-top:3px;">
-                  <strong>Leave this off if your supplier cuts rolls to length</strong> — it saves you nothing and costs you a seam. Total footage is the same either way (three 60 ft runs = 180 ft whether that's 2 rolls or 3); butt seams only change how the footage is split across rolls. They pay off <em>only</em> when you must buy fixed-length rolls and eat the leftover.
-                  <br><strong>Off</strong> — a piece that won't fit the remainder starts a fresh roll, so <strong>every run is seamless</strong>. More rolls, but each is only as long as it needs to be.
-                  <br><strong>On</strong> — the piece uses the remainder and finishes on the next roll, joined by a <strong>butt seam</strong>: fewer, longer rolls. A run longer than a whole roll is always seamed — it can't be cut in one piece.
-                </div>
-              </span>
-            </label>
-          </div>
         </div>
 
         <!-- TURF CATALOG -->
@@ -2299,6 +2286,7 @@
         <p>When shapes overlap, clicking grabs the <strong>topmost</strong> one (the shape you see under the cursor), and a brief <strong>"Moving: &lt;layer&gt;"</strong> note confirms which layer you picked up — so with several stacked shapes you always move the one you meant.</p>
         <p>Each additional (non-primary) layer also has a <strong>Rotate</strong> slider (0-359°) in the Layers list. This rotates that shape in place about its own center — useful when Moasure captured a shape (e.g. a putting green outline) at the wrong orientation and you need to spin it to match how it actually sits in the yard. Combine with dragging to both rotate and position the shape correctly. Rotation, like position, is purely visual and doesn't affect Installed Area, scrap, or roll calculations.</p>
         <p>A layer that's been moved and/or rotated shows a "↺ Reset position" button in the Layers list to snap it back to its original (imported) position and orientation.</p>
+        <p>Each additional layer has a <strong>✕</strong> button to <strong>delete it permanently</strong>. Deleting removes the shape along with everything attached to it — its mode, position/rotation, roll direction, visibility, and any manual cuts or nesting on it. If the layer was set to anything other than "Measure only", the confirmation says so, because removing it changes Installed/Ordered SqFt and the quote. This can't be undone: re-import the CSV to get the shape back. (To take a layer out of the totals <em>without</em> losing it, set its mode to "Measure only" instead, or untick it to just hide it on the canvas.)</p>
 
         <div class="docs-h3">Cut List</div>
         <p>Click <strong>"📋 Cut List"</strong> in the toolbar to open a dialog showing <strong>every turf piece to cut</strong>, grouped by layer. Each piece gets a <strong>CAD-style drawing</strong> of its actual trimmed shape, dimensioned in feet and inches, plus a <strong>text line</strong> and <strong>turf area</strong> below it. Irregular pieces (that don't fill their rectangle) are tagged <em>trim to shape</em> and drawn in amber; pieces tucked into another roll's waste are tagged <em>nested</em>. Each layer shows a subtotal (piece count, total cut length, area) and multi-layer jobs get a grand total. <strong>The subtotal is the sum of the lengths printed above it</strong> — the trimmed footprints you actually cut — shown in feet and inches. It is deliberately <strong>not</strong> an order quantity: ordered length adds the cutting margin and rounds each piece up to the whole foot, and a piece tagged <em>nested</em> is cut from another roll's waste so it costs no roll length at all. Order against <strong>"ft to order"</strong> in <strong>Rolls to order</strong>. The drawings read from the same strips drawn on the canvas, so they always match. This is a <em>cut</em> list — the roll and area <em>order</em> quantities live on the layout panel and the Rock / Base card. Available even when the layout is locked.</p>
@@ -2360,15 +2348,14 @@
         <p>Open <strong>"⚙ Advanced details &amp; tools"</strong> for the rest: the Saved (nested) figure, the manual-cuts and nested-pieces lists, and the per-piece list. Entering Cut Mode opens this section automatically so the cut/nest tools are visible. (<strong>Scrap</strong> — Ordered minus the installed shape area, with % — now sits in the totals strip in the top toolbar; the purchased-rectangles toggle sits above the canvas.)</p>
         <p>The roll/piece count shows just <strong>"N rolls"</strong> when the number of rolls to purchase equals the number of installed pieces — the normal case. It shows <strong>"N rolls / M pieces"</strong> only when these differ.</p>
         <p><strong>Pieces</strong> = total separately-installed pieces across the whole job: one per band/strip normally, more if a strip is manually cut into butt-seamed sections, or if a single strip is longer than Max Roll Length (which forces an inherent seam even without a manual cut).</p>
-        <p><strong>Rolls</strong> = the number of physical rolls the pieces actually pack into, laid on in cut order. What happens when a piece won't fit in what's left of a roll is controlled by <strong>"Allow butt seams across roll joins"</strong> (Settings → Roll Settings), which defaults to <strong>off</strong>:</p>
-        <p><strong>On</strong> — the piece uses up the remainder and finishes on the next roll, joined by a <strong>butt seam</strong>. Fewest rolls, least material. Three 60 ft runs on 100 ft rolls = <strong>2 rolls</strong> (roll 1: 60 + the first 40 ft of the next run; roll 2: its last 20 ft + the final 60). Each forced seam is <strong>drawn on the diagram</strong> as a dashed red line tagged <strong>"roll join"</strong> exactly where it lands along the run — dashed to distinguish it from your own Cut Mode seams, which are solid — and the Piece List spells it out: "butt seam — 2 parts: 40'0" from Roll 1 + 20'0" from Roll 2". So whoever cuts it can see the seam on the drawing and read it on the cut sheet.</p>
-        <p><strong>Off (default)</strong> — the piece starts a fresh roll, so <strong>every run is seamless</strong>. Same three 60 ft runs = <strong>3 rolls</strong> of 60 ft. That's still 180 ft: with a cut-to-length supplier each roll is only cut as long as it needs to be, so the extra rolls cost nothing and you avoid two seams.</p>
-        <p>Either way pieces from different bands/strips <em>can</em> share a roll when their combined length fits (3 pieces totaling 75 ft = "1 roll / 3 pieces"), and a run longer than a whole roll is <strong>always</strong> seamed — it can't be cut in one piece. Note that <code>total linear ft ÷ roll length</code> only ever describes the seams-on case; with seams off it under-counts, because it assumes turf can be split across a join.</p>
+        <p><strong>Rolls</strong> = the number of physical rolls the pieces actually pack into, laid on in cut order. Pieces from different bands/strips <em>share</em> a roll whenever their combined length fits — 3 pieces totaling 75 ft = "1 roll / 3 pieces". When the next piece won't fit what's left, that piece starts a <strong>fresh roll</strong> rather than being split across the join, so <strong>every run is seamless</strong>. Three 60 ft runs on 100 ft rolls = <strong>3 rolls</strong> of 60 ft.</p>
+        <p><strong>That costs nothing.</strong> Because the supplier cuts rolls to length, each roll is only cut as long as it needs to be — those three rolls are still 180 ft total, exactly what 2 butt-seamed rolls would have been. Splitting a run across a roll join only ever <em>redistributes</em> footage between rolls; it never reduces it. So seaming a run would buy nothing and cost a seam, and the calculator simply doesn't do it. (A run longer than a whole roll is <strong>always</strong> seamed — it can't be cut in one piece.)</p>
+        <p>This is also why <code>total linear ft ÷ roll length</code> is the wrong way to count rolls: division assumes turf can be split across a join, so it under-counts. The calculator packs the pieces instead.</p>
         <p>The <strong>"Show purchased roll rectangles (waste)"</strong> checkbox sits right above the canvas, always visible no matter which tab you're on, so it's a one-click toggle. On, it overlays each roll's full purchased rectangle with the unused (waste) portion hatched in red — which is what enables drag-and-drop nesting.</p>
 
         <div class="docs-h3">Piece List (Length × Width)</div>
         <p><strong>Rolls to order:</strong> below the piece list, each physical roll is listed with <strong>the length it actually needs to be</strong>, rounded up to the whole foot — the figure to give a supplier who cuts rolls to length. E.g. Roll 1 = 70 ft, Roll 2 = 87 ft, 157 ft total.</p>
-        <p><strong>The total footage is the same whether butt seams are on or off</strong> — three 60 ft runs are 180 ft whether that's 3 seamless rolls or 2 seamed ones. Seams only change how the footage is split across rolls, never how much you buy. So with a cut-to-length supplier, leaving butt seams <strong>off</strong> is free: same order, one less seam. Butt seams only save material if you're forced to buy fixed-length rolls and eat the leftover.</p>
+        <p>Layers set to <strong>share rolls</strong> pool their pieces onto the same rolls here; a layer set to <strong>roll on its own</strong> gets its own. That choice changes the <em>roll count and each roll's length</em> — one 55 ft roll versus a 42 ft plus a 13 ft — but <strong>never the total footage</strong>, so it costs nothing either way. Pick it for how you want the turf to arrive, not to save material.</p>
         <p>A table listing every individual piece that will be cut for this job — each row shows its <strong>Roll N / Piece M</strong> label, <strong>Length</strong> (its ordered length along the roll), <strong>Width</strong> (the roll width), and resulting <strong>SqFt</strong>. This is the cut sheet for your installers: it tells them exactly how long to cut each piece from the roll, and the total linear footage at the bottom helps you sanity-check how many rolls to bring and plan seam placement to minimize butt seams. That total is what you <strong>order</strong>, so it <strong>excludes nested pieces</strong> — a nested piece is cut from the waste of a roll you're already buying, so counting its length again would charge you for the same turf twice. When any piece is nested, a line underneath spells the difference out (e.g. "33.0 ft of pieces get cut, but 8.0 ft of that is nested from another roll's waste — only the 25.0 ft above is ordered"), and it matches both the <strong>Linear Ft</strong> in the top bar and <strong>ft to order</strong> in Rolls to order. Pieces created by Manual Cuts or that have been nested into another roll's waste show a note (e.g. "cut from Roll N / Piece M waste"). If a Putting Green Fringe is configured, the fringe pieces ("Fringe 1", "Fringe 2", ...) are listed too, with their own length/width/sqft. <strong>Every install layer is listed</strong>, not just the main shape — when a job has more than one, each piece is prefixed with its layer name (e.g. "Shed yard — Roll 1 / Piece 1") and the list is grouped layer by layer. Layers set to <strong>share rolls</strong> are pooled onto the same rolls in <em>Rolls to order</em>; a layer set to <strong>roll on its own</strong> gets its own.</p>
 
         <div class="docs-h3">Drag-and-Drop Nesting</div>
@@ -5972,6 +5959,7 @@ function renderLayersList(proj) {
             style="flex:1;min-width:0;font-weight:600;color:var(--text-mid);font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:4px;background:#fff;">
           <span style="font-size:11px;color:var(--text-light);white-space:nowrap;">${area.toLocaleString(undefined,{maximumFractionDigits:1})} ft²</span>
           ${resetBtn(i)}
+          <button class="btn btn-ghost btn-sm" data-lockok="0" style="font-size:11px;padding:2px 6px;line-height:1;color:var(--red,#c62828);border-color:var(--border);${hasOffset(i)?'':'margin-left:auto;'}" onclick="deleteLayer(${i})" title="Delete this layer permanently">✕</button>
         </div>
         <select style="width:100%;font-size:11px;padding:3px 4px;margin-bottom:4px;" onchange="setSecondaryShapeMode(${i}, this.value)">
           <option value="ignore" ${mode==='ignore'?'selected':''}>Measure only — doesn't change totals (default)</option>
@@ -7210,7 +7198,14 @@ function getRollOpts(proj) {
     cuttingMargin: document.getElementById('cuttingMarginInput').value,
     // Butt seams across roll joins: a real trade-off (fewest rolls vs seamless
     // runs), so it flows through to packing the same way the dimensions do.
-    allowJoinSeams: (function(){ const el = document.getElementById('allowJoinSeamsInput'); return (el && typeof el.checked === 'boolean') ? el.checked : false; })(),
+    // Butt seams across roll joins: hard-wired OFF. The supplier cuts rolls to
+    // length, so seaming a run across a join saves ZERO material — total footage is
+    // identical either way (three 60ft runs = 180ft as 2 seamed rolls or 3 seamless
+    // ones); it only redistributes footage between rolls. Its only possible effect is
+    // an extra seam in a lawn, so it's no longer a setting. packPiecesIntoRolls still
+    // takes the flag (and is tested both ways) — flip this to true if a fixed-length
+    // supply ever makes filling a roll worth a seam.
+    allowJoinSeams: false,
     nesting: (proj && proj.layout && proj.layout.nesting) || {},
     nestPos: (proj && proj.layout && proj.layout.nestPos) || {},
     nestRot: (proj && proj.layout && proj.layout.nestRot) || {},
@@ -7259,7 +7254,14 @@ function rollDefaultsFromInputs() {
     rollLength: num('rollLengthInput', 100),
     sideTrim: num('sideTrimInput', 0),
     cuttingMargin: num('cuttingMarginInput', 0),
-    allowJoinSeams: (function(){ const el = document.getElementById('allowJoinSeamsInput'); return (el && typeof el.checked === 'boolean') ? el.checked : false; })(),
+    // Butt seams across roll joins: hard-wired OFF. The supplier cuts rolls to
+    // length, so seaming a run across a join saves ZERO material — total footage is
+    // identical either way (three 60ft runs = 180ft as 2 seamed rolls or 3 seamless
+    // ones); it only redistributes footage between rolls. Its only possible effect is
+    // an extra seam in a lawn, so it's no longer a setting. packPiecesIntoRolls still
+    // takes the flag (and is tested both ways) — flip this to true if a fixed-length
+    // supply ever makes filling a roll worth a seam.
+    allowJoinSeams: false,
   };
 }
 function loadRollDefaultsToInputs() {
@@ -7269,8 +7271,6 @@ function loadRollDefaultsToInputs() {
   set('rollLengthInput', d.rollLength);
   set('sideTrimInput', d.sideTrim);
   set('cuttingMarginInput', d.cuttingMargin);
-  const js = document.getElementById('allowJoinSeamsInput');
-  if (js) js.checked = d.allowJoinSeams === true;
   updateRollOverrideUI();
 }
 // Reflect override state in the status line + reset link.
@@ -7284,7 +7284,7 @@ function updateRollOverrideUI() {
     if (!proj) note.textContent = 'No project open — editing sets the global default.';
     else if (overriding) {
       const keys = Object.keys(proj.rollSettings || {});
-      const labels = { rollWidth:'width', rollLength:'length', sideTrim:'trim', cuttingMargin:'cutting margin', allowJoinSeams:'butt seams' };
+      const labels = { rollWidth:'width', rollLength:'length', sideTrim:'trim', cuttingMargin:'cutting margin' };
       const named = keys.map(k => labels[k] || k).join(', ');
       note.textContent = `"${proj.name}" overrides the global default${named ? ` (${named})` : ''}.`;
     } else {
@@ -7348,7 +7348,7 @@ function onRollSettingEdit(field, el) {
   openRollScopeDialog(field, newVal, prevVal, el);
 }
 
-const ROLL_FIELD_LABELS = { rollWidth:'Roll Width', rollLength:'Roll Length', sideTrim:'S-seam Side Trim', cuttingMargin:'Cutting Margin', allowJoinSeams:'Butt Seams Across Roll Joins' };
+const ROLL_FIELD_LABELS = { rollWidth:'Roll Width', rollLength:'Roll Length', sideTrim:'S-seam Side Trim', cuttingMargin:'Cutting Margin' };
 
 function openRollScopeDialog(field, newVal, prevVal, el) {
   const modal = document.getElementById('rollScopeModal');
@@ -10494,6 +10494,113 @@ function endDragLayer(evt) {
   renderLayersList(getCurrentProject()); // refresh reset-position buttons in the Layers list
 }
 
+// ── Deleting a secondary layer ────────────────────────────────────────────────
+// Every per-layer setting is keyed by the layer's ARRAY INDEX, so splicing a shape
+// out of secondaryShapes silently re-points everything above it at the wrong layer.
+// Two key shapes have to be fixed up, or deleting layer 1 leaves old layer 2 (now
+// index 1) reading the DELETED layer's settings — not lost data, but wrong data
+// applied to the wrong shape, which is worse.
+//
+//  1. Index-keyed maps: secondaryShapeModes, layerOffsets, layerVisibility,
+//     layerRoll, layerRollGroup — { 0:…, 1:…, 2:… }. Non-numeric keys (e.g.
+//     'primary') are left alone.
+//  2. Prefixed strip keys: manualCuts / nestPos / nestRot / nesting are keyed by
+//     strip key, namespaced per layer as 'L<idx>_y0.00' (see keyPrefix). The primary
+//     layer's keys have no prefix and must not be touched.
+//
+// All pure — no DOM.
+
+// Drop `removedIdx` and shift every higher index down one.
+function reindexLayerIndexMap(map, removedIdx) {
+  const out = {};
+  Object.keys(map || {}).forEach(k => {
+    const n = parseInt(k, 10);
+    if (isNaN(n) || String(n) !== String(k)) { out[k] = map[k]; return; } // 'primary' etc.
+    if (n === removedIdx) return;      // the deleted layer's setting
+    out[n > removedIdx ? n - 1 : n] = map[k];
+  });
+  return out;
+}
+
+// Remap one strip key. Returns null if the key belonged to the deleted layer.
+function remapLayerStripKey(key, removedIdx) {
+  if (typeof key !== 'string') return key;
+  const m = /^L(\d+)_/.exec(key);
+  if (!m) return key; // primary layer's keys are un-prefixed
+  const n = parseInt(m[1], 10);
+  if (n === removedIdx) return null;
+  return n > removedIdx ? ('L' + (n - 1) + '_' + key.slice(m[0].length)) : key;
+}
+
+// For maps keyed by strip key (manualCuts, nestPos, nestRot).
+function reindexLayerStripKeyMap(map, removedIdx) {
+  const out = {};
+  Object.keys(map || {}).forEach(k => {
+    const nk = remapLayerStripKey(k, removedIdx);
+    if (nk == null) return; // belonged to the deleted layer
+    out[nk] = map[k];
+  });
+  return out;
+}
+
+// Nesting is { sourceStripKey: targetStripKey } — BOTH sides are strip keys, so both
+// need remapping, and an entry is dropped if either end lived on the deleted layer
+// (a piece can't nest into a roll that no longer exists).
+function reindexNestingMap(map, removedIdx) {
+  const out = {};
+  Object.keys(map || {}).forEach(k => {
+    const src = remapLayerStripKey(k, removedIdx);
+    const tgt = remapLayerStripKey(map[k], removedIdx);
+    if (src == null || tgt == null) return;
+    out[src] = tgt;
+  });
+  return out;
+}
+
+// Remove a secondary layer and repair every per-layer key. Returns true if removed.
+function deleteSecondaryLayer(proj, idx) {
+  if (!proj || !proj.layout) return false;
+  const secondary = proj.layout.secondaryShapes;
+  if (!Array.isArray(secondary) || !(idx >= 0 && idx < secondary.length)) return false;
+  const L = proj.layout;
+  secondary.splice(idx, 1);
+  L.secondaryShapeModes = reindexLayerIndexMap(L.secondaryShapeModes, idx);
+  L.layerOffsets       = reindexLayerIndexMap(L.layerOffsets, idx);
+  L.layerVisibility    = reindexLayerIndexMap(L.layerVisibility, idx);
+  L.layerRoll          = reindexLayerIndexMap(L.layerRoll, idx);
+  L.layerRollGroup     = reindexLayerIndexMap(L.layerRollGroup, idx);
+  L.manualCuts         = reindexLayerStripKeyMap(L.manualCuts, idx);
+  L.nestPos            = reindexLayerStripKeyMap(L.nestPos, idx);
+  L.nestRot            = reindexLayerStripKeyMap(L.nestRot, idx);
+  L.nesting            = reindexNestingMap(L.nesting, idx);
+  return true;
+}
+
+function deleteLayer(idx) {
+  const proj = getCurrentProject();
+  if (!proj || !proj.layout) return;
+  const secondary = proj.layout.secondaryShapes || [];
+  const i = parseInt(idx, 10);
+  const shape = secondary[i];
+  if (!shape) return;
+  const name = shape.name || ('Layer ' + (i + 2));
+  const mode = (proj.layout.secondaryShapeModes || {})[i] || 'ignore';
+  const affectsArea = (mode === 'install' || mode === 'subtract' || mode === 'overlay' || mode === 'putting-green');
+  if (!confirm(`Delete "${name}" permanently?\n\n`
+      + (affectsArea
+          ? `It's set to "${mode}", so removing it will change this job's Installed/Ordered SqFt and the quote.\n\n`
+          : `It's currently ignored, so areas won't change.\n\n`)
+      + `Any cuts or nesting on this layer are removed too. This can't be undone — re-import the CSV to get it back.`)) return;
+  if (!deleteSecondaryLayer(proj, i)) return;
+  save();
+  // renderLayoutTab rebuilds the layout + layers list and re-renders the roll plan,
+  // which ends in scheduleLinkedSync() — so with the live link on, the turf row and
+  // the quote follow automatically. calcQuote() covers the link being switched off.
+  renderLayoutTab();
+  calcQuote();
+  showLayoutToast('Deleted layer: ' + name);
+}
+
 function resetLayerPosition(layerId) {
   const proj = getCurrentProject(); if (!proj || !proj.layout) return;
   if (!proj.layout.layerOffsets) return;
@@ -10606,7 +10713,6 @@ function renderPieceList(layout, proj) {
   const totalLinearFt = cutLinearFt - nestedLinearFt;
 
   const rollSummary = rollLengthSummary(layout);
-  const seamsOn = !!layout.allowJoinSeams;
 
   table.innerHTML = `
     <div style="display:grid;grid-template-columns:1.4fr 0.8fr 0.8fr 0.8fr 1.2fr;gap:6px;font-weight:600;color:var(--text-light);padding:2px 4px;">
@@ -10632,9 +10738,9 @@ function renderPieceList(layout, proj) {
     <div style="margin-top:10px;padding-top:8px;border-top:2px solid var(--border);">
       <div style="font-weight:700;color:var(--text-light);padding:0 4px 4px;">ROLLS TO ORDER (${rollSummary.rolls.length} × ${rollWidth.toFixed(1)} ft wide)</div>
       <div style="font-size:10px;color:var(--text-light);padding:0 4px 6px;line-height:1.4;">
-        Cut-to-length: order each roll at this length.${seamsOn
-          ? ' Butt seams are on, so rolls are filled end to end and runs are seamed at the joins.'
-          : ' Butt seams are off, so every run is seamless.'}
+        Cut-to-length: order each roll at this length. Every run is seamless — a piece
+        that won't fit a roll's remainder starts a fresh roll rather than being seamed
+        across the join, which costs no extra footage.
       </div>
       ${rollSummary.rolls.map(r => `
         <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:6px;padding:3px 4px;border-top:1px solid var(--border);align-items:center;">
@@ -10645,10 +10751,6 @@ function renderPieceList(layout, proj) {
         <span>${rollSummary.rolls.length} roll${rollSummary.rolls.length===1?'':'s'}</span>
         <span>${rollSummary.totalFt.toFixed(1)} ft to order</span>
       </div>
-      ${seamsOn ? `
-      <div style="font-size:10px;color:#b45309;padding:4px;line-height:1.4;">
-        Turning butt seams <strong>off</strong> would order the same ${rollSummary.totalFt.toFixed(1)} ft with no seams — cut-to-length means seams save no material.
-      </div>` : ''}
     </div>` : ''}
   `;
 }

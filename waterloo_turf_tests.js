@@ -5929,6 +5929,121 @@ section('88. New project: edging from the CSV perimeter');
     'the post-create total (60ft) matches what the new-project button offers for the same shapes');
 }
 
+section('89. Deleting a layer reindexes every per-layer key');
+{
+  const J = o => JSON.stringify(o);
+
+  // ── Index-keyed maps: drop the deleted index, shift higher ones down ──
+  const R = ctx.reindexLayerIndexMap;
+  assert(J(R({0:'a',1:'b',2:'c'}, 1)) === J({0:'a',1:'c'}), 'deleting index 1: 2 becomes 1, 0 untouched');
+  assert(J(R({0:'a',1:'b',2:'c'}, 0)) === J({0:'b',1:'c'}), 'deleting index 0 shifts everything down');
+  assert(J(R({0:'a',1:'b',2:'c'}, 2)) === J({0:'a',1:'b'}), 'deleting the last index leaves the rest alone');
+  assert(J(R({0:'a', primary:'p'}, 0)) === J({primary:'p'}), "non-numeric keys like 'primary' survive");
+  assert(J(R(null, 0)) === J({}), 'null map → empty, no throw');
+  assert(J(R({5:'x'}, 9)) === J({5:'x'}), 'deleting an index that has no entry changes nothing');
+
+  // ── Strip keys are namespaced 'L<idx>_...' (see keyPrefix) ──
+  const K = ctx.remapLayerStripKey;
+  assert(K('L2_y0.00', 1) === 'L1_y0.00', 'layer 2 renumbers to 1 when layer 1 is deleted');
+  assert(K('L1_y0.00', 1) === null, "the deleted layer's own keys are dropped");
+  assert(K('L0_y0.00', 1) === 'L0_y0.00', 'lower layers are untouched');
+  assert(K('y0.00', 1) === 'y0.00', "the primary's un-prefixed keys are never touched");
+  assert(K('L10_y3.00', 2) === 'L9_y3.00', 'multi-digit indices remap correctly');
+
+  // This is the corruption the reindex prevents: without it, old layer 2 (now index
+  // 1) would look up 'L1_' and find the DELETED layer's cuts — wrong data silently
+  // applied to the wrong shape.
+  const S = ctx.reindexLayerStripKeyMap;
+  const cuts = { 'y0.00':[10], 'L1_y0.00':[5], 'L2_y0.00':[7,9] };
+  assert(J(S(cuts, 1)) === J({ 'y0.00':[10], 'L1_y0.00':[7,9] }),
+    "layer 2's cuts follow it down to index 1; the deleted layer's cuts are gone, not inherited");
+
+  // ── Nesting: BOTH sides are strip keys ──
+  const N = ctx.reindexNestingMap;
+  assert(J(N({ 'L2_y0.00':'y0.00' }, 1)) === J({ 'L1_y0.00':'y0.00' }), 'the source side remaps');
+  assert(J(N({ 'y0.00':'L2_y0.00' }, 1)) === J({ 'y0.00':'L1_y0.00' }), 'the target side remaps too');
+  assert(J(N({ 'L1_y0.00':'y0.00' }, 1)) === J({}), 'nesting FROM the deleted layer is dropped');
+  assert(J(N({ 'y0.00':'L1_y0.00' }, 1)) === J({}), 'nesting INTO the deleted layer is dropped — that roll no longer exists');
+  assert(J(N({ 'y0.00':'y15.00' }, 1)) === J({ 'y0.00':'y15.00' }), 'primary-only nesting is untouched');
+
+  // ── The whole operation ──
+  const mk = () => ({ layout: {
+    secondaryShapes: [{name:'A'},{name:'B'},{name:'C'}],
+    secondaryShapeModes: {0:'install',1:'exclude',2:'install'},
+    layerOffsets: {0:{dx:1},1:{dx:2},2:{dx:3}},
+    layerVisibility: {0:true,1:false,2:true},
+    layerRoll: {0:{rotation:10},1:{rotation:20},2:{rotation:30}},
+    layerRollGroup: {0:'own',1:'shared',2:'shared'},
+    manualCuts: {'L0_y0.00':[1],'L1_y0.00':[2],'L2_y0.00':[3]},
+    nestPos: {'L2_y0.00':{x:1}},
+    nestRot: {'L2_y0.00':90},
+    nesting: {'L2_y0.00':'L0_y0.00','L1_y0.00':'L0_y0.00'},
+  }});
+
+  const p = mk();
+  assert(ctx.deleteSecondaryLayer(p, 1) === true, 'deleting a valid layer reports success');
+  assert(p.layout.secondaryShapes.length === 2, 'the shape is removed');
+  assert(J(p.layout.secondaryShapes.map(s=>s.name)) === J(['A','C']), 'the right shape is removed');
+  assert(J(p.layout.secondaryShapeModes) === J({0:'install',1:'install'}), "C's mode follows it to index 1");
+  assert(p.layout.layerOffsets[1].dx === 3, "C's offset follows it — not B's");
+  assert(p.layout.layerVisibility[1] === true, "C's visibility follows it");
+  assert(p.layout.layerRoll[1].rotation === 30, "C's roll rotation follows it");
+  assert(p.layout.layerRollGroup[1] === 'shared', "C's roll group follows it");
+  assert(J(p.layout.manualCuts) === J({'L0_y0.00':[1],'L1_y0.00':[3]}), "C's cuts follow it; B's are gone");
+  assert(J(p.layout.nestPos) === J({'L1_y0.00':{x:1}}), 'nest position follows the renumbered layer');
+  assert(p.layout.nestRot['L1_y0.00'] === 90, 'nest rotation follows too');
+  assert(J(p.layout.nesting) === J({'L1_y0.00':'L0_y0.00'}), "C's nesting survives renumbered; B's is dropped");
+
+  // Guards
+  const g = mk();
+  assert(ctx.deleteSecondaryLayer(g, 9) === false, 'out-of-range index is refused');
+  assert(ctx.deleteSecondaryLayer(g, -1) === false, 'negative index is refused');
+  assert(g.layout.secondaryShapes.length === 3, 'a refused delete changes nothing');
+  assert(ctx.deleteSecondaryLayer(null, 0) === false, 'null project is refused, no throw');
+  assert(ctx.deleteSecondaryLayer({}, 0) === false, 'project with no layout is refused');
+  assert(ctx.deleteSecondaryLayer({layout:{}}, 0) === false, 'no shapes to delete is refused');
+
+  // Deleting the last remaining layer leaves clean, empty state.
+  const one = { layout: { secondaryShapes:[{name:'only'}], secondaryShapeModes:{0:'install'}, manualCuts:{'L0_y0.00':[1]} } };
+  assert(ctx.deleteSecondaryLayer(one, 0) === true, 'the only layer can be deleted');
+  assert(one.layout.secondaryShapes.length === 0 && J(one.layout.secondaryShapeModes) === J({}), 'no orphaned settings left behind');
+  assert(J(one.layout.manualCuts) === J({}), 'its cuts go with it');
+}
+
+section('90. Butt seams are hard-wired OFF (no longer a setting)');
+{
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+
+  // The supplier cuts to length, so seaming a run across a roll join saves ZERO
+  // material — it only redistributes footage between rolls. Its only possible effect
+  // is an extra seam in a lawn, so the control is gone rather than sitting there as a
+  // switch whose best case is "no change".
+  assert(!/id="allowJoinSeamsInput"/.test(html), 'the butt-seam checkbox is gone from Roll Settings');
+  assert(!/getElementById\('allowJoinSeamsInput'\)/.test(html), 'nothing reads a butt-seam control any more');
+  assert(/allowJoinSeams: false,/.test(html), 'getRollOpts hard-wires seams off');
+
+  // But the packer keeps the argument and stays correct both ways, so a fixed-length
+  // supply is a one-line revert rather than a rewrite.
+  const P = ctx.packPiecesIntoRolls;
+  assert(P([60,60,60], 100, false).length === 3, 'packer still packs seamless (the shipped behaviour)');
+  assert(P([60,60,60], 100, true).length === 2, 'packer still supports seams if ever re-enabled');
+
+  // What actually ships: a layout built through the real opts path never seams.
+  const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, nesting:{}, manualCuts:{} };
+  const L = ctx.computeRollLayout([{x:0,y:0},{x:60,y:0},{x:60,y:45},{x:0,y:45}], 0, 0, opts);
+  assert(L.allowJoinSeams === false, 'a layout defaults to seamless');
+  const labels = ctx.assignRollPieceLabels(L);
+  const occupied = L.strips.filter(x=>x.clippedArea>0.5);
+  assert(occupied.every(x => !(labels.get(x) || {}).parts), 'no piece is ever butt-seamed across a join');
+
+  // And the footage is unchanged by it — the whole reason the setting was pointless.
+  const seamless = ctx.rollLengthSummary({ rollLength:100, allowJoinSeams:false,
+    strips:[{key:'a',clippedArea:1,orderedLength:60,nestedInto:null},{key:'b',clippedArea:1,orderedLength:60,nestedInto:null}] });
+  const seamed = ctx.rollLengthSummary({ rollLength:100, allowJoinSeams:true,
+    strips:[{key:'a',clippedArea:1,orderedLength:60,nestedInto:null},{key:'b',clippedArea:1,orderedLength:60,nestedInto:null}] });
+  assert(seamless.totalFt === seamed.totalFt, 'seams never change the footage to order — only how it splits across rolls');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
