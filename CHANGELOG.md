@@ -5,6 +5,35 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-15 (cont'd 4) — A layer drag no longer dies at the edge of the canvas
+
+A shape couldn't be dragged past a point well short of the visible panel — most
+obvious when zoomed out, where the drawing stopped around 64% of the way across an
+otherwise empty white box.
+
+Two causes, both about the canvas *element* being smaller than it looks:
+
+1. Zoom sets `canvas.style.width = bitmap x zoom`, so below 100% the element is
+   narrower than its wrapper. The cursor crosses its right edge long before the panel
+   ends — which is exactly where the shape stopped.
+2. `mouseleave` called `endDragLayer` (and `endDragNesting`). Crossing that edge
+   didn't merely stop delivering moves, it **ended the drag outright**.
+
+`mouseleave` no longer ends layer or nesting drags. Instead both are tracked on
+`window` `mousemove`/`mouseup`, bound once alongside the canvas handlers: the drag
+follows the cursor anywhere on the page and finishes wherever it's released.
+`canvasEventToData` already works from viewport coordinates, so no coordinate change
+was needed. Both handlers early-return when no drag is in progress, so the window
+listeners cost nothing when idle, and the binding is guarded on
+`typeof window.addEventListener === 'function'` for the Node harness. Touch is
+unaffected — touch events already continue to fire at their original target once a
+gesture starts. Pan, cut, and vertex-edit behaviour on `mouseleave` is unchanged.
+
+Tests unchanged at **1144** (README **1187**) — event binding isn't reachable by the
+Node harness; verified on-device.
+
+---
+
 ## 2026-07-15 (cont'd 3) — Move Layers: the view now grows when a shape is dropped out of frame
 
 Dragging a layer past the edge of the canvas cut it off, and the view never expanded

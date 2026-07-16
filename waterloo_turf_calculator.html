@@ -1424,7 +1424,7 @@
             <span id="editPtModeHint" style="font-size:11px;color:var(--text-light);"></span>
           </div>
           <p id="moveLayersHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
-            <strong>Move Layers mode:</strong> click and drag any layer (the main shape outline, or any additional shape) to reposition it on the canvas. The view <strong>stays put while you drag</strong>, so shapes don't rescale under your cursor and each one stays exactly where you drop it — spread several out to lay out a full yard. If you drop a shape <strong>outside the visible area the view re-fits automatically</strong> (once, on release — never mid-drag) so nothing gets cut off. Use <strong>⤢ Fit view</strong> to re-frame at any time, or zoom in (zoom controls / Ctrl+Cmd scroll) to place shapes precisely. <strong>Every layer can be moved</strong>, including added (install) layers — each imported Moasure CSV arrives on its own origin, so a second measured area lands on top of the primary and needs positioning by hand. A layer's cut pieces follow it, <em>except</em> pieces you've <strong>nested</strong> into another roll's waste: those are cut from their host roll and stay drawn there (the toast says how many when you grab the layer). <strong>Move Layers does not reduce waste</strong> — it's purely visual and never changes area, Ordered SqFt, or roll counts. <strong>To cut waste, exit Move Layers and nest pieces instead:</strong> with "Show purchased roll rectangles" on, press-and-drag a piece onto another roll's red hatched waste (nesting is disabled while Move Layers is on). Click "✓ Done Moving" when finished (that also re-fits the view).
+            <strong>Move Layers mode:</strong> click and drag any layer (the main shape outline, or any additional shape) to reposition it on the canvas. The view <strong>stays put while you drag</strong>, so shapes don't rescale under your cursor and each one stays exactly where you drop it — spread several out to lay out a full yard. If you drop a shape <strong>outside the visible area the view re-fits automatically</strong> (once, on release — never mid-drag) so nothing gets cut off. You can <strong>drag right off the canvas</strong> — the drag keeps following your cursor anywhere on the page and finishes wherever you release, so a shape can always be moved as far as you need. Use <strong>⤢ Fit view</strong> to re-frame at any time, or zoom in (zoom controls / Ctrl+Cmd scroll) to place shapes precisely. <strong>Every layer can be moved</strong>, including added (install) layers — each imported Moasure CSV arrives on its own origin, so a second measured area lands on top of the primary and needs positioning by hand. A layer's cut pieces follow it, <em>except</em> pieces you've <strong>nested</strong> into another roll's waste: those are cut from their host roll and stay drawn there (the toast says how many when you grab the layer). <strong>Move Layers does not reduce waste</strong> — it's purely visual and never changes area, Ordered SqFt, or roll counts. <strong>To cut waste, exit Move Layers and nest pieces instead:</strong> with "Show purchased roll rectangles" on, press-and-drag a piece onto another roll's red hatched waste (nesting is disabled while Move Layers is on). Click "✓ Done Moving" when finished (that also re-fits the view).
           </p>
           <p id="cutModeHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
             <strong>Cut mode:</strong> a quick <em>click</em> anywhere along a roll adds a butt-seam cut at that point, splitting it into separate pieces (each piece gets its own cutting margin); click an existing cut line to remove it. With "Show purchased roll rectangles" on, you can also <em>press-and-drag</em> any piece onto another roll's waste area to nest it — without leaving Cut Mode (a click toggles a cut, a drag moves a piece). Click "✂ Cut Mode" again when done.
@@ -10993,8 +10993,35 @@ function setupLayoutCanvasEvents() {
   });
   canvas.addEventListener('mousemove', e => { if (window._wtDrawMode) { onDrawMouseMove(e); return; } if (window._wtPan) { moveLayoutPan(e); return; } onLayoutCanvasMouseMove(e); moveDragNesting(e); moveDragLayer(e); });
   canvas.addEventListener('mouseup', e => { if (window._wtDrawMode) { onDrawMouseUp(e); return; } endLayoutPan(e); onLayoutCanvasMouseUp(e); endCutClick(e); endDragNesting(e); endDragLayer(e); });
-  canvas.addEventListener('mouseleave', e => { if (window._wtDrawMode) { onDrawMouseUp(e); return; } endLayoutPan(e); onLayoutCanvasMouseUp(e); window._wtCutDownPos = null; endDragNesting(e); endDragLayer(e); });
+  canvas.addEventListener('mouseleave', e => {
+    if (window._wtDrawMode) { onDrawMouseUp(e); return; }
+    // Do NOT end a layer/nesting drag here. Zoom sets the canvas's CSS size to
+    // bitmap x zoom, so below 100% the element is narrower than its wrapper — the
+    // cursor crosses its edge long before the visible panel ends, and ending the
+    // drag there made a shape impossible to drag any further right. Those drags now
+    // finish on the window's mouseup instead, so they continue off-canvas.
+    endLayoutPan(e);
+    onLayoutCanvasMouseUp(e);
+    window._wtCutDownPos = null;
+  });
   canvas.addEventListener('dblclick', onLayoutCanvasDblClick);
+  // A drag must survive the pointer leaving the canvas: canvasEventToData works off
+  // viewport coords, so these keep working anywhere on the page. Both handlers
+  // early-return when no drag is in progress, so this costs nothing when idle.
+  // Bound to window (not canvas) exactly once, alongside the canvas handlers.
+  if (!window._wtWindowDragBound && typeof window.addEventListener === 'function') {
+    window._wtWindowDragBound = true;
+    window.addEventListener('mousemove', e => {
+      if (window._wtDragLayerId == null && window._wtDragNestKey == null) return;
+      moveDragNesting(e);
+      moveDragLayer(e);
+    });
+    window.addEventListener('mouseup', e => {
+      if (window._wtDragLayerId == null && window._wtDragNestKey == null) return;
+      endDragNesting(e);
+      endDragLayer(e);
+    });
+  }
   canvas.addEventListener('touchstart', e => {
     if (window._wtLayoutLocked) return;
     if (window._wtDrawMode) { onDrawMouseDown(e); return; }
