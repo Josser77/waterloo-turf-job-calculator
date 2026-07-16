@@ -1833,6 +1833,8 @@
     <div style="margin-top:18px;">
       <label style="margin-bottom:6px;">Edging (Linear Feet)</label>
       <input type="number" id="newProjEdging" placeholder="0 — leave blank to fill in later" style="width:100%">
+      <button type="button" id="newProjEdgingPerimBtn" class="btn btn-ghost" onclick="useCsvPerimeterForNewProjEdging()" style="display:none;margin-top:5px;width:100%;padding:6px 10px;font-size:12px;"></button>
+      <div class="hint" id="newProjEdgingPerimHint" style="display:none;">Every edge of every shape in the CSV — trim to the runs that actually need edging (not walls, patios, or driveways).</div>
     </div>
 
     <div style="margin-top:14px;">
@@ -2353,6 +2355,7 @@
         <p>The <strong>Results</strong> tab shows the rolls/piece count and per-layer breakdown, with extra detail (cut/nest tools, Piece List) under a small <strong>Advanced</strong> twisty so a standard install isn't cluttered. Both <strong>Apply</strong> buttons — <em>Apply Installed SqFt → turf row</em> and <em>Apply Ordered SqFt → turf row</em> — live together on the <strong>Apply</strong> tab. <em>Apply Ordered SqFt</em> is usually the one you want: it sets the row's <strong>SqFt to Order</strong> <em>and</em> its <strong>Installed SqFt</strong>, so infill (which derives its area from Installed SqFt), labor, and rock all cascade from the one click. <em>Apply Installed SqFt</em> sets just the installed area. Each applies to the <strong>one row</strong> selected in its dropdown. <strong>🔗 Live link:</strong> under <em>Apply Ordered SqFt</em> there's a <strong>Live</strong> checkbox (on by default) that keeps the selected row in sync with the layout automatically — no button press. <strong>Ordered SqFt</strong> follows the roll plan, so it updates when you change <strong>roll rotation or seam offset</strong>. <strong>Installed SqFt</strong> follows the shape's area (role-aware — a Base Yard row includes the putting-green footprint; Alt Turf rows are skipped since they're priced on the base), so it updates when you <strong>edit the shape or its exclusions</strong>, and that cascades to infill, rock, and labor. Rotating rolls does <em>not</em> change Installed (it doesn't change how much ground you cover), so materials don't churn while you're just comparing roll options. Updates fire when you release a slider (not mid-drag), targeting the row picked in the dropdown; turn it off to explore freely without touching the quote. <strong>Installed SqFt, Ordered SqFt, Ordered Linear Ft, Perimeter, and Scrap</strong> all live in the always-visible totals strip in the top toolbar (right of ⚙ Settings).</p>
 
         <p><strong>Use layout perimeter (X ft):</strong> a button under <em>Linear Feet of Edging</em> on the Quote Builder fills the field with the layout's <strong>total boundary length across every shape</strong> — the same "Total — all edges" the Layers tab shows. It's a <strong>click, not an automatic fill</strong>, and that's deliberate: this is the <em>maximum</em> possible edging, but edging only goes where turf meets soil or a bed — any run against a house, patio, or driveway needs none. So the number is offered as a starting point for you to trim down, rather than silently over-quoting every job with a hardscape edge. The button only appears once a layout exists, and its figure updates as shapes are added or edited.</p>
+        <p>The <strong>New Project</strong> dialog has the same button under its <em>Edging (Linear Feet)</em> field — <strong>"↧ Use CSV perimeter (X ft)"</strong> — as soon as you attach a CSV, so you can set edging while creating the job rather than going back for it. It offers the <strong>all-shapes</strong> total (the "Perimeter" line above it is the main outline only), which is the same figure the Layers tab shows once the project exists, so the number doesn't change on create.</p>
         <p><strong>Edging perimeter (per layer):</strong> the <strong>Layers</strong> tab lists the boundary length of <em>every</em> measured shape — the main outline plus each cutout (tree wells, beds, paver borders) — and a <strong>Total — all edges</strong> at the bottom. This is for ordering edging/border material that wraps every edge, and it's why a number here can exceed the <strong>Perimeter</strong> metric up top: that metric is the turf outline only (plus Install layers), while the edging total includes the inner cutout edges too. Perimeter is independent of where you drag a layer or how you rotate it.</p>
         <p>Open <strong>"⚙ Advanced details &amp; tools"</strong> for the rest: the Saved (nested) figure, the manual-cuts and nested-pieces lists, and the per-piece list. Entering Cut Mode opens this section automatically so the cut/nest tools are visible. (<strong>Scrap</strong> — Ordered minus the installed shape area, with % — now sits in the totals strip in the top toolbar; the purchased-rectangles toggle sits above the canvas.)</p>
         <p>The roll/piece count shows just <strong>"N rolls"</strong> when the number of rolls to purchase equals the number of installed pieces — the normal case. It shows <strong>"N rolls / M pieces"</strong> only when these differ.</p>
@@ -3064,6 +3067,7 @@ function openNewProjectModal() {
   `).join('');
   document.getElementById('newProjName').value = '';
   document.getElementById('newProjEdging').value = '';
+  refreshNewProjEdgingPerimBtn(); // reset: no CSV loaded yet
   document.getElementById('newProjPgSqFt').value = '';
   document.getElementById('turfSqftFields').style.display = 'none';
   document.getElementById('turfSqftRows').innerHTML = '';
@@ -3158,7 +3162,14 @@ function handleNewProjCsv(input) {
         const a=points[i], b=points[(i+1)%points.length];
         perim += Math.hypot(b.x-a.x, b.y-a.y);
       }
-      window._wtNewProjCsv = { points, area, shapes, secondaryShapes, fileName: file.name, perim };
+      // The displayed "Perimeter" is the main outline only. Edging can wrap every
+      // measured shape (beds, tree wells, the shed yard), so keep an all-shapes total
+      // for the edging button — the same figure the Layers tab calls "Total — all
+      // edges" once the project exists.
+      const perimAll = perim + (secondaryShapes || []).reduce(
+        (sum, sh) => sum + ((sh.points && sh.points.length >= 2) ? polygonPerimeter(sh.points) : 0), 0);
+      const shapeCount = 1 + ((secondaryShapes || []).filter(sh => sh.points && sh.points.length >= 2).length);
+      window._wtNewProjCsv = { points, area, shapes, secondaryShapes, fileName: file.name, perim, perimAll, shapeCount };
       document.getElementById('newProjCsvName').textContent = file.name;
       document.getElementById('newProjCsvClear').style.display = '';
       document.getElementById('newProjCsvStats').style.display = '';
@@ -3170,6 +3181,7 @@ function handleNewProjCsv(input) {
       }
       // Pre-fill turf sqft fields if any turf row is already visible
       prefillTurfSqftFromCsv();
+      refreshNewProjEdgingPerimBtn();
     } catch(err) {
       alert('Could not import CSV: ' + err.message);
     } finally {
@@ -3184,6 +3196,38 @@ function clearNewProjCsv() {
   document.getElementById('newProjCsvName').textContent = 'No file selected';
   document.getElementById('newProjCsvClear').style.display = 'none';
   document.getElementById('newProjCsvStats').style.display = 'none';
+  refreshNewProjEdgingPerimBtn(); // no CSV → no perimeter to offer
+}
+
+// Show "Use CSV perimeter (X ft)" under the new project's Edging field once a CSV is
+// loaded. A click, not an auto-fill, for the same reason as the Quote Builder's
+// button: this is the MAXIMUM possible edging — no yard edges against a house, patio,
+// or driveway — so filling it silently would over-quote every job with hardscape.
+function refreshNewProjEdgingPerimBtn() {
+  const btn = document.getElementById('newProjEdgingPerimBtn');
+  const hint = document.getElementById('newProjEdgingPerimHint');
+  if (!btn) return;
+  const csv = window._wtNewProjCsv;
+  const total = csv ? (csv.perimAll || csv.perim || 0) : 0;
+  const show = total > 0;
+  btn.style.display = show ? '' : 'none';
+  if (hint) hint.style.display = show ? '' : 'none';
+  if (show) {
+    const n = csv.shapeCount || 1;
+    btn.textContent = '↧ Use CSV perimeter (' + total.toFixed(1) + ' ft'
+      + (n > 1 ? ', ' + n + ' shapes' : '') + ')';
+  }
+}
+
+function useCsvPerimeterForNewProjEdging() {
+  const csv = window._wtNewProjCsv;
+  if (!csv) return;
+  const total = csv.perimAll || csv.perim || 0;
+  if (!(total > 0)) return;
+  const el = document.getElementById('newProjEdging');
+  if (!el) return;
+  el.value = Math.round(total * 10) / 10;
+  showLayoutToast('Edging set to ' + total.toFixed(1) + ' ft — trim it to the runs that actually need edging');
 }
 
 function prefillTurfSqftFromCsv() {

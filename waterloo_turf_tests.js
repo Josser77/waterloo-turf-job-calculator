@@ -5899,6 +5899,36 @@ section('87. Live link (auto-apply) is ON by default');
   assert(inst.ok && near(inst.area, 566.9), 'auto-applied Installed SqFt counts every layer too');
 }
 
+section('88. New project: edging from the CSV perimeter');
+{
+  // The new-project dialog has its own CSV import, separate from the Layout tab's.
+  // It already showed "Perimeter: X ft" and had an Edging field, but nothing joined
+  // them — the Quote Builder's button only exists after the project is created.
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/id="newProjEdgingPerimBtn"/.test(html), 'the new-project dialog has a "use CSV perimeter" button');
+  assert(/onclick="useCsvPerimeterForNewProjEdging\(\)"/.test(html), 'the button is wired to its handler');
+  const btnTag = (html.match(/<button[^>]*id="newProjEdgingPerimBtn"[^>]*>/) || [''])[0];
+  assert(/display:none/.test(btnTag), 'it ships hidden — there is no perimeter until a CSV is loaded');
+  // It must be a button, never an auto-fill: the total is the MAXIMUM edging, and
+  // runs against a house/patio/driveway need none, so filling it silently would
+  // over-quote every job with a hardscape edge.
+  assert(!/prefillEdgingFromCsv/.test(html), 'edging is never auto-filled from the CSV');
+
+  // The dialog's displayed "Perimeter" is the main outline only; edging can wrap
+  // every measured shape, so the button offers the all-shapes total instead.
+  assert(/perimAll/.test(html), 'an all-shapes perimeter total is computed for the button');
+  assert(/refreshNewProjEdgingPerimBtn\(\); \/\/ no CSV/.test(html), 'clearing the CSV hides the button again');
+
+  // The figure must agree with what the Layers tab calls "Total — all edges" once
+  // the project exists, so the number doesn't change on create.
+  const proj = { layout: {
+    points: [{x:0,y:0},{x:10,y:0},{x:10,y:10},{x:0,y:10}],          // 40 ft
+    secondaryShapes: [{ points: [{x:0,y:0},{x:5,y:0},{x:5,y:5},{x:0,y:5}] }], // 20 ft
+  }};
+  assert(near(ctx.totalLayerPerimeter(proj), 60),
+    'the post-create total (60ft) matches what the new-project button offers for the same shapes');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

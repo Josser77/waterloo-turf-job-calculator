@@ -5,6 +5,33 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-15 (cont'd 8) — "Use CSV perimeter" on the New Project dialog too
+
+The cont'd 6 button went on the **Quote Builder's** Edging card — which you only reach
+*after* the project exists. The New Project dialog has its own separate CSV import
+(`handleNewProjCsv`), already computed the perimeter, already displayed it
+("Perimeter: 133.7 ft"), and already had an **Edging (Linear Feet)** field — with
+nothing joining them. So the obvious place to set edging from the CSV was the one
+place the button wasn't.
+
+Added there too: **"↧ Use CSV perimeter (X ft, N shapes)"** under the dialog's Edging
+field, appearing as soon as a CSV is attached and hiding again when it's cleared or
+the dialog is reset. Still a click, not an auto-fill, for the same reason as before —
+the total is the *maximum* possible edging, and no yard edges against its house,
+patio, or driveway.
+
+The dialog's displayed "Perimeter" is the **main outline only**, so the button offers
+a new all-shapes total (`perimAll`) instead: edging can wrap beds, tree wells, and an
+added yard too. That matches what the Layers tab calls "Total — all edges" once the
+project exists, so the figure doesn't change on create.
+
+Tests **1182 → 1189** (README **1189**): the button exists in the dialog, is wired to
+its handler, ships hidden (no CSV → no perimeter), is never auto-filled, computes an
+all-shapes total, hides again on clear, and offers the same 60 ft that
+`totalLayerPerimeter` reports post-create for the same shapes.
+
+---
+
 ## 2026-07-15 (cont'd 7) — Live link ships ON; README test count corrected (the "+43 offset" was just wrong)
 
 **Auto-apply already existed and was already the default** — `isLiveLinkOn()` returns
