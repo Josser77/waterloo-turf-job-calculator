@@ -2213,7 +2213,7 @@
 
         <div class="docs-h3">2. Infill</div>
         <p>Each row is an infill product. <strong>SqFt auto-populates</strong> from turf installed sqft based on the Tier — Standard and Upgraded infill get the base yard sqft, Putting Green infill gets the putting green sqft. Products whose name contains "Putt" (e.g. GD Putting Sand) are auto-set to the Putting Green tier when added, so "↻ Refresh from SqFt" fills them from the putting green area without hand-setting the tier; you can still change any row's Tier. Changing a row's Tier re-derives its sqft (and bags) for the new area automatically. You can override any sqft manually. In quote cards, putting green infill shows as its own line so you can see its contribution.</p>
-        <p>Enter <strong>Lbs per SqFt</strong> (how dense the infill is) and <strong>Cost per Bag</strong> (pre-filled from Settings if set). <strong>Bags ↑</strong> and <strong>Line Cost ↑</strong> calculate automatically (50 lbs per bag).</p>
+        <p>Enter <strong>Lbs per SqFt</strong> (how dense the infill is) and <strong>Cost per Bag</strong> (pre-filled from Settings if set). <strong>Bags ↑</strong> and <strong>Line Cost ↑</strong> calculate automatically (50 lbs per bag). The quote card and Supplier Order also show each infill line's <strong>total weight</strong> (bags × 50 lbs, in lbs and — once it's 2,000 lbs or more — tons), with a combined <strong>Infill total</strong> line when a job has more than one infill product, so you can plan delivery and handling.</p>
         <p>The <strong>Tier</strong> dropdown controls how this infill appears in quote options:</p>
         <div style="background:var(--surface2);border-radius:8px;padding:12px 16px;margin:10px 0;font-size:12px;">
           <div style="margin-bottom:6px;"><strong>Standard</strong> — the base infill option. Included in all turf scenarios.</div>
@@ -2241,7 +2241,7 @@
           <li>Within each group, putting green variants appear side by side: one card without a putting green, one per Putting Green turf row</li>
         </ul>
         <p><strong>Example</strong> — Standard turf + 1 Alt turf, Standard + Upgraded infill, 1 putting green option → 4 groups, 2 cards each = 8 total quote options.</p>
-        <p><strong>What's included in each total:</strong> Labor (the turf-install rate — standard yard + putting green if applicable), turf material cost (ordered sqft × cost/sqft from Settings, with putting green turf on its own line), edging, infill materials (bags × cost/bag, with putting green infill on its own line), putting green fringe (if configured in the Layout tab — see Putting Green Fringe below), miscellaneous items (each shown as its own line, not lumped together), and <strong>shipping / freight</strong> (per project, the same on every scenario — every project uses the standard amount from Settings → Default Shipping unless you override it on the Quote Builder tab; leave that field blank to follow the default, or enter a number for a one-off job) — all split correctly by role/tier per scenario. Shipping is part of COGS, so your profit margin applies to it like every other cost. Changing the default in Settings updates every project that hasn't overridden it.</p>
+        <p><strong>What's included in each total:</strong> Labor (the turf-install rate — standard yard + putting green if applicable), turf material cost (ordered sqft × cost/sqft from Settings, with putting green turf on its own line), edging, infill materials (bags × cost/bag, with putting green infill on its own line; each infill line also shows its total weight in 50 lb bags, plus a combined weight when there's more than one), putting green fringe (if configured in the Layout tab — see Putting Green Fringe below), miscellaneous items (each shown as its own line, not lumped together), and <strong>shipping / freight</strong> (per project, the same on every scenario — every project uses the standard amount from Settings → Default Shipping unless you override it on the Quote Builder tab; leave that field blank to follow the default, or enter a number for a one-off job) — all split correctly by role/tier per scenario. Shipping is part of COGS, so your profit margin applies to it like every other cost. Changing the default in Settings updates every project that hasn't overridden it.</p>
         <p>When a profit margin is set, each card shows three figures: <strong>Cost (COGS)</strong>, your <strong>Margin</strong> in dollars (Price − Cost), and the customer <strong>Price</strong>. If a job is putting-green-only (no base/alt turf), the "No Putting Green" option is omitted since it would be an empty card.</p>
       </div>
 
@@ -2290,7 +2290,7 @@
 
         <div class="docs-h3">Cut List</div>
         <p>Click <strong>"📋 Cut List"</strong> in the toolbar to open a dialog showing <strong>every turf piece to cut</strong>, grouped by layer. Each piece gets a <strong>CAD-style drawing</strong> of its actual trimmed shape, dimensioned in feet and inches, plus a <strong>text line</strong> and <strong>turf area</strong> below it. Irregular pieces (that don't fill their rectangle) are tagged <em>trim to shape</em> and drawn in amber; pieces tucked into another roll's waste are tagged <em>nested</em>. Each layer shows a subtotal (piece count, total cut length, area) and multi-layer jobs get a grand total. <strong>The subtotal is the sum of the lengths printed above it</strong> — the trimmed footprints you actually cut — shown in feet and inches. It is deliberately <strong>not</strong> an order quantity: ordered length adds the cutting margin and rounds each piece up to the whole foot, and a piece tagged <em>nested</em> is cut from another roll's waste so it costs no roll length at all. Order against <strong>"ft to order"</strong> in <strong>Rolls to order</strong>. The drawings read from the same strips drawn on the canvas, so they always match. This is a <em>cut</em> list — the roll and area <em>order</em> quantities live on the layout panel and the Rock / Base card. Available even when the layout is locked.</p>
-        <p><strong>Cut width vs. footprint (S-seam):</strong> the <strong>"× wide" figure in the text line is the <em>cut</em> width</strong> — how wide to slice the piece off the roll — and it <strong>includes the S-Seam Side Trim</strong> (Settings → Roll Settings) that installers trim off on site. So a strip that fully spans the usable width reads the <strong>full roll width</strong> (e.g. <strong>15'0"</strong>) even though its installed coverage after trimming is 14'8"; a "cut full width, trim S-seam on site" note shows the covered width in that case. Narrow filler strips keep their own width plus the same allowance, never exceeding the roll. The <strong>drawing itself stays the trimmed footprint</strong> at installed size, so it shows what the piece actually covers. (Cut the full width, trim the seam edge on site.)</p>
+        <p><strong>Cut width vs. footprint (S-seam):</strong> the <strong>"× wide" figure in the text line is the <em>cut</em> width</strong> — how wide to slice the piece off the roll — and it <strong>includes the S-Seam Side Trim</strong> (Settings → Roll Settings) that installers trim off on site. There are two cases, and the note tells them apart: a strip that <strong>spans the full usable width</strong> reads the <strong>full roll width</strong> (e.g. <strong>15'0"</strong>, covering 14'8" after trim) and is tagged <em>"Cut full roll width, trim S-seam on site"</em>. A <strong>narrower</strong> piece is cut at its own footprint <em>plus</em> the seam allowance — a 9'0" piece is cut <strong>9'4"</strong>, not the full roll — and is tagged <em>"Cut with S-seam allowance, trim on site"</em>. Neither ever exceeds the roll width. The <strong>drawing itself stays the trimmed footprint</strong> at installed size, so it shows what the piece actually covers. (Cut the full width, trim the seam edge on site.)</p>
         <p><strong>🖨 Print / PDF:</strong> the <strong>Print / PDF</strong> button in the Cut List dialog builds a one-shot printable sheet — the job name, install address and date, the current <strong>roll-layout diagram</strong>, and the full cut list — then opens your print dialog. Choose <em>Save as PDF</em> (or a printer) to hand installers a paper or PDF cut sheet. It prints only that sheet, not the rest of the app, and each cut piece is kept whole on a page. Works in the desktop app and on the web.</p>
 
         <div class="docs-h3">Draw Tool (Markup)</div>
@@ -2382,7 +2382,7 @@
         <div class="docs-h2" id="doc-exports">Supplier Order &amp; Installer Sheet</div>
         <p>At the top of the <strong>Quote Builder</strong> tab, the <strong>Job Info &amp; Exports</strong> card holds three fields — <strong>Job Address</strong>, <strong>Delivery Date</strong>, and <strong>Install Date</strong> — plus two export buttons. These are saved per project. (There's no Jobber link, so the address and dates are typed here or pasted in.)</p>
         <ul class="docs-list">
-          <li><strong>📦 Supplier Order</strong> — a ready-to-send block listing the job, delivery address, delivery date, and every orderable material with its quantity: turf (by its <strong>Vendor Product Name</strong> from Settings, with ordered sqft and linear ft at 15 ft roll width), infill (bags), edging (the selected material's name &amp; color, with boards), <strong>benderboard stakes</strong> (20 per board, colored to match the edging material), and any misc items (shown as <strong>name: quantity — notes</strong>; the unit is dropped and the note comes from the item's Settings entry, blank for one-off custom items). <strong>Rock/base is excluded</strong> (you source it separately) and no longer prints a note.</li>
+          <li><strong>📦 Supplier Order</strong> — a ready-to-send block listing the job, delivery address, delivery date, and every orderable material with its quantity: turf (by its <strong>Vendor Product Name</strong> from Settings, with ordered sqft and linear ft at 15 ft roll width), infill (bags, with total weight), edging (the selected material's name &amp; color, with boards), <strong>benderboard stakes</strong> (20 per board, colored to match the edging material), and any misc items (shown as <strong>name: quantity — notes</strong>; the unit is dropped and the note comes from the item's Settings entry, blank for one-off custom items). <strong>Rock/base is excluded</strong> (you source it separately) and no longer prints a note.</li>
           <li><strong>🔧 Installer Sheet</strong> — the job, install address, install date, the <strong>turf to install per product</strong> with each installed sqft (base yard, putting green, etc.), an <strong>Infill</strong> section (product + bags), an <strong>Edging</strong> section (material + boards + linear ft), all misc items (<strong>name: quantity — notes</strong>, same format as the supplier order), and two fixed sections spelling out responsibilities: <em>Waterloo Turf provides</em> turf, infill, edging, stakes, and screws; <em>Turf installer provides</em> rock, weed cloth, 12" seam tape, adhesive, 6" non-galvanized nails, install labor, and equipment. Alt-turf rows aren't listed (no separate install area).</li>
         </ul>
         <p>Both open a panel with the text and a <strong>⎘ Copy</strong> button — copy it and paste it straight into an email to your supplier or installer. Quantities come from whatever you've entered in the Quote Builder, so fill those in first.</p>
@@ -3688,6 +3688,25 @@ function updateInfillLbs(i, input) {
   calcInfillRow(i);
 }
 
+// Infill is sold in 50 lb bags. Weight is computed on the BAGS you actually buy
+// (already rounded up in calcInfillRow), not on raw sqft x lbs — you take home whole
+// bags, and a weight figure is for planning delivery/handling of what arrives.
+const INFILL_LBS_PER_BAG = 50;
+function infillWeightLbs(bags) {
+  return (parseFloat(bags) || 0) * INFILL_LBS_PER_BAG;
+}
+// Show lbs, and tons once it's heavy enough for tons to be the useful unit.
+function fmtInfillWeight(lbs) {
+  const n = parseFloat(lbs) || 0;
+  const lbStr = n.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' lbs';
+  if (n >= 2000) {
+    const tons = n / 2000;
+    const tonStr = tons.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return lbStr + ' (' + tonStr + ' ton' + (tonStr === '1' ? '' : 's') + ')';
+  }
+  return lbStr;
+}
+
 function calcInfillRow(i) {
   const proj = getCurrentProject(); if(!proj) return;
   const row = proj.infill[i];
@@ -4340,9 +4359,18 @@ function updateMaterialsSummary() {
   // Infill
   const infillLines = (proj.infill||[]).filter(r=>r.bags);
   if (infillLines.length) {
+    let totalBags = 0, totalLbs = 0;
     infillLines.forEach(r=>{
-      html += `<div class="result-row"><span class="result-label">🪨 ${r.product||'Infill'}</span><span class="result-value">${r.bags} bags</span></div>`;
+      const bags = parseFloat(r.bags) || 0;
+      const lbs = infillWeightLbs(bags);         // 50 lb per bag, on the bags you buy
+      totalBags += bags;
+      totalLbs += lbs;
+      html += `<div class="result-row"><span class="result-label">🪨 ${r.product||'Infill'}</span><span class="result-value">${r.bags} bags · ${fmtInfillWeight(lbs)}</span></div>`;
     });
+    // Only add a combined line when it tells you something the single line didn't.
+    if (infillLines.length > 1) {
+      html += `<div class="result-row" style="font-weight:600;"><span class="result-label">🪨 Infill total</span><span class="result-value">${totalBags} bags · ${fmtInfillWeight(totalLbs)}</span></div>`;
+    }
   }
 
   // Edging
@@ -9913,6 +9941,19 @@ function assignRollPieceLabels(layout) {
 // genuinely narrow filler strip keeps its own footprint width plus the same
 // allowance and still never exceeds the roll. sideTrimInches is the global
 // "S-Seam Side Trim (in)" setting (default 4).
+// Which on-site cut note a piece gets, so the wording matches what's actually cut:
+//   'full'      — the piece spans the full usable width, so cut the WHOLE roll and
+//                 trim the S-seam edge off on site.
+//   'allowance' — a narrower piece cut at its footprint plus the S-seam allowance
+//                 (NOT the full roll — a 9 ft piece is cut ~9'4", not 15').
+//   'none'      — cut width equals footprint; no seam note.
+// Pure — no DOM.
+function cutWidthNoteKind(footW, cutW, rollWidth) {
+  const rw = parseFloat(rollWidth) || 15;
+  if (!((cutW - footW) > 0.02)) return 'none';
+  return (cutW >= rw - 0.02) ? 'full' : 'allowance';
+}
+
 function seamCutWidth(footW, sideTrimInches, rollWidth) {
   const rw = parseFloat(rollWidth) || 15;
   const allow = Math.max(0, parseFloat(sideTrimInches) || 0) / 12; // inches → feet
@@ -10004,9 +10045,14 @@ function renderCutListHtml(data) {
         + '<div style="display:flex;justify-content:center;">' + cutPieceSvg(p) + '</div>'
         + '<div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.5;">'
         + 'Cut ' + ftIn(p.footL) + ' long × ' + ftIn(cutW) + ' wide<br>'
-        + (cutW - p.footW > 0.02
-            ? '<span style="color:#b45309;">Cut full width, trim S-seam on site (covers ' + ftIn(p.footW) + ')</span><br>'
-            : '')
+        + (function(){
+            const kind = cutWidthNoteKind(p.footW, cutW, p.rollWidth || 15);
+            if (kind === 'full')
+              return '<span style="color:#b45309;">Cut full roll width, trim S-seam on site (covers ' + ftIn(p.footW) + ')</span><br>';
+            if (kind === 'allowance')
+              return '<span style="color:#b45309;">Cut with S-seam allowance, trim on site (covers ' + ftIn(p.footW) + ')</span><br>';
+            return '';
+          })()
         + 'Turf area ' + f1(p.area) + ' ft²'
         + '</div></div>';
     });
@@ -11055,7 +11101,7 @@ function buildSupplierOrderText(proj) {
   });
   (proj.infill || []).forEach(i => {
     const bags = parseFloat(i.bags) || 0;
-    if (bags > 0) items.push('• Infill — ' + (i.product || 'infill') + ': ' + bags + ' bag' + (bags === 1 ? '' : 's'));
+    if (bags > 0) items.push('• Infill — ' + (i.product || 'infill') + ': ' + bags + ' bag' + (bags === 1 ? '' : 's') + ' (' + fmtInfillWeight(infillWeightLbs(bags)) + ')');
   });
   if (proj.edging) {
     const boards = parseFloat(proj.edging.boards) || 0;

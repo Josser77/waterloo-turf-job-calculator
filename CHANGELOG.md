@@ -5,6 +5,51 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-15 (cont'd 12) — Cut List: "full width" note no longer lies on narrow pieces
+
+The Turf Cut List tagged pieces **"Cut full width, trim S-seam on site"** whenever the
+cut added the S-seam allowance — which is *any* piece that isn't cut exactly at its
+footprint. So a 9 ft piece, cut 9'4" to cover 9'0", was labelled "full width" despite
+being nowhere near the 15 ft roll. The **cut width itself was always right**
+(`seamCutWidth` = min(footprint + trim, roll width)); only the sentence was wrong.
+
+Now the note distinguishes the two real cases:
+- Piece spans the full usable width → cut the whole roll: **"Cut full roll width, trim
+  S-seam on site."**
+- Narrower piece → **"Cut with S-seam allowance, trim on site"** — cut the footprint
+  plus the allowance, not the roll.
+
+The decision is extracted into a pure `cutWidthNoteKind(footW, cutW, rollWidth)` →
+`'full' | 'allowance' | 'none'`, so it's testable rather than buried in a template
+ternary.
+
+Tests **1249 → 1256** (README **1256**): a 9 ft and a 6 ft piece are 'allowance', a
+full-usable-width piece is 'full', a piece cut exactly at roll width with no added trim
+is 'none', a narrow piece with no allowance is 'none', a piece just under full width
+still caps to 'full', and a sub-tolerance difference gets no note.
+
+---
+
+## 2026-07-15 (cont'd 11) — Infill lines show total weight (50 lb bags)
+
+Each infill line in the quote card and the Supplier Order now shows its **total
+weight** next to the bag count — e.g. "GD Medium Sand: 15 bags · 750 lbs". Weight is
+in lbs, adding tons once it reaches 2,000 lbs ("60 bags · 3,000 lbs (1.5 tons)"). When
+a job has more than one infill product, a combined **Infill total** line sums the bags
+and weight; a single-product job doesn't get a redundant total.
+
+Weight is computed on the **bags actually ordered** (already rounded up in
+`calcInfillRow`), not raw sqft × lbs — you take home whole bags, and a weight figure is
+for planning delivery and handling of what arrives. Two pure helpers:
+`infillWeightLbs(bags)` (× 50) and `fmtInfillWeight(lbs)` (lbs, with tons past 2,000).
+
+Tests **1235 → 1249** (README **1249**): weight per bag count including blank/string
+inputs; the lbs/tons threshold at exactly 2,000; ton pluralization (1 ton singular,
+1.5 and 2.5 tons plural — the first pass wrongly printed "1.5 ton"); thousands
+separators; and the realistic 500 sqft × 1.5 lbs/sqft = 15 bags = 750 lbs path.
+
+---
+
 ## 2026-07-15 (cont'd 10) — Removed the butt-seam setting: it could only ever make a job worse
 
 The supplier cuts rolls to length, which makes butt seams across a roll join a switch

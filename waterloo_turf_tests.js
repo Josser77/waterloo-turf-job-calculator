@@ -5247,6 +5247,19 @@ section('71b. seamCutWidth (installer cut width = footprint + S-seam trim)');
   const eff = ctx.effectiveRollWidth({ rollWidth: 15, sideTrim: 4 });
   assert(near(eff, 14.6667, 0.01), 'effectiveRollWidth(15, 4") = 14\'8" usable');
   assert(near(scw(eff, 4, 15), 15, 0.01), 'usable-width strip → full 15\' cut (effW + trim = roll)');
+
+  // The on-site note must MATCH what's actually cut. The label used to say "Cut full
+  // width" for any piece that gained the seam allowance — including a 9 ft piece cut
+  // 9'4", which is nowhere near the 15 ft roll. Only a piece spanning the full usable
+  // width is a full-roll cut.
+  const K = ctx.cutWidthNoteKind;
+  assert(K(9, ctx.seamCutWidth(9, 4, 15), 15) === 'allowance', 'a 9ft piece (cut 9\'4") is an ALLOWANCE cut, not full width');
+  assert(K(6, ctx.seamCutWidth(6, 4, 15), 15) === 'allowance', 'a 6ft piece is an allowance cut');
+  assert(K(eff, ctx.seamCutWidth(eff, 4, 15), 15) === 'full', 'a full-usable-width piece IS a full-roll cut');
+  assert(K(15, 15, 15) === 'none', 'a piece cut exactly at roll width with no added trim gets no note');
+  assert(K(9, 9, 15) === 'none', 'no seam allowance (cutW == footW) → no note, even on a narrow piece');
+  assert(K(14.9, ctx.seamCutWidth(14.9, 4, 15), 15) === 'full', 'a piece just under full width still caps to the roll → full-roll note');
+  assert(K(10, 10.02, 15) === 'none', 'a sub-quarter-inch difference is not worth a note (tolerance)');
 }
 
 section('71c. buildCutListPrintDoc (installer print sheet)');
@@ -6042,6 +6055,35 @@ section('90. Butt seams are hard-wired OFF (no longer a setting)');
   const seamed = ctx.rollLengthSummary({ rollLength:100, allowJoinSeams:true,
     strips:[{key:'a',clippedArea:1,orderedLength:60,nestedInto:null},{key:'b',clippedArea:1,orderedLength:60,nestedInto:null}] });
   assert(seamless.totalFt === seamed.totalFt, 'seams never change the footage to order — only how it splits across rolls');
+}
+
+section('91. Infill weight — 50 lb bags');
+{
+  const W = ctx.infillWeightLbs;
+  const F = ctx.fmtInfillWeight;
+
+  // Weight is on the BAGS bought (already rounded up), 50 lb each.
+  assert(W(10) === 500, '10 bags = 500 lbs');
+  assert(W(1) === 50, '1 bag = 50 lbs');
+  assert(W(0) === 0, '0 bags = 0 lbs');
+  assert(W('') === 0, 'blank bags = 0 lbs, no NaN');
+  assert(W('7') === 350, 'string bag counts parse');
+
+  // Formatting: lbs always; tons appears once it's the useful unit (>= 2000 lbs).
+  assert(F(500) === '500 lbs', 'light loads show lbs only');
+  assert(F(1950) === '1,950 lbs', 'just under a ton stays in lbs, with a thousands separator');
+  assert(/^2,000 lbs \(1 ton\)$/.test(F(2000)), 'exactly 2000 lbs = 1 ton (singular)');
+  assert(/^5,000 lbs \(2\.5 tons\)$/.test(F(5000)), '5000 lbs = 2.5 tons (plural)');
+  assert(F(0) === '0 lbs', 'zero is 0 lbs');
+
+  // The realistic path: a 500 sqft yard at 1.5 lbs/sqft = 750 lbs = ceil(15) bags.
+  const bags = Math.ceil(500 * 1.5 / 50); // 15
+  assert(bags === 15, '500 sqft x 1.5 lbs/sqft = 15 bags');
+  assert(W(bags) === 750, '15 bags = 750 lbs');
+  assert(F(W(bags)) === '750 lbs', 'and reads as 750 lbs');
+
+  // A big putting-green job crossing into tons.
+  assert(F(W(60)) === '3,000 lbs (1.5 tons)', '60 bags = 3,000 lbs = 1.5 tons');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
