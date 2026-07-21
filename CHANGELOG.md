@@ -5,6 +5,57 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-15 (cont'd 18) — Layout toolbar buttons are all the same height
+
+The Layout toolbar's controls didn't line up: Import CSV and Add CSV sat a couple of
+pixels shorter than Edit Shape, Move Layers, Cut Mode, Draw, etc. Cause — those two
+are `<label class="btn">` (a label wrapping a hidden file input), the rest are
+`<button class="btn">`, and `.btn` set no `display` / `box-sizing` / `line-height`, so
+a label (default `display:inline`) and a button (default `inline-block` with its own
+line box) computed different heights from the same padding.
+
+`.btn` now uses `display:inline-flex; align-items:center; justify-content:center;
+box-sizing:border-box; line-height:1.2`, so every element type styled as a button
+renders at the same height and centers its label. Applies app-wide (109 buttons);
+full-width buttons (`width:100%`) are unaffected beyond their content now centering,
+which is the intended look anyway.
+
+Tests **1302 → 1307** (README **1307**): `.btn` carries the inline-flex / border-box /
+align-items rule (so it can't be dropped silently), and the toolbar still mixes a
+label-button (Import CSV) with real buttons — the exact case the rule equalizes.
+
+---
+
+## 2026-07-15 (cont'd 17) — Piece dimensions toggle; dimension labels no longer spam on curves
+
+Two fixes prompted by "why doesn't the nested piece show dimensions?"
+
+**1. Curve/segment noise (the real problem in the screenshot).** A Moasure import
+represents a straight wall as dozens of tiny segments and a curve as many more, and
+`polygonEdgeLabels` was labelling every raw segment — so a curved edge became a swarm
+of "0'11"" tags. It now **merges near-collinear consecutive edges into one run**
+(labelled once, with the run's total length) and drops runs under ~2 ft. A 30-segment
+straight wall reads as a single "30'0"" instead of thirty "1'0"" tags; a tight curve
+shows few or no labels rather than clutter. An explicit closing-duplicate vertex is
+stripped first so the final edge isn't lost.
+
+**2. A separate "Show piece dimensions" toggle.** The original toggle only walked the
+measured shapes (yard + layers), never the cut pieces — which is why the nested piece
+had no labels. Rather than fold pieces into the shape toggle (which would clutter the
+yard-outline view), there's now a second, independent checkbox that labels each
+drawn cut/roll piece — including pieces nested into another roll's waste, using the
+piece's moved (`_displayClippedMoved`) polygon so the label follows it into the waste.
+Both toggles persist per project (`showDimensions`, `showPieceDimensions`).
+
+Tests **1293 → 1302** (README **1302**): section 92 rewritten for the merge — a
+30-segment wall collapsing to one 30 ft label, a curve yielding ≤3 labels, the 2 ft
+default threshold, a lower threshold keeping short edges, closing-duplicate handling,
+and the 3-4-5 triangle; plus a new section asserting the two toggles exist, persist to
+separate flags independently, and that the piece draw reads the moved polygon for
+nested pieces.
+
+---
+
 ## 2026-07-15 (cont'd 16) — The guide links were invisible — reworked as "?" badges on section titles
 
 The per-tab guide links added in cont'd 14 shipped as faint ghost buttons (transparent

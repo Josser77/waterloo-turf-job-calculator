@@ -508,6 +508,15 @@
 
   /* BUTTONS */
   .btn {
+    /* inline-flex + border-box so <button> and <label class="btn"> compute the SAME
+       height. A <button> has default line-height and box model; a bare <label> does
+       not, so without this the label-styled buttons (Import CSV, Add CSV) rendered a
+       pixel or two shorter than the real buttons next to them. */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    line-height: 1.2;
     padding: 9px 16px;
     border-radius: 7px;
     border: none;
@@ -1498,6 +1507,10 @@
                   <input type="checkbox" id="showDimensionsToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
                   Show dimensions (edge lengths on every shape)
                 </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:12px;margin-bottom:6px;" title="Label each cut/roll piece with its dimensions on the canvas. The Cut List already lists these; use this to see them in place on the layout.">
+                  <input type="checkbox" id="showPieceDimensionsToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
+                  Show piece dimensions (each cut piece on the canvas)
+                </label>
                 <div id="layoutCanvasWrap" style="overflow:auto;max-height:86vh;overscroll-behavior:contain;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:default;">
                   <canvas id="rollLayoutCanvas" style="display:block;"></canvas>
                 </div>
@@ -2262,6 +2275,7 @@
       <!-- MATERIALS TAB -->
       <div class="docs-section">
         <div class="docs-h2" id="doc-layout">Layout Tab: Site Layout & Roll Plan</div>
+        <p><strong>Show dimensions / Show piece dimensions:</strong> two independent checkboxes above the canvas. <em>Show dimensions</em> labels every edge of every measured <strong>shape</strong> (the yard outline and each layer) with its length in feet and inches. <em>Show piece dimensions</em> does the same for each individual <strong>cut/roll piece</strong> drawn on the canvas — including pieces nested into another roll's waste — for when you want a piece's size in place rather than looking it up in the Cut List. Use either, both, or neither. Both merge near-straight runs, so a Moasure edge made of dozens of tiny segments reads as one measurement instead of a swarm; edges shorter than a couple of feet are skipped, so a tightly-curved boundary shows few or no labels rather than clutter. Each toggle is remembered per project.</p>
         <p>Import the CSV exported from a Moasure measurement to visualize the yard shape and plan how turf rolls lay across it. You can import at project creation time (pre-fills measurements) or later via the Layout tab. The toolbar holding <strong>Lock / Edit Shape / Move Layers / Cut Mode / Import</strong> stays pinned to the top as you scroll through the canvas and results, so those controls are always reachable.</p>
 
         <p><strong>🔓 Lock:</strong> once a layout is dialed in, click <strong>Lock</strong> (top-left of the toolbar) to freeze it. Locking disables every slider and adjustment — roll direction, translation, seam offsets, view rotation, roll settings, per-layer controls, fringe settings — plus Edit Shape / Move Layers / Cut Mode and all on-canvas editing and piece-dragging, and it blocks importing a new CSV over the layout. View-only controls stay live so you can still inspect the plan: zoom, the purchased-rectangles toggle, the sub-tab navigation, and both <strong>Apply</strong> buttons (applying to a turf row doesn't change the layout). The button turns solid and reads <strong>🔒 Locked</strong>; click it again to unlock. The locked state is saved per project, so it sticks when you reopen the layout.</p>
@@ -6412,6 +6426,7 @@ function renderLayoutTab() {
   document.getElementById('viewRotationValue').textContent = (proj.layout.viewRotation || 0) + '°';
   document.getElementById('showRectanglesToggle').checked = !!proj.layout.showRects;
   { const d = document.getElementById('showDimensionsToggle'); if (d) d.checked = !!proj.layout.showDimensions; }
+  { const d = document.getElementById('showPieceDimensionsToggle'); if (d) d.checked = !!proj.layout.showPieceDimensions; }
   const gridCb = document.getElementById('layoutShowGrid');
   if (gridCb) gridCb.checked = !!proj.layout.gridShow;
   const gridSp = document.getElementById('layoutGridSpacing');
@@ -6525,29 +6540,66 @@ function useLayoutPerimeterForEdging() {
 
 // Edge dimension labels: for each edge of a polygon, the midpoint (in data coords),
 // the edge length in feet, and an outward normal so the label can be nudged just
-// outside the shape rather than sitting on the line. Skips near-zero edges (a
-// polygon often repeats its first point, or has slivers) so they don't clutter.
-// Pure — no DOM, no canvas.
-function polygonEdgeLabels(points, minLenFt) {
-  const pts = points || [];
-  const out = [];
-  if (pts.length < 2) return out;
-  const minLen = minLenFt == null ? 0.5 : minLenFt;
-  // Signed area to know winding, so the outward normal points away from the centroid.
+// outside the shape rather than sitting on the line.
+//
+// A Moasure import represents a "straight" wall as dozens of tiny segments and a
+// curve as many more, so labeling every raw segment produces a swarm of "0'11"" tags
+// instead of readable dimensions. Two defenses:
+//   1. Merge near-collinear consecutive edges into one run (labelled once, with the
+//      run's total length) — a wall reads as a single measurement, not 30.
+//   2. Drop runs shorter than minLenFt — slivers and curve facets disappear; only
+//      real, measurable edges get a label.
+// A tightly-curved boundary legitimately has no straight edges to call out, so it
+// simply gets few or no labels rather than noise. Pure — no DOM, no canvas.
+function polygonEdgeLabels(points, minLenFt, mergeAngleDeg) {
+  let pts = points || [];
+  if (pts.length < 2) return [];
+  // Drop an explicit closing duplicate (last point == first) — the polygon is
+  // implicitly closed, and a zero-length closing edge breaks run detection.
+  if (pts.length > 1) {
+    const f = pts[0], l = pts[pts.length - 1];
+    if (Math.abs(f.x - l.x) < 1e-9 && Math.abs(f.y - l.y) < 1e-9) pts = pts.slice(0, -1);
+  }
+  if (pts.length < 2) return [];
+  const minLen = minLenFt == null ? 2 : minLenFt;
+  const cosThresh = Math.cos((mergeAngleDeg == null ? 12 : mergeAngleDeg) * Math.PI / 180);
+
   let cx = 0, cy = 0;
   pts.forEach(p => { cx += p.x; cy += p.y; });
   cx /= pts.length; cy /= pts.length;
-  for (let i = 0; i < pts.length; i++) {
-    const a = pts[i], b = pts[(i + 1) % pts.length];
+
+  // Build runs of consecutive edges whose directions stay within the merge angle.
+  const n = pts.length;
+  const runs = []; // each: { ax,ay, bx,by } start/end of the merged run
+  let start = pts[0];
+  let prevDir = null;
+  for (let i = 0; i < n; i++) {
+    const a = pts[i], b = pts[(i + 1) % n];
     const dx = b.x - a.x, dy = b.y - a.y;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    if (len < minLen) continue;
-    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-    // Unit normal (two choices); pick the one pointing away from the centroid.
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-9) continue; // duplicate point
+    const dir = { x: dx / len, y: dy / len };
+    if (prevDir && (dir.x * prevDir.x + dir.y * prevDir.y) >= cosThresh) {
+      // same direction (within tolerance) — extend the current run
+    } else {
+      if (prevDir) runs.push({ ax: start.x, ay: start.y, bx: a.x, by: a.y });
+      start = a;
+    }
+    prevDir = dir;
+    // close the polygon on the last edge
+    if (i === n - 1) runs.push({ ax: start.x, ay: start.y, bx: b.x, by: b.y });
+  }
+
+  const out = [];
+  runs.forEach(r => {
+    const dx = r.bx - r.ax, dy = r.by - r.ay;
+    const len = Math.hypot(dx, dy);
+    if (len < minLen) return;
+    const mx = (r.ax + r.bx) / 2, my = (r.ay + r.by) / 2;
     let nx = -dy / len, ny = dx / len;
     if ((mx + nx - cx) * nx + (my + ny - cy) * ny < 0) { nx = -nx; ny = -ny; }
     out.push({ mx, my, len, nx, ny });
-  }
+  });
   return out;
 }
 
@@ -7856,6 +7908,7 @@ function renderRollLayout() {
   proj.layout.translation = translation;
   proj.layout.showRects = document.getElementById('showRectanglesToggle').checked;
   { const d = document.getElementById('showDimensionsToggle'); if (d) proj.layout.showDimensions = d.checked; }
+  { const d = document.getElementById('showPieceDimensionsToggle'); if (d) proj.layout.showPieceDimensions = d.checked; }
   save();
 
   const basePointsRaw = getBaseLayoutPoints(proj);
@@ -8368,6 +8421,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
 
   const showRects = document.getElementById('showRectanglesToggle') && document.getElementById('showRectanglesToggle').checked;
   window._wtShowDimensions = !!(document.getElementById('showDimensionsToggle') && document.getElementById('showDimensionsToggle').checked);
+  window._wtShowPieceDimensions = !!(document.getElementById('showPieceDimensionsToggle') && document.getElementById('showPieceDimensionsToggle').checked);
   const primaryVisible = layout.layerVisibility.primary !== false;
 
   // Build a lookup of all units by key (across every install layer), needed to
@@ -8743,7 +8797,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     dimShapes.forEach(pts => {
-      polygonEdgeLabels(pts, 0.75).forEach(e => {
+      polygonEdgeLabels(pts).forEach(e => {
         const c = toCanvas({ x: e.mx, y: e.my });
         // Nudge the label a few px outside the edge along its outward normal. Canvas y
         // is inverted vs data y, so flip ny for the screen offset.
@@ -8761,6 +8815,53 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     ctx.restore();
     ctx.textAlign = 'start';
     ctx.textBaseline = 'alphabetic';
+  }
+
+  // Piece dimensions (separate toggle). Labels each drawn cut/roll piece's edges —
+  // including nested pieces sitting in another roll's waste, which is the case that
+  // prompted this. Walks every install layer; a piece's drawn polygon is its nested
+  // position (_displayClippedMoved) when nested, else its in-place clip. Same
+  // collinear-merge as shape dimensions, so a piece reads a couple of edge lengths
+  // rather than a swarm.
+  if (window._wtShowPieceDimensions) {
+    const piecePolys = [];
+    const entries = (layout._installLayers && layout._installLayers.length)
+      ? layout._installLayers.map(e => e.layout)
+      : [layout];
+    entries.forEach(L => {
+      if (!L || !Array.isArray(L.strips)) return;
+      L.strips.forEach(s => {
+        if (s.clippedArea <= 1e-9) return;
+        (s.pieces || [s]).forEach(u => {
+          const poly = (u._displayClippedMoved && u._displayClippedMoved.length >= 3)
+            ? u._displayClippedMoved
+            : (u.displayClipped && u.displayClipped.length >= 3 ? u.displayClipped : null);
+          if (poly) piecePolys.push(poly);
+        });
+      });
+    });
+    if (piecePolys.length) {
+      ctx.save();
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      piecePolys.forEach(poly => {
+        polygonEdgeLabels(poly, 1.5).forEach(e => {
+          const c = toCanvas({ x: e.mx, y: e.my });
+          const off = 7;
+          const lx = c.x + e.nx * off, ly = c.y - e.ny * off;
+          const txt = ftIn(e.len);
+          const tw = ctx.measureText(txt).width;
+          ctx.fillStyle = 'rgba(255,255,255,0.82)';
+          ctx.fillRect(lx - tw/2 - 2, ly - 6, tw + 4, 12);
+          ctx.fillStyle = '#7a4a00';
+          ctx.fillText(txt, lx, ly);
+        });
+      });
+      ctx.restore();
+      ctx.textAlign = 'start';
+      ctx.textBaseline = 'alphabetic';
+    }
   }
 
   // Strip boundary lines (dashed), rotated back to display frame

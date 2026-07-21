@@ -6086,36 +6086,52 @@ section('91. Infill weight — 50 lb bags');
   assert(F(W(60)) === '3,000 lbs (1.5 tons)', '60 bags = 3,000 lbs = 1.5 tons');
 }
 
-section('92. polygonEdgeLabels — edge dimension labels');
+section('92. polygonEdgeLabels — edge dimension labels (with collinear merge)');
 {
   const E = ctx.polygonEdgeLabels;
 
-  // A 10x6 rectangle: 4 edges, lengths 10,6,10,6, midpoints on each side.
+  // A 10x6 rectangle: 4 clean edges.
   const rect = [{x:0,y:0},{x:10,y:0},{x:10,y:6},{x:0,y:6}];
   const labels = E(rect);
   assert(labels.length === 4, 'a rectangle yields 4 edge labels');
-  assert(labels.map(l=>Math.round(l.len)).join(',') === '10,6,10,6', 'edge lengths are correct');
-  assert(near(labels[0].mx, 5) && near(labels[0].my, 0), 'first edge midpoint is the bottom center');
-
-  // Outward normals point AWAY from the centroid (4,3-ish). Bottom edge normal points
-  // down (−y); right edge points +x.
-  assert(labels[0].ny < 0, 'bottom edge normal points outward (down)');
-  assert(labels[1].nx > 0, 'right edge normal points outward (right)');
-  // Normals are unit length.
+  assert(labels.map(l=>Math.round(l.len)).sort((a,b)=>a-b).join(',') === '6,6,10,10', 'edge lengths are correct');
   labels.forEach(l => assert(near(Math.hypot(l.nx, l.ny), 1), 'normal is unit length'));
 
-  // Near-zero edges are skipped (a polygon that repeats its first point, or slivers).
-  const withDup = [{x:0,y:0},{x:10,y:0},{x:10,y:6},{x:0,y:6},{x:0,y:0}]; // closing dup
-  assert(E(withDup).length === 4, 'a repeated closing vertex does not add a zero-length label');
-  const sliver = [{x:0,y:0},{x:10,y:0},{x:10.1,y:0},{x:10,y:6},{x:0,y:6}];
-  assert(E(sliver, 0.75).every(l => l.len >= 0.75), 'edges below the min length are dropped');
+  // Outward normals point away from the centroid.
+  const bottom = labels.find(l => near(l.my, 0));
+  assert(bottom && bottom.ny < 0, 'bottom edge normal points outward (down)');
+
+  // THE fix: a wall broken into many tiny segments (a Moasure "straight" edge) merges
+  // into ONE label with the run's total length — not 30 labels of "0'11"".
+  const segmentedWall = [];
+  for (let x = 0; x <= 30; x++) segmentedWall.push({ x, y: 0 });   // 30 one-ft segments
+  segmentedWall.push({ x: 30, y: 10 }, { x: 0, y: 10 });           // close the box
+  const wall = E(segmentedWall);
+  const bottomRun = wall.find(l => near(l.my, 0));
+  assert(bottomRun && near(bottomRun.len, 30), 'a 30-segment straight wall reads as ONE 30ft edge, not 30 labels');
+  assert(wall.filter(l => near(l.my, 0)).length === 1, 'the segmented wall produces exactly one label');
+
+  // A curve (many small direction changes) legitimately has no straight run to call
+  // out, so with the default 2ft threshold it produces few/no labels rather than spam.
+  const curve = [];
+  for (let a = 0; a <= Math.PI; a += Math.PI/24) curve.push({ x: 10*Math.cos(a), y: 10*Math.sin(a) });
+  curve.push({ x: 10, y: 0 });
+  const curveLabels = E(curve);
+  assert(curveLabels.length <= 3, 'a tight curve yields at most a couple labels, not one per facet');
+
+  // Sub-threshold edges (below 2ft default) are dropped.
+  const sliver = [{x:0,y:0},{x:10,y:0},{x:10,y:0.5},{x:0,y:0.5}]; // two 0.5ft ends
+  assert(E(sliver).every(l => l.len >= 2), 'edges below the 2ft default are dropped');
+  assert(E(sliver, 0.25).length === 4, 'a lower threshold keeps the short edges');
 
   // Degenerate input never throws.
   assert(E([]).length === 0, 'no points → no labels');
   assert(E([{x:0,y:0}]).length === 0, 'a single point → no labels');
   assert(E(null).length === 0, 'null → no labels, no throw');
+  const withDup = [{x:0,y:0},{x:10,y:0},{x:10,y:6},{x:0,y:6},{x:0,y:0}];
+  assert(E(withDup).length === 4, 'a repeated closing vertex does not add a spurious label');
 
-  // A triangle: 3 edges, a 3-4-5 right triangle.
+  // A 3-4-5 right triangle: three distinct edges, none collinear.
   const tri = [{x:0,y:0},{x:4,y:0},{x:0,y:3}];
   const t = E(tri);
   assert(t.length === 3, 'a triangle has 3 edge labels');
@@ -6162,6 +6178,45 @@ section('93. Per-tab guide buttons + openGuideAt wiring');
     const tag = (html.match(new RegExp('<p id="' + id + '"[^>]*>')) || [''])[0];
     assert(/display:none/.test(tag), id + ' is hidden by default (shown only in its mode)');
   });
+}
+
+section('94. Two independent dimension toggles (shapes vs pieces)');
+{
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+
+  // Two separate checkboxes, each re-rendering the canvas.
+  assert(/id="showDimensionsToggle"/.test(html), 'the shape-dimensions toggle exists');
+  assert(/id="showPieceDimensionsToggle"/.test(html), 'the piece-dimensions toggle exists');
+
+  // Each persists to its own layout flag, loaded and saved independently.
+  assert(/proj\.layout\.showDimensions = /.test(html), 'shape toggle saves to layout.showDimensions');
+  assert(/proj\.layout\.showPieceDimensions = /.test(html), 'piece toggle saves to layout.showPieceDimensions');
+  assert(/d\.checked = !!proj\.layout\.showPieceDimensions/.test(html), 'piece toggle loads from its own flag');
+
+  // The piece-dimension draw walks every install layer's pieces and uses the nested
+  // position when a piece has been moved into waste.
+  assert(/window\._wtShowPieceDimensions/.test(html), 'the renderer reads the piece-dimensions flag');
+  assert(/_displayClippedMoved/.test(html.slice(html.indexOf('window._wtShowPieceDimensions'))),
+    'piece labels use the nested (moved) polygon when a piece sits in waste');
+
+  // Same collinear-merge protection so a piece does not spam labels: reuses
+  // polygonEdgeLabels, already tested in section 92.
+}
+
+section('95. .btn renders buttons and label-buttons at equal height');
+{
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // The layout toolbar mixes <button class="btn"> with <label class="btn"> (Import
+  // CSV / Add CSV). Without inline-flex + border-box on .btn they render at different
+  // heights. Assert the normalizing rule is present so it can't be dropped silently.
+  const btnRule = (html.match(/\.btn \{[\s\S]*?\}/) || [''])[0];
+  assert(/display:\s*inline-flex/.test(btnRule), '.btn uses inline-flex so button and label heights match');
+  assert(/box-sizing:\s*border-box/.test(btnRule), '.btn is border-box so padding does not change height between element types');
+  assert(/align-items:\s*center/.test(btnRule), '.btn centers its content vertically');
+
+  // The toolbar still mixes both element types — this is the case the rule protects.
+  assert(/<label[^>]*class="btn[^"]*"[^>]*>↑ Import CSV/.test(html), 'Import CSV is a label styled as a button');
+  assert(/<button[^>]*id="editShapeBtn"[^>]*class="btn/.test(html), 'Edit Shape is a real button');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
