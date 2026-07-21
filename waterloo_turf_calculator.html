@@ -529,6 +529,19 @@
   }
   .btn-ghost:hover { background: var(--surface2); }
   .btn-sm { padding: 6px 12px; font-size: 12px; }
+  /* Help badge — a small circular "?" that links into the User Guide. Deliberately
+     distinct from ghost buttons so it reads as "help" and doesn't disappear. */
+  .help-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--highlight, #eaf5ec); color: var(--green, #2e7d32);
+    border: 1px solid var(--highlight-border, #b6ddbd);
+    font-size: 12px; font-weight: 800; line-height: 1; cursor: pointer;
+    flex-shrink: 0; vertical-align: middle; text-decoration: none;
+    transition: background .15s, color .15s;
+  }
+  .help-badge:hover { background: var(--green, #2e7d32); color: #fff; }
+  .help-badge-lg { width: 24px; height: 24px; font-size: 14px; }
   .btn-add {
     background: var(--highlight);
     border: 1px dashed var(--highlight-border);
@@ -1227,12 +1240,10 @@
            TAB: QUOTE BUILDER
       ══════════════════════════════════════ -->
       <div class="tab-panel active" id="panel-quote">
-        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;"><button type="button" class="btn btn-ghost btn-sm" data-lockok="1" title="Open the User Guide for this tab" onclick="openGuideAt('doc-quote')" style="font-size:11px;padding:3px 9px;">? Guide</button></div>
-
         <!-- JOB INFO & EXPORTS -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title">Job Info &amp; Exports</div>
+            <div class="card-title" style="display:flex;align-items:center;gap:8px;">Job Info &amp; Exports<a class="help-badge" data-lockok="1" title="Open the User Guide" onclick="openGuideAt('doc-quote')">?</a></div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button class="btn btn-ghost btn-sm" onclick="openSupplierOrder()" title="Material order to email your supplier (rock excluded)">📦 Supplier Order</button>
               <button class="btn btn-ghost btn-sm" onclick="openInstallerSheet()" title="Install details to email your installer">🔧 Installer Sheet</button>
@@ -1400,7 +1411,7 @@
       <div class="tab-panel" id="panel-layout">
         <div class="card">
           <div class="card-header" id="layoutToolbar">
-            <div class="card-title">Site Layout & Roll Plan (Moasure Import)</div>
+            <div class="card-title" style="display:flex;align-items:center;gap:8px;">Site Layout &amp; Roll Plan (Moasure Import)<a class="help-badge" data-lockok="1" title="Open the User Guide" onclick="openGuideAt('doc-layout')">?</a></div>
             <div style="display:flex;gap:8px;align-items:center;">
               <button id="lockLayoutBtn" class="btn btn-ghost btn-sm" data-lockok="1" onclick="toggleLayoutLock()" title="Lock the layout to prevent accidental changes to sliders, edits, and adjustments.">🔓 Lock</button>
               <button id="editShapeBtn" class="btn btn-ghost btn-sm" onclick="toggleEditMode()">✎ Edit Shape</button>
@@ -1414,7 +1425,6 @@
               <label for="addLayoutFileInput" class="btn btn-ghost btn-sm" style="margin:0;cursor:pointer;" title="Add another CSV's shapes as new movable layers, without replacing the current layout.">＋ Add CSV</label>
               <input type="file" id="addLayoutFileInput" accept=".csv,text/csv" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="addLayoutCsv(this)">
               <button id="cutListBtn" class="btn btn-ghost btn-sm" data-lockok="1" onclick="openCutListModal()" title="List every turf cut piece with its dimensions">📋 Cut List</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-lockok="1" title="Open the User Guide for the Layout tab" onclick="openGuideAt('doc-layout')" style="font-size:11px;padding:3px 9px;">? Guide</button>
             </div>
           </div>
           <p id="editShapeHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
@@ -1659,12 +1669,10 @@
            TAB: SETTINGS
       ══════════════════════════════════════ -->
       <div class="tab-panel" id="panel-settings">
-        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;"><button type="button" class="btn btn-ghost btn-sm" data-lockok="1" title="Open the User Guide for this tab" onclick="openGuideAt('doc-settings')" style="font-size:11px;padding:3px 9px;">? Guide</button></div>
-
         <!-- ROLL SETTINGS (per-project; drives the Layout roll plan) -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title">Roll Settings</div>
+            <div class="card-title" style="display:flex;align-items:center;gap:8px;">Roll Settings<a class="help-badge" data-lockok="1" title="Open the User Guide" onclick="openGuideAt('doc-settings')">?</a></div>
           </div>
           <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">Global defaults for the roll plan (15 ft × 100 ft standard). Editing with a project open asks: this job, or all.</p>
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;font-size:11px;color:var(--text-light);">

@@ -5,6 +5,27 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-15 (cont'd 16) — The guide links were invisible — reworked as "?" badges on section titles
+
+The per-tab guide links added in cont'd 14 shipped as faint ghost buttons (transparent
+background, grey text, 11px) tucked in the top-right corner — technically present,
+practically unnoticeable, which is why they couldn't be found. A help affordance nobody
+sees isn't one.
+
+Reworked as a **green circular "?" badge** (new `.help-badge` style) sitting **right on
+the first section title of each tab** — "Job Info & Exports" (Quote), "Site Layout &
+Roll Plan" (Layout), "Roll Settings" (Settings) — where the eye already goes. Each opens
+the User Guide at that tab's section via the same `openGuideAt`. The Layout tab's badge
+also replaces the faint toolbar button, so there's one clear affordance, not a hidden
+one plus a corner one.
+
+Tests **1289 → 1293** (README **1293**): the guide links render as `help-badge`
+elements, and a badge for each of `doc-quote` / `doc-layout` / `doc-settings` sits on a
+section title (rather than just asserting the onclick exists, which the invisible
+version also passed).
+
+---
+
 ## 2026-07-15 (cont'd 15) — Layout tab: trimmed the text stacked above the canvas
 
 The Layout tab had a block of always-on text pushing the shapes down. Two causes:

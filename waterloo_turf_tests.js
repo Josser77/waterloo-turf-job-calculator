@@ -6130,6 +6130,13 @@ section('93. Per-tab guide buttons + openGuideAt wiring');
   ['doc-quote', 'doc-layout', 'doc-settings'].forEach(sec => {
     assert(html.includes("openGuideAt('" + sec + "')"), 'a ? Guide button links to ' + sec);
   });
+  // The links are visible help badges (not faint ghost buttons tucked in a corner —
+  // those shipped but were unnoticeable, which is why this was reworked).
+  assert(html.includes('class="help-badge"'), 'the guide links render as visible help badges');
+  ['doc-quote','doc-layout','doc-settings'].forEach(sec => {
+    const re = new RegExp('help-badge[^>]*onclick="openGuideAt\\(\'' + sec + '\'\\)"');
+    assert(re.test(html), 'a help badge for ' + sec + ' sits on a section title');
+  });
   // The helper exists and opens the modal before jumping.
   assert(/function openGuideAt\(/.test(html), 'openGuideAt is defined');
   assert(/docsModal'\)[\s\S]{0,40}classList\.add\('open'\)/.test(html.slice(html.indexOf('function openGuideAt'))),
