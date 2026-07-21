@@ -5,6 +5,78 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-15 (cont'd 15) — Layout tab: trimmed the text stacked above the canvas
+
+The Layout tab had a block of always-on text pushing the shapes down. Two causes:
+
+- The **"Show dimensions" documentation paragraph** added in cont'd 13 shipped
+  **without `display:none`**, so a full paragraph about the toggle sat permanently at
+  the top of the tab. Removed — that detail belongs in the guide, and the toggle's own
+  label plus a tooltip already explain it. (My error from that session.)
+- The **Import-CSV intro** was three lines of prose. Cut to one line with a "Guide"
+  link, and it now **hides once a layout is loaded** — it's orientation for the empty
+  state, pure clutter once you're working.
+
+The per-mode hints (Edit Shape, Move Layers, Cut Mode) were already correct — hidden
+by default, shown only in their mode — and are untouched.
+
+Tests **1283 → 1289** (README **1289**): the 3-line intro is gone, the shortened intro
+has an id so it can be toggled, the stray Show-dimensions paragraph is removed, and the
+three mode hints still ship hidden.
+
+---
+
+## 2026-07-15 (cont'd 14) — Less inline text; a "? Guide" button per tab
+
+The app carried too much inline explanatory text. First pass at trimming it:
+
+- **A "? Guide" button on each tab** (Quote Builder, Layout, Settings) opens the User
+  Guide modal scrolled straight to that tab's section, via a new `openGuideAt(id)`
+  (opens the modal, then jumps). So detail lives in one place and a control can point
+  at it instead of repeating it.
+- **Long inline explainers trimmed to one line**, with the guide carrying the rest:
+  the rock depth/density note, the per-project shipping override paragraph, the
+  multi-shape layer note, the Cut Mode and Nested Pieces blurbs, and the Roll Settings
+  and Default Shipping card intros.
+
+Deliberately **kept** (not trimmed): the edging "trim to the runs that actually need
+edging" warnings on both the Quote Builder and New Project — they prevent a real
+over-quote and a warning you have to hover wouldn't get read. And **nothing was moved
+into hover tooltips**: the app is used on iPad, where hover doesn't exist, so a
+tooltip would simply vanish on the device it's quoted from. Short hints stay as inline
+text; the ? Guide is the path to more.
+
+Tests **1272 → 1283** (README **1283**): each tab's ? button links to its guide section
+(`doc-quote` / `doc-layout` / `doc-settings`), those sections exist as anchors,
+`openGuideAt` opens the modal, and the trimmed explainers stay gone (guards against
+them creeping back). This is a first pass — more inline text can follow the same
+pattern.
+
+---
+
+## 2026-07-15 (cont'd 13) — "Show dimensions" toggle: edge lengths on every shape
+
+New checkbox above the layout canvas, **"Show dimensions (edge lengths on every
+shape)"**. When on, every edge of every visible shape — the primary yard and each
+added layer — is labelled with its length in feet and inches, so the yard's actual
+measurements read straight off the layout instead of only its area. Independent of the
+"Show purchased roll rectangles" toggle, works in any mode, and remembered per project
+(`layout.showDimensions`, loaded/saved like `showRects`).
+
+Backed by a pure `polygonEdgeLabels(points, minLenFt)` that returns each edge's
+midpoint, length, and an outward unit normal (so labels nudge just outside the shape,
+away from the centroid). Edges below the minimum length are skipped, so a polygon's
+repeated closing vertex or a sliver edge doesn't drop a zero-length label on the
+drawing.
+
+Tests **1256 → 1272** (README **1272**): a rectangle's four edge lengths and
+midpoints; outward normals pointing away from the centroid and unit-length; a repeated
+closing vertex and sub-threshold slivers skipped; a 3-4-5 triangle; and degenerate
+input (empty, single point, null) returning no labels without throwing. The canvas
+draw itself isn't reachable by the Node harness — verified on-device.
+
+---
+
 ## 2026-07-15 (cont'd 12) — Cut List: "full width" note no longer lies on narrow pieces
 
 The Turf Cut List tagged pieces **"Cut full width, trim S-seam on site"** whenever the

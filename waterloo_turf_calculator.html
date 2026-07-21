@@ -1227,6 +1227,7 @@
            TAB: QUOTE BUILDER
       ══════════════════════════════════════ -->
       <div class="tab-panel active" id="panel-quote">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;"><button type="button" class="btn btn-ghost btn-sm" data-lockok="1" title="Open the User Guide for this tab" onclick="openGuideAt('doc-quote')" style="font-size:11px;padding:3px 9px;">? Guide</button></div>
 
         <!-- JOB INFO & EXPORTS -->
         <div class="card">
@@ -1316,7 +1317,7 @@
           </div>
 
           <div id="rockRows"></div>
-          <p style="font-size:11px;color:var(--text-light);margin-top:6px;">Tons and cubic yards are calculated from this job's sqft and each material's depth/density settings — configure those under <strong>Settings → Rock / Base Materials</strong>.</p>
+          <p style="font-size:11px;color:var(--text-light);margin-top:6px;">Depth &amp; density set in Settings → Rock / Base Materials.</p>
         </div>
 
         <!-- EDGING -->
@@ -1385,7 +1386,7 @@
           <div class="field-group" style="max-width:260px;margin-bottom:14px;">
             <label>Shipping / Freight ($)</label>
             <input type="number" id="projectShipping" min="0" step="1" placeholder="150 (default)" oninput="setProjectShipping(this.value)">
-            <div style="font-size:11px;color:var(--text-light);margin-top:4px;line-height:1.4;">Leave blank to use the standard default (Settings → Default Shipping) — the placeholder shows it. Enter a number to override the freight for this one job; clear it to go back to the default. Added to every quote option and marked up by your profit margin.</div>
+            <div style="font-size:11px;color:var(--text-light);margin-top:4px;line-height:1.4;">Blank = the default in the placeholder. Enter a number to override for this job.</div>
           </div>
           <div id="quoteOptionsContainer"></div>
         </div>
@@ -1413,6 +1414,7 @@
               <label for="addLayoutFileInput" class="btn btn-ghost btn-sm" style="margin:0;cursor:pointer;" title="Add another CSV's shapes as new movable layers, without replacing the current layout.">＋ Add CSV</label>
               <input type="file" id="addLayoutFileInput" accept=".csv,text/csv" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="addLayoutCsv(this)">
               <button id="cutListBtn" class="btn btn-ghost btn-sm" data-lockok="1" onclick="openCutListModal()" title="List every turf cut piece with its dimensions">📋 Cut List</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-lockok="1" title="Open the User Guide for the Layout tab" onclick="openGuideAt('doc-layout')" style="font-size:11px;padding:3px 9px;">? Guide</button>
             </div>
           </div>
           <p id="editShapeHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
@@ -1463,10 +1465,8 @@
             </div>
             <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Pick a shape and drag on the canvas, or use <strong>↖ Select</strong> to grab a shape — drag its body to move, a corner to resize, or the top handle to rotate. <strong>Copy/Paste</strong> duplicates a selected shape; <strong>Snap to grid</strong> locks points to the grid spacing. Drawn shapes are <strong>markup only</strong> — they don't change turf, rolls, or the quote.</div>
           </div>
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">
-            Import the CSV exported from Moasure for this project's space. The diagram below shows the measured
-            shape with the roll layout overlaid — adjust roll direction, translation, and margins to minimize scrap,
-            then apply the results directly to a turf row.
+          <p id="layoutIntro" style="font-size:12px;color:var(--text-light);margin-bottom:10px;">
+            Import a Moasure CSV to overlay the roll plan, then apply it to a turf row. <a onclick="openGuideAt('doc-layout')" style="cursor:pointer;text-decoration:underline;">Guide</a>
           </p>
           <div id="layoutEmpty" class="empty" style="padding:30px;text-align:center;color:var(--text-light);">
             No layout imported yet for this project. Click "↑ Import CSV" to add one.
@@ -1483,6 +1483,10 @@
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:12px;margin-bottom:6px;" title="Off = real installed shape per roll. On = the full rectangle you'd order, with the unused portion hatched. Turn this ON to see each roll's waste and drag pieces to nest them.">
                   <input type="checkbox" id="showRectanglesToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
                   Show purchased roll rectangles (waste) — needed to drag/nest pieces
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:12px;margin-bottom:6px;" title="Label each edge of every shape with its length in feet & inches, so you can read the yard's dimensions off the layout.">
+                  <input type="checkbox" id="showDimensionsToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
+                  Show dimensions (edge lengths on every shape)
                 </label>
                 <div id="layoutCanvasWrap" style="overflow:auto;max-height:86vh;overscroll-behavior:contain;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:default;">
                   <canvas id="rollLayoutCanvas" style="display:block;"></canvas>
@@ -1622,12 +1626,12 @@
                         </div>
                         <div class="field-group" id="manualCutsGroup" style="display:none;">
                           <label>Manual Cuts (Butt Seams)</label>
-                          <div style="font-size:11px;color:var(--text-light);margin:-2px 0 6px;line-height:1.4;">Splits a roll into separate pieces. “✕” removes one seam; “Clear all cuts” un-cuts the whole roll — which also discards any moves of those pieces. Use this only when you want fewer/no cuts, not to put a moved piece back.</div>
+                          <div style="font-size:11px;color:var(--text-light);margin:-2px 0 6px;line-height:1.4;">“✕” removes one cut; “Clear all cuts” un-cuts the roll (and discards moves of its pieces).</div>
                           <div id="manualCutsList" style="font-size:11px;"></div>
                         </div>
                         <div class="field-group" id="nestedPiecesGroup" style="display:none;">
                           <label>Nested Pieces</label>
-                          <div style="font-size:11px;color:var(--text-light);margin:-2px 0 6px;line-height:1.4;">Pieces you've moved into another roll's waste area. “↩ Put back” returns one piece to its own order and adds its area back to Ordered SqFt — your cuts stay intact. This is the per-piece reset.</div>
+                          <div style="font-size:11px;color:var(--text-light);margin:-2px 0 6px;line-height:1.4;">Pieces nested into another roll's waste. “↩ Put back” returns one to its own order.</div>
                           <div id="nestedPiecesList" style="font-size:11px;"></div>
                         </div>
                         <div class="field-group" id="pieceListGroup" style="display:none;">
@@ -1655,13 +1659,14 @@
            TAB: SETTINGS
       ══════════════════════════════════════ -->
       <div class="tab-panel" id="panel-settings">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;"><button type="button" class="btn btn-ghost btn-sm" data-lockok="1" title="Open the User Guide for this tab" onclick="openGuideAt('doc-settings')" style="font-size:11px;padding:3px 9px;">? Guide</button></div>
 
         <!-- ROLL SETTINGS (per-project; drives the Layout roll plan) -->
         <div class="card">
           <div class="card-header">
             <div class="card-title">Roll Settings</div>
           </div>
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">These drive the roll plan on the <strong>Layout</strong> tab. They're a <strong>global default</strong> for every project. With a project open, changing a value asks whether to update the global default or just that job. Standard rolls are 15 ft × 100 ft.</p>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">Global defaults for the roll plan (15 ft × 100 ft standard). Editing with a project open asks: this job, or all.</p>
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;font-size:11px;color:var(--text-light);">
             <span id="rollOverrideNote"></span>
             <a id="rollOverrideReset" onclick="resetRollOverride()" style="display:none;color:var(--accent);cursor:pointer;text-decoration:underline;">Reset this job to the global default</a>
@@ -1763,7 +1768,7 @@
           <div class="card-header">
             <div class="card-title">Default Shipping</div>
           </div>
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">The standard freight cost applied to <strong>every project</strong> that hasn't set its own. Change it whenever your freight rate changes and every non-overridden project updates to match. To charge a different amount for one job, override it on that project's Quote Builder tab — that override sticks regardless of this default.</p>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">Default freight for every project without its own. Override per job on the Quote Builder tab.</p>
           <div class="field-group" style="max-width:200px;">
             <label>Default shipping cost ($)</label>
             <input type="number" id="defaultShippingInput" min="0" step="1" oninput="updateDefaultShipping(this.value)">
@@ -6015,7 +6020,7 @@ function renderLayersList(proj) {
   });
 
   if (secondary.length > 0) {
-    rows.push(`<div style="grid-column:1/-1;font-size:11px;color:var(--text-light);margin-top:2px;">This Moasure file contains more than one measured shape (e.g. a planter bed, tree well, or putting green outline). Uncheck a layer to hide it on the canvas, or choose how it affects Installed Area. When more than one layer is set to Install, use each layer's "Rolls" choice to share rolls (fewer rolls) or keep it on its own.</div>`);
+    rows.push(`<div style="grid-column:1/-1;font-size:11px;color:var(--text-light);margin-top:2px;">Multiple measured shapes. Set each layer's mode below; untick to hide.</div>`);
   }
 
   // Edging perimeter: every layer's boundary length + a total, for ordering
@@ -6190,6 +6195,18 @@ function displayPointToCanonical(proj, p) {
 
 // Scroll the User Guide modal to a section (the modal is its own scroll
 // container, so anchor links won't do this on their own).
+// Open the User Guide modal and scroll to a specific section. Used by the per-tab
+// "? Guide" buttons so a control links straight to its documentation instead of
+// repeating it inline. Deferred one frame so the modal is laid out before we scroll.
+function openGuideAt(sectionId) {
+  const modal = document.getElementById('docsModal');
+  if (modal) modal.classList.add('open');
+  if (!sectionId) return;
+  const go = () => jumpToDocSection(sectionId);
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => requestAnimationFrame(go));
+  else setTimeout(go, 30);
+}
+
 function jumpToDocSection(id) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -6349,13 +6366,16 @@ function renderLayoutTab() {
   const proj = getCurrentProject();
   const empty = document.getElementById('layoutEmpty');
   const content = document.getElementById('layoutContent');
+  const intro = document.getElementById('layoutIntro');
   if (!proj || !proj.layout) {
     if (empty) empty.style.display = '';
     if (content) content.style.display = 'none';
+    if (intro) intro.style.display = ''; // orientation text only while there's nothing to work on
     return;
   }
   if (empty) empty.style.display = 'none';
   if (content) content.style.display = '';
+  if (intro) intro.style.display = 'none'; // a layout is loaded — the intro is just clutter now
 
 
   // Populate turf row target dropdown
@@ -6383,6 +6403,7 @@ function renderLayoutTab() {
   document.getElementById('viewRotationInput').value = proj.layout.viewRotation || 0;
   document.getElementById('viewRotationValue').textContent = (proj.layout.viewRotation || 0) + '°';
   document.getElementById('showRectanglesToggle').checked = !!proj.layout.showRects;
+  { const d = document.getElementById('showDimensionsToggle'); if (d) d.checked = !!proj.layout.showDimensions; }
   const gridCb = document.getElementById('layoutShowGrid');
   if (gridCb) gridCb.checked = !!proj.layout.gridShow;
   const gridSp = document.getElementById('layoutGridSpacing');
@@ -6494,7 +6515,35 @@ function useLayoutPerimeterForEdging() {
   showLayoutToast('Edging set to ' + total.toFixed(1) + ' ft — trim it to the runs that actually need edging');
 }
 
-// Compute a putting-green fringe (border strip) cutting plan: one rectangular
+// Edge dimension labels: for each edge of a polygon, the midpoint (in data coords),
+// the edge length in feet, and an outward normal so the label can be nudged just
+// outside the shape rather than sitting on the line. Skips near-zero edges (a
+// polygon often repeats its first point, or has slivers) so they don't clutter.
+// Pure — no DOM, no canvas.
+function polygonEdgeLabels(points, minLenFt) {
+  const pts = points || [];
+  const out = [];
+  if (pts.length < 2) return out;
+  const minLen = minLenFt == null ? 0.5 : minLenFt;
+  // Signed area to know winding, so the outward normal points away from the centroid.
+  let cx = 0, cy = 0;
+  pts.forEach(p => { cx += p.x; cy += p.y; });
+  cx /= pts.length; cy /= pts.length;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < minLen) continue;
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    // Unit normal (two choices); pick the one pointing away from the centroid.
+    let nx = -dy / len, ny = dx / len;
+    if ((mx + nx - cx) * nx + (my + ny - cy) * ny < 0) { nx = -nx; ny = -ny; }
+    out.push({ mx, my, len, nx, ny });
+  }
+  return out;
+}
+
+
 // piece per edge of the PG polygon, each running along that edge and offset
 // outward by `width`. Each piece's length is the edge length plus `width` —
 // the extra length overlaps into the adjacent corner so installers can trim
@@ -7798,6 +7847,7 @@ function renderRollLayout() {
   proj.layout.rotation = rotation;
   proj.layout.translation = translation;
   proj.layout.showRects = document.getElementById('showRectanglesToggle').checked;
+  { const d = document.getElementById('showDimensionsToggle'); if (d) proj.layout.showDimensions = d.checked; }
   save();
 
   const basePointsRaw = getBaseLayoutPoints(proj);
@@ -8309,6 +8359,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   }
 
   const showRects = document.getElementById('showRectanglesToggle') && document.getElementById('showRectanglesToggle').checked;
+  window._wtShowDimensions = !!(document.getElementById('showDimensionsToggle') && document.getElementById('showDimensionsToggle').checked);
   const primaryVisible = layout.layerVisibility.primary !== false;
 
   // Build a lookup of all units by key (across every install layer), needed to
@@ -8666,6 +8717,44 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     ctx.setLineDash([]);
     ctx.restore();
   }
+  // Edge dimension labels (opt-in). Label every edge of every visible shape with its
+  // length, so the yard's real measurements can be read straight off the layout.
+  // Drawn last so the labels sit on top of fills, strokes, and area labels.
+  if (window._wtShowDimensions) {
+    const dimShapes = [];
+    if (primaryVisible && layout.basePoints && layout.basePoints.length >= 2) {
+      dimShapes.push(layout.basePoints);
+    }
+    (layout.secondaryShapes || []).forEach((sh, i) => {
+      if (layout.layerVisibility[i] === false) return;
+      const dp = sh.displayPoints || sh.points;
+      if (dp && dp.length >= 2) dimShapes.push(dp);
+    });
+    ctx.save();
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    dimShapes.forEach(pts => {
+      polygonEdgeLabels(pts, 0.75).forEach(e => {
+        const c = toCanvas({ x: e.mx, y: e.my });
+        // Nudge the label a few px outside the edge along its outward normal. Canvas y
+        // is inverted vs data y, so flip ny for the screen offset.
+        const off = 9;
+        const lx = c.x + e.nx * off;
+        const ly = c.y - e.ny * off;
+        const txt = ftIn(e.len);
+        const tw = ctx.measureText(txt).width;
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillRect(lx - tw/2 - 2, ly - 7, tw + 4, 14);
+        ctx.fillStyle = '#333';
+        ctx.fillText(txt, lx, ly);
+      });
+    });
+    ctx.restore();
+    ctx.textAlign = 'start';
+    ctx.textBaseline = 'alphabetic';
+  }
+
   // Strip boundary lines (dashed), rotated back to display frame
   ctx.save();
   ctx.setLineDash([6,4]);

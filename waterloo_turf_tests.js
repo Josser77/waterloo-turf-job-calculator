@@ -6086,6 +6086,77 @@ section('91. Infill weight — 50 lb bags');
   assert(F(W(60)) === '3,000 lbs (1.5 tons)', '60 bags = 3,000 lbs = 1.5 tons');
 }
 
+section('92. polygonEdgeLabels — edge dimension labels');
+{
+  const E = ctx.polygonEdgeLabels;
+
+  // A 10x6 rectangle: 4 edges, lengths 10,6,10,6, midpoints on each side.
+  const rect = [{x:0,y:0},{x:10,y:0},{x:10,y:6},{x:0,y:6}];
+  const labels = E(rect);
+  assert(labels.length === 4, 'a rectangle yields 4 edge labels');
+  assert(labels.map(l=>Math.round(l.len)).join(',') === '10,6,10,6', 'edge lengths are correct');
+  assert(near(labels[0].mx, 5) && near(labels[0].my, 0), 'first edge midpoint is the bottom center');
+
+  // Outward normals point AWAY from the centroid (4,3-ish). Bottom edge normal points
+  // down (−y); right edge points +x.
+  assert(labels[0].ny < 0, 'bottom edge normal points outward (down)');
+  assert(labels[1].nx > 0, 'right edge normal points outward (right)');
+  // Normals are unit length.
+  labels.forEach(l => assert(near(Math.hypot(l.nx, l.ny), 1), 'normal is unit length'));
+
+  // Near-zero edges are skipped (a polygon that repeats its first point, or slivers).
+  const withDup = [{x:0,y:0},{x:10,y:0},{x:10,y:6},{x:0,y:6},{x:0,y:0}]; // closing dup
+  assert(E(withDup).length === 4, 'a repeated closing vertex does not add a zero-length label');
+  const sliver = [{x:0,y:0},{x:10,y:0},{x:10.1,y:0},{x:10,y:6},{x:0,y:6}];
+  assert(E(sliver, 0.75).every(l => l.len >= 0.75), 'edges below the min length are dropped');
+
+  // Degenerate input never throws.
+  assert(E([]).length === 0, 'no points → no labels');
+  assert(E([{x:0,y:0}]).length === 0, 'a single point → no labels');
+  assert(E(null).length === 0, 'null → no labels, no throw');
+
+  // A triangle: 3 edges, a 3-4-5 right triangle.
+  const tri = [{x:0,y:0},{x:4,y:0},{x:0,y:3}];
+  const t = E(tri);
+  assert(t.length === 3, 'a triangle has 3 edge labels');
+  assert(t.map(l=>Math.round(l.len)).sort().join(',') === '3,4,5', '3-4-5 triangle edge lengths');
+}
+
+section('93. Per-tab guide buttons + openGuideAt wiring');
+{
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+
+  // Each of the three tabs links into the right guide section.
+  ['doc-quote', 'doc-layout', 'doc-settings'].forEach(sec => {
+    assert(html.includes("openGuideAt('" + sec + "')"), 'a ? Guide button links to ' + sec);
+  });
+  // The helper exists and opens the modal before jumping.
+  assert(/function openGuideAt\(/.test(html), 'openGuideAt is defined');
+  assert(/docsModal'\)[\s\S]{0,40}classList\.add\('open'\)/.test(html.slice(html.indexOf('function openGuideAt'))),
+    'openGuideAt opens the docs modal');
+  // Every section it targets actually exists as an anchor in the guide.
+  ['doc-quote', 'doc-layout', 'doc-settings'].forEach(sec => {
+    assert(html.includes('id="' + sec + '"'), 'guide section ' + sec + ' exists to jump to');
+  });
+
+  // The long explainers that were cut should be gone (guard against them creeping back).
+  assert(!html.includes('Tons and cubic yards are calculated from this job'), 'the long rock depth explainer was trimmed');
+  assert(!html.includes('The standard freight cost applied to'), 'the long shipping explainer was trimmed');
+  assert(!html.includes('This Moasure file contains more than one measured shape'), 'the long multi-shape explainer was trimmed');
+
+  // The layout tab's above-canvas text is trimmed: the 3-line Import intro is now one
+  // line, and the always-on "Show dimensions" doc paragraph (added and mistakenly
+  // left visible in cont'd 13) is gone from the layout panel.
+  assert(!html.includes('The diagram below shows the measured'), 'the 3-line Import CSV intro was shortened');
+  assert(html.includes('id="layoutIntro"'), 'the shortened intro has an id so it can be hidden once a layout loads');
+  assert(!html.includes('a checkbox above the canvas that labels'), 'the always-visible Show dimensions paragraph was removed from the layout panel');
+  // The mode hints stay (they only appear in their mode), still hidden by default.
+  ['editShapeHint','moveLayersHint','cutModeHint'].forEach(id => {
+    const tag = (html.match(new RegExp('<p id="' + id + '"[^>]*>')) || [''])[0];
+    assert(/display:none/.test(tag), id + ' is hidden by default (shown only in its mode)');
+  });
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
