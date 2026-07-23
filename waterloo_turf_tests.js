@@ -6219,6 +6219,62 @@ section('95. .btn renders buttons and label-buttons at equal height');
   assert(/<button[^>]*id="editShapeBtn"[^>]*class="btn/.test(html), 'Edit Shape is a real button');
 }
 
+section('96. Fit view respects layer visibility (hidden layers are not framed)');
+{
+  const F = ctx.layoutFitPoints;
+  const spanX = pts => { const xs = pts.map(p => p.x); return [Math.min(...xs), Math.max(...xs)]; };
+  const box = (x0, x1) => [{x:x0,y:0},{x:x1,y:0},{x:x1,y:10},{x:x0,y:10}];
+
+  // Primary at x 0..10; a secondary INSTALL layer far away at x 100..110.
+  const mk = vis => ({
+    basePoints: box(0, 10),
+    strips: [{ pieces: [{ displayClipped: box(0, 10) }] }],
+    secondaryShapes: [{ displayPoints: box(100, 110) }],
+    layerVisibility: vis || {},
+    _installLayers: [
+      { id: 'primary', layout: { strips: [] } },
+      { id: 0, layout: { strips: [{ pieces: [{ displayClipped: box(100, 110) }] }] } },
+    ],
+  });
+
+  // Visible: the fit spans both.
+  assert(JSON.stringify(spanX(F(mk({}), false))) === JSON.stringify([0, 110]),
+    'a visible layer is included in the fit');
+
+  // Hidden: the fit must shrink to the primary. The outline was already skipped, but
+  // the layer's ROLL PIECES were still added via _installLayers — so "Fit" appeared
+  // to do nothing after unticking a layer.
+  assert(JSON.stringify(spanX(F(mk({ 0: false }), false))) === JSON.stringify([0, 10]),
+    'a hidden layer\'s pieces are excluded — Fit shrinks to what is actually drawn');
+
+  // Rectangles on: a hidden layer still contributes nothing.
+  const withRects = {
+    basePoints: box(0, 10),
+    strips: [{ pieces: [{ displayClipped: box(0, 10), displayRect: box(0, 12) }] }],
+    secondaryShapes: [{ displayPoints: box(100, 110) }],
+    layerVisibility: { 0: false },
+    _installLayers: [
+      { id: 'primary', layout: { strips: [] } },
+      { id: 0, layout: { strips: [{ pieces: [{ displayClipped: box(100,110), displayRect: box(100,130) }] }] } },
+    ],
+  };
+  assert(spanX(F(withRects, true))[1] === 12, 'with rectangles shown, a hidden layer\'s rectangle is still excluded');
+
+  // Hiding the PRIMARY drops its outline and its strips too.
+  const primaryHidden = mk({ primary: false });
+  assert(JSON.stringify(spanX(F(primaryHidden, false))) === JSON.stringify([100, 110]),
+    'hiding the primary frames only the remaining visible layer');
+
+  // Everything hidden → fall back to the primary outline rather than an empty/NaN fit.
+  const allHidden = mk({ primary: false, 0: false });
+  assert(JSON.stringify(spanX(F(allHidden, false))) === JSON.stringify([0, 10]),
+    'all layers hidden falls back to the primary outline (never an empty fit)');
+
+  // A layer explicitly visible (true) behaves like the default.
+  assert(JSON.stringify(spanX(F(mk({ 0: true }), false))) === JSON.stringify([0, 110]),
+    'explicit visible:true is included');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

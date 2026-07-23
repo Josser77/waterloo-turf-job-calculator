@@ -8280,22 +8280,33 @@ const STRIP_COLORS = ['rgba(76,175,80,0.25)','rgba(33,150,243,0.22)','rgba(255,1
 // actual installed shapes so an imported file fills the canvas. Hidden layers
 // are excluded.
 function layoutFitPoints(layout, showRects) {
-  const pts = [...(layout.basePoints || [])];
-  // Include a roll's purchased rectangle when rectangles are shown OR when it
-  // hosts a nested piece — a nested piece sits in the waste (the rectangle, outside
-  // the installed shape), so without this it falls outside the frame and gets
-  // clipped whenever rectangles are toggled off.
-  (layout.strips || []).forEach(s => (s.pieces || [s]).forEach(u => {
-    const hostsNested = u.nestHost && u.nestHost.length;
-    if ((showRects || hostsNested) && u.displayRect) pts.push(...u.displayRect);
-    if (u.displayClipped) pts.push(...u.displayClipped);
-  }));
+  const vis = layout.layerVisibility || {};
+  const primaryVisible = vis.primary !== false;
+  const pts = [];
+  // "Fit" frames what's ACTUALLY DRAWN. A hidden layer contributes nothing — not its
+  // outline and not its roll pieces. The pieces were the miss: hiding an install
+  // layer dropped its outline from the fit (checked below) but its strips were still
+  // added further down, so the view stayed sized around turf that wasn't on screen
+  // and "Fit" appeared to do nothing.
+  if (primaryVisible) {
+    pts.push(...(layout.basePoints || []));
+    // Include a roll's purchased rectangle when rectangles are shown OR when it
+    // hosts a nested piece — a nested piece sits in the waste (the rectangle, outside
+    // the installed shape), so without this it falls outside the frame and gets
+    // clipped whenever rectangles are toggled off.
+    (layout.strips || []).forEach(s => (s.pieces || [s]).forEach(u => {
+      const hostsNested = u.nestHost && u.nestHost.length;
+      if ((showRects || hostsNested) && u.displayRect) pts.push(...u.displayRect);
+      if (u.displayClipped) pts.push(...u.displayClipped);
+    }));
+  }
   (layout.secondaryShapes || []).forEach((s, i) => {
-    if (layout.layerVisibility && layout.layerVisibility[i] === false) return;
+    if (vis[i] === false) return;
     if (s.displayPoints) pts.push(...s.displayPoints);
   });
   (layout._installLayers || []).forEach(({ id, layout: L }) => {
     if (id === 'primary' || !L) return;
+    if (vis[id] === false) return; // hidden layer: its pieces aren't drawn, so don't frame them
     (L.strips || []).forEach(s => (s.pieces || [s]).forEach(u => {
       const hostsNested = u.nestHost && u.nestHost.length;
       if ((showRects || hostsNested) && u.displayRect) pts.push(...u.displayRect);
@@ -8306,13 +8317,15 @@ function layoutFitPoints(layout, showRects) {
     const proj = getCurrentProject() || {};
     const pgIdx = getPuttingGreenShapeIndex(proj);
     const fringe = getFringeConfig(proj);
-    if (pgIdx >= 0 && fringe.enabled && fringe.width > 0) {
+    if (pgIdx >= 0 && vis[pgIdx] !== false && fringe.enabled && fringe.width > 0) {
       const pgShape = (layout.secondaryShapes || [])[pgIdx];
       const pgPoints = pgShape ? pgShape.displayPoints : null;
       const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layout.rollLength) : null;
       if (plan) plan.pieces.forEach(p => pts.push(p.p0, p.p1, p.p2, p.p3));
     }
   } catch (e) {}
+  // Everything hidden: fall back to the primary outline so there's still something
+  // to frame rather than a blank/NaN transform.
   return pts.length ? pts : [...(layout.basePoints || [])];
 }
 

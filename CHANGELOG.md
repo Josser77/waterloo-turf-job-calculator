@@ -5,6 +5,39 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-15 (cont'd 19) — Fix: "Fit" ignored hidden layers on a multi-CSV job
+
+Reported: with several CSVs imported, unticking a secondary shape and pressing **Fit**
+left the view sized as if the layer were still there — it didn't shrink to the primary.
+
+Cause: `layoutFitPoints` checked visibility in **one** of the three places it collects
+points. The `secondaryShapes` loop skipped hidden layers (so the outline was excluded),
+but the `_installLayers` loop below it — which contributes each install layer's roll
+pieces and purchased rectangles — had **no visibility check**, so the hidden layer's
+turf pieces were still framed. The view stayed sized around geometry that wasn't drawn,
+making "Fit" look like it did nothing. The primary had the same gap: `basePoints` and
+`layout.strips` were added unconditionally, so hiding the primary wouldn't shrink the
+view either.
+
+Fit now frames **only what's actually drawn**: a hidden layer contributes neither its
+outline nor its pieces, hiding the primary drops its outline and strips, and a hidden
+putting-green layer no longer contributes its fringe. If every layer is hidden it falls
+back to the primary outline rather than producing an empty (NaN) transform.
+
+All three fit paths — the Fit button, the auto-fit on render, and the re-fit when a
+shape is dropped out of frame — share this function, so all three are fixed.
+
+Diagnostic: primary at x 0..10 with a hidden install layer at x 100..110 — previous
+build framed **0..110**, current build frames **0..10**.
+
+Tests **1307 → 1313** (README **1313**): a visible layer is included; a hidden layer's
+pieces are excluded (fails against the previous build); a hidden layer's rectangle is
+excluded with rectangles shown; hiding the primary frames only the remaining layer;
+all-hidden falls back to the primary outline; and explicit `visible:true` behaves like
+the default.
+
+---
+
 ## 2026-07-15 (cont'd 18) — Layout toolbar buttons are all the same height
 
 The Layout toolbar's controls didn't line up: Import CSV and Add CSV sat a couple of
