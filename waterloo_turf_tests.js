@@ -6275,6 +6275,70 @@ section('96. Fit view respects layer visibility (hidden layers are not framed)')
     'explicit visible:true is included');
 }
 
+section('97. Misc catalog items flagged "always include" seed new projects');
+{
+  const D = ctx.defaultMiscItemsForNewProject;
+  const cat = [
+    { id:'m1', name:'Seam tape',   price:45,  unit:'per roll', notes:'',             alwaysInclude:true },
+    { id:'m2', name:'Haul away',   price:200, unit:'each',     notes:'job specific'                     },
+    { id:'m3', name:'Turf nails',  price:30,  unit:'per box',                        alwaysInclude:true },
+  ];
+
+  const rows = D(cat);
+  assert(rows.length === 2, 'only flagged items seed a new project');
+  assert(rows.map(r => r.name).join(',') === 'Seam tape,Turf nails', 'the right items carry over');
+  assert(!rows.some(r => r.name === 'Haul away'), 'a job-specific item is NOT auto-added');
+
+  // Rows are usable project rows, not catalog references.
+  rows.forEach(r => {
+    assert(r.qty === 1, 'seeded at qty 1');
+    assert(r.role === 'base', 'seeded with the base role');
+    assert(r.fromCatalog === true, 'marked as coming from the catalog');
+  });
+  assert(rows[0].price === 45 && rows[0].unit === 'per roll', 'price and unit carry from the catalog');
+  assert(rows[1].unit === 'per box', 'unit carries per item');
+  assert(rows[0].notes === '', 'missing notes become an empty string, not undefined');
+
+  // Mutating a seeded row must not touch the catalog entry (fresh objects, not refs).
+  rows[0].price = 999;
+  assert(cat[0].price === 45, 'editing a project row does not change the catalog item');
+
+  // Degenerate input.
+  assert(D([]).length === 0, 'an empty catalog seeds nothing');
+  assert(D(null).length === 0, 'null catalog → nothing, no throw');
+  assert(D([null, undefined]).length === 0, 'junk entries are skipped');
+  assert(D([{ name:'x' }]).length === 0, 'an unflagged item is not included');
+  assert(D([{ name:'y', alwaysInclude:false }]).length === 0, 'explicitly false is not included');
+
+  // Defaults fill in when the catalog entry is sparse.
+  const sparse = D([{ name:'Bare', alwaysInclude:true }]);
+  assert(sparse[0].price === 0 && sparse[0].unit === 'each', 'a sparse catalog item gets sane defaults');
+}
+
+section('98. The dead turf "Type" column is gone (role is the real control)');
+{
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+
+  // turfType was written, displayed and backfilled but NEVER read by any calculation.
+  // Worse, it offered its own "Putting Green" option next to the role dropdown's — so
+  // setting Type=Putting Green looked like it would price a green and did nothing.
+  assert(!/updateTurfField\(\$\{i\},'turfType'/.test(html), 'the dead Type dropdown is removed from the turf row');
+  assert(!/<label>Type<\/label>\s*\n\s*<label>Installed SqFt<\/label>/.test(html), 'the Type column header is removed');
+
+  // Role remains, and it is what every calculation filters on.
+  assert(/updateTurfField\(\$\{i\},'role'/.test(html), 'the role dropdown remains');
+  ['3', '4'].length; // (no-op, keeps lint quiet)
+  assert(html.includes("r.role === 'putting-green'"), 'pricing still filters on role, not type');
+
+  // Header and row grids must declare the same number of columns or the table skews.
+  const rowGrid = (html.match(/\.turf-row \{[\s\S]*?grid-template-columns:\s*([^;]+);/) || [])[1];
+  const hdrGrid = (html.match(/class="row-grid-wide"[^>]*grid-template-columns:([^;]+);[^>]*>\s*<label>Product<\/label>/) || [])[1];
+  assert(rowGrid && hdrGrid, 'both the row and header grids are declared');
+  const cols = g => g.trim().split(/\s+/).length;
+  assert(cols(rowGrid) === cols(hdrGrid), 'row and header have the same column count (' + cols(rowGrid) + ')');
+  assert(cols(rowGrid) === 7, 'seven columns: Product, Installed, ToOrder, LinearFt, OrderedSqFt, Role, remove');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

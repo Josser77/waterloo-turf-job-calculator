@@ -5,6 +5,63 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 — Removed the dead turf "Type" column (it looked like it priced putting greens; it didn't)
+
+Each Quote Builder turf row had **two** dropdowns offering "Putting Green":
+
+| Column | Field | What it did |
+|---|---|---|
+| **Type** | `turfType` | **Nothing.** Written, displayed, and backfilled from the catalog — never read by any calculation. |
+| **Role** | `role` | **Everything.** PG turf cost, PG labor rate, PG infill and PG misc all filter on `role === 'putting-green'`. |
+
+So the mysterious "—" simply meant "no type set," and it didn't matter, because nothing
+consumed the field. The real hazard wasn't the blank option: setting **Type = Putting
+Green** looked exactly like it would price a green, and silently did nothing — the Role
+column next to it is the one that works.
+
+Verified before removing: all six `turfType` references were writes, a backfill, or the
+dropdown itself; no pricing, labor, quote, export, or roll-plan path reads it. The
+catalog's own Type field in Settings is unaffected (it's a label there) and is still
+stored on the row, so no data is lost — only the misleading control is gone.
+
+The row and header grids drop from 8 columns to 7 together.
+
+Tests **1332 → 1339** (README **1339**): the Type dropdown and its header are gone, the
+role dropdown remains, pricing still filters on role, and the row and header grids
+declare the *same* seven columns — so the table can't skew if one is edited without the
+other.
+
+---
+
+## 2026-07-15 (cont'd 20) — Misc catalog items can be flagged "always include on new projects"
+
+The Settings misc catalog was already global (shared by every project), but nothing
+from it carried onto a new job — `miscItems: []` — while `rock` auto-populated from
+its catalog. That inconsistency meant re-adding the same seam tape and nails on every
+quote.
+
+Catalog items now have an **"Always include on new projects"** checkbox. Flagged items
+are seeded onto every new project at qty 1; unflagged ones stay available to add by
+hand. The Settings table shows a **"On new jobs"** column so it's visible at a glance
+which are which.
+
+Deliberately per-item rather than all-or-nothing: rock auto-populates because every job
+needs base rock, but most misc items (haul-away, a gate repair) are job-specific — so
+seeding the whole catalog would mean deleting the irrelevant rows on every quote, which
+is worse than adding the one you need. The flag carries that distinction.
+
+Backed by a pure `defaultMiscItemsForNewProject(catalogItems)` that returns **fresh row
+objects**, never references to the catalog entries, so editing a price on one job can't
+reach back and change the catalog.
+
+Tests **1313 → 1332** (README **1332**): only flagged items seed a project; a
+job-specific item is excluded; rows come out at qty 1 with the base role and
+`fromCatalog`; price/unit/notes carry with sane defaults for a sparse entry; editing a
+seeded row leaves the catalog untouched; and empty/null/junk/unflagged/explicitly-false
+input all seed nothing without throwing.
+
+---
+
 ## 2026-07-15 (cont'd 19) — Fix: "Fit" ignored hidden layers on a multi-CSV job
 
 Reported: with several CSVs imported, unticking a secondary shape and pressing **Fit**

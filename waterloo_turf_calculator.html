@@ -465,7 +465,8 @@
   /* TURF ROWS */
   .turf-row {
     display: grid;
-    grid-template-columns: 1.3fr 0.7fr 0.9fr 0.75fr 0.75fr 0.85fr 1fr 32px;
+    /* Product | Installed | ToOrder | LinearFt | OrderedSqFt | Role | remove */
+    grid-template-columns: 1.3fr 0.9fr 0.75fr 0.75fr 0.85fr 1fr 32px;
     gap: 8px;
     align-items: center;
     margin-bottom: 10px;
@@ -1281,9 +1282,8 @@
             <button class="btn btn-ghost btn-sm" onclick="openCatalogPicker('turf')">＋ Add Product</button>
           </div>
 
-          <div class="row-grid-wide" style="display:grid;grid-template-columns:1.3fr 0.7fr 0.9fr 0.75fr 0.75fr 0.85fr 1fr 32px;gap:8px;margin-bottom:6px;align-items:center;">
+          <div class="row-grid-wide" style="display:grid;grid-template-columns:1.3fr 0.9fr 0.75fr 0.75fr 0.85fr 1fr 32px;gap:8px;margin-bottom:6px;align-items:center;">
             <label>Product</label>
-            <label>Type</label>
             <label>Installed SqFt</label>
             <label>SqFt to Order</label>
             <label>Linear Ft ↑</label>
@@ -2091,6 +2091,13 @@
         <label>Price ($)</label>
         <input type="number" id="miscPrice" step="0.01" placeholder="0.00" class="manual-input">
       </div>
+      <div class="field-group" style="grid-column:1/-1;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;">
+          <input type="checkbox" id="miscAlwaysInclude" style="width:auto;margin:0;">
+          <span>Always include on new projects</span>
+        </label>
+        <div class="hint">Added automatically to every new job (qty 1) — you can still change or remove it per job. Leave off for items you only add sometimes.</div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeMiscModal()">Cancel</button>
@@ -2267,7 +2274,7 @@
           <li>Within each group, putting green variants appear side by side: one card without a putting green, one per Putting Green turf row</li>
         </ul>
         <p><strong>Example</strong> — Standard turf + 1 Alt turf, Standard + Upgraded infill, 1 putting green option → 4 groups, 2 cards each = 8 total quote options.</p>
-        <p><strong>What's included in each total:</strong> Labor (the turf-install rate — standard yard + putting green if applicable), turf material cost (ordered sqft × cost/sqft from Settings, with putting green turf on its own line), edging, infill materials (bags × cost/bag, with putting green infill on its own line; each infill line also shows its total weight in 50 lb bags, plus a combined weight when there's more than one), putting green fringe (if configured in the Layout tab — see Putting Green Fringe below), miscellaneous items (each shown as its own line, not lumped together), and <strong>shipping / freight</strong> (per project, the same on every scenario — every project uses the standard amount from Settings → Default Shipping unless you override it on the Quote Builder tab; leave that field blank to follow the default, or enter a number for a one-off job) — all split correctly by role/tier per scenario. Shipping is part of COGS, so your profit margin applies to it like every other cost. Changing the default in Settings updates every project that hasn't overridden it.</p>
+        <p><strong>What's included in each total:</strong> Labor (the turf-install rate — standard yard + putting green if applicable), turf material cost (ordered sqft × cost/sqft from Settings, with putting green turf on its own line), edging, infill materials (bags × cost/bag, with putting green infill on its own line; each infill line also shows its total weight in 50 lb bags, plus a combined weight when there's more than one), putting green fringe (if configured in the Layout tab — see Putting Green Fringe below), miscellaneous items (each shown as its own line, not lumped together), and <strong>shipping / freight</strong> (per project, the same on every scenario — every project uses the standard amount from Settings → Default Shipping unless you override it on the Quote Builder tab; leave that field blank to follow the default, or enter a number for a one-off job) — all split correctly by role/tier per scenario. Shipping is part of COGS, so your profit margin applies to it like every other cost. Changing the default in Settings updates every project that hasn't overridden it.. Items in the Settings misc catalog can be flagged <strong>"Always include on new projects"</strong> — those are added to every new job automatically at qty 1 (you can still change or remove them per job), while unflagged items stay available to add by hand. This is per item on purpose: most misc items are job-specific, so auto-adding the whole catalog would mean deleting the irrelevant ones on every quote</p>
         <p>When a profit margin is set, each card shows three figures: <strong>Cost (COGS)</strong>, your <strong>Margin</strong> in dollars (Price − Cost), and the customer <strong>Price</strong>. If a job is putting-green-only (no base/alt turf), the "No Putting Green" option is omitted since it would be an empty card.</p>
       </div>
 
@@ -3308,7 +3315,7 @@ function createProject() {
     rock: rockRows,
     edging,
     pgSqFt,
-    miscItems: [],
+    miscItems: defaultMiscItemsForNewProject(getMiscItems()),
   };
 
   // Attach Moasure layout if imported during project creation
@@ -3408,27 +3415,9 @@ function makeTurfRow(row, i) {
   const div = document.createElement('div');
   div.className = 'turf-row';
 
-  // Resolve turfType — use stored value or look up by product name in catalog
-  let resolvedType = row.turfType || '';
-  if (!resolvedType && row.product) {
-    const cat = getCatalog();
-    const match = cat.turf.find(t => t.name === row.product);
-    if (match) {
-      resolvedType = match.type || '';
-      row.turfType = resolvedType; // backfill so it saves correctly
-    }
-  }
-
   div.innerHTML = `
     <div class="field-group">
       <input type="text" value="${row.product||''}" placeholder="Product name" oninput="updateTurfField(${i},'product',this.value)">
-    </div>
-    <div class="field-group">
-      <select onchange="updateTurfField(${i},'turfType',this.value);" style="font-size:12px;padding:6px 8px;">
-        <option value=""        ${!resolvedType                   ?'selected':''}>—</option>
-        <option value="standard"${resolvedType==='standard'       ?'selected':''}>Standard</option>
-        <option value="putting" ${resolvedType==='putting'        ?'selected':''}>Putting Green</option>
-      </select>
     </div>
     <div class="field-group">
       ${(row.role||'base')==='alt-turf'
@@ -4470,6 +4459,26 @@ function getMiscItems() {
 }
 function saveMiscItems(items) { localStorage.setItem(MISC_KEY, JSON.stringify(items)); }
 
+// Catalog misc items flagged "always include" become rows on a NEW project, at qty 1.
+// Deliberately opt-in per item rather than all-or-nothing: most misc items (haul-away,
+// a gate repair) are job-specific, so auto-adding the whole catalog would mean deleting
+// the irrelevant ones on every quote. Rock rows auto-populate because every job needs
+// base rock; misc doesn't have that property, so the flag carries the distinction.
+// Returns fresh row objects (never references to the catalog entries). Pure — no DOM.
+function defaultMiscItemsForNewProject(catalogItems) {
+  return (catalogItems || [])
+    .filter(it => it && it.alwaysInclude)
+    .map(it => ({
+      name: it.name,
+      price: it.price || 0,
+      unit: it.unit || 'each',
+      qty: 1,
+      role: 'base',
+      notes: it.notes || '',
+      fromCatalog: true,
+    }));
+}
+
 function renderSettingsTables() {
   const cat = getCatalog();
   renderSettingsTurfTable(cat.turf);
@@ -5293,6 +5302,7 @@ function renderMiscItemsTable() {
         <th>Notes</th>
         <th>Unit</th>
         <th>Price</th>
+        <th>On new jobs</th>
         <th></th>
       </tr></thead>
       <tbody>
@@ -5302,6 +5312,7 @@ function renderMiscItemsTable() {
             <td style="font-size:12px;color:var(--text-light);">${item.notes||'—'}</td>
             <td style="font-size:12px;color:var(--text-mid);">${item.unit||'—'}</td>
             <td class="item-cost">${item.price ? '$'+parseFloat(item.price).toFixed(2) : '—'}</td>
+            <td style="font-size:12px;">${item.alwaysInclude ? '<span style="color:var(--green,#2e7d32);font-weight:700;">✓ always</span>' : '<span style="color:var(--text-light);">—</span>'}</td>
             <td><div class="item-actions">
               <button class="btn-edit" onclick="openMiscModal(${i})">Edit</button>
               <button class="btn-delete" onclick="deleteMiscItem(${i})">Delete</button>
@@ -5320,8 +5331,10 @@ function openMiscModal(editIdx) {
     document.getElementById('miscNotes').value = item.notes || '';
     document.getElementById('miscUnit').value  = item.unit  || '';
     document.getElementById('miscPrice').value = item.price || '';
+    document.getElementById('miscAlwaysInclude').checked = !!item.alwaysInclude;
   } else {
     ['miscName','miscNotes','miscUnit','miscPrice'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('miscAlwaysInclude').checked = false;
   }
   document.getElementById('miscModal').classList.add('open');
   document.getElementById('miscName').focus();
@@ -5341,6 +5354,7 @@ function saveMiscItem() {
     notes: document.getElementById('miscNotes').value.trim(),
     unit:  document.getElementById('miscUnit').value.trim(),
     price: document.getElementById('miscPrice').value,
+    alwaysInclude: !!document.getElementById('miscAlwaysInclude').checked,
   };
   const items = getMiscItems();
   if (_miscEditIdx !== null) items[_miscEditIdx] = item;
