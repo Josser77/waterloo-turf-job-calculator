@@ -5,6 +5,161 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 5) — Fences, mulch & rock beds, and a drag handle for wall thickness
+
+More landscape elements plus a nicer way to set wall thickness:
+
+- **🟫 Mulch bed** and **⚪ Rock bed** — area beds, one `LANDSCAPE_ICONS` entry each
+  (deterministic-seeded speckle / pebbles so the texture doesn't shimmer between
+  redraws). Drag a rectangle, same as pavers.
+- **⊟ Fence** — a curved path with posts placed every ~1.5 ft of real length. Its own
+  thin path type, reusing the wall/freehand capture.
+- **Wall thickness handle** — a selected wall now shows an orange knob offset
+  perpendicular from its first segment; drag it to set thickness directly (2 in–4 ft),
+  no longer only via the toolbar inches box. It's a new `'thickness'` select-op,
+  hit-tested before the rotate/resize handles (it sits outside the bbox so there's no
+  collision).
+
+New pure helpers `wallThicknessHandle(a)` (knob position + unit normal) and
+`wallThicknessFromDrag(handle, pt)` (2 × perpendicular distance, clamped) keep the drag
+math testable.
+
+The registry now holds five stamps (bush, tree, pavers, mulch, rockbed) and there are
+two path types (wall, fence) — and everything still rides the one annotation
+pipeline, still excluded from every calc.
+
+Tests **1389 → 1405** (README **1405**): mulch/rock/fence registered and in the
+toolbar; a fence selectable on its line; the thickness handle position and normal;
+drag→thickness on both sides with min/max clamps; non-walls and degenerate walls
+returning no handle; and fences staying out of the money path.
+
+---
+
+## 2026-07-22 (cont'd 4) — Landscape: pavers (area) and retaining wall (thick curved line)
+
+Two more landscape elements, each in the shape category it actually belongs to:
+
+- **▦ Pavers** — a rectangular paver area. Fits the stamp two-point box exactly, so
+  it's **one `LANDSCAPE_ICONS` entry**: the draw function fills the box with a
+  running-bond paver grid. Reuses the whole stamp pipeline (place/move/resize/rotate/
+  select-by-box).
+- **🧱 Wall** — a retaining wall: a curved multi-point path (captured like freehand)
+  with a **real thickness in feet**, drawn to scale so it reads as a wall and scales
+  with zoom. Thickness is set in inches from a toolbar input (default 8"). This is its
+  own annotation type (`type:'wall'`), because the box model doesn't fit a variable-
+  length path — but it reuses freehand capture and the select/move/rotate machinery.
+
+Wall hit-testing is widened by half the wall's thickness, so a click just off the drawn
+centerline still grabs it — a thin line at the same offset wouldn't (tested).
+
+Both remain visual-only: the money-path guard from the previous entry now also covers
+walls — `layoutFitPoints`, `calcQuote`, `sumRockTons` read no annotations of any kind.
+
+The split proves the architecture: pavers cost one registry line; the wall needed a
+small new render+capture branch but no new selection/transform/persistence code.
+
+Tests **1376 → 1389** (README **1389**): the pavers icon and tool; a paver area
+selectable inside its box; the wall tool and thickness input; a wall grabbable on its
+centerline and within half-thickness but not beyond; the same offset missing a thin
+line (proving thickness widened the grab zone); and walls staying out of the money path.
+
+---
+
+## 2026-07-22 (cont'd 3) — Landscape stamps: decorative vector icons in Draw mode (foundation)
+
+First slice of landscape design elements. Draw mode gains a **Landscape** group with
+**🌳 Bush** and **🌲 Tree** tools: click to drop one at a default ~3 ft size, or drag to
+size it, then Select to move/resize/rotate/delete it — all reusing the existing
+annotation pipeline. Persists per project with the other annotations.
+
+Design decisions, driven by the app's constraints:
+
+- **Vector, not images.** Icons are pure draw functions (a few lines each), not
+  base64-embedded photos — so the single-file size stays flat and localStorage isn't
+  filled with binary. Requested images would have broken both.
+- **Visual only.** Confirmed and *tested*: nothing in `layoutFitPoints`, `calcQuote`,
+  `calcTurfTotals`, `sumRockTons`, or `packPiecesIntoRolls` reads annotations, so a
+  stamp can never move a square-foot or dollar figure. A stamp is an annotation
+  (`type:'stamp'`, `stampKind`), riding the exclusion every annotation already has.
+- **Extensible by design.** A `LANDSCAPE_ICONS` registry maps kind → a draw function
+  that paints into a unit box; `drawLandscapeStamp` handles the box→canvas mapping and
+  rotation. Adding pavers, a retaining wall, or grass later is **one registry entry** —
+  no new interaction code. (Exposed via `landscapeIcons()` so it's reachable without
+  depending on const hoisting — same lesson as the infill-const TDZ.)
+
+Two integration fixes: stamps update their box on drag (they'd otherwise route through
+`drawShapePoints`, which only knows line/rect/circle), and `annoHitTest` treats a stamp
+as its filled bounding box so it's grabbable anywhere inside, not just along the
+two-point diagonal.
+
+This is the **foundation**, shipped with two icons to prove the whole pipeline end to
+end. Pavers, retaining walls, grass, and turf-area fills are follow-on registry
+entries.
+
+Tests **1361 → 1376** (README **1376**): the registry and both icons' draw
+functions/labels; a stamp is hit anywhere in its box and missed outside; a click-placed
+zero-size stamp is caught by the default-box path; the two tools are in the toolbar;
+and — the one that matters — the money-path functions contain no reference to
+annotations or stamps.
+
+---
+
+## 2026-07-22 (cont'd 2) — Top bar scrolls instead of clipping at medium window widths
+
+With seven cells, the top bar could push its last cell (Scrap) off the right edge on a
+non-maximized laptop window (~860px to full width) — above the 860px breakpoint where
+the whole tab row starts scrolling, but wide enough that the bar overran the header,
+and `flex-shrink:0` meant it never yielded. A clip on the primary device, not just
+mobile.
+
+`.top-metrics` now scrolls itself (`overflow-x:auto`, `min-width:0`, thin styled
+scrollbar) and no longer refuses to shrink; the cells keep `flex-shrink:0` so they
+hold their width and the bar scrolls rather than squishing them. The scroll is isolated
+to the bar: a maximized laptop/monitor (the primary case) sees no scrollbar because
+everything fits, a windowed laptop gets a small in-bar scroll instead of a lost cell,
+and small screens are unchanged (the whole tab row already scrolls below 860px).
+
+Tests **1357 → 1361** (README **1361**): `.top-metrics` carries `overflow-x:auto` and
+`min-width:0` and no longer sets `flex-shrink:0`, while `.top-metrics .tm` does — the
+combination that scrolls instead of clipping. (Visual behavior itself isn't headlessly
+testable — verified on-device.)
+
+---
+
+## 2026-07-22 (cont'd) — Top bar shows order totals: edging, rock, sand (replacing Perimeter)
+
+The Layout top bar's **Perimeter** cell is replaced with three job-wide order totals
+pulled from the project, so the numbers you actually order sit next to the live layout
+figures:
+
+- **Edging** — linear feet and boards to order (`212 ft · 11 bd`), from `proj.edging`.
+- **Rock** — total tons across every rock line (`6 tons`), summed.
+- **Sand** — total infill bags and weight across every infill line
+  (`60 bags · 3,000 lbs (1.5 tons)`), reusing the infill-weight helpers; tons appear
+  past 2,000 lbs.
+
+Rock and sand sum across all lines because a job can have several of each. Backed by
+pure `sumRockTons` / `sumInfillBags` / `fmtTopRock` / `fmtTopEdging` / `fmtTopInfill`,
+with a thin `updateTopBarMaterials(proj)` DOM writer called from both
+`updateMaterialsSummary` (Quote side) and the layout render, so the bar tracks edits on
+either tab.
+
+**Latent bug caught:** `infillWeightLbs` referenced the `const INFILL_LBS_PER_BAG`
+defined ~1900 lines *later* in the file. Existing callers all sat after that line so it
+never fired, but the new top-bar helpers are earlier — hitting the const's temporal
+dead zone. Inlined the literal so the function no longer depends on declaration order.
+
+The Materials Summary card on Quote Builder is unchanged: it still carries the
+per-product turf/rock/infill lines the compact bar can't hold. The bar now duplicates
+its order *totals*; the card remains the place for per-line detail.
+
+Tests **1339 → 1357** (README **1357**): rock/bag sums across multiple lines with
+string/blank parsing; edging with and without boards; each cell's dash-when-empty; the
+sand cell's lbs→tons threshold; and that the Perimeter cell is gone while the three new
+cells exist.
+
+---
+
 ## 2026-07-22 — Removed the dead turf "Type" column (it looked like it priced putting greens; it didn't)
 
 Each Quote Builder turf row had **two** dropdowns offering "Putting Green":

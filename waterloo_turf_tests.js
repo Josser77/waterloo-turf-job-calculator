@@ -6339,6 +6339,158 @@ section('98. The dead turf "Type" column is gone (role is the real control)');
   assert(cols(rowGrid) === 7, 'seven columns: Product, Installed, ToOrder, LinearFt, OrderedSqFt, Role, remove');
 }
 
+section('99. Top-bar material aggregates (edging, rock, sand)');
+{
+  // Rock and sand sum across ALL lines — a job can have several of each.
+  assert(ctx.sumRockTons([{tons:4.2},{tons:1.8}]) === 6, 'rock tons sum across lines');
+  assert(ctx.sumRockTons([{tons:'3'},{tons:''},{tons:2}]) === 5, 'string/blank tons parse; blanks are 0');
+  assert(ctx.sumRockTons([]) === 0, 'no rock → 0');
+  assert(ctx.sumInfillBags([{bags:15},{bags:45}]) === 60, 'infill bags sum across lines');
+  assert(ctx.sumInfillBags(null) === 0, 'null infill → 0, no throw');
+
+  // Edging: linear feet and boards, from proj.edging.
+  assert(ctx.fmtTopEdging({linFt:212, boards:11}) === '212 ft · 11 bd', 'edging shows feet and boards');
+  assert(ctx.fmtTopEdging({linFt:212}) === '212 ft', 'boards omitted when there are none');
+  assert(ctx.fmtTopEdging({}) === '—', 'no edging → dash');
+  assert(ctx.fmtTopEdging(null) === '—', 'null edging → dash, no throw');
+
+  // Rock cell.
+  assert(ctx.fmtTopRock([{tons:4.2},{tons:1.8}]) === '6 tons', 'rock cell sums to 6 tons');
+  assert(ctx.fmtTopRock([]) === '—', 'no rock → dash');
+
+  // Sand cell: bags + weight, tons past 2000 lbs (reuses infill weight helpers).
+  assert(ctx.fmtTopInfill([{bags:15}]) === '15 bags · 750 lbs', 'sand cell: bags and weight in lbs');
+  assert(ctx.fmtTopInfill([{bags:15},{bags:45}]) === '60 bags · 3,000 lbs (1.5 tons)', 'sand cell sums lines and shows tons');
+  assert(ctx.fmtTopInfill([]) === '—', 'no sand → dash');
+
+  // The old Perimeter cell is gone from the bar; the three new cells exist.
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(!/id="layoutPerimeterOut"/.test(html), 'the Perimeter cell is removed from the top bar');
+  ['topEdgingOut','topRockOut','topInfillOut'].forEach(id =>
+    assert(html.includes('id="' + id + '"'), 'the ' + id + ' cell exists in the top bar'));
+
+  // The bar scrolls rather than clipping a cell in the windowed-laptop width band
+  // (~860px..full). Isolated to .top-metrics so the maximized case is untouched.
+  const tmRule = (html.match(/\.top-metrics \{[\s\S]*?\}/) || [''])[0];
+  assert(/overflow-x:\s*auto/.test(tmRule), '.top-metrics scrolls instead of clipping when the header is tight');
+  assert(/min-width:\s*0/.test(tmRule), '.top-metrics has min-width:0 so a flex child can actually scroll');
+  assert(!/flex-shrink:\s*0/.test(tmRule), '.top-metrics no longer refuses to shrink (which caused the clip)');
+  assert(/\.top-metrics \.tm \{[^}]*flex-shrink:\s*0/.test(html), 'the cells keep their width so the bar scrolls rather than squishing them');
+}
+
+section('100. Landscape stamps (decorative icons)');
+{
+  // The icon registry drives what can be placed and is the extension point — adding a
+  // landscape element later is one entry here.
+  const ICONS = ctx.landscapeIcons();
+  assert(typeof ICONS === 'object' && ICONS, 'the icon registry exists');
+  assert(typeof ICONS.bush.draw === 'function', 'bush has a draw function');
+  assert(typeof ICONS.tree.draw === 'function', 'tree has a draw function');
+  assert(ICONS.bush.label && ICONS.tree.label, 'each icon has a label for the palette');
+
+  // A stamp is selectable/movable anywhere inside its bounding box (not just along the
+  // two-point diagonal), so it uses the annotation move/resize/rotate/delete pipeline.
+  const stamp = { type:'stamp', stampKind:'bush', points:[{x:0,y:0},{x:10,y:6}] };
+  assert(ctx.annoHitTest({x:5,y:3}, stamp, 0.1) === true, 'a click inside the stamp box selects it');
+  assert(ctx.annoHitTest({x:2,y:5}, stamp, 0.1) === true, 'anywhere in the box hits, not just the diagonal');
+  assert(ctx.annoHitTest({x:20,y:20}, stamp, 0.1) === false, 'a click well outside misses');
+
+  // annotationHasSize still gates stray clicks for real shapes, but the commit path
+  // gives a click-placed stamp a default box — modelled here.
+  const clicked = { type:'stamp', stampKind:'tree', points:[{x:4,y:4},{x:4,y:4}] };
+  assert(ctx.annotationHasSize(clicked) === false, 'a zero-size stamp would be dropped without the default-box step');
+
+  // THE guarantee: stamps are decorative and must never reach a money-path calc.
+  // annotations (stamps included) are not read by fit, area, perimeter, roll, or
+  // pricing. Assert the source has no such reference.
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  const moneyFns = ['layoutFitPoints','function calcQuote','function calcTurfTotals','sumRockTons','packPiecesIntoRolls'];
+  moneyFns.forEach(fn => {
+    const i = html.indexOf(fn);
+    if (i < 0) return;
+    const body = html.slice(i, i + 1500);
+    assert(!/\bstamp\b/.test(body) && !/annotations/.test(body),
+      fn + ' does not read annotations/stamps (stays out of the money path)');
+  });
+
+  // The palette exposes the two starter tools.
+  assert(/data-shape="stamp:bush"/.test(html), 'the Bush tool is in the draw toolbar');
+  assert(/data-shape="stamp:tree"/.test(html), 'the Tree tool is in the draw toolbar');
+}
+
+section('101. Pavers stamp + retaining wall');
+{
+  const ICONS = ctx.landscapeIcons();
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+
+  // Pavers is a stamp (box) — one registry entry, reuses the stamp pipeline.
+  assert(typeof ICONS.pavers.draw === 'function', 'pavers has a draw function');
+  assert(ICONS.pavers.label === 'Pavers', 'pavers has its palette label');
+  assert(/data-shape="stamp:pavers"/.test(html), 'the Pavers tool is in the toolbar');
+  const pav = { type:'stamp', stampKind:'pavers', points:[{x:0,y:0},{x:12,y:8}] };
+  assert(ctx.annoHitTest({x:6,y:4}, pav, 0.1) === true, 'a paver area is selectable inside its box');
+
+  // Retaining wall is a thick multi-point path (NOT a box) — its own type.
+  assert(/data-shape="wall"/.test(html), 'the Wall tool is in the toolbar');
+  assert(/id="wallThickInput"/.test(html), 'the wall thickness input exists');
+
+  // A wall is grabbable within half its thickness of the centerline — thicker than a
+  // thin line's tolerance, so a click just off the drawn line still selects it.
+  const wall = { type:'wall', thicknessFt:1.0, points:[{x:0,y:0},{x:10,y:0}] };
+  assert(ctx.annoHitTest({x:5,y:0.0}, wall, 0.05) === true, 'a click on the wall centerline selects it');
+  assert(ctx.annoHitTest({x:5,y:0.45}, wall, 0.05) === true, 'a click within half-thickness (0.5ft) still selects it');
+  assert(ctx.annoHitTest({x:5,y:2.0}, wall, 0.05) === false, 'a click well off the wall misses');
+  // A thin freehand line at the same offset would NOT hit — proves the thickness
+  // widened the grab zone.
+  const thin = { type:'freehand', points:[{x:0,y:0},{x:10,y:0}] };
+  assert(ctx.annoHitTest({x:5,y:0.45}, thin, 0.05) === false, 'the same offset misses a thin line (thickness matters)');
+
+  // Still visual-only: the money-path functions read no annotations/stamps/walls.
+  ['layoutFitPoints','function calcQuote','sumRockTons'].forEach(fn => {
+    const i = html.indexOf(fn); if (i < 0) return;
+    const body = html.slice(i, i + 1500);
+    assert(!/\bwall\b/.test(body) && !/annotations/.test(body), fn + ' ignores walls/annotations');
+  });
+}
+
+section('102. More landscape elements + wall thickness handle');
+{
+  const ICONS = ctx.landscapeIcons();
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+
+  // Mulch and rock beds are stamp entries; fence is a path type.
+  assert(typeof ICONS.mulch.draw === 'function' && ICONS.mulch.label === 'Mulch bed', 'mulch bed registered');
+  assert(typeof ICONS.rockbed.draw === 'function' && ICONS.rockbed.label === 'Rock bed', 'rock bed registered');
+  assert(/data-shape="stamp:mulch"/.test(html) && /data-shape="stamp:rockbed"/.test(html), 'bed tools in toolbar');
+  assert(/data-shape="fence"/.test(html), 'fence tool in toolbar');
+
+  // Fence is a thin path, selectable along its line.
+  const fence = { type:'fence', points:[{x:0,y:0},{x:8,y:0}] };
+  assert(ctx.annoHitTest({x:4,y:0}, fence, 0.1) === true, 'a fence is selectable on its line');
+
+  // ── Wall thickness handle ──
+  const wall = { type:'wall', thicknessFt:1, points:[{x:0,y:0},{x:10,y:0}] };
+  const h = ctx.wallThicknessHandle(wall);
+  assert(h && near(h.x, 5) && near(h.y, 0.5), 'handle sits off the midpoint by half-thickness');
+  assert(near(h.nx, 0) && near(h.ny, 1), 'handle carries the unit normal');
+  // Dragging it sets thickness = 2 x perpendicular distance.
+  assert(near(ctx.wallThicknessFromDrag(h, {x:5, y:1.5}), 3), 'drag to 1.5ft perp → 3ft thick');
+  assert(near(ctx.wallThicknessFromDrag(h, {x:5, y:-1.0}), 2), 'works on either side (abs)');
+  // Clamped to a sane range.
+  assert(ctx.wallThicknessFromDrag(h, {x:5, y:0.01}) >= 2/12 - 1e-9, 'clamped to a 2in minimum');
+  assert(ctx.wallThicknessFromDrag(h, {x:5, y:50}) === 4, 'clamped to a 4ft maximum');
+  // Only walls get a handle.
+  assert(ctx.wallThicknessHandle(fence) === null, 'non-walls have no thickness handle');
+  assert(ctx.wallThicknessHandle({type:'wall',points:[{x:0,y:0}]}) === null, 'a degenerate wall has none');
+
+  // Still visual-only.
+  ['layoutFitPoints','function calcQuote','sumRockTons'].forEach(fn => {
+    const i = html.indexOf(fn); if (i < 0) return;
+    const body = html.slice(i, i + 1500);
+    assert(!/\bfence\b/.test(body) && !/annotations/.test(body), fn + ' ignores fences/annotations');
+  });
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

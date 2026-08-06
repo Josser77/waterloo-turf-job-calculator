@@ -255,9 +255,20 @@
     margin-left: 24px;
     padding-left: 20px;
     border-left: 1px solid var(--border);
-    flex-shrink: 0;
+    /* The bar itself scrolls when the header runs out of room, rather than pushing a
+       cell (Scrap) off the edge with no way to reach it. This isolates the scroll to
+       the metrics: a maximized laptop/monitor sees no scrollbar (everything fits), a
+       windowed laptop between ~860px and full width gets a small scroll within the bar
+       instead of a clipped cell, and small screens are unaffected (the whole tab row
+       already scrolls below 860px). flex-shrink stays 1 so the bar yields space to the
+       tabs before scrolling; min-width:0 lets a flex child actually scroll. */
+    overflow-x: auto;
+    min-width: 0;
+    scrollbar-width: thin;
   }
-  .top-metrics .tm { display: flex; flex-direction: column; line-height: 1.15; }
+  .top-metrics::-webkit-scrollbar { height: 4px; }
+  .top-metrics::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .top-metrics .tm { display: flex; flex-direction: column; line-height: 1.15; flex-shrink: 0; }
   .top-metrics .tm-l {
     font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em;
     color: var(--text-light); font-weight: 700;
@@ -1239,7 +1250,9 @@
         <div class="tm"><span class="tm-l">Installed</span><input type="text" id="layoutArea" class="tm-v" readonly></div>
         <div class="tm"><span class="tm-l">Ordered</span><input type="text" id="rollOrderedOut" class="tm-v" readonly></div>
         <div class="tm"><span class="tm-l">Linear ft</span><input type="text" id="rollLinearOut" class="tm-v" readonly></div>
-        <div class="tm"><span class="tm-l">Perimeter</span><input type="text" id="layoutPerimeterOut" class="tm-v" readonly></div>
+        <div class="tm"><span class="tm-l">Edging</span><input type="text" id="topEdgingOut" class="tm-v" readonly title="Linear feet of edging and boards to order"></div>
+        <div class="tm"><span class="tm-l">Rock</span><input type="text" id="topRockOut" class="tm-v" readonly title="Total rock to order across all rock lines"></div>
+        <div class="tm"><span class="tm-l">Sand</span><input type="text" id="topInfillOut" class="tm-v" readonly title="Total infill bags and weight across all infill lines"></div>
         <div class="tm"><span class="tm-l">Scrap</span><input type="text" id="rollWasteOut" class="tm-v" readonly></div>
       </div>
     </div>
@@ -1461,6 +1474,18 @@
               <button type="button" class="btn btn-ghost btn-sm draw-shape-btn" data-shape="circle" onclick="setDrawShape('circle')">◯ Circle</button>
               <button type="button" class="btn btn-ghost btn-sm draw-shape-btn" data-shape="freehand" onclick="setDrawShape('freehand')">✎ Freehand</button>
               <span style="width:1px;height:20px;background:var(--border);margin:0 4px;"></span>
+              <span style="font-size:12px;font-weight:600;margin-right:2px;">Landscape:</span>
+              <button type="button" class="btn btn-ghost btn-sm draw-shape-btn" data-shape="stamp:bush" onclick="setDrawShape('stamp:bush')" title="Place a bush — drag to size. Visual only.">🌳 Bush</button>
+              <button type="button" class="btn btn-ghost btn-sm draw-shape-btn" data-shape="stamp:tree" onclick="setDrawShape('stamp:tree')" title="Place a tree — drag to size. Visual only.">🌲 Tree</button>
+              <button type="button" class="btn btn-ghost btn-sm draw-shape-btn" data-shape="stamp:pavers" onclick="setDrawShape('stamp:pavers')" title="Draw a paver area — drag a rectangle. Visual only.">▦ Pavers</button>
+              <button type="button" class="btn btn-ghost btn-sm draw-shape-btn" data-shape="stamp:mulch" onclick="setDrawShape('stamp:mulch')" title="Draw a mulch bed — drag a rectangle. Visual only.">🟫 Mulch</button>
+              <button type="button" class="btn btn-ghost btn-sm draw-shape-btn" data-shape="stamp:rockbed" onclick="setDrawShape('stamp:rockbed')" title="Draw a rock bed — drag a rectangle. Visual only.">⚪ Rock bed</button>
+              <button type="button" class="btn btn-ghost btn-sm draw-shape-btn" data-shape="wall" onclick="setDrawShape('wall')" title="Draw a retaining wall — drag a curved line; it gets real thickness. Visual only.">🧱 Wall</button>
+              <button type="button" class="btn btn-ghost btn-sm draw-shape-btn" data-shape="fence" onclick="setDrawShape('fence')" title="Draw a fence — drag a curved line; posts are added along it. Visual only.">⊟ Fence</button>
+              <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:normal;margin:0;" title="Retaining wall thickness in inches (drawn to scale). You can also drag the wall's thickness handle when it's selected.">Wall in
+                <input type="number" id="wallThickInput" min="2" max="36" step="1" value="8" onchange="window._wtWallThickIn=parseFloat(this.value)||8" style="width:48px;">
+              </label>
+              <span style="width:1px;height:20px;background:var(--border);margin:0 4px;"></span>
               <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:normal;margin:0;">Color
                 <input type="color" id="drawColorInput" value="#c0392b" onchange="setDrawColor(this.value)" style="width:32px;height:24px;padding:0;border:1px solid var(--border);border-radius:4px;">
               </label>
@@ -1482,7 +1507,7 @@
               <button type="button" class="btn btn-ghost btn-sm" onclick="clearDrawAnnotations()" title="Remove all drawn shapes">✕ Clear</button>
               <button type="button" class="btn btn-primary btn-sm" onclick="toggleDrawMode()">✓ Done</button>
             </div>
-            <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Pick a shape and drag on the canvas, or use <strong>↖ Select</strong> to grab a shape — drag its body to move, a corner to resize, or the top handle to rotate. <strong>Copy/Paste</strong> duplicates a selected shape; <strong>Snap to grid</strong> locks points to the grid spacing. Drawn shapes are <strong>markup only</strong> — they don't change turf, rolls, or the quote.</div>
+            <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Pick a shape and drag on the canvas, or use <strong>↖ Select</strong> to grab a shape — drag its body to move, a corner to resize, or the top handle to rotate. <strong>Copy/Paste</strong> duplicates a selected shape; <strong>Snap to grid</strong> locks points to the grid spacing. Drawn shapes are <strong>markup only</strong> — they don't change turf, rolls, or the quote. <strong>Landscape</strong> tools add decorative elements: <strong>🌳 Bush</strong> and <strong>🌲 Tree</strong> (click to drop or drag to size); area beds <strong>▦ Pavers</strong>, <strong>🟫 Mulch</strong>, and <strong>⚪ Rock bed</strong> (drag a rectangle); and linear elements <strong>🧱 Wall</strong> and <strong>⊟ Fence</strong> (drag a curved line — the wall gets real thickness, the fence gets posts). Use <strong>↖ Select</strong> to move, resize, or rotate any of them. A selected <strong>wall</strong> shows an orange <strong>thickness handle</strong> you can drag to set its thickness directly (or type inches in the toolbar). All landscape elements are markup only — they never affect any measurement or price. These are for a nicer plan to show the customer and, like all markup, never affect any measurement or price.</div>
           </div>
           <p id="layoutIntro" style="font-size:12px;color:var(--text-light);margin-bottom:10px;">
             Import a Moasure CSV to overlay the roll plan, then apply it to a turf row. <a onclick="openGuideAt('doc-layout')" style="cursor:pointer;text-decoration:underline;">Guide</a>
@@ -3709,7 +3734,7 @@ function updateInfillLbs(i, input) {
 // bags, and a weight figure is for planning delivery/handling of what arrives.
 const INFILL_LBS_PER_BAG = 50;
 function infillWeightLbs(bags) {
-  return (parseFloat(bags) || 0) * INFILL_LBS_PER_BAG;
+  return (parseFloat(bags) || 0) * 50; // 50 lb per bag; literal so callers defined earlier in the file don't hit the const's TDZ
 }
 // Show lbs, and tons once it's heavy enough for tons to be the useful unit.
 function fmtInfillWeight(lbs) {
@@ -4356,6 +4381,46 @@ function removeRockRow(i) {
 //  MATERIALS SUMMARY
 // ═══════════════════════════════════════════════════════
 
+// ── pure top-bar material aggregates ──────────────────────────────────────────
+// The top bar shows job-wide order totals pulled from the project (edging boards,
+// rock tons, infill bags/weight). A job can have several rock or infill lines, so
+// these sum across all of them. Pure — no DOM — so they're testable.
+function sumRockTons(rockLines) {
+  return (rockLines || []).reduce((t, r) => t + (parseFloat(r.tons) || 0), 0);
+}
+function sumInfillBags(infillLines) {
+  return (infillLines || []).reduce((t, r) => t + (parseFloat(r.bags) || 0), 0);
+}
+function fmtTopRock(rockLines) {
+  const tons = sumRockTons(rockLines);
+  if (!(tons > 0)) return '—';
+  return tons.toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' tons';
+}
+function fmtTopEdging(edging) {
+  const e = edging || {};
+  const boards = parseFloat(e.boards) || 0;
+  const lf = parseFloat(e.linFt) || 0;
+  if (!(boards > 0) && !(lf > 0)) return '—';
+  return (lf ? lf.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' ft' : '—')
+       + (boards ? ' · ' + boards + ' bd' : '');
+}
+function fmtTopInfill(infillLines) {
+  const bags = sumInfillBags(infillLines);
+  if (!(bags > 0)) return '—';
+  return bags + ' bags · ' + fmtInfillWeight(infillWeightLbs(bags));
+}
+
+// Write the three project-material cells in the top bar. Thin DOM wrapper over the
+// pure helpers; safe to call whenever the quote or layout re-renders.
+function updateTopBarMaterials(proj) {
+  proj = proj || getCurrentProject();
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+  if (!proj) { set('topEdgingOut', '—'); set('topRockOut', '—'); set('topInfillOut', '—'); return; }
+  set('topEdgingOut', fmtTopEdging(proj.edging));
+  set('topRockOut', fmtTopRock((proj.rock || []).filter(r => r.tons)));
+  set('topInfillOut', fmtTopInfill((proj.infill || []).filter(r => r.bags)));
+}
+
 function updateMaterialsSummary() {
   const proj = getCurrentProject();
   const el = document.getElementById('materialsSummary');
@@ -4409,6 +4474,7 @@ function updateMaterialsSummary() {
   }
 
   el.innerHTML = html;
+  updateTopBarMaterials(proj);
 }
 
 function clearSummary() {
@@ -6565,6 +6631,141 @@ function useLayoutPerimeterForEdging() {
 //      real, measurable edges get a label.
 // A tightly-curved boundary legitimately has no straight edges to call out, so it
 // simply gets few or no labels rather than noise. Pure — no DOM, no canvas.
+// ── Landscape stamps (decorative vector icons) ────────────────────────────────
+// A "stamp" is an annotation with type:'stamp' and a stampKind naming an entry in
+// LANDSCAPE_ICONS. Two points define an axis-aligned bounding box (drag to size);
+// rotation is carried like any annotation. Each icon is a pure function that draws
+// itself into a UNIT box (0..1 in both axes) given the 2D canvas context and a
+// helper to map unit coords → canvas pixels. Adding a new landscape element later
+// (retaining wall, pavers, grass) is one entry here — no new interaction code.
+//
+// These are visual only. Nothing in this file's area/perimeter/roll/pricing paths
+// reads annotations, so a stamp can never move a quote number.
+const LANDSCAPE_ICONS = {
+  bush: {
+    label: 'Bush', emoji: '🌳',
+    // Overlapping green blobs.
+    draw: (ctx, U) => {
+      ctx.fillStyle = 'rgba(76,141,79,0.85)';
+      ctx.strokeStyle = '#2e6b31'; ctx.lineWidth = 1.2;
+      [[0.32,0.6,0.26],[0.62,0.58,0.24],[0.47,0.42,0.28],[0.47,0.66,0.22]].forEach(([x,y,r]) => {
+        const c = U(x, y), e = U(x + r, y);
+        ctx.beginPath(); ctx.arc(c.x, c.y, Math.abs(e.x - c.x), 0, 2*Math.PI); ctx.fill(); ctx.stroke();
+      });
+    },
+  },
+  tree: {
+    label: 'Tree', emoji: '🌲',
+    // Trunk + round canopy.
+    draw: (ctx, U) => {
+      const t0 = U(0.44, 0.6), t1 = U(0.56, 1.0);
+      ctx.fillStyle = '#7a5230';
+      ctx.fillRect(Math.min(t0.x,t1.x), Math.min(t0.y,t1.y), Math.abs(t1.x-t0.x), Math.abs(t1.y-t0.y));
+      const c = U(0.5, 0.4), edge = U(0.5 + 0.34, 0.4);
+      ctx.fillStyle = 'rgba(60,120,66,0.9)'; ctx.strokeStyle = '#245127'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(c.x, c.y, Math.abs(edge.x - c.x), 0, 2*Math.PI); ctx.fill(); ctx.stroke();
+    },
+  },
+  pavers: {
+    label: 'Pavers', emoji: '▦',
+    // Fills the whole box with a paver grid — this element IS an area, not a centered
+    // icon, so its draw uses the full 0..1 box.
+    draw: (ctx, U) => {
+      const poly = [U(0,0), U(1,0), U(1,1), U(0,1)];
+      ctx.beginPath();
+      poly.forEach((c,i) => i ? ctx.lineTo(c.x,c.y) : ctx.moveTo(c.x,c.y));
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(196,178,152,0.85)'; ctx.fill();
+      ctx.strokeStyle = '#8a7a63'; ctx.lineWidth = 1;
+      // Running-bond grid: horizontal courses, with vertical joints offset every row.
+      const rows = 5;
+      for (let r = 1; r < rows; r++) {
+        const y = r/rows, a = U(0,y), b = U(1,y);
+        ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+      }
+      const cols = 4;
+      for (let r = 0; r < rows; r++) {
+        const off = (r % 2) ? 0.5/cols : 0;
+        for (let cc = 0; cc <= cols; cc++) {
+          const x = Math.min(1, Math.max(0, cc/cols + off));
+          const a = U(x, r/rows), b = U(x, (r+1)/rows);
+          ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+        }
+      }
+      // Outline on top.
+      ctx.beginPath();
+      poly.forEach((c,i) => i ? ctx.lineTo(c.x,c.y) : ctx.moveTo(c.x,c.y));
+      ctx.closePath(); ctx.stroke();
+    },
+  },
+  mulch: {
+    label: 'Mulch bed', emoji: '🟫',
+    // Brown fill speckled with darker shreds.
+    draw: (ctx, U) => {
+      const poly = [U(0,0), U(1,0), U(1,1), U(0,1)];
+      ctx.beginPath(); poly.forEach((c,i)=> i?ctx.lineTo(c.x,c.y):ctx.moveTo(c.x,c.y)); ctx.closePath();
+      ctx.fillStyle = 'rgba(122,82,45,0.82)'; ctx.fill();
+      ctx.strokeStyle = '#5c3d20'; ctx.lineWidth = 1; ctx.stroke();
+      // Deterministic speckle so it doesn't shimmer between redraws.
+      ctx.strokeStyle = 'rgba(60,38,18,0.6)'; ctx.lineWidth = 1;
+      let seed = 7;
+      const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+      for (let i = 0; i < 26; i++) {
+        const x = 0.06 + rnd()*0.88, y = 0.06 + rnd()*0.88, len = 0.05 + rnd()*0.06, ang = rnd()*Math.PI;
+        const a = U(x, y), b = U(x + Math.cos(ang)*len, y + Math.sin(ang)*len);
+        ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+      }
+    },
+  },
+  rockbed: {
+    label: 'Rock bed', emoji: '⚪',
+    // Grey fill scattered with pebbles.
+    draw: (ctx, U) => {
+      const poly = [U(0,0), U(1,0), U(1,1), U(0,1)];
+      ctx.beginPath(); poly.forEach((c,i)=> i?ctx.lineTo(c.x,c.y):ctx.moveTo(c.x,c.y)); ctx.closePath();
+      ctx.fillStyle = 'rgba(176,176,176,0.82)'; ctx.fill();
+      ctx.strokeStyle = '#6f6f6f'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = 'rgba(120,120,120,0.75)'; ctx.strokeStyle = '#5a5a5a';
+      let seed = 13;
+      const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+      for (let i = 0; i < 22; i++) {
+        const x = 0.08 + rnd()*0.84, y = 0.08 + rnd()*0.84, r = 0.03 + rnd()*0.035;
+        const c = U(x, y), e = U(x + r, y);
+        ctx.beginPath(); ctx.arc(c.x, c.y, Math.max(1.2, Math.abs(e.x - c.x)), 0, 2*Math.PI); ctx.fill(); ctx.stroke();
+      }
+    },
+  },
+};
+
+// Accessor so callers/tests reach the registry without depending on const hoisting
+// (a top-level const isn't attached to the global the way a function declaration is).
+function landscapeIcons() { return LANDSCAPE_ICONS; }
+
+// Map a stamp's two points (+ rotation) to a unit-box drawer and render its icon.
+function drawLandscapeStamp(ctx, a, toCanvas) {
+  const icon = LANDSCAPE_ICONS[a.stampKind] || LANDSCAPE_ICONS.bush;
+  const p0 = a.points[0], p1 = a.points[1];
+  const minX = Math.min(p0.x, p1.x), maxX = Math.max(p0.x, p1.x);
+  const minY = Math.min(p0.y, p1.y), maxY = Math.max(p0.y, p1.y);
+  const w = maxX - minX, h = maxY - minY;
+  if (w < 1e-6 || h < 1e-6) return;
+  // U(ux,uy): unit-box (0..1) → canvas pixels, honoring rotation about the box center.
+  const rot = (a.rotation || 0) * Math.PI / 180;
+  const cxu = minX + w/2, cyu = minY + h/2;
+  const cosR = Math.cos(rot), sinR = Math.sin(rot);
+  const U = (ux, uy) => {
+    // unit → data (within the box), then rotate about center, then → canvas
+    let dx = (minX + ux * w) - cxu;
+    let dy = (minY + uy * h) - cyu;
+    const rx = dx * cosR - dy * sinR + cxu;
+    const ry = dx * sinR + dy * cosR + cyu;
+    return toCanvas({ x: rx, y: ry });
+  };
+  ctx.save();
+  icon.draw(ctx, U);
+  ctx.restore();
+}
+
 function polygonEdgeLabels(points, minLenFt, mergeAngleDeg) {
   let pts = points || [];
   if (pts.length < 2) return [];
@@ -8099,34 +8300,7 @@ function renderRollLayout() {
       nestWarnEl.style.display = 'none';
     }
   }
-  const perimEl = document.getElementById('layoutPerimeterOut');
-  if (perimEl) {
-    // Perimeter follows the SAME layers as Installed SqFt: the primary plus every
-    // secondary marked 'Install' (each install layer is a separate piece with its
-    // own edge). Default-ignored layers don't add. Perimeter is rotation/translation
-    // invariant, so the rotated basePoints give the right number.
-    let perim = 0;
-    const installs = (layout._installLayers && layout._installLayers.length)
-      ? layout._installLayers
-      : [{ layout }];
-    installs.forEach(({ layout: L }) => {
-      const pts = (L && L.basePoints && L.basePoints.length >= 3) ? L.basePoints : null;
-      if (pts) perim += polygonPerimeter(pts);
-    });
-    // Overlay layers are installed pieces too — add their edge.
-    let overlayCount = 0;
-    (proj.layout.secondaryShapes || []).forEach((s, i) => {
-      const m = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'ignore';
-      if (m === 'overlay') {
-        const pts = s.displayPoints || s.points;
-        if (pts && pts.length >= 3) { perim += polygonPerimeter(pts); overlayCount++; }
-      }
-    });
-    const nInstall = installs.length + overlayCount;
-    perimEl.value = perim
-      ? `${perim.toLocaleString(undefined,{maximumFractionDigits:1})} ft${nInstall > 1 ? ` (${nInstall} layers)` : ''}`
-      : '—';
-  }
+  updateTopBarMaterials(proj);
   renderLayoutElevation(proj);
   renderLayoutGradeNote(proj);
   applyLayoutLockState();
@@ -9020,6 +9194,56 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     const list = (ap && ap.layout && Array.isArray(ap.layout.annotations)) ? ap.layout.annotations.slice() : [];
     if (window._wtDrawInProgress) list.push(window._wtDrawInProgress);
     list.forEach(a => {
+      // Landscape stamps: decorative vector icons (bush, tree, ...) sized by a
+      // two-point bounding box, reusing the annotation move/resize/rotate/delete
+      // pipeline. Purely visual — like every annotation, nothing here is read by any
+      // area, perimeter, roll-plan, or pricing calc. Drawn via the icon registry so
+      // adding a new element type later is one entry, not a new code path.
+      if (a && a.type === 'stamp' && a.points && a.points.length >= 2) {
+        drawLandscapeStamp(ctx, a, toCanvas);
+        return;
+      }
+      // Retaining wall: a curved multi-point path with real thickness (in feet), drawn
+      // to scale so it reads as a wall and scales with zoom. Visual only, like every
+      // annotation. A lighter core line over a darker base gives it a built edge.
+      if (a && a.type === 'wall' && a.points && a.points.length >= 2) {
+        const thickPx = Math.max(3, (a.thicknessFt || 0.67) * scale);
+        ctx.save();
+        ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        ctx.beginPath();
+        a.points.forEach((p, i) => { const c = toCanvas(p); if (i === 0) ctx.moveTo(c.x, c.y); else ctx.lineTo(c.x, c.y); });
+        ctx.strokeStyle = a.color || '#8d8378'; ctx.lineWidth = thickPx; ctx.stroke();            // body
+        ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = Math.max(1, thickPx * 0.16); ctx.stroke(); // seam line
+        ctx.restore();
+        return;
+      }
+      // Fence: a thin path with periodic posts. Also visual-only.
+      if (a && a.type === 'fence' && a.points && a.points.length >= 2) {
+        ctx.save();
+        ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        ctx.strokeStyle = a.color || '#6b5636';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        a.points.forEach((p, i) => { const c = toCanvas(p); if (i === 0) ctx.moveTo(c.x, c.y); else ctx.lineTo(c.x, c.y); });
+        ctx.stroke();
+        // Posts: a tick every ~1.5 ft of real length along the path.
+        const postGap = 1.5;
+        let carry = 0;
+        ctx.fillStyle = a.color || '#6b5636';
+        for (let i = 0; i < a.points.length - 1; i++) {
+          const p0 = a.points[i], p1 = a.points[i+1];
+          const segLen = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+          if (segLen < 1e-6) continue;
+          const ux = (p1.x - p0.x)/segLen, uy = (p1.y - p0.y)/segLen;
+          for (let d = (i === 0 ? 0 : postGap - carry); d <= segLen; d += postGap) {
+            const c = toCanvas({ x: p0.x + ux*d, y: p0.y + uy*d });
+            ctx.beginPath(); ctx.arc(c.x, c.y, 2.4, 0, 2*Math.PI); ctx.fill();
+          }
+          carry = (carry + segLen) % postGap;
+        }
+        ctx.restore();
+        return;
+      }
       if (!a || !a.points || a.points.length < 2) return;
       ctx.save();
       ctx.lineWidth = a.width || 2;
@@ -9052,6 +9276,17 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       ctx.fillStyle = '#fff';
       [c0, c1, c2, c3].forEach(c => { ctx.beginPath(); ctx.rect(c.x - 4, c.y - 4, 8, 8); ctx.fill(); ctx.stroke(); });
       ctx.beginPath(); ctx.arc(rc.x, rc.y, 5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+      // Wall thickness handle: an orange knob offset perpendicular from the wall.
+      if (sel.type === 'wall') {
+        const th = wallThicknessHandle(sel);
+        if (th) {
+          const tc = toCanvas(th), mc = toCanvas(th.mid);
+          ctx.strokeStyle = '#f4a822'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(mc.x, mc.y); ctx.lineTo(tc.x, tc.y); ctx.stroke();
+          ctx.fillStyle = '#f4a822';
+          ctx.beginPath(); ctx.arc(tc.x, tc.y, 5, 0, 2*Math.PI); ctx.fill(); ctx.stroke();
+        }
+      }
       ctx.restore();
     }
   })();
@@ -9458,6 +9693,40 @@ function onDrawMouseDown(evt) {
   const start = snapPt({ x: pos.dataX, y: pos.dataY }, step);
   window._wtDrawStart = start;
   const shape = window._wtDrawShape || 'line';
+  // Retaining wall: a curved multi-point path captured like freehand, with a real
+  // thickness in feet (from the toolbar's inches input).
+  if (shape === 'wall') {
+    window._wtDrawInProgress = {
+      type: 'wall',
+      color: '#8d8378',
+      thicknessFt: (window._wtWallThickIn || 8) / 12,
+      points: [{ x: start.x, y: start.y }],
+    };
+    evt.preventDefault();
+    return;
+  }
+  // Fence: a curved path with posts. Thin — no adjustable thickness.
+  if (shape === 'fence') {
+    window._wtDrawInProgress = {
+      type: 'fence',
+      color: '#6b5636',
+      points: [{ x: start.x, y: start.y }],
+    };
+    evt.preventDefault();
+    return;
+  }
+  // Landscape tools are "stamp:<kind>": a decorative icon sized by a two-point box.
+  if (shape.indexOf('stamp:') === 0) {
+    const kind = shape.slice('stamp:'.length);
+    window._wtDrawInProgress = {
+      type: 'stamp',
+      stampKind: kind,
+      color: window._wtDrawColor || '#4c8d4f',
+      points: [{ x: start.x, y: start.y }, { x: start.x, y: start.y }],
+    };
+    evt.preventDefault();
+    return;
+  }
   window._wtDrawInProgress = {
     type: shape,
     color: window._wtDrawColor || '#c0392b',
@@ -9476,7 +9745,8 @@ function onDrawMouseMove(evt) {
   const step = drawSnapStep();
   const cur = snapPt({ x: pos.dataX, y: pos.dataY }, step);
   const ip = window._wtDrawInProgress;
-  if (ip.type === 'freehand') { ip.points.push(cur); }
+  if (ip.type === 'stamp') { ip.points = [{ x: window._wtDrawStart.x, y: window._wtDrawStart.y }, cur]; }
+  else if (ip.type === 'wall' || ip.type === 'fence' || ip.type === 'freehand') { ip.points.push(cur); }
   else { const s = drawShapePoints(ip.type, window._wtDrawStart, cur); ip.points = s.points; ip.closed = s.closed; }
   drawRollLayoutCanvas(window._wtCurrentRollLayout);
   if (evt.cancelable) evt.preventDefault();
@@ -9487,6 +9757,13 @@ function onDrawMouseUp(evt) {
   const ip = window._wtDrawInProgress;
   window._wtDrawInProgress = null; window._wtDrawStart = null;
   if (!ip) return;
+  // A stamp placed with a click (no drag) gets a sensible default footprint so it
+  // isn't discarded as a stray click — the user can resize it afterward via Select.
+  if (ip.type === 'stamp' && !annotationHasSize(ip)) {
+    const p0 = ip.points[0];
+    const d = 3; // ~3 ft default box
+    ip.points = [{ x: p0.x - d/2, y: p0.y - d/2 }, { x: p0.x + d/2, y: p0.y + d/2 }];
+  }
   const proj = getCurrentProject();
   if (proj && proj.layout && annotationHasSize(ip)) {
     proj.layout.annotations = proj.layout.annotations || [];
@@ -9544,6 +9821,29 @@ function annoBBox(points) {
 // Handle anchor points in DATA coords. Corners ordered:
 // 0=(minX,minY) 1=(maxX,minY) 2=(maxX,maxY) 3=(minX,maxY); opposite of i is (i+2)%4.
 // Rotate handle sits a constant ~screen distance above top-center (larger data Y = up).
+// Position of a wall's thickness handle: offset perpendicular from the midpoint of
+// its first segment, at half the wall's thickness (a small minimum so it's grabbable
+// on a thin wall). Also returns the unit normal so a drag can be projected back onto
+// it to recover a new thickness. Pure.
+function wallThicknessHandle(a) {
+  if (!a || a.type !== 'wall' || !a.points || a.points.length < 2) return null;
+  const p0 = a.points[0], p1 = a.points[1];
+  const dx = p1.x - p0.x, dy = p1.y - p0.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-6) return null;
+  const nx = -dy / len, ny = dx / len;             // unit normal
+  const mid = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
+  const half = Math.max(0.4, (a.thicknessFt || 0.67) / 2); // keep it off the line
+  return { x: mid.x + nx * half, y: mid.y + ny * half, nx, ny, mid };
+}
+// New thickness from a dragged handle point: twice the perpendicular distance from the
+// centerline midpoint, clamped to a sane range (2in..48in).
+function wallThicknessFromDrag(handle, pt) {
+  const proj = (pt.x - handle.mid.x) * handle.nx + (pt.y - handle.mid.y) * handle.ny;
+  const t = Math.abs(proj) * 2;
+  return Math.min(4, Math.max(2/12, t));
+}
+
 function annoHandles(points, scale) {
   const b = annoBBox(points);
   const cx = (b.minX + b.maxX) / 2, cy = (b.minY + b.maxY) / 2;
@@ -9586,12 +9886,21 @@ function distToSegment(p, a, b) {
 // Is data-space point `pt` on/inside annotation `a`, within tolerance `tol`?
 function annoHitTest(pt, a, tol) {
   if (!a || !a.points || a.points.length < 2) return false;
+  // A stamp is grabbable anywhere inside its bounding box (its two points are the
+  // box diagonal), not just along that diagonal.
+  if (a.type === 'stamp') {
+    const xs = a.points.map(p => p.x), ys = a.points.map(p => p.y);
+    return pt.x >= Math.min(...xs) - tol && pt.x <= Math.max(...xs) + tol
+        && pt.y >= Math.min(...ys) - tol && pt.y <= Math.max(...ys) + tol;
+  }
   if (a.closed && a.fill && pointInPoly(pt, a.points)) return true;
   const n = a.points.length;
   const last = a.closed ? n : n - 1;
+  // A wall is a thick path — grabbable within half its thickness of the centerline.
+  const segTol = (a.type === 'wall') ? tol + (a.thicknessFt || 0.67) / 2 : tol;
   for (let i = 0; i < last; i++) {
     const p0 = a.points[i], p1 = a.points[(i + 1) % n];
-    if (distToSegment(pt, p0, p1) <= tol) return true;
+    if (distToSegment(pt, p0, p1) <= segTol) return true;
   }
   // closed unfilled shapes are still easy to grab from inside
   if (a.closed && pointInPoly(pt, a.points)) return true;
@@ -9610,6 +9919,14 @@ function annoSelectMouseDown(pos, evt) {
   if (window._wtSelectedAnno != null && annos[window._wtSelectedAnno]) {
     const a = annos[window._wtSelectedAnno];
     const h = annoHandles(a.points, scale);
+    // Wall thickness handle first — it sits outside the bbox so it won't collide.
+    if (a.type === 'wall') {
+      const th = wallThicknessHandle(a);
+      if (th && Math.hypot(pt.x - th.x, pt.y - th.y) <= handleTol) {
+        window._wtAnnoOp = { type: 'thickness', handle: th };
+        if (evt.cancelable) evt.preventDefault(); return;
+      }
+    }
     if (Math.hypot(pt.x - h.rotate.x, pt.y - h.rotate.y) <= handleTol) {
       window._wtAnnoOp = { type: 'rotate', center: h.center, startPoints: a.points.map(p => ({ ...p })), startAngle: Math.atan2(pt.y - h.center.y, pt.x - h.center.x) };
       if (evt.cancelable) evt.preventDefault(); return;
@@ -9665,6 +9982,8 @@ function annoSelectMouseMove(evt) {
     let ang = Math.atan2(pt.y - op.center.y, pt.x - op.center.x) - op.startAngle;
     if (step) { const q = Math.PI / 12; ang = Math.round(ang / q) * q; } // snap to 15°
     a.points = rotatePointsAbout(op.startPoints, op.center, ang);
+  } else if (op.type === 'thickness') {
+    a.thicknessFt = wallThicknessFromDrag(op.handle, pt);
   }
   drawRollLayoutCanvas(window._wtCurrentRollLayout);
   if (evt.cancelable) evt.preventDefault();
