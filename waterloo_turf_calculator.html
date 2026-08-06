@@ -1861,6 +1861,11 @@
         <label>Installed SqFt</label>
       </div>
       <div id="turfSqftRows"></div>
+      <div id="newProjPgShapeWrap" style="display:none;margin-top:10px;padding:10px;background:var(--surface2);border-radius:8px;">
+        <label style="font-size:12px;font-weight:600;color:var(--text-mid);display:block;margin-bottom:4px;">Which imported shape is the putting green?</label>
+        <select id="newProjPgShape" style="font-size:12px;padding:6px 8px;width:100%;"></select>
+        <div class="hint" style="margin-top:4px;">You marked a turf as Putting Green. Pick the measured shape it sits on — the base yard turf is then calculated as the outline minus this shape, and the green rolls on its own.</div>
+      </div>
     </div>
 
     <div style="margin-top:18px;">
@@ -3177,6 +3182,35 @@ function updateTurfSqftFields() {
     `;
   }).join('');
   prefillTurfSqftFromCsv();
+  refreshNewProjPgShape();
+}
+
+// Show/populate the "which shape is the putting green?" selector: only when at least
+// one selected turf is marked Putting Green AND the imported CSV has secondary shapes
+// to choose from. Setting this at creation is what makes the base yard compute as
+// outline-minus-green from the very first render — no fragile post-creation step.
+function refreshNewProjPgShape() {
+  const wrap = document.getElementById('newProjPgShapeWrap');
+  const sel = document.getElementById('newProjPgShape');
+  if (!wrap || !sel) return;
+  const anyPg = [...document.querySelectorAll('#turfSqftRows [data-field="role"]')]
+    .some(s => s.value === 'putting-green');
+  const shapes = (window._wtNewProjCsv && window._wtNewProjCsv.secondaryShapes) || [];
+  if (!anyPg || !shapes.length) { wrap.style.display = 'none'; return; }
+  const prev = sel.value;
+  sel.innerHTML = shapes.map((s, i) => {
+    const a = (s.area != null ? s.area : polygonArea(s.points));
+    return `<option value="${i}">${s.name || ('Shape ' + (i + 1))} (${a.toLocaleString(undefined,{maximumFractionDigits:1})} ft²)</option>`;
+  }).join('');
+  // Default to the largest secondary shape (a stray mis-measure is usually smaller).
+  if (prev && sel.querySelector(`option[value="${prev}"]`)) {
+    sel.value = prev;
+  } else {
+    let biggest = 0, bi = 0;
+    shapes.forEach((s, i) => { const a = (s.area != null ? s.area : polygonArea(s.points)); if (a > biggest) { biggest = a; bi = i; } });
+    sel.value = String(bi);
+  }
+  wrap.style.display = 'block';
 }
 
 function updateCheckboxStyle(cb) {
@@ -3345,10 +3379,22 @@ function createProject() {
 
   // Attach Moasure layout if imported during project creation
   if (window._wtNewProjCsv) {
+    // If the user marked a turf as Putting Green and picked which imported shape it
+    // sits on, designate that shape as the green now — so the base yard computes as
+    // outline-minus-green from the first render, and the green rolls on its own.
+    const secModes = {};
+    const anyPg = selectedTurf.some(r => r.role === 'putting-green');
+    const pgShapeSel = document.getElementById('newProjPgShape');
+    const secShapes = window._wtNewProjCsv.secondaryShapes || [];
+    if (anyPg && pgShapeSel && secShapes.length) {
+      const idx = parseInt(pgShapeSel.value, 10);
+      if (!isNaN(idx) && secShapes[idx]) secModes[idx] = 'putting-green';
+    }
     proj.layout = {
       points: window._wtNewProjCsv.points,
       area: window._wtNewProjCsv.area,
-      secondaryShapes: window._wtNewProjCsv.secondaryShapes || [],
+      secondaryShapes: secShapes,
+      secondaryShapeModes: secModes,
       fileName: window._wtNewProjCsv.fileName,
       imported: Date.now(),
       viewCentroid: centroidOf(window._wtNewProjCsv.points),

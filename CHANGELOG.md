@@ -5,6 +5,28 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 15) — ROOT CAUSE: new projects never designated the green SHAPE — now set at creation
+
+The reason base-minus-green kept coming out wrong across a fresh import: `createProject`
+attached the CSV's secondary shapes but set **no `secondaryShapeModes`** — so every
+imported shape, including the green, defaulted to `'ignore'`. Marking a turf PRODUCT as
+Putting Green in the dialog (which already existed) never linked to the green SHAPE, so
+`getPuttingGreenShapeArea` returned 0 and the base subtracted nothing. Every later fix
+was downstream of a green that was never designated in the first place.
+
+The New Project dialog now shows a **"Which imported shape is the putting green?"**
+selector whenever a turf is marked Putting Green and the CSV has secondary shapes. It
+lists each measured shape by name and area and defaults to the largest (a stray
+mis-measure is usually smaller). On create, the picked shape is set to `putting-green`
+mode — so the base yard computes as outline-minus-green, and the green rolls on its own,
+from the very first render. No fragile post-creation designation step.
+
+Tests **1461 → 1468** (README **1468**): createProject sets secondaryShapeModes from
+the selector and designates the picked shape as putting-green; the selector refresh and
+control exist; and once designated, base = outline − green (82.37) and green = 91.52.
+
+---
+
 ## 2026-07-22 (cont'd 14) — Designating the green now updates the base row immediately; live link syncs base + PG rows
 
 Matches the real workflow: import → create → designate which shape is the putting green.

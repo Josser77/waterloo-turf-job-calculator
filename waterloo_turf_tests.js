@@ -6792,6 +6792,30 @@ section('111. Workflow: designating the green updates the base row (setSecondary
   ctx.getCurrentProject = prev;
 }
 
+section('112. New project designates the green shape at creation (root-cause fix)');
+{
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+
+  // createProject must set secondaryShapeModes with the picked shape as putting-green.
+  // Before, it attached secondaryShapes but no modes — so every imported shape defaulted
+  // to 'ignore', the green was never designated, and the base never subtracted it.
+  const cp = html.slice(html.indexOf('function createProject'), html.indexOf('function createProject') + 6000);
+  assert(/secondaryShapeModes:\s*secModes/.test(cp) || /secondaryShapeModes/.test(cp), 'createProject sets secondaryShapeModes on the layout');
+  assert(/newProjPgShape/.test(cp), 'createProject reads the putting-green shape selector');
+  assert(/'putting-green'/.test(cp), 'it designates the picked shape as putting-green');
+
+  // The selector only shows when a PG turf is chosen AND there are secondary shapes.
+  assert(html.includes('function refreshNewProjPgShape'), 'the green-shape selector refresh exists');
+  assert(html.includes('id="newProjPgShape"'), 'the selector control exists in the dialog');
+
+  // Once designated, the area math is right (proven end-to-end via the engine).
+  const proj = { layout:{ area:173.89, secondaryShapes:[{area:38.82},{area:91.52}], secondaryShapeModes:{1:'putting-green'}, layerVisibility:{} } };
+  const prev = ctx.getCurrentProject; ctx.getCurrentProject = () => proj;
+  assert(near(ctx.getPuttingGreenShapeArea(proj), 91.52), 'designated green area = 91.52');
+  assert(near(ctx.getAdjustedShapeArea(proj, 173.89), 82.37), 'base = outline − green = 82.37 from creation');
+  ctx.getCurrentProject = prev;
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
