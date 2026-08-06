@@ -12137,17 +12137,19 @@ function computeApplyAreaForRow(proj, layout, row) {
   }
   let area;
   if (layout) {
-    // Include EVERY install layer, not just the primary. A second imported CSV set
-    // to Install is turf you lay and infill, so its area belongs in the row's
-    // Installed SqFt — otherwise Apply pushed a layer-aware Ordered SqFt (which
-    // reads _combined) next to a primary-only Installed SqFt on the same click, and
-    // a 2-layer job wrote 422 ft² under a 566.8 ft² header.
-    // This is the same expression the Installed metric uses: take the combined raw
-    // area, but swap the primary's raw area for its ADJUSTED one so the primary's
-    // exclusions/cutouts still come off.
+    // Base yard Installed = adjusted primary (outline minus green/cutouts) PLUS any
+    // OTHER install layers (e.g. a detached side yard) — but NOT the putting green.
+    // The green is rolled as its own layer now, and its area belongs on the PG row,
+    // not the base. We start from the same combined expression the Installed metric
+    // uses (adjusted primary + all other layers) and then SUBTRACT any putting-green
+    // layers' area, so the green doesn't inflate the base back to the full outline.
     const combo = layout._combined;
     const adj = layout.adjustedShapeArea != null ? layout.adjustedShapeArea : layout.shapeArea;
-    area = combo ? (combo.area - layout.shapeArea + adj) : adj;
+    let greenLayerArea = 0;
+    (layout._installLayers || []).forEach(item => {
+      if (item && item.isPuttingGreen && item.layout) greenLayerArea += (item.layout.shapeArea || 0);
+    });
+    area = combo ? (combo.area - layout.shapeArea + adj - greenLayerArea) : adj;
   } else {
     area = getAdjustedShapeArea(proj, (proj.layout && proj.layout.area) || 0);
   }

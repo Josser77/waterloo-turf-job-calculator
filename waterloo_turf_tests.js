@@ -6713,6 +6713,51 @@ section('109. Scrap measured against the rolled outline, not the green-subtracte
   ctx.getCurrentProject = prev;
 }
 
+section('110. Green-as-layer must not inflate the base row Installed (regression)');
+{
+  // After the green rolls as its own layer, combo.area includes it. The base row's
+  // Installed must still be outline − green, NOT the full outline. Bug was: base row
+  // showed 173.95 (full outline) instead of 82.43.
+  const proj = { layout:{ secondaryShapes:[{area:91.52}], secondaryShapeModes:{0:'putting-green'}, layerVisibility:{} } };
+  const prev = ctx.getCurrentProject; ctx.getCurrentProject = () => proj;
+  const layout = {
+    shapeArea: 173.95, adjustedShapeArea: 82.43,
+    _combined: { area: 265.47 }, // primary 173.95 + green 91.52
+    _installLayers: [
+      { id:'primary', isPuttingGreen:false, layout:{ shapeArea:173.95 } },
+      { id:0, isPuttingGreen:true, layout:{ shapeArea:91.52 } },
+    ],
+  };
+  const base = ctx.computeApplyAreaForRow(proj, layout, { role:'base' });
+  assert(near(base.area, 82.43), 'base row = outline minus green (82.43), NOT the full outline');
+
+  // A base + a genuine side-yard install layer (non-green) still SUMS both.
+  const proj2 = { layout:{ secondaryShapes:[], secondaryShapeModes:{} } };
+  ctx.getCurrentProject = () => proj2;
+  const sideLayout = {
+    shapeArea: 400, adjustedShapeArea: 400,
+    _combined: { area: 550 }, // primary 400 + side 150
+    _installLayers: [ { id:'primary', isPuttingGreen:false, layout:{shapeArea:400} }, { id:0, isPuttingGreen:false, layout:{shapeArea:150} } ],
+  };
+  assert(near(ctx.computeApplyAreaForRow(proj2, sideLayout, {role:'base'}).area, 550), 'a non-green side yard is still added to the base');
+
+  // Base + side yard + green: base = adjusted primary + side, minus green.
+  const proj3 = { layout:{ secondaryShapes:[{area:90}], secondaryShapeModes:{1:'putting-green'} } };
+  ctx.getCurrentProject = () => proj3;
+  const mixLayout = {
+    shapeArea: 400, adjustedShapeArea: 310, // 400 primary − 90 green
+    _combined: { area: 400 + 150 + 90 },    // primary + side + green
+    _installLayers: [
+      { id:'primary', isPuttingGreen:false, layout:{shapeArea:400} },
+      { id:0, isPuttingGreen:false, layout:{shapeArea:150} },  // side yard
+      { id:1, isPuttingGreen:true,  layout:{shapeArea:90} },   // green
+    ],
+  };
+  assert(near(ctx.computeApplyAreaForRow(proj3, mixLayout, {role:'base'}).area, 460), 'base = adj primary (310) + side yard (150), green excluded = 460');
+
+  ctx.getCurrentProject = prev;
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

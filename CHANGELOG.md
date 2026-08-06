@@ -5,6 +5,29 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 13) — Fix: green-as-layer inflated the base row's Installed back to the full outline
+
+Regression from step 1. Once the green rolled as its own install layer, `_combined.area`
+included it — and the base row's Installed formula (`combo.area − shapeArea + adj`) added
+every install layer, so it added the green back. The base row showed the FULL outline
+(173.95) instead of outline−green (82.43), and base infill followed it (medium sand
+sized to 173.95, not 82.43).
+
+`computeApplyAreaForRow` for a base/alt row now subtracts any putting-green layers'
+area from that combined expression: base = adjusted primary + other install layers −
+green layers. A detached side-yard install layer is still added (unchanged); only the
+green is excluded (it belongs on the PG row).
+
+Verified on the reference job: base row Installed 82.43, base (medium sand) infill 82.43,
+PG row 91.52, PG (putting sand) infill 91.52. The top-bar Installed metric already netted
+correctly to the outline (total turf 82+92); it was the base ROW that was wrong.
+
+Tests **1454 → 1457** (README **1457**): base row = outline−green with the green as a
+layer; a non-green side yard is still summed; and a base + side yard + green job gives
+adjusted primary + side yard, green excluded.
+
+---
+
 ## 2026-07-22 (cont'd 12) — Base scrap measured against the rolled outline (base/PG split, step 3)
 
 Final step of the base/PG roll split. The single-layer scrap line computed
