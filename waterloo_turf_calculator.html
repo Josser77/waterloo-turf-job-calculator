@@ -12087,6 +12087,7 @@ function applyRollLayoutToTurf() {
   if (inst.ok) row.installedSqFt = inst.area;
   save();
   calcTurfRow(i);
+  autoPopulateInfill(); // installed changed → infill area follows (base = outline − green)
   renderTurfRows(proj);
   const totalRolls = combined ? combined.rolls : countRollsAndPieces(layout).totalRolls;
   const totalPieces = combined ? combined.pieces : countRollsAndPieces(layout).totalPieces;
@@ -12195,6 +12196,7 @@ function syncLinkedTurfRow() {
   if (changed) {
     save();
     calcTurfRow(i);
+    autoPopulateInfill(); // installed changed → base/PG infill area must follow it
     renderTurfRows(proj);
   }
   updateLiveLinkStatus(parts.length
@@ -12240,6 +12242,7 @@ function applyLayoutAreaToTurf() {
   row.installedSqFt = res.area;
   save();
   calcTurfRow(i);
+  autoPopulateInfill(); // installed changed → infill area follows (base = outline − green)
   renderTurfRows(proj);
   alert(`Applied ${res.area.toLocaleString(undefined,{maximumFractionDigits:2})} ft² to ${row.product || 'turf row '+(i+1)}.`);
 }

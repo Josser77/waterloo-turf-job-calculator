@@ -6565,6 +6565,29 @@ section('104. Base-minus-green install model (splitInstallArea)');
   assert(near(S(null, undefined, NaN).std, 0), 'null/undefined/NaN → 0');
 }
 
+section('105. Installed → infill cascade (base minus green flows to infill)');
+{
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+
+  // The three programmatic writers of a base row's Installed SqFt must re-populate
+  // infill afterward, or the infill keeps a stale full-outline area. Guard the wiring.
+  // syncLinkedTurfRow (live link), applyLayoutAreaToTurf (Apply Installed), and the
+  // Apply-Ordered path each set installedSqFt then must call autoPopulateInfill.
+  const syncFn = html.slice(html.indexOf('function syncLinkedTurfRow'), html.indexOf('function scheduleLinkedSync'));
+  assert(/autoPopulateInfill\(\)/.test(syncFn), 'live-link sync re-populates infill after setting Installed');
+
+  const applyInst = html.slice(html.indexOf('function applyLayoutAreaToTurf'), html.indexOf('function applyLayoutAreaToTurf') + 1600);
+  assert(/autoPopulateInfill\(\)/.test(applyInst), 'Apply Installed re-populates infill');
+
+  // Invariant: infill area derives from the (now green-subtracted) base install.
+  // Modeled directly via infillAreaForTier, which autoPopulateInfill uses.
+  const proj = {
+    turf: [ { role:'base', installedSqFt: 82.37 }, { role:'putting-green', installedSqFt: 91.52 } ],
+  };
+  assert(near(ctx.infillAreaForTier(proj, 'standard'), 82.37), 'base infill area = base install (outline − green) = 82.37');
+  assert(near(ctx.infillAreaForTier(proj, 'putting-green'), 91.52), 'PG infill area = green = 91.52');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

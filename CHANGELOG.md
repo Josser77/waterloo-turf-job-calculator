@@ -5,6 +5,28 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 8) — Infill now follows the corrected base install (was left stale)
+
+Follow-on to cont'd 7. The base row's Installed SqFt was being set correctly to the
+outline-minus-green figure, but the **infill rows weren't re-derived from it** — so in
+the Quote Builder the base infill kept its old full-outline area even though Installed
+had dropped. The green wasn't being subtracted from the infill.
+
+Cause: all three paths that set a turf row's Installed programmatically — the live link
+(`syncLinkedTurfRow`), Apply Ordered SqFt, and Apply Installed SqFt — updated the turf
+row and recomputed its own linear/ordered figures via `calcTurfRow`, but none called
+`autoPopulateInfill`, and `calcTurfRow` doesn't touch infill. So Installed → infill
+never cascaded.
+
+All three now call `autoPopulateInfill()` right after setting Installed, so base infill
+follows the base install (outline − green) and PG infill follows the green. For the
+reference job base infill is now on 82.37 (base sand), PG infill on 91.52 (PG sand).
+
+Tests **1421 → 1425** (README **1425**): the live-link and Apply-Installed paths call
+autoPopulateInfill; base infill area = base install (82.37); PG infill = green (91.52).
+
+---
+
 ## 2026-07-22 (cont'd 7) — Base turf installs on outline MINUS the green (money-path model corrected)
 
 Corrects how a base + putting-green job accounts for turf, infill, and labor. The green
