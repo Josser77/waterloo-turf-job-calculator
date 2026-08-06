@@ -5,6 +5,120 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 12) — Base scrap measured against the rolled outline (base/PG split, step 3)
+
+Final step of the base/PG roll split. The single-layer scrap line computed
+`scrap = totalOrdered − adjustedArea`, where adjustedArea is the base outline MINUS the
+green. Since the base rolls the full outline and cuts the green out on site, that
+counted the intentionally-cut green footprint as roll waste — inflating the scrap % (the
+71% in the screenshot).
+
+Scrap now measures against `layout.shapeArea` (the rolled outline), so it reflects
+actual roll waste. For the reference job the base drops from ~71% to ~40%. The green's
+own roll waste is accounted for in its own layer, and the combined (multi-layer) scrap
+path was already correct — it sums each layer's `ordered − its own rolled area`.
+
+That completes the base/PG roll split: the green rolls as its own layer (step 1), each
+row draws its order from its own plan (step 2), and scrap reflects real roll waste
+(step 3). End-to-end on the reference job (outline 174, green 92): base Installed 82 /
+Order 300, PG Installed 92 / Order 150, 2 rolls / 3 pieces, scrap ~41%, and Results
+lists "Primary Shape" and "Putting Green" separately.
+
+Tests **1448 → 1454** (README **1454**): scrap subtracts the rolled outline not the
+green-subtracted area; the base waste % is a sane ~40% not ~70%; and the combined
+scrap equals ordered − total rolled area.
+
+---
+
+## 2026-07-22 (cont'd 11) — Each turf row draws its order from its own roll plan (base/PG split, step 2)
+
+Step 2 of the base/PG roll split. With the green now rolled as its own layer (step 1),
+the order routing was still applying one combined figure to one selected row — which is
+why the screenshot showed the base row's SqFt to Order at 0 with the whole order dumped
+on the PG row.
+
+New pure `orderedFromLayoutForRole(layout, role)` sums the roll plan's per-layer order
+by role: a base/alt row draws from the base primary (+ any non-green install layers); a
+putting-green row draws only from the green layer. Both the **live link** and the
+**Apply Ordered SqFt** button now use it:
+
+- Live link syncs the selected target row (as before) **plus every putting-green row**,
+  so the green's order always lands on the PG row without pointing the link at it. Base
+  order → base row, green order → PG row.
+- Apply Ordered applies the picked row's own-role order, so applying to the base row no
+  longer pulls in the green's footage.
+
+A single-layer job (no green) is unchanged: the base row gets the whole plan and a PG
+row gets null (left untouched, not zeroed).
+
+Caught a latent PG turf-material error while updating the fringe-COGS test: the test
+assumed the green's order was `ceil(area/15)*15`, but the green in that fixture is 20 ft
+wide against a 15 ft roll — it can't be covered by one strip, so the real roll plan
+orders 300 ft², not 210. Now that the PG row draws from the green's actual roll plan,
+its turf material is correct (300 × $3.50), where before it was under-ordered.
+
+Still to come: step 3 — the base scrap %, still measured against the green-subtracted
+area (inflating it) rather than the rolled outline.
+
+Tests **1438 → 1448** (README **1448**): base row ← base plan, PG row ← green plan,
+base sums multiple non-green layers, single-layer PG → null, and the live-link wiring
+routes every PG row.
+
+---
+
+## 2026-07-22 (cont'd 10) — Putting green now rolls as its own layer (base/PG roll split, step 1)
+
+First step of giving a base + green job two independent roll plans. The green was a
+cutout — subtracted from the base but never rolled, so Results showed one combined plan
+and the green had no rolls/pieces of its own.
+
+`computeInstallLayerLayouts` now rolls the `putting-green` layer too (not just
+`install` layers): its own roll plan, labeled "Putting Green", cut from its **own**
+rolls (it's a different product from the base, so it never pools rolls with base turf).
+The base still rolls the **full outline** (green filled in, cut to fit on site) — that
+part was already correct; the green is simply rolled alongside it.
+
+Verified there's no area double-count: the green is subtracted from the base's Installed
+figure and rolled back as its own layer, and the Installed metric nets it out — for the
+reference job base install stays ~82, and total Installed = ~174 (82 base + 92 green),
+not 266. Base and green now produce separate rolls/pieces, which the per-layer Results
+breakdown renders by layer name automatically.
+
+Still to come (next steps): route each turf row's order to its own plan (base row ←
+base rolls, PG row ← green rolls), and fix the base scrap % (currently measured against
+the green-subtracted area, inflating it).
+
+Tests **1429 → 1438** (README **1438**): the green rolls as a second layer tagged
+isPuttingGreen, on its own rolls; the base still rolls the full ~174 outline; and the
+Installed metric nets to ~174 rather than double-counting to 266.
+
+---
+
+## 2026-07-22 (cont'd 9) — Apply Area is role-aware: the PG row gets the green's area, not the base's
+
+The Putting Green turf row was showing ~82.4 ft² (the base yard's outline-minus-green
+figure) instead of the green's own 91.52 — its Installed SqFt and infill were both
+wrong. Cause: `computeApplyAreaForRow` was role-blind — it returned the base-adjusted
+area for every row. A base row wants outline − green; a PG row wants the green itself.
+
+Now: a `putting-green` row returns `getPuttingGreenShapeArea` (the green's area); a base
+row returns outline − green as before; alt-turf stays blocked. Since the three Installed
+writers cascade to infill (cont'd 8), the PG infill now follows the green too.
+
+Two old-model tests that asserted the PG row used the base-adjusted area were the bug
+written down; updated to expect the green's own area.
+
+Tests **1425 → 1429** (README **1429**): base row → 82.37, PG row → 91.52, alt-turf
+blocked, and a PG row with no green shape → no-area.
+
+NOTE — three related issues from the same report are NOT yet addressed and need a larger
+change (the putting green becoming a first-class install layer with its own roll plan,
+while still subtracting its footprint from the base install): (a) Results doesn't break
+out rolls/pieces by base vs PG, (b) the layout's per-layer base numbers don't subtract
+the green, (c) base SqFt to Order. Tracked for a dedicated session.
+
+---
+
 ## 2026-07-22 (cont'd 8) — Infill now follows the corrected base install (was left stale)
 
 Follow-on to cont'd 7. The base row's Installed SqFt was being set correctly to the

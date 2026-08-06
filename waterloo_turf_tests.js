@@ -1019,7 +1019,7 @@ section('17. Multi-layer CSV parsing & secondary shapes');
 
     applyTarget = '2';
     ctxA.applyLayoutAreaToTurf();
-    assert(near(ctxA.getCurrentProject().turf[2].installedSqFt, 1300), 'Apply Area → PUTTING-GREEN row does NOT add the green back (1300)');
+    assert(near(ctxA.getCurrentProject().turf[2].installedSqFt, 150), 'Apply Area → PUTTING-GREEN row = the green\'s own area (150), not the base');
 
     // ── computeApplyAreaForRow (pure, role-aware): the decision the DOM wrapper uses ──
     {
@@ -1028,7 +1028,7 @@ section('17. Multi-layer CSV parsing & secondary shapes');
       const baseRes = ctxA.computeApplyAreaForRow(projH, layH, { role:'base' });
       assert(baseRes.ok && near(baseRes.area, 480), 'computeApplyAreaForRow: base is the adjusted area with the green already subtracted — NOT added back (480)');
       const pgRes = ctxA.computeApplyAreaForRow(projH, layH, { role:'putting-green' });
-      assert(pgRes.ok && near(pgRes.area, 480), 'computeApplyAreaForRow: putting-green uses the adjusted area as-is (480)');
+      assert(pgRes.ok && near(pgRes.area, 20), 'computeApplyAreaForRow: putting-green row = the green\'s own area (20), not the base yard');
       const altRes = ctxA.computeApplyAreaForRow(projH, layH, { role:'alt-turf' });
       assert(!altRes.ok && altRes.reason === 'alt-turf-priced-on-base', 'computeApplyAreaForRow: alt-turf is blocked (priced on base yard area)');
       const zeroRes = ctxA.computeApplyAreaForRow({ layout:{} }, { adjustedShapeArea:0, shapeArea:0 }, { role:'base' });
@@ -2670,10 +2670,13 @@ section('37. Putting green fringe: layer mode, config persistence, and quote cos
     // Sanity: total COGS for the PG card includes fringe cost as an additive component.
     // Base row Installed (1800) is now the base turf area (outline 2000 − green 200).
     // Standard-yard labor is on that base area directly (the green is cut out and gets
-    // its own PG turf + PG-rate labor). So:
+    // its own PG turf + PG-rate labor). PG turf material now comes from the green's OWN
+    // roll plan (the PG rolls as its own layer): the green is 20 ft wide but the roll is
+    // 15 ft, so it can't be covered by one 15 ft strip — the plan orders 300 ft²
+    // (not the naive 210), and PG turf material is 300 × $3.50 = $1,050. So:
     // Std yard: 1800*$8=$14400; PG labor: 200*$12=$2400; base turf mat: 1800*2.50=$4500;
-    // PG turf mat: order rounds to a whole roll → ceil(200/15)*15=210, ×$3.50=$735; fringe: $304
-    const expectedCogs = 1800*8 + 200*12 + 1800*2.50 + (Math.ceil(200/15)*15)*3.50 + 304;
+    // PG turf mat: 300*$3.50=$1,050; fringe: $304
+    const expectedCogs = 1800*8 + 200*12 + 1800*2.50 + 300*3.50 + 304;
     const priceMatch = withPgCard.match(/opt-price\">(\$[\d,]+\.\d\d)<\/div>/);
     assert(priceMatch, 'PG card has a price figure');
     const actualCogs = parseFloat(priceMatch[1].replace(/[$,]/g,''));
@@ -6586,6 +6589,128 @@ section('105. Installed → infill cascade (base minus green flows to infill)');
   };
   assert(near(ctx.infillAreaForTier(proj, 'standard'), 82.37), 'base infill area = base install (outline − green) = 82.37');
   assert(near(ctx.infillAreaForTier(proj, 'putting-green'), 91.52), 'PG infill area = green = 91.52');
+}
+
+section('106. Apply Area is role-aware: PG row gets the green, base gets outline-minus-green');
+{
+  const proj = {
+    turf: [ { role:'base' }, { role:'putting-green' }, { role:'alt-turf' } ],
+    layout: { area:173.89, shapeArea:173.89, adjustedShapeArea:82.37,
+      secondaryShapes:[{area:38.82},{area:91.52}],
+      secondaryShapeModes:{0:'ignore',1:'putting-green'}, layerVisibility:{0:false} },
+  };
+  const base = ctx.computeApplyAreaForRow(proj, proj.layout, proj.turf[0]);
+  const pg   = ctx.computeApplyAreaForRow(proj, proj.layout, proj.turf[1]);
+  const alt  = ctx.computeApplyAreaForRow(proj, proj.layout, proj.turf[2]);
+  assert(base.ok && near(base.area, 82.37), 'base row = outline minus green (82.37)');
+  assert(pg.ok && near(pg.area, 91.52), 'PG row = the green area (91.52), NOT the base');
+  assert(!alt.ok && alt.reason === 'alt-turf-priced-on-base', 'alt-turf still blocked');
+
+  // A PG row with no green designated → no-area (nothing to apply).
+  const noGreen = { turf:[{role:'putting-green'}], layout:{ area:100, adjustedShapeArea:100, secondaryShapes:[], secondaryShapeModes:{} } };
+  const r = ctx.computeApplyAreaForRow(noGreen, noGreen.layout, noGreen.turf[0]);
+  assert(!r.ok && r.reason === 'no-area', 'PG row with no green shape → no-area');
+}
+
+section('107. Putting green rolls as its own layer (step 1 of base/PG roll split)');
+{
+  const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, allowJoinSeams:false };
+  const outline = [{x:0,y:0},{x:10,y:0},{x:10,y:17.4},{x:0,y:17.4}];          // ~174
+  const green   = [{x:0.2,y:4},{x:9.8,y:4},{x:9.8,y:13.6},{x:0.2,y:13.6}];    // ~92
+  const primaryLayout = ctx.computeRollLayout(outline, 0, 0, opts);
+  const proj = { layout:{ points:outline, secondaryShapes:[{points:green,area:92}],
+    secondaryShapeModes:{0:'putting-green'}, layerVisibility:{} } };
+  const prevGetProj = ctx.getCurrentProject; ctx.getCurrentProject = () => proj;
+  const secShapes = [{points:green, displayPoints:green, area:92, name:'Putting Green'}];
+  const layers = ctx.computeInstallLayerLayouts(proj, primaryLayout, secShapes, 0, 0, opts);
+
+  // The green is now rolled as its own layer, alongside the primary.
+  assert(layers.length === 2, 'primary + putting-green = two rolled layers');
+  const pg = layers.find(l => l.isPuttingGreen);
+  assert(pg, 'the green layer is tagged isPuttingGreen');
+  assert(pg.name === 'Putting Green', 'the green layer is labeled for the breakdown');
+  assert(pg.rollGroup === 'own', 'the green is cut from its OWN rolls (different product from base)');
+  assert(near(pg.layout.shapeArea, 92, 1.5), 'the green rolls its own ~92 ft² shape');
+
+  // The base still rolls the FULL outline (green filled in), not the subtracted shape.
+  const base = layers.find(l => l.id === 'primary');
+  assert(near(base.layout.shapeArea, 174, 1), 'the base still rolls the full outline (~174), cut to fit on site');
+
+  // Area nets out: the green is subtracted from the base install but rolled back as its
+  // own layer — the Installed metric must equal total turf (base 82 + green 92 = ~174),
+  // NOT double-count to 266.
+  const combined = ctx.sumInstallLayouts(layers);
+  const adjusted = ctx.getAdjustedShapeArea(proj, primaryLayout.shapeArea);
+  const baseInstalled = combined.area - primaryLayout.shapeArea + adjusted;
+  assert(near(adjusted, 82, 1), 'base install (adjusted) = outline minus green (~82)');
+  assert(near(baseInstalled, 174, 1.5), 'Installed metric = total turf (~174), green not double-counted');
+  assert(combined.rolls >= 2, 'base and green produce separate rolls');
+
+  ctx.getCurrentProject = prevGetProj;
+}
+
+section('108. Per-row order routing (base row ← base plan, PG row ← green plan)');
+{
+  const F = ctx.orderedFromLayoutForRole;
+  const layer = (isPG, ordered) => ({ isPuttingGreen: isPG, layout: { totalOrdered: ordered } });
+
+  // Two-layer job: base primary (300) + green (150).
+  const layout = { _installLayers: [ layer(false, 300), layer(true, 150) ] };
+  assert(F(layout, 'base') === 300, 'base row draws the base plan order (300)');
+  assert(F(layout, 'putting-green') === 150, 'PG row draws the green plan order (150), NOT the base');
+  assert(F(layout, 'alt-turf') === 300, 'alt-turf draws the base plan (priced on base yard)');
+
+  // Base + a second non-green install layer (e.g. a detached side yard): base sums both.
+  const twoBase = { _installLayers: [ layer(false, 300), layer(false, 120), layer(true, 150) ] };
+  assert(F(twoBase, 'base') === 420, 'base sums all non-green layers (300+120)');
+  assert(F(twoBase, 'putting-green') === 150, 'PG still only the green layer');
+
+  // Single-layer job (no green layer at all): base gets the whole plan, PG gets null so
+  // the caller leaves the PG row untouched rather than zeroing it.
+  const single = { totalOrdered: 285 };
+  assert(F(single, 'base') === 285, 'single-layer base = whole plan');
+  assert(F(single, 'putting-green') === null, 'single-layer PG row → null (no green layer to draw from)');
+
+  // No layout → null.
+  assert(F(null, 'base') === null, 'no layout → null');
+
+  // The live link routes the PG row from the green plan without a manual target: the
+  // sync writes every PG row plus the selected target. Guard the wiring.
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  const syncFn = html.slice(html.indexOf('function syncLinkedTurfRow'), html.indexOf('function scheduleLinkedSync'));
+  assert(/orderedFromLayoutForRole/.test(syncFn), 'live link uses the role-aware order');
+  assert(/putting-green/.test(syncFn) && /forEach/.test(syncFn), 'live link syncs every PG row, not just the picked target');
+}
+
+section('109. Scrap measured against the rolled outline, not the green-subtracted area (step 3)');
+{
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // The single-layer scrap line must subtract the rolled shapeArea, not adjustedArea.
+  assert(/layout\.scrap = layout\.totalOrdered - layout\.shapeArea/.test(html),
+    'primary scrap = ordered − rolled outline (not the green-subtracted install area)');
+  assert(!/layout\.scrap = layout\.totalOrdered - adjustedArea/.test(html),
+    'the old adjusted-area scrap baseline is gone');
+
+  // Numeric: a 174 outline that orders 300, with a 92 green inside it.
+  const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, allowJoinSeams:false };
+  const outline = [{x:0,y:0},{x:10,y:0},{x:10,y:17.4},{x:0,y:17.4}];
+  const L = ctx.computeRollLayout(outline, 0, 0, opts);
+  const orderedBase = L.totalOrdered, outlineArea = L.shapeArea;
+  const scrapVsOutline = orderedBase - outlineArea;
+  const scrapVsInstall = orderedBase - 82; // the old, inflated baseline
+  assert(scrapVsOutline < scrapVsInstall, 'measuring against the rolled outline is less waste than against install-minus-green');
+  const pctOutline = scrapVsOutline / orderedBase * 100;
+  assert(pctOutline < 50, 'base roll waste is a sane ~40%, not the inflated ~70%');
+
+  // Combined (green as its own layer): scrap = ordered − sum of rolled shape areas.
+  const green = [{x:0.2,y:4},{x:9.8,y:4},{x:9.8,y:13.6},{x:0.2,y:13.6}];
+  const proj = { layout:{ points:outline, secondaryShapes:[{points:green,area:92}], secondaryShapeModes:{0:'putting-green'}, layerVisibility:{} } };
+  const prev = ctx.getCurrentProject; ctx.getCurrentProject = () => proj;
+  const layers = ctx.computeInstallLayerLayouts(proj, L, [{points:green,displayPoints:green,area:92,name:'Putting Green'}], 0, 0, opts);
+  const combined = ctx.sumInstallLayouts(layers);
+  assert(near(combined.scrap, combined.ordered - combined.area, 0.01), 'combined scrap = ordered − total rolled area');
+  assert(combined.wastePct < 50, 'combined base+green waste is sane (~40%), not inflated');
+  ctx.getCurrentProject = prev;
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

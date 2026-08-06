@@ -8018,7 +8018,15 @@ function computeInstallLayerLayouts(proj, primaryLayout, secondaryShapes, rotati
   (secondaryShapes || []).forEach((s, i) => {
     if (vis[i] === false) return; // deselected layer: not installed, not rolled, not counted
     const mode = modes[i] || 'ignore';
-    if (mode !== 'install') return;
+    // Roll 'install' layers AND the 'putting-green' layer. The green is a separate
+    // turf product laid in its own footprint, so it gets its own roll plan (rolls,
+    // pieces, ordered) exactly like an install layer — the base still rolls the full
+    // outline (green filled in) and is cut to fit on site. The green's area is already
+    // subtracted from the base's INSTALLED figure elsewhere; rolling it here does not
+    // double-count area (the Installed metric nets it back out), it just gives the
+    // green its own order and its own line in the Results breakdown.
+    const isPG = (mode === 'putting-green');
+    if (mode !== 'install' && !isPG) return;
     const pts = s.displayPoints || s.points;
     if (!pts || pts.length < 3) return;
     // Each install layer can roll in its own direction / seam offset; falls back
@@ -8026,12 +8034,15 @@ function computeInstallLayerLayouts(proj, primaryLayout, secondaryShapes, rotati
     const rs = getLayerRoll(proj, i, rotation, translation);
     out.push({
       id: i,
-      name: s.name,
+      name: isPG ? (s.name || 'Putting Green') : s.name,
+      isPuttingGreen: isPG,
       layout: computeRollLayout(pts, rs.rotation, rs.translation, { ...opts, keyPrefix: 'L' + i + '_' }),
       rollRotation: rs.rotation,
       rollTranslation: rs.translation,
       rollOverridden: rs.overridden,
-      rollGroup: getLayerRollGroup(proj, i),
+      // The green is a different product from the base turf, so it's cut from its own
+      // rolls — never pooled with base rolls, regardless of the layer's roll-group.
+      rollGroup: isPG ? 'own' : getLayerRollGroup(proj, i),
     });
   });
   return out;
@@ -8203,11 +8214,18 @@ function renderRollLayout() {
   layout.layerOffsets = layerOffsets;
 
   // Adjust for secondary shapes (e.g. excluded cutouts from a multi-layer
-  // Moasure file) — recompute scrap/wastePct against the adjusted area
-  // without altering the underlying roll geometry.
+  // Moasure file). Scrap is ROLL WASTE — ordered minus the shape the plan actually
+  // rolls. The primary rolls the FULL outline (the green is filled in and cut to fit
+  // on site), so scrap is measured against that rolled outline (layout.shapeArea), NOT
+  // the green-subtracted install area. Measuring against the install area wrongly
+  // counted the intentionally-cut-out green footprint as roll waste, inflating the %.
+  // The green's own roll waste is accounted for in its own layer.
+  // (A true 'exclude' hole is different from a putting green — but for scrap purposes
+  // the base still rolls over it and cuts to fit, so the rolled outline is the right
+  // denominator there too.)
   const adjustedArea = getAdjustedShapeArea(proj, layout.shapeArea);
   layout.adjustedShapeArea = adjustedArea;
-  layout.scrap = layout.totalOrdered - adjustedArea;
+  layout.scrap = layout.totalOrdered - layout.shapeArea;
   layout.wastePct = layout.totalOrdered > 0 ? (layout.scrap / layout.totalOrdered * 100) : 0;
 
   // "Rolls" = how many physical rolls of turf need to be purchased (numSegments
@@ -12076,9 +12094,12 @@ function applyRollLayoutToTurf() {
     || computeRollLayout(getBaseLayoutPoints(proj), proj.layout.rotation||0, proj.layout.translation||0, getRollOpts(proj));
 
   const combined = layout._combined || null;
-  const orderedTotal = combined ? combined.ordered : layout.totalOrdered;
-  const linearTotal = combined ? combined.linear : layout.linearFt;
   const row = proj.turf[i];
+  // Order for THIS row's role: a base/alt row gets the base plan, a PG row gets the
+  // green plan — so applying to the base row doesn't pull in the green's footage.
+  const roleOrdered = orderedFromLayoutForRole(layout, row.role || 'base');
+  const orderedTotal = (roleOrdered != null) ? roleOrdered : (combined ? combined.ordered : layout.totalOrdered);
+  const linearTotal = combined ? combined.linear : layout.linearFt;
   row.sqFtToOrder = Math.round(orderedTotal * 100) / 100;
   // Also set this row's Installed SqFt (role-aware) so the downstream materials —
   // infill (which derives its area from Installed SqFt), labor, and rock — populate
@@ -12107,6 +12128,13 @@ function applyRollLayoutToTurf() {
 function computeApplyAreaForRow(proj, layout, row) {
   const role = (row && row.role) || 'base';
   if (role === 'alt-turf') return { ok:false, reason:'alt-turf-priced-on-base' };
+  // A Putting Green row installs the GREEN's own area (its turf, its infill, its
+  // labor) — not the base yard. Base yard = outline minus green (computed below).
+  if (role === 'putting-green') {
+    const pg = getPuttingGreenShapeArea(proj);
+    if (!pg) return { ok:false, reason:'no-area' };
+    return { ok:true, area: Math.round(pg * 100) / 100 };
+  }
   let area;
   if (layout) {
     // Include EVERY install layer, not just the primary. A second imported CSV set
@@ -12166,42 +12194,79 @@ function orderedFromLayout(layout) {
   return (ordered == null) ? null : Math.round(ordered * 100) / 100;
 }
 
+// Ordered SqFt for a given turf ROLE, summed from the roll plan's per-layer output.
+// The putting-green row draws only from the green layer(s); a base/alt row draws from
+// the base primary + any non-green install layers. This is what routes each row to its
+// own roll plan: base order → base row, green order → PG row. Returns null when there's
+// no layer for that role (e.g. no green layer for a PG row), so the caller leaves the
+// row untouched rather than zeroing it.
+function orderedFromLayoutForRole(layout, role) {
+  if (!layout) return null;
+  const layers = layout._installLayers;
+  if (!layers || !layers.length) {
+    // Single-layer job (no green layer): the whole plan is the base order. A PG row
+    // has no layer of its own here.
+    return (role === 'putting-green') ? null : orderedFromLayout(layout);
+  }
+  let sum = 0, matched = 0;
+  layers.forEach(item => {
+    const L = item && item.layout; if (!L) return;
+    const isPG = !!item.isPuttingGreen;
+    const wantPG = (role === 'putting-green');
+    if (isPG !== wantPG) return;
+    sum += (L.totalOrdered || 0);
+    matched++;
+  });
+  if (!matched) return null;
+  return Math.round(sum * 100) / 100;
+}
+
 function syncLinkedTurfRow() {
   const proj = getCurrentProject();
   if (!isLiveLinkOn(proj)) return;
-  const sel = document.getElementById('rollApplyTarget');
-  if (!sel) return;
-  const i = parseInt(sel.value, 10);
-  if (isNaN(i) || !proj.turf || !proj.turf[i]) { updateLiveLinkStatus('Live link on — pick a target turf row above.'); return; }
   const layout = window._wtCurrentRollLayout;
-  const row = proj.turf[i];
+  if (!proj || !proj.turf || !layout) return;
+  const sel = document.getElementById('rollApplyTarget');
+  const target = sel ? parseInt(sel.value, 10) : NaN;
   let changed = false;
   const parts = [];
 
-  // Ordered SqFt ← roll plan. Moves with rotation / seam offset.
-  const ordered = orderedFromLayout(layout);
-  if (ordered != null) {
-    if (row.sqFtToOrder !== ordered) { row.sqFtToOrder = ordered; changed = true; }
-    parts.push('Ordered ' + ordered.toLocaleString());
-  }
-  // Installed SqFt ← shape area, role-aware. Moves only when the shape/exclusions
-  // change — a no-op on rotation/seam (area unchanged), so infill/rock/labor don't
-  // churn then. Alt-turf rows are skipped (priced on the base yard's area).
-  const inst = computeApplyAreaForRow(proj, layout, row);
-  if (inst && inst.ok) {
-    if (row.installedSqFt !== inst.area) { row.installedSqFt = inst.area; changed = true; }
-    parts.push('Installed ' + Math.round(inst.area).toLocaleString());
-  }
+  // Sync one row from its role's roll plan. Ordered SqFt is role-aware: a base/alt row
+  // draws from the base primary (+ non-green install layers); a PG row draws from the
+  // green layer. Installed SqFt comes from the shape (role-aware). Alt-turf takes
+  // neither. Returns true if it wrote anything.
+  const syncRow = (i) => {
+    const row = proj.turf[i]; if (!row) return;
+    const role = row.role || 'base';
+    if (role === 'alt-turf') return;
+    const ordered = orderedFromLayoutForRole(layout, role);
+    if (ordered != null && row.sqFtToOrder !== ordered) { row.sqFtToOrder = ordered; changed = true; }
+    const inst = computeApplyAreaForRow(proj, layout, row);
+    if (inst && inst.ok && row.installedSqFt !== inst.area) { row.installedSqFt = inst.area; changed = true; }
+    if (ordered != null || (inst && inst.ok)) {
+      calcTurfRow(i);
+      parts.push((row.product || ('Row ' + (i + 1))) + ': '
+        + (ordered != null ? ('order ' + ordered.toLocaleString()) : '')
+        + (inst && inst.ok ? ((ordered != null ? ' / ' : '') + 'install ' + Math.round(inst.area).toLocaleString()) : ''));
+    }
+  };
+
+  // The user's selected target row (as before), plus EVERY putting-green row — so the
+  // green's own order always lands on the PG row without the user having to point the
+  // link at it. (A PG row draws from the green layer; the base target draws from base.)
+  if (!isNaN(target)) syncRow(target);
+  proj.turf.forEach((row, i) => {
+    if (i === target) return;
+    if ((row.role || 'base') === 'putting-green') syncRow(i);
+  });
 
   if (changed) {
     save();
-    calcTurfRow(i);
     autoPopulateInfill(); // installed changed → base/PG infill area must follow it
     renderTurfRows(proj);
   }
-  updateLiveLinkStatus(parts.length
-    ? ('Live: ' + (row.product || ('Turf Row ' + (i + 1))) + ' — ' + parts.join(' · ') + ' ft²')
-    : 'Live link on.');
+  if (isNaN(target) && !parts.length) { updateLiveLinkStatus('Live link on — pick a target turf row above.'); return; }
+  updateLiveLinkStatus(parts.length ? ('Live · ' + parts.join(' · ') + ' ft²') : 'Live link on.');
 }
 
 // Debounced so it fires once after you stop moving a slider, and never mid-drag
