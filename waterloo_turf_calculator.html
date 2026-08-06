@@ -1249,7 +1249,7 @@
       <div class="top-metrics" id="topMetrics" title="Live layout totals — from the roll plan">
         <div class="tm"><span class="tm-l">Installed</span><input type="text" id="layoutArea" class="tm-v" readonly></div>
         <div class="tm"><span class="tm-l">Ordered</span><input type="text" id="rollOrderedOut" class="tm-v" readonly></div>
-        <div class="tm"><span class="tm-l">Linear ft</span><input type="text" id="rollLinearOut" class="tm-v" readonly></div>
+        <div class="tm"><span class="tm-l">Turf LF</span><input type="text" id="rollLinearOut" class="tm-v" readonly title="Turf linear feet to order (base / putting green when a green is present)"></div>
         <div class="tm"><span class="tm-l">Edging</span><input type="text" id="topEdgingOut" class="tm-v" readonly title="Linear feet of edging and boards to order"></div>
         <div class="tm"><span class="tm-l">Rock</span><input type="text" id="topRockOut" class="tm-v" readonly title="Total rock to order across all rock lines"></div>
         <div class="tm"><span class="tm-l">Sand</span><input type="text" id="topInfillOut" class="tm-v" readonly title="Total infill bags and weight across all infill lines"></div>
@@ -4494,6 +4494,39 @@ function updateTopBarMaterials(proj) {
   set('topEdgingOut', fmtTopEdging(proj.edging));
   set('topRockOut', fmtTopRock((proj.rock || []).filter(r => r.tons)));
   set('topInfillOut', fmtTopInfill((proj.infill || []).filter(r => r.bags)));
+}
+
+// Split the roll-plan totals into BASE vs PUTTING GREEN from the per-layer install
+// layouts. Base = primary + non-green install layers (with the primary's exclusions
+// applied via adjustedShapeArea); green = the putting-green layer(s). Returns null when
+// there's no green layer, so callers fall back to the single combined figure. Pure.
+function splitTurfTotals(layout) {
+  const layers = layout && layout._installLayers;
+  if (!layers || !layers.length) return null;
+  const hasGreen = layers.some(l => l && l.isPuttingGreen);
+  if (!hasGreen) return null;
+  const base = { installed: 0, ordered: 0, linear: 0 };
+  const green = { installed: 0, ordered: 0, linear: 0 };
+  layers.forEach(item => {
+    const L = item && item.layout; if (!L) return;
+    const bucket = item.isPuttingGreen ? green : base;
+    // Base primary installs its ADJUSTED area (outline minus the green/cutouts); every
+    // other layer installs its own rolled shape.
+    const installed = (item.id === 'primary')
+      ? (layout.adjustedShapeArea != null ? layout.adjustedShapeArea : L.shapeArea)
+      : L.shapeArea;
+    bucket.installed += (installed || 0);
+    bucket.ordered += (L.totalOrdered || 0);
+    bucket.linear += (L.linearFt || 0);
+  });
+  return { base, green };
+}
+
+// Format a base/green split for a compact top-bar cell, e.g. "82 · 92" with a unit.
+function fmtSplitCell(baseVal, greenVal, unit, digits) {
+  const d = digits == null ? 0 : digits;
+  const f = v => v.toLocaleString(undefined, { maximumFractionDigits: d });
+  return f(baseVal) + ' · ' + f(greenVal) + (unit ? (' ' + unit) : '');
 }
 
 function updateMaterialsSummary() {
@@ -8325,6 +8358,16 @@ function renderRollLayout() {
     document.getElementById('rollOrderedOut').value = combined.ordered.toLocaleString(undefined,{maximumFractionDigits:0}) + ' ft²';
     document.getElementById('rollLinearOut').value = combined.linear.toLocaleString(undefined,{maximumFractionDigits:1}) + ' ft';
     document.getElementById('rollWasteOut').value = combined.scrap.toLocaleString(undefined,{maximumFractionDigits:0}) + ' ft² (' + combined.wastePct.toFixed(1) + '%)';
+    // Break out base vs putting green when a green layer is present: "base · green".
+    const split = splitTurfTotals(layout);
+    if (split) {
+      const oEl = document.getElementById('rollOrderedOut');
+      const lEl = document.getElementById('rollLinearOut');
+      oEl.value = fmtSplitCell(split.base.ordered, split.green.ordered, 'ft²', 0);
+      oEl.title = `Ordered — base ${Math.round(split.base.ordered).toLocaleString()} ft² · putting green ${Math.round(split.green.ordered).toLocaleString()} ft²`;
+      lEl.value = fmtSplitCell(split.base.linear, split.green.linear, 'ft', 1);
+      lEl.title = `Turf LF — base ${split.base.linear.toLocaleString(undefined,{maximumFractionDigits:1})} ft · putting green ${split.green.linear.toLocaleString(undefined,{maximumFractionDigits:1})} ft`;
+    }
     if (breakdownEl) {
       const lines = installLayers.map(({ name, layout: L, rollRotation, rollOverridden, rollGroup }) => {
         const rp = countRollsAndPieces(L);
@@ -8364,9 +8407,18 @@ function renderRollLayout() {
   const overlayArea = getOverlayArea(proj);
   const installedArea = baseInstalled + overlayArea;
   const rawInstalled = (combo ? combo.area : layout.shapeArea) + overlayArea;
+  const instSplit = splitTurfTotals(layout);
+  if (instSplit) {
+    // Break out base vs putting green: "82 · 92 ft²" (base install + green).
+    const baseInst = instSplit.base.installed + overlayArea; // overlay is base-side free fill
+    document.getElementById('layoutArea').value = fmtSplitCell(baseInst, instSplit.green.installed, 'ft²', 0);
+    document.getElementById('layoutArea').title =
+      `Installed — base ${Math.round(baseInst).toLocaleString()} ft² (outline minus green) · putting green ${Math.round(instSplit.green.installed).toLocaleString()} ft²`;
+  } else {
   document.getElementById('layoutArea').value = `${installedArea.toLocaleString(undefined,{maximumFractionDigits:2})} ft²`
     + (overlayArea > 1e-6 ? ` (incl. ${overlayArea.toLocaleString(undefined,{maximumFractionDigits:0})} ft² free fill from scrap)` : '')
     + (Math.abs(baseInstalled - (combo ? combo.area : layout.shapeArea)) > 1e-6 ? ` · ${(combo ? combo.area : layout.shapeArea).toLocaleString(undefined,{maximumFractionDigits:0})} ft² before exclusions` : '');
+  }
 
   // Free fill is ASSUMED to come from existing roll waste. Always surface that
   // assumption when any free-fill layer is in use (amber), and escalate to a red

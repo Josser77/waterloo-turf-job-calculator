@@ -5,6 +5,23 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 16) — Top bar breaks out base vs putting green; "Linear ft" → "Turf LF"
+
+On a base + putting green job the top bar now shows both numbers for Installed, Ordered,
+and Turf LF as "base · green" (e.g. Installed 82 · 92 ft², Ordered 285 · 150 ft², Turf
+LF 19 · 10 ft), with a tooltip spelling out which is which. A base-only job is unchanged
+(single figure). The "Linear ft" label is renamed "Turf LF".
+
+Backed by pure `splitTurfTotals(layout)` → `{base, green}`: base = adjusted primary
+(outline minus green) + any non-green install layers; green = the putting-green layer(s).
+Returns null with no green layer so the cells fall back to the single combined value.
+
+Tests **1468 → 1481** (README **1481**): base/green split for installed/ordered/linear;
+a side-yard install layer counts toward base not green; null when there's no green; the
+cell formatter; and the "Turf LF" label rename.
+
+---
+
 ## 2026-07-22 (cont'd 15) — ROOT CAUSE: new projects never designated the green SHAPE — now set at creation
 
 The reason base-minus-green kept coming out wrong across a fresh import: `createProject`

@@ -6816,6 +6816,46 @@ section('112. New project designates the green shape at creation (root-cause fix
   ctx.getCurrentProject = prev;
 }
 
+section('113. Top-bar base/green split (Installed, Ordered, Turf LF)');
+{
+  const layout = {
+    shapeArea: 173.95, adjustedShapeArea: 82.43,
+    _installLayers: [
+      { id:'primary', isPuttingGreen:false, layout:{ shapeArea:173.95, totalOrdered:285, linearFt:19 } },
+      { id:0, isPuttingGreen:true, layout:{ shapeArea:91.52, totalOrdered:150, linearFt:10 } },
+    ],
+  };
+  const s = ctx.splitTurfTotals(layout);
+  assert(s, 'a job with a green layer produces a split');
+  assert(near(s.base.installed, 82.43), 'base installed = adjusted primary (82.43), not the full outline');
+  assert(near(s.green.installed, 91.52), 'green installed = the green shape (91.52)');
+  assert(s.base.ordered === 285 && s.green.ordered === 150, 'ordered splits base/green');
+  assert(s.base.linear === 19 && s.green.linear === 10, 'linear ft splits base/green');
+
+  // A non-green install layer (side yard) counts toward BASE, not green.
+  const withSide = { shapeArea:100, adjustedShapeArea:100, _installLayers:[
+    { id:'primary', isPuttingGreen:false, layout:{shapeArea:100,totalOrdered:120,linearFt:8} },
+    { id:0, isPuttingGreen:false, layout:{shapeArea:50,totalOrdered:60,linearFt:4} },
+    { id:1, isPuttingGreen:true,  layout:{shapeArea:40,totalOrdered:45,linearFt:3} },
+  ]};
+  const s2 = ctx.splitTurfTotals(withSide);
+  assert(near(s2.base.installed, 150), 'base = primary 100 + side yard 50 = 150');
+  assert(near(s2.green.installed, 40), 'green = 40');
+
+  // No green layer → null (caller uses the single combined figure).
+  assert(ctx.splitTurfTotals({ _installLayers:[{id:'primary',isPuttingGreen:false,layout:{shapeArea:100,totalOrdered:120,linearFt:8}}] }) === null, 'no green → null');
+  assert(ctx.splitTurfTotals({}) === null, 'no layers → null');
+
+  // Formatter: "base · green unit".
+  assert(ctx.fmtSplitCell(82, 92, 'ft²', 0) === '82 · 92 ft²', 'installed cell format');
+  assert(ctx.fmtSplitCell(19, 10, 'ft', 1) === '19 · 10 ft', 'turf LF cell format');
+
+  // The label was renamed Linear ft → Turf LF.
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/<span class="tm-l">Turf LF<\/span>/.test(html), 'the top-bar label reads "Turf LF"');
+  assert(!/<span class="tm-l">Linear ft<\/span>/.test(html), 'the old "Linear ft" label is gone');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
