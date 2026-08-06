@@ -1009,7 +1009,7 @@ section('17. Multi-layer CSV parsing & secondary shapes');
 
     applyTarget = '0';
     ctxA.applyLayoutAreaToTurf();
-    assert(near(ctxA.getCurrentProject().turf[0].installedSqFt, 1450), 'Apply Area → BASE row = whole yard incl. green (1500 - 50 hole = 1450)');
+    assert(near(ctxA.getCurrentProject().turf[0].installedSqFt, 1300), 'Apply Area → BASE row = outline minus green AND hole (1500 - 150 green - 50 hole = 1300)');
 
     applyTarget = '1';
     const altBefore = ctxA.getCurrentProject().turf[1].installedSqFt;
@@ -1026,7 +1026,7 @@ section('17. Multi-layer CSV parsing & secondary shapes');
       const projH = { layout:{ secondaryShapes:[{area:20,points:rect(0,0,4,5)}], secondaryShapeModes:{0:'putting-green'} } };
       const layH = { adjustedShapeArea: 480 };
       const baseRes = ctxA.computeApplyAreaForRow(projH, layH, { role:'base' });
-      assert(baseRes.ok && near(baseRes.area, 500), 'computeApplyAreaForRow: base adds the green back (480 + 20 = 500)');
+      assert(baseRes.ok && near(baseRes.area, 480), 'computeApplyAreaForRow: base is the adjusted area with the green already subtracted — NOT added back (480)');
       const pgRes = ctxA.computeApplyAreaForRow(projH, layH, { role:'putting-green' });
       assert(pgRes.ok && near(pgRes.area, 480), 'computeApplyAreaForRow: putting-green uses the adjusted area as-is (480)');
       const altRes = ctxA.computeApplyAreaForRow(projH, layH, { role:'alt-turf' });
@@ -1236,14 +1236,24 @@ section('21. Layer visibility (isLayerVisible / setLayerVisible)');
     assert(reloaded2.layout.layerVisibility.primary === true, 'toggling primary back to visible persists');
   }
 
-  // ── Visibility is independent of secondaryShapeMode (exclude/ignore) ──
+  // ── Deselecting (hiding) a layer removes it from ALL accounting ──
+  // Changed from the old behavior (visibility independent of area). A stray/mistaken
+  // measurement is removed by unticking it: it then contributes nothing to area, PG,
+  // rolls, infill, or labor — matching how a user reads an unchecked box.
   {
     const proj = { layout: { secondaryShapeModes: { 0: 'exclude' }, layerVisibility: { 0: false } } };
-    // Even though mode is 'exclude' (affects area calc), visibility can still be false (hidden on canvas)
-    assert(ctx.isLayerVisible(proj, 0) === false, 'a layer can be hidden on canvas while still excluded from area calc');
-    // getAdjustedShapeArea should be unaffected by visibility — it only cares about mode
-    const adjusted = ctx.getAdjustedShapeArea({ layout: { secondaryShapes:[{area:10,points:rect(0,0,2,2)}], secondaryShapeModes:{0:'exclude'}, layerVisibility:{0:false} } }, 100);
-    assert(near(adjusted, 90), 'hiding a layer does not change its exclude/ignore effect on Installed Area');
+    assert(ctx.isLayerVisible(proj, 0) === false, 'an unticked layer reports not visible');
+    // A hidden 'exclude' layer no longer subtracts from the installed area.
+    const hidden = ctx.getAdjustedShapeArea({ layout: { secondaryShapes:[{area:10,points:rect(0,0,2,2)}], secondaryShapeModes:{0:'exclude'}, layerVisibility:{0:false} } }, 100);
+    assert(near(hidden, 100), 'a deselected exclude layer no longer comes off the area (was 90, now 100)');
+    // Visible, it still subtracts as before.
+    const shown = ctx.getAdjustedShapeArea({ layout: { secondaryShapes:[{area:10,points:rect(0,0,2,2)}], secondaryShapeModes:{0:'exclude'}, layerVisibility:{0:true} } }, 100);
+    assert(near(shown, 90), 'a visible exclude layer still subtracts');
+    // A deselected putting-green layer drops out of the PG area entirely.
+    const pgHidden = ctx.getPuttingGreenShapeArea({ layout: { secondaryShapes:[{area:91.52,points:rect(0,0,3,3)}], secondaryShapeModes:{0:'putting-green'}, layerVisibility:{0:false} } });
+    assert(near(pgHidden, 0), 'a deselected putting-green layer contributes 0 PG area');
+    const pgShown = ctx.getPuttingGreenShapeArea({ layout: { secondaryShapes:[{area:91.52,points:rect(0,0,3,3)}], secondaryShapeModes:{0:'putting-green'}, layerVisibility:{0:true} } });
+    assert(near(pgShown, 91.52), 'a visible putting-green layer still contributes its area');
   }
 }
 
@@ -2657,10 +2667,13 @@ section('37. Putting green fringe: layer mode, config persistence, and quote cos
     assert(withPgCard.includes('$304.00'), '"With Putting Green" card shows fringe cost $304.00');
     assert(withPgCard.includes('Putting green turf'), '"With Putting Green" card shows the green\'s turf material line');
 
-    // Sanity: total COGS for the PG card includes fringe cost as an additive component
-    // Std yard: 1600*$8=$12800; PG labor: 200*$12=$2400; base turf mat: 1800*2.50=$4500;
+    // Sanity: total COGS for the PG card includes fringe cost as an additive component.
+    // Base row Installed (1800) is now the base turf area (outline 2000 − green 200).
+    // Standard-yard labor is on that base area directly (the green is cut out and gets
+    // its own PG turf + PG-rate labor). So:
+    // Std yard: 1800*$8=$14400; PG labor: 200*$12=$2400; base turf mat: 1800*2.50=$4500;
     // PG turf mat: order rounds to a whole roll → ceil(200/15)*15=210, ×$3.50=$735; fringe: $304
-    const expectedCogs = 1600*8 + 200*12 + 1800*2.50 + (Math.ceil(200/15)*15)*3.50 + 304;
+    const expectedCogs = 1800*8 + 200*12 + 1800*2.50 + (Math.ceil(200/15)*15)*3.50 + 304;
     const priceMatch = withPgCard.match(/opt-price\">(\$[\d,]+\.\d\d)<\/div>/);
     assert(priceMatch, 'PG card has a price figure');
     const actualCogs = parseFloat(priceMatch[1].replace(/[$,]/g,''));
@@ -6489,6 +6502,67 @@ section('102. More landscape elements + wall thickness handle');
     const body = html.slice(i, i + 1500);
     assert(!/\bfence\b/.test(body) && !/annotations/.test(body), fn + ' ignores fences/annotations');
   });
+}
+
+section('103. Deselected layer excluded from all accounting (Back_putting_green.csv)');
+{
+  // Real job geometry: base outline 173.89, putting green 91.52 (inside the base),
+  // and a stray mis-measurement 38.82 that the user deselects. The green stays whole;
+  // the stray contributes nothing once unticked.
+  const R = (a)=>rect(0,0,Math.sqrt(a),Math.sqrt(a)); // area-only shapes for the math
+  const mk = (vis) => ({ layout: {
+    secondaryShapes: [
+      { area: 38.82, points: R(38.82) },  // 0: the stray measurement
+      { area: 91.52, points: R(91.52) },  // 1: the putting green
+    ],
+    secondaryShapeModes: { 0: 'exclude', 1: 'putting-green' },
+    layerVisibility: vis,
+  }});
+
+  // With the stray VISIBLE and set to exclude, it wrongly comes off the base.
+  const withStray = ctx.getAdjustedShapeArea(mk({ 0:true, 1:true }), 173.89);
+  assert(near(withStray, 173.89 - 38.82 - 91.52), 'visible stray + green both come off the outline');
+
+  // Deselect the stray (0): only the green comes off the base outline now.
+  const strayHidden = ctx.getAdjustedShapeArea(mk({ 0:false, 1:true }), 173.89);
+  assert(near(strayHidden, 173.89 - 91.52), 'deselected stray no longer subtracts — base outline minus green = 82.37');
+  assert(near(strayHidden, 82.37), 'base turf installed = 82.37 ft² for this job');
+
+  // The green is unaffected by the stray being hidden — still its full 91.52.
+  const pg = ctx.getPuttingGreenShapeArea(mk({ 0:false, 1:true }));
+  assert(near(pg, 91.52), 'putting green stays whole at 91.52 — installed turf does not subtract from the green');
+
+  // Deselecting the green too would drop it from PG accounting.
+  assert(near(ctx.getPuttingGreenShapeArea(mk({ 0:false, 1:false })), 0), 'deselecting the green removes it from PG area');
+}
+
+section('104. Base-minus-green install model (splitInstallArea)');
+{
+  const S = ctx.splitInstallArea;
+
+  // Real job: base outline 173.89, green 91.52 → base row Installed = 82.37.
+  const baseInstall = 82.37, green = 91.52;
+
+  // With the green installed: standard yard = base area (green cut out), pg = green.
+  const withGreen = S(baseInstall, green, green);
+  assert(near(withGreen.std, 82.37), 'with green: standard labor/infill area = base minus green = 82.37');
+  assert(near(withGreen.pg, 91.52), 'with green: putting green area = 91.52 (whole, never reduced)');
+
+  // No-green comparison scenario: base covers the green\'s spot too → full outline.
+  const noGreen = S(baseInstall, green, 0);
+  assert(near(noGreen.std, 173.89), 'no green: standard area reconstructs the full outline = 173.89');
+  assert(near(noGreen.pg, 0), 'no green: no putting green area');
+
+  // A plain job with no green at all: std = base, unchanged.
+  assert(near(S(1000, 0, 0).std, 1000), 'no-green job: standard area = base');
+
+  // The standard yard never goes negative (a green larger than the reconstructed
+  // outline is clamped, not negative labor).
+  assert(S(10, 5, 999).std === 0, 'std clamps at 0, never negative');
+
+  // Garbage/blank inputs coerce to 0 without throwing.
+  assert(near(S('82.37','91.52','91.52').std, 82.37), 'string inputs parse');
+  assert(near(S(null, undefined, NaN).std, 0), 'null/undefined/NaN → 0');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

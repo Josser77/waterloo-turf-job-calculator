@@ -5,6 +5,72 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 7) — Base turf installs on outline MINUS the green (money-path model corrected)
+
+Corrects how a base + putting-green job accounts for turf, infill, and labor. The green
+gets its own PG turf; **no base turf is laid under it.** So:
+
+- **Base row Installed SqFt** is now the outline **minus** the green (and minus any
+  Exclude holes). Apply Area no longer adds the green footprint back. For the reference
+  job (outline 173.89, green 91.52) the base row now reads **82.37**, not 173.89.
+- **Base infill** follows Installed, so it's ordered on 82.37 (your base sand), not the
+  full outline — the over-order by the green's footprint is gone.
+- **Putting green** stays **whole** (91.52) for its own turf, its own infill product,
+  and PG-rate labor. Installed turf never subtracts from the green.
+- **Standard-yard labor** is on the base area directly. The **"No Putting Green"**
+  comparison card reconstructs the full outline (base would cover the green's spot),
+  so that scenario still prices correctly.
+
+The area split is now a single pure function `splitInstallArea(baseInstall,
+greenFootprint, pgInstalled)` → `{std, pg}`, used by the labor calc: full outline =
+baseInstall + greenFootprint, standard yard = outline − the green THIS scenario lays.
+Base turf is still ORDERED for the full outline via the roll plan (bought in rolls, cut
+to fit around the green).
+
+This reverses the earlier "base covers the whole yard including the green" model, which
+was built on a wrong premise (confirmed with the customer: the green area gets only PG
+turf). Three tests that encoded the old model were updated after verifying the new
+numbers are arithmetically correct — notably the PG-card COGS rises because standard
+labor now runs on the true base area rather than a green-subtracted figure.
+
+Tests **1413 → 1421** (README **1421**): `splitInstallArea` for the with-green and
+no-green scenarios using the real CSV numbers (82.37 / 173.89), the whole-green
+guarantee, clamping at 0, and string/blank coercion; plus the updated Apply Area and
+COGS assertions.
+
+---
+
+## 2026-07-22 (cont'd 6) — Deselecting a layer now removes it from ALL accounting (not just the canvas)
+
+Reported via a real CSV (Back_putting_green.csv): a stray Moasure measurement the user
+had *deselected* was still changing the quote. Root cause — visibility and accounting
+were deliberately independent: unticking a layer hid it on the canvas but it still
+counted in the area math, the putting-green area, the install/roll plan, and therefore
+infill and labor. Four loops filtered by mode, never by visibility.
+
+All four now skip any layer with `layerVisibility[i] === false`: `getAdjustedShapeArea`,
+`getPuttingGreenShapeArea`, the overlay-area total, and `computeInstallLayerLayouts`.
+A deselected layer contributes nothing — no area, no subtraction, no roll, no infill,
+no labor. Unticking a layer is now how you drop a stray/mistaken measurement; re-tick
+to restore, or ✕ to delete permanently.
+
+This reverses a previously-encoded design (a test asserted "hiding a layer does not
+change its exclude/ignore effect on Installed Area"). That test was the old decision
+written down; it's been updated to the new intent. The behavior change is deliberate
+and matches how a user reads an unchecked box — with the noted consequence that
+unticking a layer purely to declutter will now also drop it from the quote.
+
+Verified against the real job geometry: base outline 173.89 ft², putting green 91.52
+(inside the base), stray 38.82. Deselect the stray → base turf installs on 173.89 −
+91.52 = **82.37**, and the green stays **whole at 91.52** (installed turf never
+subtracts from the green).
+
+Tests **1405 → 1413** (README **1413**): the updated visibility test (a deselected
+exclude layer no longer subtracts; a visible one still does; deselected PG contributes
+0), plus a scenario using the real CSV's three areas.
+
+---
+
 ## 2026-07-22 (cont'd 5) — Fences, mulch & rock beds, and a drag handle for wall thickness
 
 More landscape elements plus a nicer way to set wall thickness:

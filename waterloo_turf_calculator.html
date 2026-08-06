@@ -2332,7 +2332,7 @@
           <li><strong>Putting Green (used for fringe calculation)</strong> — subtracts that shape's area from the primary's Installed Area like Exclude, AND marks it as the putting green outline for the Fringe feature (see below). Drawn as a solid green shape. Only one layer can be the putting green at a time — selecting it on a different layer demotes the previous one back to Install.</li>
         </ul>
         <p>Note: because Install is now the default, a multi-layer file treats every sub-layer as turf to install unless you change it. If a sub-layer is actually a cutout, set it to Exclude.</p>
-        <p>"Installed Area" shows the adjusted total (after exclusions), with the pre-exclusion total in parentheses if anything was excluded. The roll plan's scrap calculation uses the adjusted total. <strong>"Apply Area" is role-aware:</strong> applied to a <strong>Base Yard</strong> row it pushes the whole yard <em>including</em> the putting-green footprint (the green's area is added back), since the base turf covers that spot and the green is laid there as its own row — true <strong>Exclude</strong> holes are still subtracted. Applied to a Putting Green row it uses the adjusted total as-is. <strong>Alt Turf rows don't take an applied area</strong>: an Alt Turf option is priced on the <em>base yard</em> area (it covers the same yard as the base, just a different product), so its own Installed SqFt field is intentionally left blank and Apply Area will explain this and point you to the Base Yard row instead. This keeps base Installed SqFt consistent with how the quote splits labor (standard yard = total minus the green) so the green isn't subtracted twice. Note that hiding a layer (visibility checkbox) is independent from its exclude/ignore/putting-green mode — a hidden layer can still be excluded from the area total, and a visible layer can be set to "ignore."</p>
+        <p>"Installed Area" shows the adjusted total (after exclusions), with the pre-exclusion total in parentheses if anything was excluded. The roll plan's scrap calculation uses the adjusted total. <strong>"Apply Area" is role-aware:</strong> applied to a <strong>Base Yard</strong> row it pushes the outline <em>minus</em> the putting green (base turf is laid everywhere except the green, which gets its own PG turf as a separate row) — true <strong>Exclude</strong> holes are subtracted as well. Applied to a Putting Green row it uses the green's own area. <strong>Alt Turf rows don't take an applied area</strong>: an Alt Turf option is priced on the <em>base yard</em> area (it covers the same yard as the base, just a different product), so its own Installed SqFt field is intentionally left blank and Apply Area will explain this and point you to the Base Yard row instead. The quote reconstructs the full outline only for the <strong>"No Putting Green"</strong> comparison card (there, base would cover the green's spot too). Note that <strong>deselecting a layer (unticking its visibility box) now removes it from ALL accounting</strong> — area, putting-green, rolls, infill, and labor — not just the canvas. This is how you drop a stray or mistaken Moasure measurement: untick it and it stops affecting every number. (Re-tick it to bring it back, or use the ✕ to delete it permanently.)</p>
 
         <div class="docs-h3">Putting Green Fringe</div>
         <p>Once a layer is set to <strong>Putting Green</strong>, a <strong>Fringe</strong> sub-tab appears in the Layout right pane. Open it and check <strong>"Add a fringe border around the putting green"</strong> to enable it, then choose a <strong>Fringe Turf Product</strong> from your catalog and set the <strong>Fringe Width</strong> (in feet) — the border strip's width all the way around the green.</p>
@@ -3522,6 +3522,24 @@ function inferInfillTier(productName) {
 
 // The installed area an infill row covers, by tier: putting-green tier → the
 // putting green area; anything else → the base yard area.
+// The standard-yard vs putting-green area split for a quote scenario, given:
+//   baseInstall     — the base row's Installed SqFt (outline MINUS the green)
+//   greenFootprint  — total measured putting-green area (0 if none)
+//   pgInstalled     — green area installed in THIS scenario (0 for the "no green" card)
+// Returns { std, pg }. The full outline is baseInstall + greenFootprint; the standard
+// yard is that minus the green this scenario lays. So:
+//   • with green  → std = baseInstall            (green cut out, its own row)
+//   • no green    → std = baseInstall + greenFootprint  (base covers the green's spot)
+// Base infill uses `std` for the installed scenario; green infill uses pgInstalled.
+// Pure — no DOM.
+function splitInstallArea(baseInstall, greenFootprint, pgInstalled) {
+  const b = parseFloat(baseInstall) || 0;
+  const g = parseFloat(greenFootprint) || 0;
+  const p = parseFloat(pgInstalled) || 0;
+  const outline = b + g;
+  return { std: Math.max(0, outline - p), pg: p };
+}
+
 function infillAreaForTier(proj, tier) {
   const baseSqFt = (proj.turf||[])
     .filter(r => (r.role||'base') === 'base')
@@ -4185,13 +4203,24 @@ function calcQuote() {
         <div style="display:grid;grid-template-columns:${pgCombos.length > 1 ? 'repeat(auto-fit,minmax(300px,1fr))' : '1fr'};gap:14px;align-items:start;">`;
 
       pgCombos.forEach(pg => {
-        const totalSqFt = tc.sqFt;
+        // Base row Installed is now the outline MINUS the green (base turf area with
+        // the green cut out). To price the standard yard we reconstruct the full
+        // outline (add the green footprint back) and subtract whatever green THIS
+        // scenario installs:
+        //   • with green  → base area (green stays cut out)
+        //   • no green    → full outline (base would cover the green's spot too)
+        // greenFootprint is the total measured green area; pgSqFt is what this
+        // scenario lays. For a normal single-green job the two match, so the
+        // with-green std collapses to exactly the base row's Installed SqFt.
+        const greenFootprint = getPuttingGreenShapeArea(proj);
+        const baseInstall = tc.sqFt;                 // outline − green (base turf laid)
         const pgSqFt    = pg.pgSqFt;
-        const stdSqFt   = Math.max(0, totalSqFt - pgSqFt);
+        const _split    = splitInstallArea(baseInstall, greenFootprint, pgSqFt);
+        const totalSqFt = baseInstall + greenFootprint; // reconstructed full outline (for the no-green label)
+        const stdSqFt   = _split.std;
         // Tiered labor brackets are chosen per install type by ITS OWN installed
-        // area: the standard rate off the standard turf area (total − putting
-        // green), the putting green rate off the putting green area. Each line is
-        // then multiplied by that same area.
+        // area: the standard rate off the standard turf area, the putting green rate
+        // off the putting green area. Each line is then multiplied by that same area.
         const stdRate   = getRateFor('standard', stdSqFt);
         const pgRate    = getRateFor('putting', pgSqFt);
         const stdTieredNote = itemIsTiered(getCrewItemsForQuote().find(it=>it.key==='standard')) ? ' tiered' : '';
@@ -5782,6 +5811,7 @@ function getOverlayArea(proj) {
   const secondary = (proj.layout && proj.layout.secondaryShapes) || [];
   let a = 0;
   secondary.forEach((s, i) => {
+    if (proj.layout.layerVisibility && proj.layout.layerVisibility[i] === false) return; // deselected = not counted
     const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'ignore';
     if (mode === 'overlay') a += getSecondaryShapeArea(s);
   });
@@ -5794,6 +5824,10 @@ function getAdjustedShapeArea(proj, baseArea) {
   const secondary = (proj.layout && proj.layout.secondaryShapes) || [];
   let area = baseArea;
   secondary.forEach((s, i) => {
+    // A deselected layer (visibility unchecked) is treated as not present at all — it
+    // contributes nothing to any total. This is how a stray/mistaken measurement is
+    // removed: untick it and it drops out of area, rolls, infill, and labor.
+    if (proj.layout.layerVisibility && proj.layout.layerVisibility[i] === false) return;
     const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'ignore';
     // Only true cutouts subtract from the primary's installed area. 'install'
     // layers are their own areas (summed separately); 'ignore' has no effect.
@@ -5810,6 +5844,7 @@ function getPuttingGreenShapeArea(proj) {
   const secondary = (proj.layout && proj.layout.secondaryShapes) || [];
   let pg = 0;
   secondary.forEach((s, i) => {
+    if (proj.layout.layerVisibility && proj.layout.layerVisibility[i] === false) return; // deselected = not counted
     const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'ignore';
     if (mode === 'putting-green') pg += getSecondaryShapeArea(s);
   });
@@ -7979,7 +8014,9 @@ function computeInstallLayerLayouts(proj, primaryLayout, secondaryShapes, rotati
     rollGroup: getLayerRollGroup(proj, 'primary'),
   }];
   const modes = (proj.layout && proj.layout.secondaryShapeModes) || {};
+  const vis = (proj.layout && proj.layout.layerVisibility) || {};
   (secondaryShapes || []).forEach((s, i) => {
+    if (vis[i] === false) return; // deselected layer: not installed, not rolled, not counted
     const mode = modes[i] || 'ignore';
     if (mode !== 'install') return;
     const pts = s.displayPoints || s.points;
@@ -12085,7 +12122,11 @@ function computeApplyAreaForRow(proj, layout, row) {
   } else {
     area = getAdjustedShapeArea(proj, (proj.layout && proj.layout.area) || 0);
   }
-  if (role === 'base') area += getPuttingGreenShapeArea(proj);
+  // Base yard turf is laid on the outline MINUS the putting green (the green gets its
+  // own PG turf; no base turf under it). So the base row's Installed SqFt is the
+  // adjusted area with the green already subtracted — we do NOT add it back. The quote
+  // reconstructs the full outline for the "No Putting Green" comparison scenario by
+  // adding the green footprint back there (see calcQuote's stdSqFt).
   if (!area) return { ok:false, reason:'no-area' };
   return { ok:true, area: Math.round(area * 100) / 100 };
 }
