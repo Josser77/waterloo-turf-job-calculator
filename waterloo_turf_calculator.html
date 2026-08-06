@@ -5868,6 +5868,13 @@ function setSecondaryShapeMode(i, mode) {
   renderLayersList(proj);
   renderFringeSection(proj);
   renderRollLayout();
+  // Designating/undesignating a putting green (or any mode change) changes what the
+  // base yard installs — the base is outline minus the green. Push that through to the
+  // turf rows and their infill immediately, rather than waiting for a later slider
+  // nudge. renderRollLayout schedules a debounced sync, but that only runs when a
+  // target row is picked; this makes the recompute unconditional so the base row and
+  // its infill never sit stale after you set the green.
+  if (typeof syncLinkedTurfRow === 'function' && isLiveLinkOn(proj)) syncLinkedTurfRow();
   if (mode === 'overlay') {
     showLayoutToast('Free fill: this area is added to Installed SqFt but NOT ordered — it assumes the turf is cut from leftover scrap. It isn\'t placed or fit-checked. To place a real piece into a roll\'s waste, use Install and drag it there.');
   }
@@ -12253,13 +12260,15 @@ function syncLinkedTurfRow() {
     }
   };
 
-  // The user's selected target row (as before), plus EVERY putting-green row — so the
-  // green's own order always lands on the PG row without the user having to point the
-  // link at it. (A PG row draws from the green layer; the base target draws from base.)
-  if (!isNaN(target)) syncRow(target);
+  // Sync the picked target row (if any) plus EVERY base and putting-green row, so
+  // designating the green updates the base without a manual target pick. Alt-turf is
+  // skipped inside syncRow.
+  const seen = {};
+  if (!isNaN(target)) { syncRow(target); seen[target] = 1; }
   proj.turf.forEach((row, i) => {
-    if (i === target) return;
-    if ((row.role || 'base') === 'putting-green') syncRow(i);
+    if (seen[i]) return;
+    const role = row.role || 'base';
+    if (role === 'base' || role === 'putting-green') syncRow(i);
   });
 
   if (changed) {

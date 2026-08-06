@@ -5,6 +5,33 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 14) — Designating the green now updates the base row immediately; live link syncs base + PG rows
+
+Matches the real workflow: import → create → designate which shape is the putting green.
+Two gaps were leaving the base row stale after that last step.
+
+1. `setSecondaryShapeMode` recomputed the layout but never re-synced the turf rows, so
+   the base row kept its pre-designation area (the full outline) until some later slider
+   nudge. It now calls `syncLinkedTurfRow` right after a mode change, so setting the
+   green immediately recomputes the base row to outline-minus-green (and its infill).
+
+2. The live link only synced a manually-picked target row (plus PG rows). The workflow
+   doesn't involve picking a target, so the base row was never touched. The link now
+   syncs the picked target plus **every base and putting-green row** by role — base
+   draws the base plan, PG draws the green plan — so no target pick is needed.
+
+Traced a COGS shift this surfaced rather than just re-baselining it: with the link now
+syncing orders, the fringe-fixture's base row orders the real full-outline roll plan
+(2,250 ft² after waste, not the hand-set 1,800) and the PG row its own plan (300 ft²).
+Base turf material rises to 2250×$2.50; the numbers are correct — the old fixture used
+orders inconsistent with its own layout.
+
+Tests **1457 → 1461** (README **1461**): after designating the green, base row =
+outline−green (82.43) and PG row = green (91.52), and base+green tile the outline; plus
+a guard that setSecondaryShapeMode re-syncs the rows.
+
+---
+
 ## 2026-07-22 (cont'd 13) — Fix: green-as-layer inflated the base row's Installed back to the full outline
 
 Regression from step 1. Once the green rolled as its own install layer, `_combined.area`

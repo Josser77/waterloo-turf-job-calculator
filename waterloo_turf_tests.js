@@ -2668,15 +2668,13 @@ section('37. Putting green fringe: layer mode, config persistence, and quote cos
     assert(withPgCard.includes('Putting green turf'), '"With Putting Green" card shows the green\'s turf material line');
 
     // Sanity: total COGS for the PG card includes fringe cost as an additive component.
-    // Base row Installed (1800) is now the base turf area (outline 2000 − green 200).
-    // Standard-yard labor is on that base area directly (the green is cut out and gets
-    // its own PG turf + PG-rate labor). PG turf material now comes from the green's OWN
-    // roll plan (the PG rolls as its own layer): the green is 20 ft wide but the roll is
-    // 15 ft, so it can't be covered by one 15 ft strip — the plan orders 300 ft²
-    // (not the naive 210), and PG turf material is 300 × $3.50 = $1,050. So:
-    // Std yard: 1800*$8=$14400; PG labor: 200*$12=$2400; base turf mat: 1800*2.50=$4500;
-    // PG turf mat: 300*$3.50=$1,050; fringe: $304
-    const expectedCogs = 1800*8 + 200*12 + 1800*2.50 + 300*3.50 + 304;
+    // With the live link on, loadProject syncs each row's order from its OWN roll plan:
+    // the base row orders the full 50×40 outline (2,250 ft² after roll waste) and the
+    // PG row orders the green's own plan (300 ft² — the green is 20 ft wide vs a 15 ft
+    // roll, so it needs a second width). Base install (labor) is outline−green = 1800.
+    // Std yard: 1800*$8=$14,400; PG labor: 200*$12=$2,400; base turf mat: 2250*$2.50=$5,625;
+    // PG turf mat: 300*$3.50=$1,050; fringe: $304.
+    const expectedCogs = 1800*8 + 200*12 + 2250*2.50 + 300*3.50 + 304;
     const priceMatch = withPgCard.match(/opt-price\">(\$[\d,]+\.\d\d)<\/div>/);
     assert(priceMatch, 'PG card has a price figure');
     const actualCogs = parseFloat(priceMatch[1].replace(/[$,]/g,''));
@@ -4239,7 +4237,10 @@ section('53. End-to-end quote scenarios');
   }
   const baseProject = over => Object.assign({
     id:'p1', name:'T', created:1000, edging:{}, pgSqFt:0, miscItems:[], turf:[], infill:[], rock:[],
-    layout:{ points:rect(0,0,50,40), area:2000, secondaryShapes:[], secondaryShapeModes:{}, rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, rotation:0, translation:0 },
+    // liveLink off: these fixtures hand-set installed/ordered to isolate quote MATH.
+    // With it on, loadProject's live sync would (correctly) overwrite sqFtToOrder from
+    // the roll plan, which is a different thing under test (covered elsewhere).
+    layout:{ points:rect(0,0,50,40), area:2000, secondaryShapes:[], secondaryShapeModes:{}, liveLink:false, rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, rotation:0, translation:0 },
   }, over);
   const tRow = o => Object.assign({ product:'', installedSqFt:0, sqFtToOrder:0, orderedSqFt:0, role:'base' }, o);
 
@@ -6754,6 +6755,39 @@ section('110. Green-as-layer must not inflate the base row Installed (regression
     ],
   };
   assert(near(ctx.computeApplyAreaForRow(proj3, mixLayout, {role:'base'}).area, 460), 'base = adj primary (310) + side yard (150), green excluded = 460');
+
+  ctx.getCurrentProject = prev;
+}
+
+section('111. Workflow: designating the green updates the base row (setSecondaryShapeMode)');
+{
+  // computeApplyAreaForRow is the engine both the live link and Apply use. Prove the
+  // key workflow property directly: once a shape is putting-green mode, a base row's
+  // area is outline-minus-green and a PG row's is the green — the same values the
+  // live sync writes when you designate the green.
+  const outlineArea = 173.95, greenArea = 91.52;
+  const layout = {
+    shapeArea: outlineArea,
+    adjustedShapeArea: outlineArea - greenArea, // 82.43
+    _combined: { area: outlineArea + greenArea },
+    _installLayers: [
+      { id:'primary', isPuttingGreen:false, layout:{ shapeArea: outlineArea } },
+      { id:0, isPuttingGreen:true, layout:{ shapeArea: greenArea } },
+    ],
+  };
+  const proj = { layout:{ secondaryShapes:[{area:greenArea}], secondaryShapeModes:{0:'putting-green'}, layerVisibility:{} } };
+  const prev = ctx.getCurrentProject; ctx.getCurrentProject = () => proj;
+
+  const base = ctx.computeApplyAreaForRow(proj, layout, { role:'base' });
+  const pg   = ctx.computeApplyAreaForRow(proj, layout, { role:'putting-green' });
+  assert(near(base.area, 82.43), 'after designating the green, the base row = outline − green (82.43)');
+  assert(near(pg.area, 91.52), 'the PG row = the green (91.52)');
+  assert(near(base.area + pg.area, outlineArea, 0.1), 'base + green = the full outline (they tile it, no overlap)');
+
+  // The mode-change handler is wired to push this through immediately.
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  const modeFn = html.slice(html.indexOf('function setSecondaryShapeMode'), html.indexOf('function isLayerVisible'));
+  assert(/syncLinkedTurfRow\(\)/.test(modeFn), 'setSecondaryShapeMode re-syncs the turf rows (base recomputes when you set the green)');
 
   ctx.getCurrentProject = prev;
 }
