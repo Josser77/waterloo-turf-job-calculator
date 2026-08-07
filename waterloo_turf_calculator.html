@@ -6174,10 +6174,12 @@ function renderLayersList(proj) {
     const area = getSecondaryShapeArea(s);
     const mode = (proj.layout.secondaryShapeModes && proj.layout.secondaryShapeModes[i]) || 'ignore';
     const rot = (offsets[i] && offsets[i].rotation) || 0;
-    // Per-layer roll direction / seam offset block — only meaningful for install
-    // layers (other modes aren't rolled).
+    // Per-layer roll direction / seam offset block — for layers that are actually
+    // rolled: 'install' layers AND the putting green (it rolls as its own layer now).
+    // A putting green gets these so you can rotate its roll to minimize waste, just
+    // like a base/install shape.
     let rollControl = '';
-    if (mode === 'install') {
+    if (mode === 'install' || mode === 'putting-green') {
       const rs = getLayerRoll(proj, i, primaryRot, primaryTrans);
       const rsRot = Math.round(rs.rotation);
       const rsTrans = (+rs.translation).toFixed(1);
@@ -8989,8 +8991,29 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       drawPoly(s.displayPoints, null, '#c62828');
       ctx.restore();
     } else if (mode === 'putting-green') {
-      // Putting green: green fill + solid outline
-      drawPoly(s.displayPoints, 'rgba(85,183,99,0.30)', '#2B7653');
+      // Putting green: it rolls as its own layer, so draw its roll plan first —
+      // installed strips plus (when "Show purchased roll rectangles" is on) the
+      // purchased rectangle + waste hatch, exactly like a base/install shape. Then the
+      // green fill + fringe are drawn on top so it still reads as the green.
+      const il = (layout._installLayers || []).find(e => e.id === i && e.isPuttingGreen);
+      if (il && il.layout && il.layout.strips && il.layout.strips.length) {
+        const pgFill = 'rgba(85,183,99,0.30)';
+        il.layout.strips.forEach(st => {
+          const us = st.pieces || [st];
+          us.forEach(u => {
+            if (showRects && u.displayRect && u.displayRect.length) {
+              drawHatched(u.displayRect, 'rgba(244,67,54,0.18)');
+              drawPoly(u.displayRect, null, 'rgba(0,0,0,0.18)');
+            }
+            if (u.displayClipped) drawPoly(u.displayClipped, pgFill, '#2B7653');
+          });
+        });
+      } else {
+        // No roll plan available (shouldn't happen once rolled) — plain fill.
+        drawPoly(s.displayPoints, 'rgba(85,183,99,0.30)', '#2B7653');
+      }
+      // Solid outline of the green on top of its strips.
+      drawPoly(s.displayPoints, null, '#2B7653');
 
       // Fringe ring: by default, each piece is filled/outlined/labeled
       // individually. With "Show fringe pieces" off, only the outer boundary
@@ -9437,15 +9460,20 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       ctx.fillStyle = '#fff';
       [c0, c1, c2, c3].forEach(c => { ctx.beginPath(); ctx.rect(c.x - 4, c.y - 4, 8, 8); ctx.fill(); ctx.stroke(); });
       ctx.beginPath(); ctx.arc(rc.x, rc.y, 5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
-      // Wall thickness handle: an orange knob offset perpendicular from the wall.
+      // Wall thickness handle: an orange knob offset perpendicular from the wall's
+      // middle. Drawn larger with a white ring so it's easy to spot and grab.
       if (sel.type === 'wall') {
         const th = wallThicknessHandle(sel);
         if (th) {
           const tc = toCanvas(th), mc = toCanvas(th.mid);
-          ctx.strokeStyle = '#f4a822'; ctx.lineWidth = 1;
+          ctx.strokeStyle = '#f4a822'; ctx.lineWidth = 2; ctx.setLineDash([3, 3]);
           ctx.beginPath(); ctx.moveTo(mc.x, mc.y); ctx.lineTo(tc.x, tc.y); ctx.stroke();
-          ctx.fillStyle = '#f4a822';
-          ctx.beginPath(); ctx.arc(tc.x, tc.y, 5, 0, 2*Math.PI); ctx.fill(); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#f4a822'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(tc.x, tc.y, 7, 0, 2*Math.PI); ctx.fill(); ctx.stroke();
+          // small double-arrow hint inside the knob
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(tc.x - 3, tc.y); ctx.lineTo(tc.x + 3, tc.y); ctx.stroke();
         }
       }
       ctx.restore();
@@ -9982,19 +10010,37 @@ function annoBBox(points) {
 // Handle anchor points in DATA coords. Corners ordered:
 // 0=(minX,minY) 1=(maxX,minY) 2=(maxX,maxY) 3=(minX,maxY); opposite of i is (i+2)%4.
 // Rotate handle sits a constant ~screen distance above top-center (larger data Y = up).
-// Position of a wall's thickness handle: offset perpendicular from the midpoint of
-// its first segment, at half the wall's thickness (a small minimum so it's grabbable
-// on a thin wall). Also returns the unit normal so a drag can be projected back onto
-// it to recover a new thickness. Pure.
+// Position of a wall's thickness handle: offset perpendicular from the MIDDLE of the
+// wall (the point halfway along its length), where a freehand stroke has a real,
+// grabbable segment — the first segment is often degenerate (points[0] and points[1]
+// land on nearly the same spot when you start dragging), which left the handle missing.
+// Also returns the unit normal so a drag can be projected back to recover a thickness.
+// The handle is offset by at least a visible amount so it clears the wall body even on
+// a thin wall. Pure.
 function wallThicknessHandle(a) {
   if (!a || a.type !== 'wall' || !a.points || a.points.length < 2) return null;
-  const p0 = a.points[0], p1 = a.points[1];
+  const pts = a.points;
+  // Total length + the point at the halfway distance.
+  let total = 0;
+  const segLens = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const l = Math.hypot(pts[i+1].x - pts[i].x, pts[i+1].y - pts[i].y);
+    segLens.push(l); total += l;
+  }
+  if (total < 1e-6) return null; // all points coincident — nothing to attach to
+  let target = total / 2, acc = 0, si = 0, t = 0;
+  for (let i = 0; i < segLens.length; i++) {
+    if (segLens[i] < 1e-9) continue;
+    if (acc + segLens[i] >= target || i === segLens.length - 1) { si = i; t = (target - acc) / segLens[i]; break; }
+    acc += segLens[i];
+  }
+  const p0 = pts[si], p1 = pts[si+1];
   const dx = p1.x - p0.x, dy = p1.y - p0.y;
-  const len = Math.hypot(dx, dy);
-  if (len < 1e-6) return null;
-  const nx = -dy / len, ny = dx / len;             // unit normal
-  const mid = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
-  const half = Math.max(0.4, (a.thicknessFt || 0.67) / 2); // keep it off the line
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len, ny = dx / len;               // unit normal to the mid segment
+  const mid = { x: p0.x + dx * t, y: p0.y + dy * t }; // point halfway along the wall
+  // Offset the knob out past the wall's edge so it's clearly separate and grabbable.
+  const half = Math.max(0.6, (a.thicknessFt || 0.67) / 2 + 0.3);
   return { x: mid.x + nx * half, y: mid.y + ny * half, nx, ny, mid };
 }
 // New thickness from a dragged handle point: twice the perpendicular distance from the

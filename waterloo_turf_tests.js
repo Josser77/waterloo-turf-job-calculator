@@ -6488,7 +6488,15 @@ section('102. More landscape elements + wall thickness handle');
   // ── Wall thickness handle ──
   const wall = { type:'wall', thicknessFt:1, points:[{x:0,y:0},{x:10,y:0}] };
   const h = ctx.wallThicknessHandle(wall);
-  assert(h && near(h.x, 5) && near(h.y, 0.5), 'handle sits off the midpoint by half-thickness');
+  // The handle sits at the MIDDLE of the wall (x=5 on a 0..10 wall), offset off the
+  // centerline far enough to clear the wall body (≥0.6 ft), so it's visible and
+  // grabbable even on a thin wall.
+  assert(h && near(h.x, 5), 'handle sits at the middle of the wall (x=5)');
+  assert(h && Math.abs(h.y) >= 0.6 - 1e-9, 'handle is offset off the line enough to clear the wall');
+  // A freehand wall whose first segment is degenerate (dup start point) STILL gets a
+  // handle — the old first-segment version returned null here, so no handle showed.
+  const freehandWall = { type:'wall', thicknessFt:0.67, points:[{x:2,y:2},{x:2,y:2},{x:2.5,y:2.1},{x:3,y:2.2}] };
+  assert(ctx.wallThicknessHandle(freehandWall) !== null, 'a freehand wall (degenerate first segment) still shows a thickness handle');
   assert(near(h.nx, 0) && near(h.ny, 1), 'handle carries the unit normal');
   // Dragging it sets thickness = 2 x perpendicular distance.
   assert(near(ctx.wallThicknessFromDrag(h, {x:5, y:1.5}), 3), 'drag to 1.5ft perp → 3ft thick');
@@ -6869,6 +6877,45 @@ section('114. Draw toolbar: Color/Width/Fill are labeled as "Shape style"');
   assert(/Landscape elements have their own/.test(around) || /Landscape elements ignore/.test(around), 'the Shape style label explains landscape elements ignore it');
   // Width tooltip disambiguates from the wall thickness box.
   assert(/NOT the retaining-wall thickness/.test(html), 'the Width control clarifies it is not the wall thickness');
+}
+
+section('115. Putting green: roll-direction controls + roll rectangle on canvas');
+{
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+
+  // (1) The Layers list renders roll-direction / seam controls for a putting-green
+  // layer, not just 'install' layers — so you can rotate the green's roll.
+  const rl = html.slice(html.indexOf('function renderLayersList'), html.indexOf('function renderLayersList') + 6000);
+  assert(/mode === 'install' \|\| mode === 'putting-green'/.test(rl), 'roll-direction card shows for the putting-green layer');
+
+  // (2) The canvas draws the green's roll pieces + purchased rectangle (showRects),
+  // in the putting-green draw branch — like an install layer.
+  const dg = html.slice(html.indexOf("} else if (mode === 'putting-green') {"));
+  const branch = dg.slice(0, dg.indexOf("} else if (mode === 'overlay')"));
+  assert(/isPuttingGreen/.test(branch), 'the PG draw branch pulls its own rolled layer');
+  assert(/showRects && u\.displayRect/.test(branch), 'it draws the purchased roll rectangle when Show rectangles is on');
+  assert(/displayClipped/.test(branch), 'it draws the green\'s installed roll strips');
+
+  // (3) Rotating the green's roll changes its waste (so the control is meaningful).
+  const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, allowJoinSeams:false };
+  const green = [{x:0,y:0},{x:20,y:0},{x:20,y:8},{x:0,y:8}]; // 20 wide × 8 tall
+  const a0 = ctx.computeRollLayout(green, 0, 0, opts).totalOrdered;
+  const a90 = ctx.computeRollLayout(green, 90, 0, opts).totalOrdered;
+  assert(a0 !== a90, 'rotating the green roll changes the order/waste');
+  assert(a90 < a0, 'rolling the 20×8 green the long way orders less (240 < 300)');
+
+  // (4) The green layer carries a resolved roll rotation via getLayerRoll (it flows
+  // into computeInstallLayerLayouts for the PG layer just like install layers).
+  const proj = { layout:{ points:[{x:0,y:0},{x:30,y:0},{x:30,y:20},{x:0,y:20}],
+    secondaryShapes:[{points:green, displayPoints:green, area:160, name:'Putting Green'}],
+    secondaryShapeModes:{0:'putting-green'}, layerVisibility:{},
+    layerRoll:{ 0:{ rotation:90 } } } };
+  const prev = ctx.getCurrentProject; ctx.getCurrentProject = () => proj;
+  const primary = ctx.computeRollLayout(proj.layout.points, 0, 0, opts);
+  const layers = ctx.computeInstallLayerLayouts(proj, primary, proj.layout.secondaryShapes, 0, 0, opts);
+  const pg = layers.find(l => l.isPuttingGreen);
+  assert(pg && Math.round(pg.rollRotation) === 90, 'the green layer honors its own roll direction (90°)');
+  ctx.getCurrentProject = prev;
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

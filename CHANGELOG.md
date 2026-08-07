@@ -5,6 +5,49 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 19) — Putting green: its own roll-direction controls + roll rectangle on canvas
+
+Now that the green rolls as its own layer, two pieces of the roll UI still treated it as
+a non-rolled cutout:
+
+- **Roll direction / seam controls.** The Layers-list card that carries Roll dir +
+  Horizontal / Vertical / Auto + Seam offset was gated to `mode === 'install'`. The
+  putting-green layer now gets the same card, so you can rotate the green's roll to
+  minimize waste (Auto picks the best angle). It flows through `getLayerRoll` →
+  `computeInstallLayerLayouts` exactly like an install layer — verified a 20×8 green
+  drops from 300 ft² ordered at 0° to 240 at 90°.
+
+- **Roll rectangle on canvas.** The canvas draw branch for a putting green only drew the
+  green fill + fringe, never its roll plan. It now draws the green's installed strips
+  and — when "Show purchased roll rectangles" is on — the purchased rectangle + waste
+  hatch, just like a base/install shape, with the green fill and fringe on top.
+
+Tests **1486 → 1493** (README **1493**): the PG layer gets roll-direction controls; the
+draw branch renders its strips + purchased rectangle; rotating the green roll changes
+its order/waste; and the green layer honors its own roll direction via `layerRoll`.
+
+---
+
+## 2026-07-22 (cont'd 18) — Fix: the wall thickness handle was invisible on freehand-drawn walls
+
+The tooltip promised a draggable thickness handle on a selected wall, but it usually
+didn't appear. Cause: `wallThicknessHandle` anchored to the wall's FIRST segment — and a
+freehand-drawn wall starts with a degenerate first segment (the mousedown point and the
+first drag point land on nearly the same spot), so the segment length was ~0 and the
+function returned null. No handle.
+
+The handle now anchors to the MIDDLE of the wall (the point halfway along its total
+length, skipping zero-length segments), which is always a real, grabbable spot. It's
+also offset far enough off the centerline to clear the wall body on thin walls, drawn
+larger (radius 7) with a white ring and a dashed leader line so it's easy to spot, and
+its hit target already uses the handle tolerance.
+
+Tests **1484 → 1486** (README **1486**): the handle sits at the wall's middle and is
+offset clear of the line; and a freehand wall with a degenerate first segment still
+returns a handle (previously null).
+
+---
+
 ## 2026-07-22 (cont'd 17) — Draw toolbar: label Color/Width/Fill as "Shape style" (they read as landscape controls)
 
 The Color, Width, and Fill controls sit right after the Landscape buttons, so they
