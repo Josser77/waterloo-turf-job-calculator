@@ -6856,6 +6856,21 @@ section('113. Top-bar base/green split (Installed, Ordered, Turf LF)');
   assert(!/<span class="tm-l">Linear ft<\/span>/.test(html), 'the old "Linear ft" label is gone');
 }
 
+section('114. Draw toolbar: Color/Width/Fill are labeled as "Shape style"');
+{
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // The controls are grouped under a "Shape style:" label so they don't read as
+  // landscape-element controls (they apply to Line/Rect/Circle/Freehand).
+  assert(/>Shape style:</.test(html), 'the Color/Width/Fill group is labeled "Shape style"');
+  // The group sits AFTER the landscape buttons but is clearly delimited; the label's
+  // tooltip explains landscape elements ignore these.
+  const idx = html.indexOf('Shape style:');
+  const around = html.slice(idx, idx + 400);
+  assert(/Landscape elements have their own/.test(around) || /Landscape elements ignore/.test(around), 'the Shape style label explains landscape elements ignore it');
+  // Width tooltip disambiguates from the wall thickness box.
+  assert(/NOT the retaining-wall thickness/.test(html), 'the Width control clarifies it is not the wall thickness');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

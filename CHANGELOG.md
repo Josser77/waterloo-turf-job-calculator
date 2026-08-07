@@ -5,6 +5,21 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 17) — Draw toolbar: label Color/Width/Fill as "Shape style" (they read as landscape controls)
+
+The Color, Width, and Fill controls sit right after the Landscape buttons, so they
+looked like they configured the landscape elements — but they apply to the basic shapes
+(Line, Rectangle, Circle, Freehand), and landscape elements have their own built-in look
+and ignore them. Grouped them under a "Shape style:" label with tooltips: Color/Width/
+Fill explain they're for drawn shapes, the Width tooltip clarifies it's pixels and NOT
+the retaining-wall thickness (which is the separate "Wall in" inches box), and the
+help text under the toolbar says the same. No behavior change.
+
+Tests **1481 → 1484** (README **1484**): the "Shape style" label exists, explains
+landscape elements ignore it, and the Width control disambiguates from wall thickness.
+
+---
+
 ## 2026-07-22 (cont'd 16) — Top bar breaks out base vs putting green; "Linear ft" → "Turf LF"
 
 On a base + putting green job the top bar now shows both numbers for Installed, Ordered,
