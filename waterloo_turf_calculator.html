@@ -549,6 +549,16 @@
     color: var(--text-mid);
   }
   .btn-ghost:hover { background: var(--surface2); }
+  /* Disabled buttons must LOOK disabled — greyed and no hover — not just be
+     unclickable. Without this, buttons like ⬒ Make Layer (disabled until a closed
+     shape is selected) appeared fully active, so it wasn't obvious you had to select
+     a shape first. */
+  .btn:disabled, .btn[disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  .btn:disabled:hover, .btn[disabled]:hover { background: transparent; }
   .btn-sm { padding: 6px 12px; font-size: 12px; }
   /* Help badge — a small circular "?" that links into the User Guide. Deliberately
      distinct from ghost buttons so it reads as "help" and doesn't disappear. */
@@ -2244,6 +2254,7 @@
           <li><strong>Putting Green Install</strong> — per sqft rate for putting green area</li>
           <li><strong>Bender Board Edging Install</strong> — per linear ft install rate, shown dynamically based on your active crew's rate</li>
           <li><strong>Bender Board Materials</strong> — price per 20 ft board, including stakes & screws</li>
+          <li><strong>Daily Minimum (labor floor)</strong> — a flat per-crew, per-day floor on install labor. On a small job where the per-sqft labor (turf install + edging) comes out below this amount, the quote adds the shortfall so the crew still earns its daily minimum; a line reads <em>Daily minimum adjustment</em>. Big jobs clear the floor on their own and are unaffected. Leave it <strong>blank</strong> for crews that don't have a minimum — only the crews you set one for use it. It's a flat single-day amount (it doesn't scale with job size).</li>
         </ul>
       </div>
 
@@ -2344,6 +2355,7 @@
         <p>Once a layer is set to <strong>Putting Green</strong>, a <strong>Fringe</strong> sub-tab appears in the Layout right pane. Open it and check <strong>"Add a fringe border around the putting green"</strong> to enable it, then choose a <strong>Fringe Turf Product</strong> from your catalog and set the <strong>Fringe Width</strong> (in feet) — the border strip's width all the way around the green.</p>
         <p>The fringe is calculated as a ring around the putting green's actual perimeter (traced from its Moasure outline), offset outward by the fringe width with properly mitered corners — adjacent pieces meet exactly edge-to-edge with no overlap and no gap, so the canvas doesn't show doubled-up or duplicated-looking pieces. Rather than cutting one piece per original boundary point — which for a Moasure-captured outline with curves or rounded corners could mean dozens (or with very fine-grained traces, over a hundred) of tiny pieces — nearby straight or gently-curved sections of the perimeter are first merged into single longer pieces wherever the boundary stays within about half the fringe width of a straight line between their endpoints, capped at Max Roll Length so each piece can still be cut from one roll. Each merged piece is then a simple trapezoid (a rectangle once cut) running between mitered corners; on any unusually sharp or jagged corner where a true miter would spike out unreasonably far, that corner is squared off (beveled) instead, keeping every piece a sensible size. This intentionally orders a bit more material than the bare ring area — the summary shows the ring area, total sqft to order, and the difference between them — in exchange for far fewer seams and cuts, which is worth it for most jobs. The fringe width directly controls all of this: a wider fringe both adds more sqft per piece and allows more merging (since the deviation tolerance scales with width), so changing it reflows the whole plan.</p>
         <p>On the canvas, the fringe is drawn in orange around the green. By default each piece is filled and labeled ("Fringe 1", "Fringe 2", etc.) so you can match the diagram to your cut list. Uncheck <strong>"Show fringe pieces on canvas"</strong> to instead draw a single smooth outline at the fringe width, following the green's actual outline point-for-point — this is closer to how the fringe would actually look once installed, rather than the coarser straight-edged pieces used for cutting/ordering. This only affects the canvas drawing; the Piece List, sqft, and pricing are unaffected either way.</p>
+        <p><strong>Blade direction &amp; the 15 ft cut limit.</strong> Every fringe piece is cut so its <strong>blades face in toward the green</strong> (the grain runs radially, across the fringe depth). Because the grain has to run that way, each piece's length — the run <em>along</em> the green's edge — lies across the roll's <strong>width</strong>, so <strong>no fringe piece can be longer than the roll is wide</strong> (15 ft by default; it follows your roll width setting, minus side trim). Any side of the green longer than that is automatically split into multiple pieces that each fit the roll. This adds seams but not much material — the total sqft to order is essentially the same, just cut into more, shorter pieces. A narrower roll produces more (shorter) pieces.</p>
         <p>Fringe material cost is added to any quote option that includes a putting green (it has no effect on "No Putting Green" options), using the same turf material pricing as the main yard's products.</p>
 
         <div class="docs-h3">Moving &amp; Rotating Layers</div>
@@ -2592,6 +2604,7 @@ const DEFAULT_RATE_ITEMS = [
   { id:'r_paver24',     name:"2x4 Paver",                   desc:'',                                       unit:'per unit',   rate:'', key:'' },
   { id:'r_genpaver',    name:'General Paver Installation',   desc:'',                                       unit:'per sq ft',  rate:'', key:'' },
   { id:'r_gravel',      name:'Gravel Install',               desc:'',                                       unit:'per sq ft',  rate:'', key:'' },
+  { id:'r_dailymin',    name:'Daily Minimum (labor floor)',  desc:'Small-job floor: if total install labor is below this, the quote charges this instead. Blank = no floor.', unit:'per day', rate:'', key:'dailyMin' },
 ];
 
 const DEFAULT_TURF_CATALOG = [
@@ -2616,15 +2629,30 @@ const DEFAULT_EDGING_CATALOG = [
   { id:'bender_black', name:'Bender Board', color:'Black', pricePerBoard:'', notes:'20 ft boards' },
 ];
 
+function ensureCrewItems(crews) {
+  // Make sure every crew has the recognized rate items the calc relies on (added over
+  // time). Currently: the Daily Minimum labor floor. Append it (blank = no floor) if a
+  // crew predates it, so existing crews get the feature without losing their rates.
+  let changed = false;
+  (crews || []).forEach(c => {
+    if (!c.items) return;
+    if (!c.items.some(it => it.key === 'dailyMin')) {
+      c.items.push({ id:'r_dailymin', name:'Daily Minimum (labor floor)', desc:'Small-job floor: if total install labor is below this, the quote charges this instead. Blank = no floor.', unit:'per day', rate:'', key:'dailyMin' });
+      changed = true;
+    }
+  });
+  return changed;
+}
 function getCrews() {
   try {
     const d = JSON.parse(localStorage.getItem(CREWS_KEY));
-    if (Array.isArray(d) && d.length) return d;
+    if (Array.isArray(d) && d.length) { if (ensureCrewItems(d)) saveCrews(d); return d; }
   } catch(e){}
   try {
     const old = JSON.parse(localStorage.getItem('wt_labor_v1'));
     if (Array.isArray(old) && old.length) {
       const migrated = [{ id:'crew_main', name:'Main Crew', items: old }];
+      ensureCrewItems(migrated);
       saveCrews(migrated); return migrated;
     }
   } catch(e){}
@@ -2765,6 +2793,26 @@ function getRateFor(key, sqft) {
   const item = getCrewItemsForQuote().find(it => it.key === key);
   if (!item) return defaults[key] || 0;
   return resolveTierRate(item, sqft);
+}
+
+// The crew's daily labor minimum (a flat, single-day floor). 0 = no floor. Read from
+// the crew's 'dailyMin' rate item; only some crews set one.
+function getCrewDailyMinimum() {
+  const item = getCrewItemsForQuote().find(it => it.key === 'dailyMin');
+  const v = item ? parseFloat(item.rate) : 0;
+  return (isFinite(v) && v > 0) ? v : 0;
+}
+
+// Apply the daily minimum as a floor on the labor subtotal. If total install labor is
+// below the crew's daily minimum, the crew must still be paid the minimum, so we add
+// the shortfall. Returns { labor, floored, shortfall }. Pure. Flat single-day floor —
+// it does not scale with job size (big jobs clear it on their own).
+function applyDailyMinimum(laborSubtotal, dailyMin) {
+  const min = (isFinite(dailyMin) && dailyMin > 0) ? dailyMin : 0;
+  if (min > 0 && laborSubtotal < min) {
+    return { labor: min, floored: true, shortfall: min - laborSubtotal };
+  }
+  return { labor: laborSubtotal, floored: false, shortfall: 0 };
 }
 
 // Populate the crew dropdown in topbar for the current project
@@ -4163,7 +4211,7 @@ function calcQuote() {
     const secondaryShapes = (layoutForFringe && layoutForFringe.secondaryShapes) || [];
     const pgShape = pgIdx >= 0 ? secondaryShapes[pgIdx] : null;
     const pgPoints = pgShape ? (pgShape.displayPoints || pgShape.points) : null;
-    const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layoutForFringe && layoutForFringe.rollLength) : null;
+    const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layoutForFringe && layoutForFringe.rollLength, effectiveRollWidth(layoutForFringe||{})) : null;
     if (plan) {
       fringeSqFt = plan.totalSqFt;
       fringePerimeter = plan.perimeter;
@@ -4274,6 +4322,13 @@ function calcQuote() {
         const pgTieredNote  = itemIsTiered(getCrewItemsForQuote().find(it=>it.key==='putting'))  ? ' tiered' : '';
         const laborStd  = stdSqFt * stdRate;
         const laborPg   = pgSqFt * pgRate;
+        // Daily minimum: a flat per-crew floor on the install labor. Compare it against
+        // the labor lines (turf install + edging) and, on a small job where that total
+        // falls short, add the shortfall so the crew is paid its minimum. Materials
+        // (turf, infill) are NOT part of the floor.
+        const laborSubtotal = laborStd + laborPg + edgeCost;
+        const _dm = applyDailyMinimum(laborSubtotal, getCrewDailyMinimum());
+        const dailyMinAdj = _dm.shortfall; // 0 unless the floor bound
         const turfMatCost = turfMaterialCost(tc.rows);
         // Putting green turf material — the green's own turf product, which isn't
         // part of the base/alt turf combo. Included whenever this scenario has a green.
@@ -4281,7 +4336,7 @@ function calcQuote() {
         const scenarioInfillCost = tierInfillCost + (pgSqFt > 0 ? pgInfillCost : 0);
         const scenarioMiscCost = baseMiscCost + (pgSqFt > 0 ? pgMiscCost : 0);
         const scenarioFringeCost = pgSqFt > 0 ? fringeCost : 0;
-        const cogs = laborStd + laborPg + edgeCost + turfMatCost + pgTurfMatCost + scenarioInfillCost + scenarioMiscCost + scenarioFringeCost + shippingCost;
+        const cogs = laborStd + laborPg + edgeCost + dailyMinAdj + turfMatCost + pgTurfMatCost + scenarioInfillCost + scenarioMiscCost + scenarioFringeCost + shippingCost;
         const sellPrice = applyMargin(cogs, marginPct);
 
         const cardLabel = letters[cardIdx % 26];
@@ -4300,6 +4355,7 @@ function calcQuote() {
         if (pgTurfMatCost) breakdown += `<div class="opt-line"><span>Putting green turf</span><span>${fmt(pgTurfMatCost)}</span></div>`;
         if (scenarioFringeCost) breakdown += `<div class="opt-line"><span>PG Fringe (${fringeSqFt.toLocaleString(undefined,{maximumFractionDigits:1})} sqft)</span><span>${fmt(scenarioFringeCost)}</span></div>`;
         if (edgeCost) breakdown += `<div class="opt-line"><span>Edging</span><span>${fmt(edgeCost)}</span></div>`;
+        if (dailyMinAdj > 0) breakdown += `<div class="opt-line"><span>Daily minimum adjustment (labor floor $${getCrewDailyMinimum().toLocaleString()}/day)</span><span>${fmt(dailyMinAdj)}</span></div>`;
         if (tierInfillCost) breakdown += `<div class="opt-line"><span>Infill${infillTiers.length > 1 ? ' ('+infillTier+')' : ''}</span><span>${fmt(tierInfillCost)}</span></div>`;
         if (pgSqFt > 0 && pgInfillCost) breakdown += `<div class="opt-line"><span>Putting green infill</span><span>${fmt(pgInfillCost)}</span></div>`;
         baseMiscItems.forEach(r => { breakdown += miscLineHtml(r); });
@@ -6355,7 +6411,7 @@ function renderFringeSection(proj) {
   const pgShape = secondaryShapes[pgIdx];
   const pgPoints = pgShape ? (pgShape.displayPoints || pgShape.points) : null;
   const width = parseFloat(fringe.width) || 0;
-  const plan = pgPoints ? computeFringePlan(pgPoints, width, layout && layout.rollLength) : null;
+  const plan = pgPoints ? computeFringePlan(pgPoints, width, layout && layout.rollLength, effectiveRollWidth(layout||{})) : null;
 
   if (!plan) {
     summaryEl.innerHTML = `<span style="color:var(--text-light);">Set a fringe width to see perimeter and sqft.</span>`;
@@ -7069,9 +7125,15 @@ function computeFringeOutline(pgPoints, width) {
   });
 }
 
-function computeFringePlan(pgPoints, width, rollLength) {
+function computeFringePlan(pgPoints, width, rollLength, rollWidth) {
   if (!pgPoints || pgPoints.length < 3 || !(width > 0)) return null;
   rollLength = rollLength > 0 ? rollLength : 100;
+  // Fringe blades must all face IN toward the green, so the grain runs radially
+  // (across the fringe depth). That means each piece is cut with its length (the run
+  // ALONG the green's perimeter) lying across the roll's WIDTH — so no single fringe
+  // piece can be longer than the roll is wide. Longer runs get split into pieces that
+  // each fit the roll width. Default 15 ft.
+  rollWidth = rollWidth > 0 ? rollWidth : 15;
 
   // True perimeter/area from the original (unmerged) outline — used for
   // reporting, independent of how pieces are cut.
@@ -7196,15 +7258,46 @@ function computeFringePlan(pgPoints, width, rollLength) {
     });
   }
 
-  // Ring area: sum of each piece's true trapezoid area — this is the actual
-  // ring footprint with mitered corners, no double-counted overlaps.
+  // Blade-direction constraint: every fringe piece is cut with its length running
+  // across the roll's WIDTH (so the blades run radially, facing the green). Any piece
+  // longer than the roll width can't be cut as one piece — split it into equal segments
+  // that each fit, walking both the inner (true boundary) and outer (mitered) edges so
+  // the sub-pieces still tile the ring exactly. Same total footprint, just more seams.
+  const lerpPt = (p, q, t) => ({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t });
+  const splitPieces = [];
+  pieces.forEach(p => {
+    const k = Math.max(1, Math.ceil((p.length - 1e-6) / rollWidth));
+    if (k <= 1) { splitPieces.push(p); return; }
+    for (let j = 0; j < k; j++) {
+      const t0 = j / k, t1 = (j + 1) / k;
+      const i0 = lerpPt(p.p0, p.p1, t0), i1 = lerpPt(p.p0, p.p1, t1); // inner edge
+      const o0 = lerpPt(p.p3, p.p2, t0), o1 = lerpPt(p.p3, p.p2, t1); // outer edge
+      const quad = [i0, i1, o1, o0];
+      const innerLen = Math.hypot(i1.x - i0.x, i1.y - i0.y);
+      const outerLen = Math.hypot(o1.x - o0.x, o1.y - o0.y);
+      splitPieces.push({
+        edgeIndex: p.edgeIndex, subIndex: j, split: true,
+        length: Math.max(innerLen, outerLen), width: p.width,
+        area: polygonArea(quad),
+        p0: i0, p1: i1, p2: o1, p3: o0,
+      });
+    }
+  });
+  pieces.length = 0;
+  splitPieces.forEach(p => pieces.push(p));
+
+
+  // Ring area: sum of each piece's true trapezoid area — the actual ring footprint
+  // (now summed over the split pieces; splitting tiles the same footprint).
   const ringArea = pieces.reduce((s,p)=>s+p.area, 0);
   // totalSqFt: what to ORDER — each piece as a rectangle (length × width),
   // which is >= its true trapezoid area (the rectangle fully contains the
   // trapezoid; any excess is waste trimmed on-site).
   const totalSqFt = pieces.reduce((s,p)=>s + p.length*p.width, 0);
 
-  return { pieces, perimeter, pgArea, ringArea, totalSqFt };
+  return { pieces, perimeter, pgArea, ringArea, totalSqFt, rollWidth,
+    bladeDirection: 'radial-inward', // all blades face the green
+    maxPieceLength: rollWidth };
 }
 
 // Sutherland-Hodgman: clip polygon to axis-aligned rect [xmin,xmax] x [ymin,ymax]
@@ -8671,7 +8764,7 @@ function layoutFitPoints(layout, showRects) {
     if (pgIdx >= 0 && vis[pgIdx] !== false && fringe.enabled && fringe.width > 0) {
       const pgShape = (layout.secondaryShapes || [])[pgIdx];
       const pgPoints = pgShape ? pgShape.displayPoints : null;
-      const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layout.rollLength) : null;
+      const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layout.rollLength, effectiveRollWidth(layout||{})) : null;
       if (plan) plan.pieces.forEach(p => pts.push(p.p0, p.p1, p.p2, p.p3));
     }
   } catch (e) {}
@@ -9020,7 +9113,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       // of the merged ring is drawn — a single clean outline around the green.
       const fringe = getFringeConfig(getCurrentProject() || {});
       if (fringe.enabled && fringe.width > 0) {
-        const plan = computeFringePlan(s.displayPoints, fringe.width, layout.rollLength);
+        const plan = computeFringePlan(s.displayPoints, fringe.width, layout.rollLength, effectiveRollWidth(layout||{}));
         if (plan && plan.pieces.length) {
           if (fringe.piecesVisible !== false) {
             plan.pieces.forEach((p, pi) => {
@@ -11489,7 +11582,7 @@ function renderPieceList(layout, proj) {
     const secondaryShapes = layout.secondaryShapes || [];
     const pgShape = pgIdx >= 0 ? secondaryShapes[pgIdx] : null;
     const pgPoints = pgShape ? (pgShape.displayPoints || pgShape.points) : null;
-    const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layout.rollLength) : null;
+    const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layout.rollLength, effectiveRollWidth(layout||{})) : null;
     if (plan) {
       plan.pieces.forEach((p, i) => {
         rows.push({ label: `Fringe ${i+1}`, length: p.length, width: p.width, sqft: p.length*p.width, nested: false, note: 'PG fringe', sortKey: Infinity });

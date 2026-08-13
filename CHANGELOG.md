@@ -5,6 +5,70 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 22) — Fringe: blades face the green, pieces capped at the roll width
+
+Two fringe-cutting rules. All fringe blades must face IN toward the green, so the grain
+runs radially (across the fringe depth). Because of that orientation, each piece's length
+(the run along the green's edge) lies across the roll's WIDTH — so no fringe piece can be
+longer than the roll is wide. `computeFringePlan` now takes the roll width (default 15 ft,
+follows the layout's roll width minus side trim) and splits any piece longer than that
+into equal segments that each fit, walking both the inner (true boundary) and outer
+(mitered) edges so the sub-pieces still tile the ring exactly.
+
+Total sqft to order is preserved — splitting a run into roll-width pieces doesn't change
+its length × width — so pricing is essentially unchanged; there are just more, shorter
+pieces (more seams). A narrower roll produces more pieces. The plan now reports
+`bladeDirection: 'radial-inward'` and `maxPieceLength`.
+
+Updated the fringe tests that assumed 4 pieces for a 20×10 green — its 24 ft mitered
+sides now split at 15 ft (6 pieces: 12,12,12,12,14,14); totalSqFt stays 152.
+
+Tests **1509 → 1531** (README **1531**): no piece exceeds the roll width, long sides
+split (40×30 → 14 pieces) while small greens keep one piece per side, splitting
+preserves total sqft, and a narrower roll splits more.
+
+---
+
+## 2026-07-22 (cont'd 21) — Disabled buttons now look disabled (⬒ Make Layer wasn't visibly greyed)
+
+There was no CSS for the disabled button state, so buttons that get set `disabled` —
+notably ⬒ Make Layer, which is disabled until a closed shape is selected — still looked
+fully active. That made the "select a shape first, then click" flow non-obvious (it read
+as a dead button). Added a `.btn:disabled / .btn[disabled]` rule: 0.4 opacity,
+not-allowed cursor, no hover. Now Make Layer (and Delete/Copy/Paste) visibly grey out
+until there's a valid selection, then light up. No behavior change — the buttons were
+already correctly unclickable; they just didn't show it.
+
+Tests **1504 → 1509** (README **1509**): the disabled rule exists and dims + blocks the
+button, and Make Layer ships disabled by default.
+
+---
+
+## 2026-07-22 (cont'd 20) — Crew daily-minimum labor floor (small-job pay minimum)
+
+Some crews must be paid a minimum for the day even when a small job's per-sqft labor
+comes out below it. Added a **Daily Minimum (labor floor)** rate item per crew: when the
+scenario's install labor (turf install + edging) is below the crew's daily minimum, the
+quote adds the shortfall as a **Daily minimum adjustment** line so the crew earns its
+minimum. Big jobs clear the floor on their own and are unaffected; materials (turf,
+infill) are not part of the floor.
+
+- Flat single-day amount — it does not scale with job size (per your call: small jobs
+  are one day, so a flat floor is the right model).
+- Per crew, blank = no floor — only the crews you set an amount for use it.
+- Existing crews are migrated to include the item (blank) on load, so nobody loses their
+  rates; new crews get it by default. The item is per-day (no per-sqft tiers).
+
+Pure `applyDailyMinimum(laborSubtotal, dailyMin)` → `{labor, floored, shortfall}` and
+`getCrewDailyMinimum()` read the active crew's rate; `ensureCrewItems` does the
+idempotent migration.
+
+Tests **1493 → 1504** (README **1504**): the floor lifts a short labor total and leaves
+a sufficient one alone, ignores 0/NaN, doesn't scale, and the migration adds exactly one
+item and is idempotent.
+
+---
+
 ## 2026-07-22 (cont'd 19) — Putting green: its own roll-direction controls + roll rectangle on canvas
 
 Now that the green rolls as its own layer, two pieces of the roll UI still treated it as

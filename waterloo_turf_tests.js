@@ -2443,14 +2443,17 @@ section('36. computeFringePlan: perimeter, ring area, and per-edge cutting piece
     assert(near(plan.pgArea, 200), `pgArea = 20*10 = 200 (got ${plan.pgArea})`);
     // Mitered ring area for a rectangle: outer rect (24x14) minus inner (20x10) = 336-200=136
     assert(near(plan.ringArea, 136), `mitered ringArea = outer(24x14) - inner(20x10) = 136 (got ${plan.ringArea})`);
-    assert(plan.pieces.length === 4, '4 pieces for a 4-sided polygon');
+    // With blade-facing pieces capped at the 15 ft roll width, the two 24 ft mitered
+    // sides each split into 2 (ceil(24/15)) and the two 14 ft sides stay whole: 6 pieces.
+    assert(plan.pieces.length === 6, '6 pieces: the two 24 ft sides split at the 15 ft roll width, the 14 ft sides stay whole');
 
-    // Mitered corners extend each side by `width` at BOTH ends to meet square
-    // outer corners: side lengths (20,10,20,10) -> outer lengths (24,14,24,14)
+    // Split-side lengths: 24 → two 12s; 14 → stays 14.
     const lengths = plan.pieces.map(p=>p.length).sort((a,b)=>a-b);
-    assert(JSON.stringify(lengths) === JSON.stringify([14,14,24,24]), `mitered piece lengths are edge+2*width (got ${JSON.stringify(lengths)})`);
-
-    // totalSqFt = sum(length*width) = (24+14+24+14)*2 = 152
+    assert(JSON.stringify(lengths) === JSON.stringify([12,12,12,12,14,14]), `piece lengths after the roll-width split (got ${JSON.stringify(lengths)})`);
+    // The total run length is preserved: 2×24 + 2×14 = 76 = sum of split pieces.
+    assert(near(lengths.reduce((s,x)=>s+x,0), 76), 'splitting preserves total run length (76 ft)');
+    // totalSqFt = sum(length*width). Splitting preserves total length, so this is
+    // unchanged from the unsplit ring: (24+14+24+14)*2 = 152.
     assert(near(plan.totalSqFt, 152), `totalSqFt = sum of piece rectangles = 152 (got ${plan.totalSqFt})`);
 
     // Every piece's rectangle should lie OUTSIDE the PG polygon. Corners may
@@ -2853,12 +2856,12 @@ section('38. Piece List shows length/width/sqft for every roll piece and fringe 
     assert(html.includes('PG fringe'), 'fringe rows note "PG fringe"');
     // Fringe pieces use the fringe width (2.0 ft) as their "width" column
     const fringeRows = [...html.matchAll(/Fringe \d<\/div>\s*<div>([\d.]+) ft<\/div>\s*<div>([\d.]+) ft<\/div>/g)];
-    assert(fringeRows.length === 4, '4 fringe rows found with length/width');
+    assert(fringeRows.length === 6, '6 fringe rows: the two 24 ft sides split at the 15 ft roll width');
     fringeRows.forEach(([_,len,wid]) => {
       assert(near(parseFloat(wid), 2.0), `fringe piece width is 2.0 (got ${wid})`);
     });
     const fringeLengths = fringeRows.map(([_,len])=>parseFloat(len)).sort((a,b)=>a-b);
-    assert(JSON.stringify(fringeLengths) === JSON.stringify([14,14,24,24]), `mitered fringe piece lengths are edge+2*width = [14,14,24,24] (got ${JSON.stringify(fringeLengths)})`);
+    assert(JSON.stringify(fringeLengths) === JSON.stringify([12,12,12,12,14,14]), `fringe piece lengths after roll-width split (got ${JSON.stringify(fringeLengths)})`);
   }
 
   // ── No layout -> piece list hidden ──
@@ -2993,7 +2996,7 @@ section('39. mergeCollinearEdges + computeFringePlan: merging reduces piece coun
     const pg = rect(0,0,20,10);
     const plan = ctx.computeFringePlan(pg, 2);
     assert(plan !== null, 'computeFringePlan works without explicit rollLength');
-    assert(plan.pieces.length === 4, 'rectangle still produces 4 pieces with default rollLength');
+    assert(plan.pieces.length === 6, 'rectangle 24 ft sides split at the 15 ft roll width → 6 pieces');
   }
 }
 
@@ -3061,8 +3064,8 @@ section('40. Fringe "Show pieces" toggle: individual pieces vs single outline');
   {
     const { inputs, drawCalls } = makeHarness40(true);
     assert(inputs.fringePiecesVisible.checked === true, 'checkbox reflects piecesVisible=true');
-    // loadProject triggers drawRollLayoutCanvas twice (4 pieces x 2 draws = 8 labels)
-    assert(drawCalls.fillTextLabels.length === 8, `"Fringe N" labels drawn for all 4 pieces, each draw pass (got ${drawCalls.fillTextLabels.length})`);
+    // loadProject triggers drawRollLayoutCanvas twice (6 pieces x 2 draws = 12 labels)
+    assert(drawCalls.fillTextLabels.length === 12, `"Fringe N" labels drawn for all 6 pieces, each draw pass (got ${drawCalls.fillTextLabels.length})`);
     assert(drawCalls.fillTextLabels.includes('Fringe 1'), 'labels include "Fringe 1"');
     assert(drawCalls.strokeStyles.includes('#C77800'), 'fringe pieces stroked in orange (#C77800)');
   }
@@ -3117,8 +3120,8 @@ section('40. Fringe "Show pieces" toggle: individual pieces vs single outline');
     vm.runInNewContext(scriptSrc, hctx);
     hctx.loadProject('p1');
     assert(inputs.fringePiecesVisible.checked === true, 'checkbox defaults to checked when piecesVisible is unset');
-    // loadProject triggers drawRollLayoutCanvas twice (4 pieces x 2 draws = 8 labels)
-    assert(labels.length === 8, `defaults to showing per-piece labels when piecesVisible is unset (got ${labels.length})`);
+    // loadProject triggers drawRollLayoutCanvas twice (6 pieces x 2 draws = 12 labels)
+    assert(labels.length === 12, `defaults to showing per-piece labels when piecesVisible is unset (got ${labels.length})`);
   }
 
   // ── Toggling persists to proj.layout.fringe.piecesVisible ──
@@ -6916,6 +6919,71 @@ section('115. Putting green: roll-direction controls + roll rectangle on canvas'
   const pg = layers.find(l => l.isPuttingGreen);
   assert(pg && Math.round(pg.rollRotation) === 90, 'the green layer honors its own roll direction (90°)');
   ctx.getCurrentProject = prev;
+}
+
+section('116. Crew daily-minimum labor floor');
+{
+  // Pure floor: labor rises to the minimum only when it falls short (flat, single-day).
+  assert(JSON.stringify(ctx.applyDailyMinimum(250, 500)) === JSON.stringify({labor:500,floored:true,shortfall:250}), 'small job floored up to the minimum, shortfall added');
+  assert(JSON.stringify(ctx.applyDailyMinimum(3000, 500)) === JSON.stringify({labor:3000,floored:false,shortfall:0}), 'big job clears the floor, unchanged');
+  assert(JSON.stringify(ctx.applyDailyMinimum(250, 0)) === JSON.stringify({labor:250,floored:false,shortfall:0}), 'no minimum (0) → no floor');
+  assert(ctx.applyDailyMinimum(500, 500).floored === false, 'labor exactly at the minimum is not floored');
+  assert(ctx.applyDailyMinimum(100, NaN).labor === 100, 'a NaN minimum is ignored');
+
+  // The floor does NOT scale with job size — a flat single-day amount.
+  assert(ctx.applyDailyMinimum(400, 600).labor === 600, 'floor is flat, not multiplied by anything');
+
+  // Migration: an existing crew without the item gets it (blank = no floor).
+  const crews = [{ id:'crew_main', name:'M', items:[{id:'r_standard',name:'Std',unit:'per sq ft',rate:'8',key:'standard'}] }];
+  assert(ctx.ensureCrewItems(crews) === true, 'ensureCrewItems reports it added the item');
+  assert(crews[0].items.some(it => it.key === 'dailyMin'), 'an existing crew is migrated to include the daily-minimum item');
+  const dm = crews[0].items.find(it => it.key === 'dailyMin');
+  assert(dm.rate === '' && dm.unit === 'per day', 'the migrated item is blank (no floor) and per-day');
+  assert(ctx.ensureCrewItems(crews) === false, 'ensureCrewItems is idempotent (no duplicate)');
+  assert(crews[0].items.filter(it => it.key === 'dailyMin').length === 1, 'only one daily-minimum item after re-run');
+}
+
+section('117. Disabled buttons are styled so they look disabled');
+{
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // A disabled-state rule must exist — without it, buttons set disabled (like ⬒ Make
+  // Layer before a shape is selected) still looked fully active.
+  assert(/\.btn:disabled|\.btn\[disabled\]/.test(html), 'there is a CSS rule for disabled buttons');
+  // Grab the rule body and check it actually dims + blocks the button.
+  const m = html.match(/\.btn:disabled[^{]*\{([^}]*)\}/);
+  assert(m, 'the disabled rule has a body');
+  assert(/opacity/.test(m[1]), 'disabled buttons are dimmed (opacity)');
+  assert(/not-allowed/.test(m[1]), 'disabled buttons show a not-allowed cursor');
+  // The Make Layer button ships disabled by default (enabled only on a valid selection).
+  assert(/id="drawMakeLayerBtn"[^>]*disabled/.test(html), 'Make Layer starts disabled until a shape is selected');
+}
+
+section('118. Fringe: blades face the green, pieces capped at the roll width');
+{
+  const rectPG = (x,y,w,h) => [{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}];
+
+  // A 40×30 green, 3 ft fringe, 15 ft roll: every side longer than 15 ft is split so
+  // each piece fits across the roll width (blades run radially, facing the green).
+  const plan = ctx.computeFringePlan(rectPG(0,0,40,30), 3, 100, 15);
+  assert(plan.bladeDirection === 'radial-inward', 'plan records blades face the green (radial)');
+  assert(plan.maxPieceLength === 15, 'max piece length = the roll width (15)');
+  assert(plan.pieces.every(p => p.length <= 15 + 1e-6), 'NO fringe piece exceeds the 15 ft roll width');
+  // 40 ft side → mitered 46 → ceil(46/15)=4 pieces; 30 ft → 36 → 3; total 2*(4+3)=14.
+  assert(plan.pieces.length === 14, 'long sides split into roll-width pieces (14 total)');
+
+  // Splitting preserves the ordered total: same run length × width as the unsplit ring.
+  const unsplitTotal = 2*(46+36) * 3; // (2×46 + 2×36) ft × 3 ft
+  assert(near(plan.totalSqFt, unsplitTotal, 1), 'total sqft to order is preserved by splitting');
+
+  // A small green (both sides < 15 ft after miter) is unaffected — one piece per side.
+  const small = ctx.computeFringePlan(rectPG(0,0,8,6), 2, 100, 15);
+  assert(small.pieces.length === 4, 'a green whose sides all fit the roll width keeps one piece per side');
+  assert(small.pieces.every(p => p.length <= 15 + 1e-6), 'small-green pieces also within the roll width');
+
+  // A narrower roll splits more aggressively (the cap follows the roll width).
+  const narrow = ctx.computeFringePlan(rectPG(0,0,40,30), 3, 100, 10);
+  assert(narrow.pieces.every(p => p.length <= 10 + 1e-6), 'a 10 ft roll caps pieces at 10 ft');
+  assert(narrow.pieces.length > plan.pieces.length, 'a narrower roll yields more (smaller) pieces');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
