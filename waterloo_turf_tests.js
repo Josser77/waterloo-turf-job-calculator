@@ -6986,6 +6986,52 @@ section('118. Fringe: blades face the green, pieces capped at the roll width');
   assert(narrow.pieces.length > plan.pieces.length, 'a narrower roll yields more (smaller) pieces');
 }
 
+section('119. Every fringe cut honors the fringe width setting');
+{
+  const rectPG = (x,y,w,h) => [{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}];
+  // Whatever the green shape and however pieces split, every piece's cut WIDTH must
+  // equal the fringe width setting — that's the guarantee behind "honor the width".
+  [ [rectPG(0,0,40,30), 3], [rectPG(0,0,37,9), 2.5], [rectPG(0,0,12,8), 4], [rectPG(0,0,60,60), 1.5] ].forEach(([pg, w]) => {
+    const plan = ctx.computeFringePlan(pg, w, 100, 15);
+    assert(plan.pieces.every(p => near(p.width, w)), `every piece width = fringe setting ${w}`);
+    assert(plan.pieces.every(p => p.length > 0), 'no zero-length pieces');
+    // Ordered length uses the OUTER (longer) edge so the rectangle fully covers the
+    // mitered piece — the cut is never shorter than the piece it must cover.
+    assert(plan.pieces.every(p => p.length <= 15 + 1e-6), 'still within the roll width');
+  });
+  // The ordered sqft equals sum(length × fringe width) — width is applied to every piece.
+  const plan = ctx.computeFringePlan(rectPG(0,0,40,30), 3, 100, 15);
+  const byWidth = plan.pieces.reduce((s,p)=>s + p.length*3, 0);
+  assert(near(plan.totalSqFt, byWidth), 'totalSqFt = sum(length × fringe width) — full width on every piece');
+}
+
+section('120. Piece-list rolls never exceed the roll length (segmented strips)');
+{
+  const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, allowJoinSeams:false };
+  // A shape whose strips run 120 ft — longer than the 100 ft roll — so each strip must
+  // be segmented into a 100 ft piece + a 20 ft piece across two rolls in the LABELS,
+  // not shown as one 120 ft piece on a single roll (the bug).
+  const L = ctx.computeRollLayout([{x:0,y:0},{x:120,y:0},{x:120,y:30},{x:0,y:30}], 0, 0, opts);
+  L.rollLength = 100;
+  const labels = ctx.assignRollPieceLabels(L);
+
+  // Reconstruct the length landing on each roll from each unit's primary + extra labels.
+  const byRoll = {};
+  labels.forEach((lab, u) => {
+    const all = [lab, ...(lab.extraParts || [])];
+    const segs = (!u.pieces && u.numSegments > 1) ? u.numSegments : 1;
+    const lens = []; let rem = u.orderedLength;
+    for (let k = 0; k < segs; k++) { const seg = Math.min(100, rem); rem -= seg; lens.push(seg); }
+    all.forEach((lb, i) => { byRoll[lb.roll] = (byRoll[lb.roll] || 0) + (lens[i] || 0); });
+  });
+  Object.keys(byRoll).forEach(r => {
+    assert(byRoll[r] <= 100 + 1e-6, `Roll ${r} does not exceed the 100 ft roll length (got ${byRoll[r].toFixed(1)})`);
+  });
+  // A 120 ft strip must appear on TWO rolls (segmented), not one.
+  const anyMultiRoll = [...labels.values()].some(lab => lab.extraParts && lab.extraParts.length);
+  assert(anyMultiRoll, 'an over-length strip is labelled across multiple rolls, not packed whole onto one');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

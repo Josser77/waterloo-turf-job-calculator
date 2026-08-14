@@ -9117,7 +9117,22 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
         if (plan && plan.pieces.length) {
           if (fringe.piecesVisible !== false) {
             plan.pieces.forEach((p, pi) => {
-              const poly = [p.p0, p.p1, p.p2, p.p3];
+              // Draw each piece at its FULL cut width (a clean rectangle fringe-width
+              // deep), not the mitered trapezoid — so what you see matches what gets
+              // cut. The trapezoid's slanted mitered ends made corner pieces look
+              // shallower than the fringe width even though the cut rectangle is full
+              // depth. Build the rectangle from the inner edge extended outward by the
+              // fringe width along the edge's outward normal.
+              const ex = p.p1.x - p.p0.x, ey = p.p1.y - p.p0.y;
+              const el = Math.hypot(ex, ey) || 1;
+              // outward normal = the side that points away from the green (toward p3/p2)
+              let nx = -ey / el, ny = ex / el;
+              const toOuterX = p.p3.x - p.p0.x, toOuterY = p.p3.y - p.p0.y;
+              if (nx * toOuterX + ny * toOuterY < 0) { nx = -nx; ny = -ny; }
+              const r0 = p.p0, r1 = p.p1;
+              const r2 = { x: p.p1.x + nx * fringe.width, y: p.p1.y + ny * fringe.width };
+              const r3 = { x: p.p0.x + nx * fringe.width, y: p.p0.y + ny * fringe.width };
+              const poly = [r0, r1, r2, r3];
               drawPoly(poly, 'rgba(244,168,34,0.30)', '#C77800');
               // Label each fringe piece at its centroid
               const cx = poly.reduce((s,pt)=>s+pt.x,0)/4, cy = poly.reduce((s,pt)=>s+pt.y,0)/4;
@@ -10736,30 +10751,46 @@ function assignRollPieceLabels(layout) {
     if (s.clippedArea <= 1e-9) return;
     (s.pieces || [s]).forEach(u => units.push(u));
   });
+  // A strip with no explicit pieces but numSegments>1 is a single run longer than a
+  // roll — it must be SEGMENTED into roll-length pieces before packing, the same way
+  // layoutUnitLengths does. Otherwise the whole over-length run was packed as one
+  // "piece" and labelled onto a single roll, so the piece list showed (e.g.) a 120 ft
+  // piece on a 100 ft roll. Build the packing lengths per unit, splitting segmented
+  // strips, and remember which unit each packed length maps back to.
+  const packLengths = [];
+  const packUnit = [];      // unit object for each packing length
+  const packIsNested = [];
+  units.forEach(u => {
+    const nested = (u.nestedInto != null);
+    const segs = (!u.pieces && u.numSegments > 1) ? u.numSegments : 1;
+    if (segs <= 1) {
+      packLengths.push(nested ? 0 : (u.orderedLength || 0));
+      packUnit.push(u); packIsNested.push(nested);
+    } else {
+      let rem = u.orderedLength || 0;
+      for (let k = 0; k < segs; k++) {
+        const seg = Math.min(rollLength, rem); rem -= seg;
+        packLengths.push(nested ? 0 : seg);
+        packUnit.push(u); packIsNested.push(nested);
+      }
+    }
+  });
   // Pack rather than run a cumulative counter: the old logic only started a new
   // roll once the running total had already PASSED a roll boundary, so a piece
   // that began at 70 ft on a 100 ft roll was still labelled for that roll even
   // though it ran to 113 ft — an impossible cut. Now a piece either fits, or it's
   // explicitly butt-seamed across the join (and labelled as such), or it starts a
   // new roll — depending on the Butt Seams setting.
-  // A nested piece is cut from another roll's already-purchased waste, so it
-  // consumes NO new roll length — but it still needs an identity in the list. Pack
-  // it at zero length: it keeps its place in the sequence and gets a label without
-  // pushing anything onto a new roll. (This also keeps the labels agreeing with
-  // countRollsAndPieces, which excludes nested pieces from its footage.)
-  const rolls = packPiecesIntoRolls(
-    units.map(u => (u.nestedInto == null ? u.orderedLength : 0)),
-    rollLength,
-    !!layout.allowJoinSeams
-  );
+  const rolls = packPiecesIntoRolls(packLengths, rollLength, !!layout.allowJoinSeams);
   rolls.forEach((placements, r) => {
     placements.forEach((pl, p) => {
-      const u = units[pl.index];
+      const u = packUnit[pl.index];
       if (!u) return;
       const lab = { roll: r + 1, piece: p + 1 };
       if (pl.parts > 1) { lab.part = pl.part; lab.parts = pl.parts; lab.partLength = pl.length; }
-      // A butt-seamed piece appears on two rolls; keep the FIRST label as the
-      // unit's primary identity and record the rest so callers can show both.
+      // A strip split into roll-length segments (or a butt-seamed piece) appears on
+      // more than one roll; keep the FIRST label as the unit's primary identity and
+      // record the rest so callers can show every roll it lands on.
       if (labels.has(u)) {
         const prev = labels.get(u);
         (prev.extraParts || (prev.extraParts = [])).push(lab);

@@ -5,6 +5,46 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 24) — Fix: piece list showed a single piece longer than the roll (over-length rolls)
+
+The Piece List could show a roll whose pieces summed to more than the Max Roll Length —
+e.g. a 120 ft piece on a 100 ft roll. Cause: `assignRollPieceLabels` (which numbers the
+Roll N / Piece M labels) packed each strip WHOLE, while `layoutUnitLengths` (which counts
+rolls and footage) first SEGMENTS an over-length strip into roll-length pieces. So a strip
+running 120 ft got counted as 100+20 across two rolls for the roll count, but LABELLED as
+one 120 ft piece on one roll in the list — an impossible cut.
+
+`assignRollPieceLabels` now segments a multi-segment strip (numSegments>1) into
+roll-length pieces before packing, exactly like the counter does, and records the extra
+roll each segment lands on. So an over-length run shows as (e.g.) a 100 ft piece on Roll 1
+and a 20 ft piece on Roll 2, and no roll in the list ever exceeds the roll length.
+
+Tests **1544 → 1549** (README **1549**): for a shape whose strips run 120 ft on a 100 ft
+roll, every roll in the labels sums ≤ 100 ft and the over-length strip is split across
+two rolls.
+
+---
+
+## 2026-07-22 (cont'd 23) — Fringe pieces drawn at full width (they honored the width, but LOOKED short at corners)
+
+Follow-up to the fringe split. Every fringe piece already honored the fringe width in
+the CUT data — each is ordered as length × fringe-width, and the ordered length uses the
+outer (longer) mitered edge so the rectangle fully covers the piece. But on the canvas
+the pieces were drawn as the mitered trapezoid `[p0,p1,p2,p3]`, whose slanted ends made
+corner pieces look shallower than the fringe width even though the cut is full depth.
+
+The canvas now draws each fringe piece as its full-width cut rectangle (the inner edge
+extended outward by the fringe width along the outward normal), so what you see matches
+what gets cut. Pieces may now visibly overlap slightly at corners — that's honest: each
+piece really is cut full-width and the miter is trimmed on site.
+
+Added a guard test: for several green shapes and widths, EVERY piece's cut width equals
+the fringe setting and totalSqFt = sum(length × fringe width).
+
+Tests **1531 → 1544** (README **1544**).
+
+---
+
 ## 2026-07-22 (cont'd 22) — Fringe: blades face the green, pieces capped at the roll width
 
 Two fringe-cutting rules. All fringe blades must face IN toward the green, so the grain
