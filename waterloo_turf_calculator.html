@@ -1255,6 +1255,7 @@
     <div class="tabs">
       <div class="tab active" onclick="switchTab('quote',this)">Quote Builder</div>
       <div class="tab" onclick="switchTab('layout',this)">Layout</div>
+      <div class="tab" onclick="switchTab('pavers',this)">Pavers</div>
       <div class="tab" id="tabSettings" onclick="switchTab('settings',this)">⚙ Settings</div>
       <div class="top-metrics" id="topMetrics" title="Live layout totals — from the roll plan">
         <div class="tm"><span class="tm-l">Installed</span><input type="text" id="layoutArea" class="tm-v" readonly></div>
@@ -1713,6 +1714,66 @@
         </div>
       </div><!-- /tab-layout -->
 
+
+      <!-- ══════════════════════════════════════
+           TAB: PAVERS
+      ══════════════════════════════════════ -->
+      <div class="tab-panel" id="panel-pavers">
+        <div class="card">
+          <h2 style="margin-top:0;">Paver Calculator</h2>
+          <p class="hint" style="margin-top:-4px;">Work out how many pavers to order for an area. Uses the imported Moasure area by default, or enter an area by hand. Paver size and joint spacing are in inches.</p>
+
+          <div style="display:flex;flex-direction:column;gap:14px;max-width:560px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" id="paverUseMoasure" onchange="onPaverInput()" style="width:auto;margin:0;">
+              Use the imported Moasure area
+            </label>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div>
+                <label class="field-label">Area to cover (sq ft)</label>
+                <input type="number" id="paverArea" min="0" step="0.1" class="manual-input" onchange="onPaverInput()" oninput="onPaverInput()">
+                <div class="hint" id="paverAreaSource"></div>
+              </div>
+              <div>
+                <label class="field-label">Overage %</label>
+                <input type="number" id="paverOverage" min="0" step="1" class="manual-input" onchange="onPaverInput()" oninput="onPaverInput()">
+                <div class="hint">Extra for cuts, breakage &amp; pattern loss.</div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+              <div>
+                <label class="field-label">Paver length (in)</label>
+                <input type="number" id="paverLength" min="0" step="0.25" class="manual-input" onchange="onPaverInput()" oninput="onPaverInput()">
+              </div>
+              <div>
+                <label class="field-label">Paver width (in)</label>
+                <input type="number" id="paverWidth" min="0" step="0.25" class="manual-input" onchange="onPaverInput()" oninput="onPaverInput()">
+              </div>
+              <div>
+                <label class="field-label">Joint spacing (in)</label>
+                <input type="number" id="paverSpacing" min="0" step="0.0625" class="manual-input" onchange="onPaverInput()" oninput="onPaverInput()">
+              </div>
+            </div>
+          </div>
+
+          <div id="paverResults" style="margin-top:22px;"></div>
+
+          <details style="margin-top:20px;">
+            <summary style="cursor:pointer;font-size:13px;color:var(--text-mid);font-weight:600;">How this is calculated</summary>
+            <div class="hint" style="margin-top:8px;line-height:1.6;">
+              Each paver tiles with a joint on two of its sides, so one paver takes up a grid cell of
+              <strong>(length + spacing) × (width + spacing)</strong>. Pavers needed = area ÷ that cell.
+              The <strong>overage %</strong> is added on top for cuts, breakage and pattern loss, then the
+              total is rounded up to whole pavers. "Face coverage of order" is the bare paver face the
+              ordered count covers (no joints) — a quick cross-check. Sizes and spacing are in inches;
+              area is in square feet. This tab is a standalone estimator — it doesn't change the turf
+              quote.
+            </div>
+          </details>
+        </div>
+      </div>
 
       <!-- ══════════════════════════════════════
            TAB: SETTINGS
@@ -5956,6 +6017,73 @@ function getOverlayArea(proj) {
 
 // Total area to use for "Installed Area" / roll calculations, after applying
 // each secondary shape's mode (exclude = subtract as a hole, ignore = no effect).
+// ── Paver calculator ───────────────────────────────────────────────────────
+// Given a coverage area (sq ft) and paver geometry (inches), work out how many
+// pavers to order. Each paver tiles with a joint (spacing) on two of its sides, so
+// the repeating grid cell is (length + spacing) × (width + spacing). Overage is a
+// waste allowance (cuts, breakage, pattern loss) added on top, then rounded UP to
+// whole pavers. Pure — no DOM, no persistence.
+function computePaverPlan(input) {
+  const areaSqFt   = Math.max(0, parseFloat(input.areaSqFt) || 0);
+  const lengthIn   = Math.max(0, parseFloat(input.paverLengthIn) || 0);
+  const widthIn    = Math.max(0, parseFloat(input.paverWidthIn) || 0);
+  const spacingIn  = Math.max(0, parseFloat(input.spacingIn) || 0);
+  const overagePct = Math.max(0, parseFloat(input.overagePct) || 0);
+
+  if (areaSqFt <= 0 || lengthIn <= 0 || widthIn <= 0) {
+    return { ok:false, reason:'missing-input',
+      unitAreaSqFt:0, paversNeeded:0, paversWithOverage:0, paversToOrder:0, overagePavers:0, coverageSqFt:0 };
+  }
+
+  // Grid cell including the joint, converted to square feet.
+  const cellLenFt = (lengthIn + spacingIn) / 12;
+  const cellWidFt = (widthIn + spacingIn) / 12;
+  const unitAreaSqFt = cellLenFt * cellWidFt;
+
+  const paversNeeded = areaSqFt / unitAreaSqFt;                 // fractional, exact fit
+  const paversWithOverage = paversNeeded * (1 + overagePct / 100);
+  const paversToOrder = Math.ceil(paversWithOverage - 1e-9);    // whole pavers
+  const overagePavers = paversToOrder - Math.ceil(paversNeeded - 1e-9);
+
+  // What that many pavers actually cover (bare paver face, no joints) — a useful
+  // cross-check for the installer.
+  const paverFaceSqFt = (lengthIn / 12) * (widthIn / 12);
+  const coverageSqFt = paversToOrder * paverFaceSqFt;
+
+  return {
+    ok: true,
+    unitAreaSqFt,
+    paversNeeded,                                   // exact, fractional
+    paversWithOverage,                              // fractional, incl. overage
+    paversToOrder,                                  // whole pavers to buy
+    overagePavers: Math.max(0, overagePavers),      // extra pavers from the overage
+    coverageSqFt,
+  };
+}
+
+function getPaverConfig(proj) {
+  const p = (proj && proj.pavers) || {};
+  return {
+    useMoasure: p.useMoasure !== false,             // default: pull area from the layout
+    areaSqFt:   p.areaSqFt != null ? p.areaSqFt : '',
+    paverLengthIn: p.paverLengthIn != null ? p.paverLengthIn : 12,
+    paverWidthIn:  p.paverWidthIn != null ? p.paverWidthIn : 12,
+    spacingIn:     p.spacingIn != null ? p.spacingIn : 0.25,
+    overagePct:    p.overagePct != null ? p.overagePct : 10,
+  };
+}
+
+// The area the paver tab should use: the Moasure/layout area when "use Moasure" is on,
+// otherwise the manually-entered area.
+function paverAreaForProject(proj) {
+  const cfg = getPaverConfig(proj);
+  if (cfg.useMoasure) {
+    const raw = (proj && proj.layout && proj.layout.area) || 0;
+    return getAdjustedShapeArea(proj, raw) || raw || 0;
+  }
+  return parseFloat(cfg.areaSqFt) || 0;
+}
+
 function getAdjustedShapeArea(proj, baseArea) {
   const secondary = (proj.layout && proj.layout.secondaryShapes) || [];
   let area = baseArea;
@@ -11575,19 +11703,44 @@ function renderPieceList(layout, proj) {
     const layerName = entry.name || (entry.id === 'primary' ? 'Turf' : ('Layer ' + (li + 1)));
     getNestableUnits(L)
       .filter(u => u.clippedArea > 1e-6 || u.purchasedArea > 1e-6)
-      .forEach(u => rows.push(pieceRow(u, rollPieceLabels, layerRollWidth, multiLayer ? layerName : null, li)));
+      .forEach(u => pieceRows(u, rollPieceLabels, layerRollWidth, multiLayer ? layerName : null, li).forEach(r => rows.push(r)));
   });
   if (!rows.length) { group.style.display = 'none'; table.innerHTML = ''; return; }
   rows.sort((a, b) => a.sortKey - b.sortKey);
 
-  function pieceRow(u, rollPieceLabels, rollWidth, layerName, layerIdx) {
+  function pieceRows(u, rollPieceLabels, rollWidth, layerName, layerIdx) {
     const rp = rollPieceLabels.get(u);
+    const width = rollWidth;
+    const prefix = layerName ? layerName + ' — ' : '';
+    const baseNotes = [];
+    if (u.nestedInto != null) baseNotes.push(`cut from ${u.nestedIntoLabel} waste`);
+
+    // A strip longer than a roll is cut into roll-length pieces on separate rolls
+    // (my segmentation records the extra rolls in rp.extraParts). Emit ONE ROW PER
+    // SEGMENT with each segment's own length + roll label, so the list never shows a
+    // single piece longer than the roll. Reconstruct each segment's length by walking
+    // the ordered length in roll-length chunks.
+    const rollLen = (layout && layout.rollLength) || 100;
+    const allLabels = rp ? [rp].concat(rp.extraParts || []) : [];
+    if (rp && allLabels.length > 1 && u.nestedInto == null && !(rp.parts > 1)) {
+      const out = [];
+      let rem = u.orderedLength;
+      allLabels.forEach(lb => {
+        const segLen = Math.min(rollLen, rem); rem = Math.max(0, rem - segLen);
+        out.push({
+          label: prefix + `Roll ${lb.roll} / Piece ${lb.piece}`,
+          length: segLen, width, sqft: segLen * width,
+          nested: false,
+          note: (baseNotes.concat([`part of a ${Math.round(u.orderedLength)} ft run split across rolls`])).join('; '),
+          sortKey: (layerIdx || 0) * 1e6 + lb.roll * 10000 + lb.piece,
+        });
+      });
+      return out;
+    }
+
     const label = rp ? `Roll ${rp.roll} / Piece ${rp.piece}` : '?';
     const length = u.orderedLength;
-    const width = rollWidth;
-    const sqft = length * width;
-    const notes = [];
-    if (u.nestedInto != null) notes.push(`cut from ${u.nestedIntoLabel} waste`);
+    const notes = baseNotes.slice();
     // A run that had to be finished on the next roll is butt-seamed — say so and
     // where, so the installer knows a seam is coming and doesn't cut it blind.
     if (rp && rp.parts > 1) {
@@ -11596,14 +11749,14 @@ function renderPieceList(layout, proj) {
         .join(' + ');
       notes.push(`butt seam — ${rp.parts} parts: ${conts}`);
     }
-    return {
-      label: (layerName ? layerName + ' — ' : '') + label,
-      length, width, sqft,
+    return [{
+      label: prefix + label,
+      length, width, sqft: length * width,
       nested: u.nestedInto != null,
       note: notes.join('; '),
       // Group by layer first so a flat list still reads layer-by-layer.
       sortKey: (layerIdx || 0) * 1e6 + (rp ? rp.roll*10000 + rp.piece : 0),
-    };
+    }];
   }
 
   // Fringe pieces, if enabled
@@ -12946,7 +13099,99 @@ function switchTab(name, el) {
   if (panel) panel.classList.add('active');
   if (name==='quote') updateMaterialsSummary();
   if (name==='layout') renderLayoutTab();
+  if (name==='pavers') renderPaverTab();
   if (name==='settings') renderSettingsTables();
+}
+
+// ── Paver tab ──────────────────────────────────────────────────────────────
+function renderPaverTab() {
+  const proj = getCurrentProject();
+  if (!proj) { const r = document.getElementById('paverResults'); if (r) r.innerHTML = '<div class="hint">Open or create a project to use the paver calculator.</div>'; return; }
+  const cfg = getPaverConfig(proj);
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  const useMoasureEl = document.getElementById('paverUseMoasure');
+  if (useMoasureEl) useMoasureEl.checked = cfg.useMoasure;
+  set('paverLength', cfg.paverLengthIn);
+  set('paverWidth', cfg.paverWidthIn);
+  set('paverSpacing', cfg.spacingIn);
+  set('paverOverage', cfg.overagePct);
+
+  const areaEl = document.getElementById('paverArea');
+  const srcEl = document.getElementById('paverAreaSource');
+  const moasureArea = paverAreaForProject(Object.assign({}, proj, { pavers: Object.assign({}, cfg, { useMoasure: true }) }));
+  if (cfg.useMoasure) {
+    if (areaEl) { areaEl.value = moasureArea ? (Math.round(moasureArea * 100) / 100) : ''; areaEl.disabled = true; }
+    if (srcEl) srcEl.textContent = moasureArea ? 'From the imported layout. Uncheck above to override.' : 'No layout imported yet — uncheck above to enter an area.';
+  } else {
+    if (areaEl) { areaEl.value = cfg.areaSqFt; areaEl.disabled = false; }
+    if (srcEl) srcEl.textContent = 'Manually entered.';
+  }
+  renderPaverResults();
+}
+
+function onPaverInput() {
+  const proj = getCurrentProject();
+  if (!proj) return;
+  const num = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const useMoasure = !!(document.getElementById('paverUseMoasure') || {}).checked;
+  proj.pavers = {
+    useMoasure,
+    areaSqFt: useMoasure ? ((proj.pavers && proj.pavers.areaSqFt) || '') : num('paverArea'),
+    paverLengthIn: num('paverLength'),
+    paverWidthIn: num('paverWidth'),
+    spacingIn: num('paverSpacing'),
+    overagePct: num('paverOverage'),
+  };
+  save();
+  // Reflect the Moasure/manual area toggle immediately (enable/disable the field).
+  const areaEl = document.getElementById('paverArea');
+  const srcEl = document.getElementById('paverAreaSource');
+  if (useMoasure) {
+    const a = paverAreaForProject(proj);
+    if (areaEl) { areaEl.value = a ? (Math.round(a*100)/100) : ''; areaEl.disabled = true; }
+    if (srcEl) srcEl.textContent = a ? 'From the imported layout. Uncheck above to override.' : 'No layout imported yet — uncheck above to enter an area.';
+  } else {
+    if (areaEl) areaEl.disabled = false;
+    if (srcEl) srcEl.textContent = 'Manually entered.';
+  }
+  renderPaverResults();
+}
+
+function renderPaverResults() {
+  const el = document.getElementById('paverResults');
+  if (!el) return;
+  const proj = getCurrentProject();
+  if (!proj) { el.innerHTML = '<div class="hint">Open or create a project to use the paver calculator.</div>'; return; }
+  const cfg = getPaverConfig(proj);
+  const area = paverAreaForProject(proj);
+  const plan = computePaverPlan({
+    areaSqFt: area,
+    paverLengthIn: cfg.paverLengthIn,
+    paverWidthIn: cfg.paverWidthIn,
+    spacingIn: cfg.spacingIn,
+    overagePct: cfg.overagePct,
+  });
+  if (!plan.ok) {
+    el.innerHTML = '<div class="hint">Enter an area and a paver size to see how many pavers to order.</div>';
+    return;
+  }
+  const n = v => v.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  el.innerHTML = `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:180px;background:var(--surface2);border-radius:10px;padding:16px;">
+        <div style="font-size:12px;color:var(--text-light);">PAVERS TO ORDER</div>
+        <div style="font-size:32px;font-weight:800;color:var(--green);">${n(plan.paversToOrder)}</div>
+        <div style="font-size:12px;color:var(--text-mid);">incl. ${cfg.overagePct||0}% overage (${n(plan.overagePavers)} extra)</div>
+      </div>
+      <div style="flex:1;min-width:180px;padding:16px;">
+        <div style="font-size:13px;color:var(--text-mid);line-height:1.9;">
+          Area to cover: <strong>${(area).toLocaleString(undefined,{maximumFractionDigits:1})} ft²</strong><br>
+          Paver + joint cell: <strong>${plan.unitAreaSqFt.toLocaleString(undefined,{maximumFractionDigits:3})} ft²</strong><br>
+          Pavers for a bare fit: <strong>${n(Math.ceil(plan.paversNeeded))}</strong><br>
+          Face coverage of order: <strong>${plan.coverageSqFt.toLocaleString(undefined,{maximumFractionDigits:0})} ft²</strong>
+        </div>
+      </div>
+    </div>`;
 }
 
 // ═══════════════════════════════════════════════════════

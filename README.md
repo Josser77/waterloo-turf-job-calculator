@@ -84,7 +84,7 @@ Run the test suite before committing any changes to `waterloo_turf_calculator.ht
 node waterloo_turf_tests.js
 ```
 
-All tests should pass (currently **1549** — this is exactly what
+All tests should pass (currently **1568** — this is exactly what
 `node waterloo_turf_tests.js` prints on its `Tests:` line; if you're updating this
 number, copy it from the runner rather than adding to the previous figure). The
 `Sync and Push.command` script runs
@@ -94,3 +94,8 @@ Each session that produces an updated calculator file also updates this README
 to reflect any new features, test count changes, or workflow changes.
 
 See **[CHANGELOG.md](CHANGELOG.md)** for a full history of changes by session.
+
+
+## Paver Calculator (Pavers tab)
+
+A standalone estimator for how many pavers to order. Uses the imported Moasure area by default (or a manually entered area), plus paver length/width and joint spacing (all in inches). Each paver tiles as a (length+spacing)×(width+spacing) cell; pavers = area ÷ cell, plus an overage % for cuts/breakage, rounded up to whole pavers. Does not affect the turf quote. Backed by the pure `computePaverPlan`.

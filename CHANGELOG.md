@@ -5,6 +5,46 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 26) — New Pavers tab: how many pavers to order
+
+Added a standalone Pavers tab. It estimates how many pavers to order for an area: it uses
+the imported Moasure area by default (toggle off to enter an area by hand), plus paver
+length, width, and joint spacing (all in inches), and an overage %.
+
+Math (pure `computePaverPlan`): each paver tiles with a joint on two sides, so one paver
+occupies a grid cell of (length + spacing) × (width + spacing); pavers = area ÷ cell; the
+overage % is added for cuts/breakage/pattern loss and the total rounds UP to whole pavers.
+The result card shows pavers to order (with the overage broken out), the cell size, a
+bare-fit count, and the face coverage of the order as a cross-check. Paver settings persist
+per project (`proj.pavers`). The tab is a standalone estimator — it does not change the turf
+quote or COGS.
+
+Tests **1553 → 1568** (README **1568**): jointless 12×12 over 100 ft² = 100 pavers; a joint
+enlarges the cell and needs fewer; overage adds and rounds up; fractional need rounds up;
+rectangular pavers; missing inputs → not ok / 0; config defaults; and useMoasure vs manual
+area source.
+
+---
+
+## 2026-07-22 (cont'd 25) — Fix: over-length strip still shown as ONE row in the piece list (rendering half of the last fix)
+
+The previous fix corrected the roll LABELS (an over-length strip is split across rolls in
+the label map), but the piece-list RENDERER still drew the strip as a single row using its
+full ordered length — so a 102 ft strip on a 100 ft roll still showed as one "Roll 1 /
+Piece 1 — 102.0 ft" row. The label map knew it spanned two rolls; the row builder ignored
+that.
+
+`pieceRow` → `pieceRows` now emits ONE ROW PER SEGMENT when a strip spans multiple rolls
+(rp.extraParts): each row gets its own roll-length segment and roll label, with a note that
+it's part of a longer run split across rolls. So a 102 ft run shows as "Roll 1 / Piece 1 —
+100 ft" and "Roll 2 / Piece 1 — 2 ft"; no row ever exceeds the roll length. The nested and
+butt-seam paths are unchanged.
+
+Tests **1549 → 1553** (README **1553**): the 102 ft strip produces ≥2 rows, no row exceeds
+100 ft, the rows sum to 102, and the segments land on separate rolls.
+
+---
+
 ## 2026-07-22 (cont'd 24) — Fix: piece list showed a single piece longer than the roll (over-length rolls)
 
 The Piece List could show a roll whose pieces summed to more than the Max Roll Length —

@@ -7032,6 +7032,80 @@ section('120. Piece-list rolls never exceed the roll length (segmented strips)')
   assert(anyMultiRoll, 'an over-length strip is labelled across multiple rolls, not packed whole onto one');
 }
 
+section('121. Piece list renders a per-roll ROW for each segment of an over-length strip');
+{
+  // The label map splits an over-length strip across rolls; the piece-list rendering
+  // must then emit one ROW per segment (not a single 102 ft row). Replicate the row
+  // reconstruction the renderer uses and assert no row exceeds the roll length.
+  const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, allowJoinSeams:false };
+  const L = ctx.computeRollLayout([{x:0,y:0},{x:15,y:0},{x:15,y:102},{x:0,y:102}], 90, 0, opts);
+  L.rollLength = 100;
+  const labels = ctx.assignRollPieceLabels(L);
+
+  const rows = [];
+  labels.forEach((rp, u) => {
+    const allLabels = [rp].concat(rp.extraParts || []);
+    if (allLabels.length > 1 && u.nestedInto == null && !(rp.parts > 1)) {
+      let rem = u.orderedLength;
+      allLabels.forEach(lb => { const segLen = Math.min(100, rem); rem = Math.max(0, rem - segLen);
+        rows.push({ roll: lb.roll, piece: lb.piece, length: segLen }); });
+    } else {
+      rows.push({ roll: rp.roll, piece: rp.piece, length: u.orderedLength });
+    }
+  });
+
+  assert(rows.length >= 2, 'the 102 ft strip produces at least two piece-list rows');
+  assert(rows.every(r => r.length <= 100 + 1e-6), 'NO piece-list row is longer than the 100 ft roll');
+  assert(near(rows.reduce((s,r)=>s+r.length,0), 102), 'the split rows still sum to the full 102 ft run');
+  // The two segments live on different rolls.
+  const rollsUsed = new Set(rows.map(r => r.roll));
+  assert(rollsUsed.size >= 2, 'the segments are shown on separate rolls');
+}
+
+section('122. Paver calculator');
+{
+  const P = ctx.computePaverPlan;
+
+  // 12×12 pavers, no joint, 100 sqft, 0% overage → exactly 100 pavers.
+  const a = P({ areaSqFt:100, paverLengthIn:12, paverWidthIn:12, spacingIn:0, overagePct:0 });
+  assert(a.ok && near(a.unitAreaSqFt, 1), '12×12 no joint = 1 ft² cell');
+  assert(a.paversToOrder === 100, '100 sqft / 1 ft² = 100 pavers');
+
+  // A joint enlarges the cell, so FEWER pavers fit the same area.
+  const b = P({ areaSqFt:100, paverLengthIn:12, paverWidthIn:12, spacingIn:0.5, overagePct:0 });
+  assert(b.unitAreaSqFt > 1, 'a joint makes each paver occupy more than its face');
+  assert(b.paversToOrder < 100, 'with a joint, fewer 12×12 pavers cover 100 ft²');
+
+  // Overage adds pavers and rounds up.
+  const c = P({ areaSqFt:100, paverLengthIn:12, paverWidthIn:12, spacingIn:0, overagePct:10 });
+  assert(c.paversToOrder === 110, '10% overage on 100 → 110');
+  assert(c.overagePavers === 10, 'overage pavers reported (10)');
+
+  // Rounds UP to whole pavers.
+  const d = P({ areaSqFt:10.4, paverLengthIn:12, paverWidthIn:12, spacingIn:0, overagePct:0 });
+  assert(d.paversToOrder === 11, 'fractional need rounds up (10.4 → 11)');
+
+  // Rectangular pavers (6×12) → 2 per ft², 100 ft² → 200.
+  const e = P({ areaSqFt:100, paverLengthIn:12, paverWidthIn:6, spacingIn:0, overagePct:0 });
+  assert(near(e.unitAreaSqFt, 0.5), '12×6 = 0.5 ft² cell');
+  assert(e.paversToOrder === 200, '100 ft² / 0.5 = 200 rectangular pavers');
+
+  // Missing / zero inputs → not ok, zero order.
+  assert(!P({ areaSqFt:0, paverLengthIn:12, paverWidthIn:12 }).ok, 'no area → not ok');
+  assert(!P({ areaSqFt:100, paverLengthIn:0, paverWidthIn:12 }).ok, 'no paver size → not ok');
+  assert(P({ areaSqFt:100, paverLengthIn:0, paverWidthIn:12 }).paversToOrder === 0, 'not-ok → 0 to order');
+
+  // Config defaults + Moasure area source.
+  const cfg = ctx.getPaverConfig({});
+  assert(cfg.useMoasure === true && cfg.paverLengthIn === 12 && cfg.overagePct === 10, 'sensible paver defaults');
+  const projWithLayout = { layout:{ area: 250, secondaryShapes:[], secondaryShapeModes:{} }, pavers:{ useMoasure:true } };
+  const prev = ctx.getCurrentProject; ctx.getCurrentProject = () => projWithLayout;
+  assert(near(ctx.paverAreaForProject(projWithLayout), 250), 'useMoasure pulls the layout area');
+  const manual = { layout:{ area: 250 }, pavers:{ useMoasure:false, areaSqFt: 80 } };
+  assert(near(ctx.paverAreaForProject(manual), 80), 'manual area overrides the layout area');
+  ctx.getCurrentProject = prev;
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
