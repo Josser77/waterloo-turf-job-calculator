@@ -5,6 +5,83 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 38) — Fix: estimator tabs didn't refresh on project switch (paver settings LOOKED global)
+
+Paver settings were already stored per project (`proj.pavers`), and mulch/river rock too
+(`proj.mulch` / `proj.riverRock`) — the data was never global. But `loadProject` only
+refreshed the Quote and Layout tabs, so switching projects while viewing Pavers / Bark /
+River Rock left the PREVIOUS project's numbers on screen until you clicked away and back.
+That stale display is what made the settings look global.
+
+`loadProject` now re-renders whichever estimator tab (Pavers, Bark/Mulch, River Rock, or
+Dashboard) is currently active, so its fields immediately reflect the project you switched
+to. No data-model change — the per-project storage was already correct.
+
+Tests **1616 → 1622** (README **1622**): two projects keep independent paver settings, a
+fresh project gets defaults (not another project's values), river-rock config is
+per-project, and loadProject re-renders the active estimator tab.
+
+---
+
+## 2026-07-22 (cont'd 37) — Layout totals moved to their own header bar (below the tabs)
+
+The live totals (Installed, Ordered, Turf LF, Edging, Rock, Sand, Scrap) used to sit on the
+SAME row as the page tabs, anchored to the right of Settings — so on anything but a very
+wide window they ran off the side and scrolled within a cramped strip. Moved `#topMetrics`
+out of the tab row into its own full-width bar directly below the tabs: bigger, evenly
+spaced values on a light background, easy to scan, and no longer competing with the tabs
+for horizontal room. On a narrow window the whole bar scrolls sideways rather than clipping
+a cell. No logic change — the same ids are populated by the same render code.
+
+Tests **1615 → 1616** (README **1616**): the metrics bar is now a sibling AFTER the tab row
+(not a child), has its own bottom border, and still scrolls when tight.
+
+---
+
+## 2026-07-22 (cont'd 36) — River Rock: pick a size to auto-fill supplier coverage
+
+The River Rock tab now has a Rock size dropdown. Picking a size fills the Coverage field
+with that size's coverage, so you don't retype it per job. Sizes are a small catalog you
+maintain (an inline "Manage sizes & coverage" editor): each row is a size name + its
+coverage (ft² one cubic yard covers per inch), entered from your supplier. Two defaults
+ship — a 1.5" and a larger 3-5" — both at geometric 324 until you set your supplier's real
+numbers (nothing invented). The Coverage field stays editable for one-off overrides, and
+the free-text field is now "Type / notes". Mulch is unchanged.
+
+Since coverage drives the volume math (cubic yards = area × depth ÷ coverage), a
+lower-coverage (bigger, more-voids) rock automatically orders more. Catalog stored in
+localStorage (`wt_rockSizes_v1`); the selected size persists on `proj.riverRock.typeName`.
+Pure `getRockSizes`/`coverageForRockSize`.
+
+Tests **1607 → 1615** (README **1615**): defaults ship at 324, coverage round-trips per
+size, unknown/empty → null, and a lower-coverage size needs more cubic yards.
+
+---
+
+## 2026-07-22 (cont'd 35) — Removed the Proposal & Share Link features (Jobber handles customer-facing docs)
+
+Removed both customer-facing features and all their code, per how the business actually
+works (Jobber is used for proposals/quotes to customers):
+
+- Buttons: 📄 Proposal and 🔗 Share Link (Quote Builder).
+- Functions: openProposal, shareProject, maybeRenderSharedProposal, renderSharedProposal,
+  buildProposalModel, buildSharePayload, the base64url byte helpers, encodeShareString,
+  decodeShareString, renderCleanDiagram, roleLabel, and the Business Info helpers
+  (getBusinessInfo/setBusinessInfo/saveBusinessInfoFromUI/populateBusinessInfoUI).
+- Settings → Business Info card, and the #share= link detection in window.onload.
+- Tests: sections 124 (proposal model), 125 (proposal polish), 126 (shareable link), and
+  the now-unused TextEncoder/TextDecoder test-sandbox globals.
+
+Preserved: `calcQuote` still records the recommended scenario's sell price on
+`proj.quotedPrice` (decoupled from the deleted proposal stash) so the Job History
+Dashboard keeps summing revenue. Supplier Order and Installer Sheet exports are untouched.
+
+Tests **1640 → 1607** (README **1607**): the drop is the removed proposal/share asserts;
+all remaining tests pass under UTC and America/Los_Angeles, and the Dashboard revenue tests
+still pass on the preserved quotedPrice path.
+
+---
+
 ## 2026-07-22 (cont'd 34) — Fix: Dashboard mis-filed month-boundary jobs west of UTC (timezone bug)
 
 `computeJobStats` bucketed the monthly timeline by `new Date(installDate)` then read

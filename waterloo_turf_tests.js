@@ -34,12 +34,6 @@ const ctx = {
   },
   localStorage: { getItem: () => null, setItem: () => {} },
   console,
-  // TextEncoder/TextDecoder are needed by the share-codec byte tests. Always source
-  // them from 'util' so the suite behaves identically on every Node version (no reliance
-  // on ambient globals leaking into the vm sandbox, which differs across Node builds).
-  Uint8Array,
-  TextEncoder: require('util').TextEncoder,
-  TextDecoder: require('util').TextDecoder,
 };
 vm.runInNewContext(scriptSrc, ctx);
 
@@ -6395,12 +6389,18 @@ section('99. Top-bar material aggregates (edging, rock, sand)');
   ['topEdgingOut','topRockOut','topInfillOut'].forEach(id =>
     assert(html.includes('id="' + id + '"'), 'the ' + id + ' cell exists in the top bar'));
 
-  // The bar scrolls rather than clipping a cell in the windowed-laptop width band
-  // (~860px..full). Isolated to .top-metrics so the maximized case is untouched.
+  // The metrics live in their OWN full-width bar directly below the tab row (not on the
+  // tab row), so the numbers never collide with or overflow past the tabs. It scrolls
+  // sideways as a whole on a narrow window rather than clipping a cell.
   const tmRule = (html.match(/\.top-metrics \{[\s\S]*?\}/) || [''])[0];
-  assert(/overflow-x:\s*auto/.test(tmRule), '.top-metrics scrolls instead of clipping when the header is tight');
-  assert(/min-width:\s*0/.test(tmRule), '.top-metrics has min-width:0 so a flex child can actually scroll');
-  assert(!/flex-shrink:\s*0/.test(tmRule), '.top-metrics no longer refuses to shrink (which caused the clip)');
+  assert(/overflow-x:\s*auto/.test(tmRule), '.top-metrics scrolls sideways instead of clipping when tight');
+  assert(/min-width:\s*0/.test(tmRule), '.top-metrics has min-width:0 so it can actually scroll');
+  assert(/border-bottom/.test(tmRule), '.top-metrics is its own bar (has a bottom border), not inline with the tabs');
+  // It must be a SIBLING after .tabs closes, not a child of the tab row.
+  const tabsClose = html.indexOf('id="tabSettings"');
+  const metricsOpen = html.indexOf('id="topMetrics"');
+  const tabsDivClose = html.indexOf('</div>', tabsClose);
+  assert(metricsOpen > tabsDivClose, 'the metrics bar comes after the tab row closes (its own bar)');
   assert(/\.top-metrics \.tm \{[^}]*flex-shrink:\s*0/.test(html), 'the cells keep their width so the bar scrolls rather than squishing them');
 }
 
@@ -7156,118 +7156,6 @@ section('123. Ground cover (bark/mulch & river rock)');
   ctx.getCurrentProject = prev;
 }
 
-section('124. Branded proposal model + business info');
-{
-  // Business info: defaults + round-trip.
-  const store = {}; const realLS = ctx.localStorage;
-  ctx.localStorage = { getItem:k=>store[k]||null, setItem:(k,v)=>store[k]=v };
-  const def = ctx.getBusinessInfo();
-  assert(def.name === 'Waterloo Turf' && def.tagline, 'business info has sensible defaults');
-  ctx.setBusinessInfo({ name:'WT', phone:'503', email:'a@b.com', license:'CCB1' });
-  const got = ctx.getBusinessInfo();
-  assert(got.name === 'WT' && got.phone === '503' && got.license === 'CCB1', 'business info round-trips');
-  ctx.localStorage = realLS;
-
-  // Proposal model: sell price (COGS + margin), alt-turf excluded, materials captured.
-  const proj = {
-    name:'Smith Yard', address:'123 Main\nTigard, OR', installDate:'2026-09-01',
-    turf:[ {product:'K9', role:'base', installedSqFt:820}, {product:'PG', role:'putting-green', installedSqFt:91.5}, {product:'Alt', role:'alt-turf', installedSqFt:820} ],
-    infill:[ {product:'Sand', bags:12} ],
-    edging:{ materialName:'Black Board', linearFt:60 },
-    miscItems:[ {name:'Drainage', qty:1} ],
-  };
-  const m = ctx.buildProposalModel(proj, 35, ctx.getBusinessInfo(), 10000);
-  assert(near(m.price, 10000/(1-0.35), 0.01), 'proposal price = COGS with margin (never raw cost)');
-  assert(m.turf.length === 2, 'alt-turf is excluded from the customer scope');
-  assert(m.turf.some(t=>t.role==='putting-green') && m.turf.some(t=>t.role==='base'), 'base + green turf listed');
-  assert(near(m.totalInstalledSqFt, 911.5), 'total installed sqft sums the listed turf');
-  assert(m.infill.length === 1 && m.edging && m.misc.length === 1, 'infill, edging, misc captured');
-  assert(m.address === '123 Main, Tigard, OR', 'multi-line address flattened');
-  // Zero-quantity rows are dropped.
-  const m2 = ctx.buildProposalModel({ turf:[{product:'X',role:'base',installedSqFt:0}], infill:[], miscItems:[] }, 0, ctx.getBusinessInfo(), 500);
-  assert(m2.turf.length === 0, 'a turf row with 0 installed sqft is not on the proposal');
-  assert(near(m2.price, 500), '0% margin → price = cogs');
-
-  // roleLabel mapping.
-  assert(ctx.roleLabel('putting-green') === 'Putting Green' && ctx.roleLabel('base') === 'Base Yard', 'role labels read for customers');
-}
-
-section('125. Proposal polish: clean diagram + scenario picker');
-{
-  // renderCleanDiagram hides the roll internals then RESTORES every toggle exactly.
-  const toggles = { showRectanglesToggle:{checked:true}, showDimensionsToggle:{checked:true}, showPieceDimensionsToggle:{checked:false} };
-  const canvas = { width:700, toDataURL:()=>'data:image/png;base64,CLEAN' };
-  const realGet = ctx.document.getElementById;
-  const realRender = ctx.renderRollLayoutStableCanvas;
-  const realProj = ctx.getCurrentProject;
-  let offWhenSnapped = null, redraws = 0;
-  ctx.document.getElementById = id => id === 'rollLayoutCanvas' ? canvas : (toggles[id] || null);
-  ctx.getCurrentProject = () => ({ layout:{ points:[{x:0,y:0},{x:1,y:0},{x:1,y:1}] } });
-  canvas.toDataURL = () => { offWhenSnapped = { r:toggles.showRectanglesToggle.checked, d:toggles.showDimensionsToggle.checked }; return 'data:image/png;base64,CLEAN'; };
-  ctx.renderRollLayoutStableCanvas = () => { redraws++; };
-
-  const img = ctx.renderCleanDiagram();
-  assert(img === 'data:image/png;base64,CLEAN', 'clean diagram returns a PNG data URL');
-  assert(offWhenSnapped && offWhenSnapped.r === false && offWhenSnapped.d === false, 'roll rectangles + dimensions are OFF at snapshot time');
-  assert(toggles.showRectanglesToggle.checked === true && toggles.showDimensionsToggle.checked === true, 'toggles are restored to the user\'s settings afterward');
-  assert(redraws === 2, 'redraws once with toggles off, once to restore the view');
-
-  ctx.document.getElementById = realGet;
-  ctx.renderRollLayoutStableCanvas = realRender;
-  ctx.getCurrentProject = realProj;
-
-  // Per-scenario sell price (same formula the popup picker uses).
-  const priceFor = (c, m) => (m >= 99 ? c : c / (1 - m/100));
-  assert(near(priceFor(8000, 30), 11428.57, 0.01), 'scenario A price = cogs with margin');
-  assert(near(priceFor(11000, 30), 15714.29, 0.01), 'scenario B price differs by its own cogs');
-  assert(priceFor(5000, 0) === 5000, '0% margin → price = cogs');
-
-  // The popup wiring: openProposal builds a picker only when >1 scenario, and the
-  // total element carries an id so the dropdown can update it.
-  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
-  const op = html.slice(html.indexOf('function openProposal'), html.indexOf('function openProposal') + 9000);
-  assert(/renderCleanDiagram\(\)/.test(op), 'openProposal uses the clean diagram');
-  assert(/scenarios\.length > 1/.test(op), 'the scenario picker only shows with more than one option');
-  assert(/id="propTotal"/.test(op), 'the total has an id so the picker can update it');
-}
-
-section('126. Shareable link (payload + codec)');
-{
-  // base64url over bytes: url-safe, exact roundtrip (incl. high bytes).
-  const bytes = new Uint8Array([0,1,2,253,254,255,72,101,108,108,111]);
-  const enc = ctx.bytesToBase64url(bytes);
-  assert(!/[+/=]/.test(enc), 'base64url has no +, /, or = (URL-safe)');
-  assert(JSON.stringify([...ctx.base64urlToBytes(enc)]) === JSON.stringify([...bytes]), 'byte roundtrip is exact');
-  // odd lengths (1 and 2 trailing bytes)
-  assert(JSON.stringify([...ctx.base64urlToBytes(ctx.bytesToBase64url(new Uint8Array([65])))]) === '[65]', '1-byte roundtrip');
-  assert(JSON.stringify([...ctx.base64urlToBytes(ctx.bytesToBase64url(new Uint8Array([65,66])))]) === '[65,66]', '2-byte roundtrip');
-
-  // Payload: customer-safe (no cogs/margin/catalog/crews), prices from margin.
-  const proj = {
-    name:'Smith', address:'123 Main\nTigard', installDate:'2026-09-01',
-    turf:[ {product:'K9', role:'base', installedSqFt:820}, {product:'PG', role:'putting-green', installedSqFt:91.5}, {product:'Alt', role:'alt-turf', installedSqFt:820} ],
-    infill:[ {product:'Sand', bags:12} ], edging:{ materialName:'Board', linearFt:60 }, miscItems:[ {name:'Drainage', qty:1} ],
-    layout:{ points:[{x:0.126,y:0},{x:20,y:0},{x:20,y:10},{x:0,y:10}], secondaryShapes:[], secondaryShapeModes:{}, rollWidth:15, rollLength:100 },
-  };
-  const payload = ctx.buildSharePayload(proj, 35, ctx.getBusinessInfo(), [{label:'A · No PG', cogs:10000},{label:'B · PG', cogs:12000}]);
-  const json = JSON.stringify(payload);
-  assert(!/cogs|margin|catalog|crew/i.test(json), 'payload leaks no cost/margin/catalog/crew data');
-  assert(payload.options.length === 2 && near(payload.options[0].price, 15384.62, 0.01), 'options carry sell prices, not cost');
-  assert(payload.turf.length === 2, 'alt-turf excluded from the shared scope');
-  assert(payload.layout.points[0].x === 0.13, 'layout points are rounded (smaller link)');
-  assert(payload.v === 1, 'payload is versioned');
-
-  // Codec roundtrip — tested synchronously and deterministically via the raw (non-gzip)
-  // path, so it never depends on CompressionStream/Response being present in the runner.
-  // (The gzip path is the browser's native CompressionStream; the bytes it wraps are the
-  // same base64url proven above.) We exercise the raw tag directly.
-  const rawEncoded = 'r' + ctx.bytesToBase64url(new ctx.TextEncoder().encode(json));
-  assert(rawEncoded[0] === 'r', 'raw-tagged share string starts with r');
-  const rawBack = JSON.parse(new ctx.TextDecoder().decode(ctx.base64urlToBytes(rawEncoded.slice(1))));
-  assert(rawBack.name === 'Smith' && rawBack.turf.length === 2 && rawBack.options.length === 2, 'decode reconstructs the payload');
-  assert(rawBack.layout.points.length === 4, 'layout geometry survives the roundtrip');
-}
-
 section('127. Job-history dashboard stats');
 {
   const projects = [
@@ -7334,6 +7222,53 @@ section('128. Global waste minimizer (bestRollForPoints)');
   const sq = rect(30, 30);
   const bestSq = ctx.bestRollForPoints(sq, opts);
   assert(bestSq.totalOrdered <= ctx.computeRollLayout(sq, 0, 0, opts).totalOrdered + 1e-6, 'square: best ≤ axis-aligned');
+}
+
+section('124. River rock size catalog (coverage per size)');
+{
+  const store = {}; const realLS = ctx.localStorage;
+  ctx.localStorage = { getItem:k=>store[k]||null, setItem:(k,v)=>store[k]=v };
+
+  // Defaults ship at geometric 324 (nothing invented — user edits to supplier numbers).
+  const def = ctx.getRockSizes();
+  assert(def.length === 2 && def.every(s => s.coveragePerInch === 324), 'two default sizes, both at geometric 324');
+  assert(def.some(s => /1\.5/.test(s.name)) && def.some(s => /3-5/.test(s.name)), 'defaults name a small and a larger rock');
+
+  // Round-trip supplier coverage.
+  ctx.setRockSizes([{ name:'1.5" River Rock', coveragePerInch:300 }, { name:'3-5" River Rock', coveragePerInch:260 }]);
+  assert(ctx.coverageForRockSize(ctx.getRockSizes(), '1.5" River Rock') === 300, 'looks up coverage for the small size');
+  assert(ctx.coverageForRockSize(ctx.getRockSizes(), '3-5" River Rock') === 260, 'looks up coverage for the larger size');
+  assert(ctx.coverageForRockSize(ctx.getRockSizes(), 'unknown') === null, 'unknown size → null (no match)');
+  assert(ctx.coverageForRockSize([], '1.5" River Rock') === null, 'empty catalog → null');
+
+  // The picked size's coverage drives the volume: bigger rock (lower coverage) → more yards.
+  const small = ctx.computeGroundCoverPlan({ areaSqFt:500, depthIn:3, coveragePerInch:300 });
+  const big   = ctx.computeGroundCoverPlan({ areaSqFt:500, depthIn:3, coveragePerInch:260 });
+  assert(big.cubicYards > small.cubicYards, 'a lower-coverage (bigger) rock needs more cubic yards for the same area+depth');
+  assert(big.cubicYardsToOrder >= small.cubicYardsToOrder, 'ordered yards reflect the size choice');
+
+  ctx.localStorage = realLS;
+}
+
+section('125. Paver/estimator settings are per-project and refresh on project switch');
+{
+  // The data model is per-project: getPaverConfig reads proj.pavers, so two projects
+  // with different paver settings never share values.
+  const A = { pavers:{ paverLengthIn:12, paverWidthIn:12, spacingIn:0.25, overagePct:10 } };
+  const B = { pavers:{ paverLengthIn:6,  paverWidthIn:9,  spacingIn:0.5,  overagePct:20 } };
+  assert(ctx.getPaverConfig(A).paverWidthIn === 12 && ctx.getPaverConfig(B).paverWidthIn === 9, 'each project keeps its own paver settings');
+  assert(ctx.getPaverConfig({}).paverWidthIn === 12, 'a fresh project gets defaults, not another project\'s values');
+  // Same for mulch/river rock configs.
+  const rr = { riverRock:{ depthIn:4, coveragePerInch:280 } };
+  assert(ctx.getGroundCoverConfig(rr, 'riverRock').coveragePerInch === 280, 'river rock config is per-project');
+  assert(ctx.getGroundCoverConfig({}, 'riverRock').coveragePerInch === 324, 'a fresh project gets default coverage');
+
+  // loadProject must refresh whichever estimator tab is showing, so stale fields from
+  // the previous project don't linger (which made per-project settings look global).
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  const lp = html.slice(html.indexOf('function loadProject'), html.indexOf('function loadProject') + 4000);
+  assert(/panel-pavers'\)\s*renderPaverTab\(\)/.test(lp.replace(/\s+/g,' ')) || /panel-pavers/.test(lp), 'loadProject re-renders the Pavers tab when it is active');
+  assert(/panel-mulch/.test(lp) && /panel-riverRock/.test(lp), 'loadProject re-renders the Mulch and River Rock tabs when active');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

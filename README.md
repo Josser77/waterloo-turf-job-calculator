@@ -84,7 +84,7 @@ Run the test suite before committing any changes to `waterloo_turf_calculator.ht
 node waterloo_turf_tests.js
 ```
 
-All tests should pass (currently **1640** — this is exactly what
+All tests should pass (currently **1622** — this is exactly what
 `node waterloo_turf_tests.js` prints on its `Tests:` line; if you're updating this
 number, copy it from the runner rather than adding to the previous figure). The
 `Sync and Push.command` script runs
@@ -104,16 +104,6 @@ A standalone estimator for how many pavers to order. Uses the imported Moasure a
 ## Bark/Mulch & River Rock tabs
 
 Two standalone ground-cover estimators (same shell as Pavers). Each takes the Moasure or manual area, a depth (inches), a Type (name + a coverage value = ft² one cubic yard covers per inch, geometric = 324), an install rate ($/sq ft), and an optional material cost ($/cu yd). Cubic yards = (area × depth) ÷ coverage, rounded up to the next half yard; install = area × rate. Both ordered by the cubic yard. Backed by the pure `computeGroundCoverPlan`. Does not affect the turf quote.
-
-
-## Branded Proposal (Quote Builder → 📄 Proposal)
-
-One-click customer proposal: a clean, branded printable page with your business header, the job/site/date, the site diagram, a Scope & Materials table, and the total (sell) price. Opens in a new window to print or Save as PDF. Business identity is set in Settings → Business Info. Backed by the pure `buildProposalModel`.
-
-
-## Shareable Link (Quote Builder → 🔗 Share Link)
-
-Encodes a customer-safe proposal (materials, sell price, business info, and layout geometry to redraw the diagram — no COGS/margin) into a gzipped URL hash. Anyone can open the link in a browser to see a read-only proposal, no login or server. Pure `buildSharePayload` + URL-safe base64url; gzip via CompressionStream with a plain fallback.
 
 
 ## Job History Dashboard (Dashboard tab)
