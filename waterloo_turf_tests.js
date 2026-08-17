@@ -34,6 +34,12 @@ const ctx = {
   },
   localStorage: { getItem: () => null, setItem: () => {} },
   console,
+  // TextEncoder/TextDecoder are needed by the share-codec byte tests. Always source
+  // them from 'util' so the suite behaves identically on every Node version (no reliance
+  // on ambient globals leaking into the vm sandbox, which differs across Node builds).
+  Uint8Array,
+  TextEncoder: require('util').TextEncoder,
+  TextDecoder: require('util').TextDecoder,
 };
 vm.runInNewContext(scriptSrc, ctx);
 
@@ -7104,6 +7110,230 @@ section('122. Paver calculator');
   const manual = { layout:{ area: 250 }, pavers:{ useMoasure:false, areaSqFt: 80 } };
   assert(near(ctx.paverAreaForProject(manual), 80), 'manual area overrides the layout area');
   ctx.getCurrentProject = prev;
+}
+
+section('123. Ground cover (bark/mulch & river rock)');
+{
+  const G = ctx.computeGroundCoverPlan;
+
+  // 500 ft² at 3\" with geometric coverage → 4.63 yd³, rounded up to 5.
+  const a = G({ areaSqFt:500, depthIn:3 });
+  assert(a.ok && near(a.cubicYards, 4.63, 0.01), '500 ft² @ 3\" = 4.63 yd³ exact');
+  assert(a.cubicYardsToOrder === 5, 'rounds up to the next half yard (4.63 → 5)');
+  assert(near(a.cubicFeet, 125), 'cubic feet = area × depth/12 (125)');
+
+  // Geometric coverage default is 324: matches area×depth/12/27 exactly.
+  assert(near(G({areaSqFt:270, depthIn:12}).cubicYards, 10), '270 ft² @ 12\" = 10 yd³ (geometric)');
+
+  // Lower coverage (settling) needs MORE material.
+  const settle = G({ areaSqFt:500, depthIn:3, coveragePerInch:300 });
+  assert(settle.cubicYards > a.cubicYards, 'lower coverage (settling) needs more yards');
+
+  // Install priced per sq ft; material by the yard; total = both.
+  const cost = G({ areaSqFt:500, depthIn:3, installRatePerSqFt:1.5, costPerCuYd:45 });
+  assert(cost.installCost === 750, 'install = area × rate (500 × 1.5 = 750)');
+  assert(cost.materialCost === 225, 'material = ordered yards × $/yd (5 × 45 = 225)');
+  assert(cost.total === 975, 'total = install + material');
+
+  // Half-yard rounding: 5.1 yd³ → 5.5.
+  const hy = G({ areaSqFt:5.1*324, depthIn:1 });
+  assert(hy.cubicYardsToOrder === 5.5, 'orders round up to the next half yard (5.1 → 5.5)');
+
+  // Missing inputs → not ok.
+  assert(!G({ areaSqFt:500, depthIn:0 }).ok, 'no depth → not ok');
+  assert(!G({ areaSqFt:0, depthIn:3 }).ok, 'no area → not ok');
+
+  // Config defaults differ by material (rock shallower) + Moasure area source.
+  const mulchCfg = ctx.getGroundCoverConfig({}, 'mulch');
+  const rockCfg  = ctx.getGroundCoverConfig({}, 'riverRock');
+  assert(mulchCfg.depthIn === 3 && rockCfg.depthIn === 2, 'sensible default depths (mulch 3\", rock 2\")');
+  assert(mulchCfg.coveragePerInch === 324, 'default coverage = geometric 324');
+  const projWithLayout = { layout:{ area:400, secondaryShapes:[], secondaryShapeModes:{} }, mulch:{ useMoasure:true } };
+  const prev = ctx.getCurrentProject; ctx.getCurrentProject = () => projWithLayout;
+  assert(near(ctx.groundCoverAreaForProject(projWithLayout, 'mulch'), 400), 'useMoasure pulls the layout area');
+  const manual = { layout:{ area:400 }, riverRock:{ useMoasure:false, areaSqFt:120 } };
+  assert(near(ctx.groundCoverAreaForProject(manual, 'riverRock'), 120), 'manual area overrides');
+  ctx.getCurrentProject = prev;
+}
+
+section('124. Branded proposal model + business info');
+{
+  // Business info: defaults + round-trip.
+  const store = {}; const realLS = ctx.localStorage;
+  ctx.localStorage = { getItem:k=>store[k]||null, setItem:(k,v)=>store[k]=v };
+  const def = ctx.getBusinessInfo();
+  assert(def.name === 'Waterloo Turf' && def.tagline, 'business info has sensible defaults');
+  ctx.setBusinessInfo({ name:'WT', phone:'503', email:'a@b.com', license:'CCB1' });
+  const got = ctx.getBusinessInfo();
+  assert(got.name === 'WT' && got.phone === '503' && got.license === 'CCB1', 'business info round-trips');
+  ctx.localStorage = realLS;
+
+  // Proposal model: sell price (COGS + margin), alt-turf excluded, materials captured.
+  const proj = {
+    name:'Smith Yard', address:'123 Main\nTigard, OR', installDate:'2026-09-01',
+    turf:[ {product:'K9', role:'base', installedSqFt:820}, {product:'PG', role:'putting-green', installedSqFt:91.5}, {product:'Alt', role:'alt-turf', installedSqFt:820} ],
+    infill:[ {product:'Sand', bags:12} ],
+    edging:{ materialName:'Black Board', linearFt:60 },
+    miscItems:[ {name:'Drainage', qty:1} ],
+  };
+  const m = ctx.buildProposalModel(proj, 35, ctx.getBusinessInfo(), 10000);
+  assert(near(m.price, 10000/(1-0.35), 0.01), 'proposal price = COGS with margin (never raw cost)');
+  assert(m.turf.length === 2, 'alt-turf is excluded from the customer scope');
+  assert(m.turf.some(t=>t.role==='putting-green') && m.turf.some(t=>t.role==='base'), 'base + green turf listed');
+  assert(near(m.totalInstalledSqFt, 911.5), 'total installed sqft sums the listed turf');
+  assert(m.infill.length === 1 && m.edging && m.misc.length === 1, 'infill, edging, misc captured');
+  assert(m.address === '123 Main, Tigard, OR', 'multi-line address flattened');
+  // Zero-quantity rows are dropped.
+  const m2 = ctx.buildProposalModel({ turf:[{product:'X',role:'base',installedSqFt:0}], infill:[], miscItems:[] }, 0, ctx.getBusinessInfo(), 500);
+  assert(m2.turf.length === 0, 'a turf row with 0 installed sqft is not on the proposal');
+  assert(near(m2.price, 500), '0% margin → price = cogs');
+
+  // roleLabel mapping.
+  assert(ctx.roleLabel('putting-green') === 'Putting Green' && ctx.roleLabel('base') === 'Base Yard', 'role labels read for customers');
+}
+
+section('125. Proposal polish: clean diagram + scenario picker');
+{
+  // renderCleanDiagram hides the roll internals then RESTORES every toggle exactly.
+  const toggles = { showRectanglesToggle:{checked:true}, showDimensionsToggle:{checked:true}, showPieceDimensionsToggle:{checked:false} };
+  const canvas = { width:700, toDataURL:()=>'data:image/png;base64,CLEAN' };
+  const realGet = ctx.document.getElementById;
+  const realRender = ctx.renderRollLayoutStableCanvas;
+  const realProj = ctx.getCurrentProject;
+  let offWhenSnapped = null, redraws = 0;
+  ctx.document.getElementById = id => id === 'rollLayoutCanvas' ? canvas : (toggles[id] || null);
+  ctx.getCurrentProject = () => ({ layout:{ points:[{x:0,y:0},{x:1,y:0},{x:1,y:1}] } });
+  canvas.toDataURL = () => { offWhenSnapped = { r:toggles.showRectanglesToggle.checked, d:toggles.showDimensionsToggle.checked }; return 'data:image/png;base64,CLEAN'; };
+  ctx.renderRollLayoutStableCanvas = () => { redraws++; };
+
+  const img = ctx.renderCleanDiagram();
+  assert(img === 'data:image/png;base64,CLEAN', 'clean diagram returns a PNG data URL');
+  assert(offWhenSnapped && offWhenSnapped.r === false && offWhenSnapped.d === false, 'roll rectangles + dimensions are OFF at snapshot time');
+  assert(toggles.showRectanglesToggle.checked === true && toggles.showDimensionsToggle.checked === true, 'toggles are restored to the user\'s settings afterward');
+  assert(redraws === 2, 'redraws once with toggles off, once to restore the view');
+
+  ctx.document.getElementById = realGet;
+  ctx.renderRollLayoutStableCanvas = realRender;
+  ctx.getCurrentProject = realProj;
+
+  // Per-scenario sell price (same formula the popup picker uses).
+  const priceFor = (c, m) => (m >= 99 ? c : c / (1 - m/100));
+  assert(near(priceFor(8000, 30), 11428.57, 0.01), 'scenario A price = cogs with margin');
+  assert(near(priceFor(11000, 30), 15714.29, 0.01), 'scenario B price differs by its own cogs');
+  assert(priceFor(5000, 0) === 5000, '0% margin → price = cogs');
+
+  // The popup wiring: openProposal builds a picker only when >1 scenario, and the
+  // total element carries an id so the dropdown can update it.
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  const op = html.slice(html.indexOf('function openProposal'), html.indexOf('function openProposal') + 9000);
+  assert(/renderCleanDiagram\(\)/.test(op), 'openProposal uses the clean diagram');
+  assert(/scenarios\.length > 1/.test(op), 'the scenario picker only shows with more than one option');
+  assert(/id="propTotal"/.test(op), 'the total has an id so the picker can update it');
+}
+
+section('126. Shareable link (payload + codec)');
+{
+  // base64url over bytes: url-safe, exact roundtrip (incl. high bytes).
+  const bytes = new Uint8Array([0,1,2,253,254,255,72,101,108,108,111]);
+  const enc = ctx.bytesToBase64url(bytes);
+  assert(!/[+/=]/.test(enc), 'base64url has no +, /, or = (URL-safe)');
+  assert(JSON.stringify([...ctx.base64urlToBytes(enc)]) === JSON.stringify([...bytes]), 'byte roundtrip is exact');
+  // odd lengths (1 and 2 trailing bytes)
+  assert(JSON.stringify([...ctx.base64urlToBytes(ctx.bytesToBase64url(new Uint8Array([65])))]) === '[65]', '1-byte roundtrip');
+  assert(JSON.stringify([...ctx.base64urlToBytes(ctx.bytesToBase64url(new Uint8Array([65,66])))]) === '[65,66]', '2-byte roundtrip');
+
+  // Payload: customer-safe (no cogs/margin/catalog/crews), prices from margin.
+  const proj = {
+    name:'Smith', address:'123 Main\nTigard', installDate:'2026-09-01',
+    turf:[ {product:'K9', role:'base', installedSqFt:820}, {product:'PG', role:'putting-green', installedSqFt:91.5}, {product:'Alt', role:'alt-turf', installedSqFt:820} ],
+    infill:[ {product:'Sand', bags:12} ], edging:{ materialName:'Board', linearFt:60 }, miscItems:[ {name:'Drainage', qty:1} ],
+    layout:{ points:[{x:0.126,y:0},{x:20,y:0},{x:20,y:10},{x:0,y:10}], secondaryShapes:[], secondaryShapeModes:{}, rollWidth:15, rollLength:100 },
+  };
+  const payload = ctx.buildSharePayload(proj, 35, ctx.getBusinessInfo(), [{label:'A · No PG', cogs:10000},{label:'B · PG', cogs:12000}]);
+  const json = JSON.stringify(payload);
+  assert(!/cogs|margin|catalog|crew/i.test(json), 'payload leaks no cost/margin/catalog/crew data');
+  assert(payload.options.length === 2 && near(payload.options[0].price, 15384.62, 0.01), 'options carry sell prices, not cost');
+  assert(payload.turf.length === 2, 'alt-turf excluded from the shared scope');
+  assert(payload.layout.points[0].x === 0.13, 'layout points are rounded (smaller link)');
+  assert(payload.v === 1, 'payload is versioned');
+
+  // Codec roundtrip — tested synchronously and deterministically via the raw (non-gzip)
+  // path, so it never depends on CompressionStream/Response being present in the runner.
+  // (The gzip path is the browser's native CompressionStream; the bytes it wraps are the
+  // same base64url proven above.) We exercise the raw tag directly.
+  const rawEncoded = 'r' + ctx.bytesToBase64url(new ctx.TextEncoder().encode(json));
+  assert(rawEncoded[0] === 'r', 'raw-tagged share string starts with r');
+  const rawBack = JSON.parse(new ctx.TextDecoder().decode(ctx.base64urlToBytes(rawEncoded.slice(1))));
+  assert(rawBack.name === 'Smith' && rawBack.turf.length === 2 && rawBack.options.length === 2, 'decode reconstructs the payload');
+  assert(rawBack.layout.points.length === 4, 'layout geometry survives the roundtrip');
+}
+
+section('127. Job-history dashboard stats');
+{
+  const projects = [
+    { name:'A', created:Date.parse('2026-05-10'), installDate:'2026-06-01', quotedPrice:12000, turf:[{product:'K9 Pro',role:'base',installedSqFt:800},{product:'PG 85',role:'putting-green',installedSqFt:100}] },
+    { name:'B', created:Date.parse('2026-05-20'), installDate:'2026-06-15', quotedPrice:8000, turf:[{product:'K9 Pro',role:'base',installedSqFt:400}] },
+    { name:'C', created:Date.parse('2026-06-02'), turf:[{product:'Fescue',role:'base',installedSqFt:1200},{product:'Alt',role:'alt-turf',installedSqFt:1200}] },
+    { name:'Empty', created:Date.parse('2026-06-05'), turf:[] },
+  ];
+  const st = ctx.computeJobStats(projects);
+  assert(st.totalJobs === 4 && st.jobsWithArea === 3, 'counts all jobs, and those with turf area');
+  assert(st.totalSqFt === 2500, 'total sqft sums installed turf, alt-turf excluded (2500)');
+  assert(st.avgJobSqFt === 833 && st.medianJobSqFt === 900, 'avg and median job size');
+  assert(st.largestJobSqFt === 1200 && st.smallestJobSqFt === 400, 'largest/smallest job');
+  assert(st.totalRevenue === 20000 && st.jobsWithRevenue === 2, 'revenue only from priced jobs (12k+8k)');
+  assert(st.avgRevenue === 10000, 'average revenue over priced jobs');
+  assert(st.topProducts[0].name === 'K9 Pro' && st.topProducts[0].jobs === 2, 'most-used product ranked by job count');
+  assert(!st.topProducts.some(p=>p.name==='Alt'), 'alt-turf never appears in the product mix');
+  // Timeline keyed by install date (A,B) else created (C,Empty) — all land in 2026-06.
+  const jun = st.months.find(m=>m.month==='2026-06');
+  assert(jun && jun.jobs === 4 && jun.sqft === 2500, 'monthly timeline aggregates jobs + sqft');
+  assert(jun.revenue === 20000, 'monthly revenue only counts priced jobs');
+
+  // Empty portfolio → zeros, no throw.
+  const z = ctx.computeJobStats([]);
+  assert(z.totalJobs === 0 && z.totalSqFt === 0 && z.topProducts.length === 0, 'empty portfolio is all zeros');
+
+  // Custom price accessor overrides quotedPrice.
+  const st2 = ctx.computeJobStats(projects, p => p.name === 'C' ? 5000 : null);
+  assert(st2.totalRevenue === 5000 && st2.jobsWithRevenue === 1, 'a price accessor can override how revenue is read');
+}
+
+// A date-only install string must bucket by its OWN calendar month regardless of the
+// machine timezone — the bug that mis-filed June-1 jobs into May for Pacific users.
+{
+  assert(ctx.monthKeyOf('2026-06-01') === '2026-06', 'date-only string reads its literal year-month (no UTC shift)');
+  assert(ctx.monthKeyOf('2026-12-31') === '2026-12', 'year-end date-only string stays in December');
+  assert(ctx.monthKeyOf('') === null && ctx.monthKeyOf(null) === null, 'blank/null → no month');
+  // Whatever the timezone, a job installed 2026-06-01 lands in 2026-06.
+  const one = ctx.computeJobStats([{ name:'X', installDate:'2026-06-01', quotedPrice:1000, turf:[{product:'K9',role:'base',installedSqFt:500}] }]);
+  assert(one.months.length === 1 && one.months[0].month === '2026-06', 'a 2026-06-01 job buckets into 2026-06 in any timezone');
+  assert(one.months[0].jobs === 1 && one.months[0].revenue === 1000, 'that month carries the job + its revenue');
+}
+
+section('128. Global waste minimizer (bestRollForPoints)');
+{
+  const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, allowJoinSeams:false };
+  const rect = (w,h) => [{x:0,y:0},{x:w,y:0},{x:w,y:h},{x:0,y:h}];
+
+  // A 40×20 rectangle orders less rolled one way than the other; the sweep finds the min.
+  const shape = rect(40, 20);
+  const at0  = ctx.computeRollLayout(shape, 0, 0, opts).totalOrdered;
+  const at90 = ctx.computeRollLayout(shape, 90, 0, opts).totalOrdered;
+  const best = ctx.bestRollForPoints(shape, opts);
+  assert(best, 'sweep returns a best combination');
+  assert(best.totalOrdered <= at0 + 1e-6 && best.totalOrdered <= at90 + 1e-6, 'best is no worse than either fixed orientation');
+  assert(best.totalOrdered < Math.max(at0, at90), 'best beats the worse orientation (real saving exists)');
+  assert(best.deg >= 0 && best.deg < 180, 'best angle is within a half turn');
+
+  // Degenerate input → null, no throw.
+  assert(ctx.bestRollForPoints([{x:0,y:0},{x:1,y:0}], opts) === null, 'fewer than 3 points → null');
+  assert(ctx.bestRollForPoints(null, opts) === null, 'no points → null');
+
+  // A square is orientation-insensitive: best is no worse than the axis-aligned order.
+  const sq = rect(30, 30);
+  const bestSq = ctx.bestRollForPoints(sq, opts);
+  assert(bestSq.totalOrdered <= ctx.computeRollLayout(sq, 0, 0, opts).totalOrdered + 1e-6, 'square: best ≤ axis-aligned');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

@@ -1255,7 +1255,10 @@
     <div class="tabs">
       <div class="tab active" onclick="switchTab('quote',this)">Quote Builder</div>
       <div class="tab" onclick="switchTab('layout',this)">Layout</div>
+      <div class="tab" onclick="switchTab('dashboard',this)">Dashboard</div>
       <div class="tab" onclick="switchTab('pavers',this)">Pavers</div>
+      <div class="tab" onclick="switchTab('mulch',this)">Bark / Mulch</div>
+      <div class="tab" onclick="switchTab('riverRock',this)">River Rock</div>
       <div class="tab" id="tabSettings" onclick="switchTab('settings',this)">⚙ Settings</div>
       <div class="top-metrics" id="topMetrics" title="Live layout totals — from the roll plan">
         <div class="tm"><span class="tm-l">Installed</span><input type="text" id="layoutArea" class="tm-v" readonly></div>
@@ -1279,6 +1282,8 @@
           <div class="card-header">
             <div class="card-title" style="display:flex;align-items:center;gap:8px;">Job Info &amp; Exports<a class="help-badge" data-lockok="1" title="Open the User Guide" onclick="openGuideAt('doc-quote')">?</a></div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-ghost btn-sm" onclick="openProposal()" title="Branded, printable customer proposal with the site diagram and price">📄 Proposal</button>
+              <button class="btn btn-ghost btn-sm" onclick="shareProject()" title="Create a read-only proposal link to text or email the customer — no login needed">🔗 Share Link</button>
               <button class="btn btn-ghost btn-sm" onclick="openSupplierOrder()" title="Material order to email your supplier (rock excluded)">📦 Supplier Order</button>
               <button class="btn btn-ghost btn-sm" onclick="openInstallerSheet()" title="Install details to email your installer">🔧 Installer Sheet</button>
             </div>
@@ -1535,6 +1540,7 @@
                   <button class="btn btn-ghost btn-sm" data-lockok="1" onclick="layoutZoom(0.8)" title="Zoom out">－</button>
                   <button class="btn btn-ghost btn-sm" data-lockok="1" onclick="layoutZoomFit()" title="Fit shape">⊙ Fit</button>
                   <span id="layoutZoomLevel" style="font-size:11px;color:var(--text-light);">100%</span>
+                  <button class="btn btn-sm" data-lockok="1" onclick="onClickOptimizeAll()" title="Try every roll direction on the primary shape and every install layer, and apply the lowest-waste option to each" style="margin-left:8px;">✨ Minimize waste (all layers)</button>
                 </div>
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:12px;margin-bottom:6px;" title="Off = real installed shape per roll. On = the full rectangle you'd order, with the unused portion hatched. Turn this ON to see each roll's waste and drag pieces to nest them.">
                   <input type="checkbox" id="showRectanglesToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
@@ -1716,6 +1722,17 @@
 
 
       <!-- ══════════════════════════════════════
+           TAB: DASHBOARD
+      ══════════════════════════════════════ -->
+      <div class="tab-panel" id="panel-dashboard">
+        <div class="card">
+          <h2 style="margin-top:0;">Job History Dashboard</h2>
+          <p class="hint" style="margin-top:-4px;">Insight from every project you've saved — no new data entry. Revenue is summed only for jobs where you've recorded a quoted price (Quote Builder).</p>
+          <div id="dashboardBody"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════
            TAB: PAVERS
       ══════════════════════════════════════ -->
       <div class="tab-panel" id="panel-pavers">
@@ -1776,10 +1793,46 @@
       </div>
 
       <!-- ══════════════════════════════════════
+           TAB: BARK / MULCH
+      ══════════════════════════════════════ -->
+      <div class="tab-panel" id="panel-mulch">
+        <div class="card">
+          <h2 style="margin-top:0;">Bark Dust / Mulch Calculator</h2>
+          <p class="hint" style="margin-top:-4px;">Cubic yards to order for an area at a given depth, plus install labor. Uses the imported Moasure area by default, or enter one by hand.</p>
+          <div id="mulchFields"></div>
+          <div id="mulchResults" style="margin-top:22px;"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════
+           TAB: RIVER ROCK
+      ══════════════════════════════════════ -->
+      <div class="tab-panel" id="panel-riverRock">
+        <div class="card">
+          <h2 style="margin-top:0;">River Rock Calculator</h2>
+          <p class="hint" style="margin-top:-4px;">Cubic yards to order for an area at a given depth, plus install labor. Uses the imported Moasure area by default, or enter one by hand.</p>
+          <div id="riverRockFields"></div>
+          <div id="riverRockResults" style="margin-top:22px;"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════
            TAB: SETTINGS
       ══════════════════════════════════════ -->
       <div class="tab-panel" id="panel-settings">
-        <!-- ROLL SETTINGS (per-project; drives the Layout roll plan) -->
+        <!-- BUSINESS INFO (branding for the customer proposal) -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">Business Info</div></div>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">Appears on the branded customer Proposal (Quote Builder → 📄 Proposal).</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:640px;">
+            <div><label class="field-label">Business name</label><input type="text" id="bizName" class="manual-input" oninput="saveBusinessInfoFromUI()"></div>
+            <div><label class="field-label">Tagline</label><input type="text" id="bizTagline" class="manual-input" oninput="saveBusinessInfoFromUI()"></div>
+            <div><label class="field-label">Phone</label><input type="text" id="bizPhone" class="manual-input" oninput="saveBusinessInfoFromUI()"></div>
+            <div><label class="field-label">Email</label><input type="text" id="bizEmail" class="manual-input" oninput="saveBusinessInfoFromUI()"></div>
+            <div><label class="field-label">License #</label><input type="text" id="bizLicense" class="manual-input" oninput="saveBusinessInfoFromUI()"></div>
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-header">
             <div class="card-title" style="display:flex;align-items:center;gap:8px;">Roll Settings<a class="help-badge" data-lockok="1" title="Open the User Guide" onclick="openGuideAt('doc-settings')">?</a></div>
@@ -2472,7 +2525,7 @@
           <li><strong>Roll Length</strong> — maximum length of a single piece; longer runs are split, each adding a Cutting Margin.</li>
           <li><strong>Side Trimming</strong> — width trimmed off each roll for S-seams (Roll Width − Side Trimming = usable width per strip).</li>
           <li><strong>Cutting Margin</strong> — extra length added per cut/seam.</li>
-          <li><strong>Roll Direction</strong> — angle of rolls relative to shape. "Horizontal"/"Vertical" snap to 0°/90°. "Auto-minimize waste" searches all 180° × 8 translation offsets and picks the combination with the lowest ordered sqft.</li>
+          <li><strong>Roll Direction</strong> — angle of rolls relative to shape. "Horizontal"/"Vertical" snap to 0°/90°. "Auto" searches all 180° × 8 translation offsets and picks the combination with the lowest ordered sqft for that one layer. The <strong>✨ Minimize waste (all layers)</strong> button above the canvas runs that same search on the primary shape AND every install layer at once, applies the lowest-waste direction to each, and reports how much less turf is ordered.</li>
           <li><strong>Seam Translation</strong> — shifts where seam lines fall; can reduce strip count. Max value equals the effective roll width.</li>
         </ul>
         <p>Each roll strip only orders the length it actually needs based on where it intersects the shape — strips don't all buy the full bounding-box length. Ordered length is rounded up to the next whole foot, since turf is sold in Roll Width × 1ft increments. This produces accurate per-strip quantities and more realistic scrap percentages.</p>
@@ -2729,6 +2782,31 @@ function getProfitMargin() {
   const v = parseFloat(localStorage.getItem(MARGIN_KEY));
   return isNaN(v) ? 0 : v;
 }
+
+// Business identity for branded proposals (stored globally, not per-project).
+function getBusinessInfo() {
+  let d = {};
+  try { d = JSON.parse(localStorage.getItem('wt_business_v1')) || {}; } catch (e) {}
+  return {
+    name:  d.name  != null ? d.name  : 'Waterloo Turf',
+    phone: d.phone != null ? d.phone : '',
+    email: d.email != null ? d.email : '',
+    license: d.license != null ? d.license : '',
+    tagline: d.tagline != null ? d.tagline : 'Premium Artificial Turf Installation',
+  };
+}
+function setBusinessInfo(info) {
+  localStorage.setItem('wt_business_v1', JSON.stringify(info || {}));
+}
+function saveBusinessInfoFromUI() {
+  const v = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  setBusinessInfo({ name: v('bizName'), tagline: v('bizTagline'), phone: v('bizPhone'), email: v('bizEmail'), license: v('bizLicense') });
+}
+function populateBusinessInfoUI() {
+  const b = getBusinessInfo();
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+  set('bizName', b.name); set('bizTagline', b.tagline); set('bizPhone', b.phone); set('bizEmail', b.email); set('bizLicense', b.license);
+}
 function setProfitMargin(pct) {
   const v = Math.max(0, Math.min(99, parseFloat(pct) || 0));
   localStorage.setItem(MARGIN_KEY, String(v));
@@ -2765,6 +2843,133 @@ function projectOverridesShipping(proj) {
 function applyMargin(cogs, marginPct) {
   const m = Math.max(0, Math.min(99, parseFloat(marginPct) || 0));
   return cogs / (1 - m/100);
+}
+
+// Assemble the data for a branded customer proposal. It collects the material lines a
+// customer cares about (turf by product with installed sqft, infill, edging, misc,
+// pavers/mulch/rock estimators if used) and the SELL price (COGS with margin) — never
+// the raw cost. Pure given (proj, marginPct, business, cogsForProject): the caller
+// passes the already-computed project COGS so this doesn't re-run the whole quote.
+function buildProposalModel(proj, marginPct, business, cogs) {
+  const sell = applyMargin(cogs || 0, marginPct);
+  const turf = (proj.turf || [])
+    .filter(r => r.product && (parseFloat(r.installedSqFt) || 0) > 0 && r.role !== 'alt-turf')
+    .map(r => ({
+      product: r.product,
+      role: r.role || 'base',
+      installedSqFt: Math.round((parseFloat(r.installedSqFt) || 0) * 100) / 100,
+    }));
+  const infill = (proj.infill || [])
+    .filter(r => r.product && (parseFloat(r.bags) || 0) > 0)
+    .map(r => ({ product: r.product, bags: parseFloat(r.bags) || 0 }));
+  const edging = (proj.edging && parseFloat(proj.edging.linearFt) > 0)
+    ? { material: proj.edging.materialName || 'Edging', linearFt: parseFloat(proj.edging.linearFt) || 0 }
+    : null;
+  const misc = (proj.miscItems || [])
+    .filter(m => m.name && (parseFloat(m.qty) || 0) > 0)
+    .map(m => ({ name: m.name, qty: parseFloat(m.qty) || 0 }));
+
+  const address = proj.address ? String(proj.address).replace(/\s*\n+\s*/g, ', ').trim() : '';
+  return {
+    business,
+    projectName: proj.name || 'Turf Installation',
+    address,
+    installDate: proj.installDate || '',
+    turf, infill, edging, misc,
+    totalInstalledSqFt: turf.reduce((s, t) => s + t.installedSqFt, 0),
+    price: Math.round(sell * 100) / 100,
+  };
+}
+
+function roleLabel(role) {
+  return role === 'putting-green' ? 'Putting Green' : (role === 'alt-turf' ? 'Alternate' : 'Base Yard');
+}
+
+// ── Shareable link (no backend) ─────────────────────────────────────────────
+// Serialize a CUSTOMER-SAFE slice of the project into the URL: the proposal model
+// (materials + the final sell price) plus the layout geometry needed to redraw a clean
+// diagram. It deliberately excludes COGS, margin, the catalog, and crews — the customer
+// only ever sees finished numbers. Opening the link renders a full-page read-only
+// proposal. Payload building + byte<->base64url are pure (testable); the gzip step uses
+// the browser's CompressionStream with a plain-text fallback.
+
+function buildSharePayload(proj, marginPct, business, scenarios) {
+  const round = n => Math.round((parseFloat(n) || 0) * 100) / 100;
+  const L = proj.layout || {};
+  const pts = (L.points || []).map(p => ({ x: round(p.x), y: round(p.y) }));
+  const secShapes = (L.secondaryShapes || []).map(s => ({
+    name: s.name, layer: s.layer,
+    points: (s.points || []).map(p => ({ x: round(p.x), y: round(p.y) })),
+  }));
+  // Sell prices per scenario (never COGS). If none passed, one price from margin+cogs 0.
+  const priceFor = c => (marginPct >= 99 ? c : c / (1 - marginPct / 100));
+  const options = (scenarios && scenarios.length ? scenarios : [{ label: 'Proposal', cogs: 0 }])
+    .map(s => ({ label: s.label, price: round(priceFor(s.cogs)) }));
+
+  const model = buildProposalModel(proj, marginPct, business, (scenarios && scenarios[0] ? scenarios[0].cogs : 0));
+  return {
+    v: 1,
+    business,
+    name: model.projectName,
+    address: model.address,
+    installDate: model.installDate,
+    turf: model.turf, infill: model.infill, edging: model.edging, misc: model.misc,
+    totalSqFt: model.totalInstalledSqFt,
+    options,
+    layout: {
+      points: pts,
+      secondaryShapes: secShapes,
+      secondaryShapeModes: L.secondaryShapeModes || {},
+      rollWidth: L.rollWidth, rollLength: L.rollLength,
+      rotation: L.rotation, translation: L.translation,
+      fringe: L.fringe,
+    },
+  };
+}
+
+// URL-safe base64 over raw bytes (no btoa dependency, so it's testable + unicode-safe).
+const _B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+function bytesToBase64url(bytes) {
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 3) {
+    const b0 = bytes[i], b1 = bytes[i+1], b2 = bytes[i+2];
+    out += _B64[b0 >> 2];
+    out += _B64[((b0 & 3) << 4) | ((b1 || 0) >> 4)];
+    out += (i + 1 < bytes.length) ? _B64[((b1 & 15) << 2) | ((b2 || 0) >> 6)] : '';
+    out += (i + 2 < bytes.length) ? _B64[b2 & 63] : '';
+  }
+  return out;
+}
+function base64urlToBytes(str) {
+  const lookup = {}; for (let i = 0; i < _B64.length; i++) lookup[_B64[i]] = i;
+  const out = [];
+  for (let i = 0; i < str.length; i += 4) {
+    const c0 = lookup[str[i]], c1 = lookup[str[i+1]], c2 = lookup[str[i+2]], c3 = lookup[str[i+3]];
+    out.push((c0 << 2) | (c1 >> 4));
+    if (str[i+2] !== undefined) out.push(((c1 & 15) << 4) | (c2 >> 2));
+    if (str[i+3] !== undefined) out.push(((c2 & 3) << 6) | c3);
+  }
+  return new Uint8Array(out);
+}
+
+// Async gzip <-> base64url with a plain fallback. Tagged: 'g' gzip, 'r' raw.
+async function encodeShareString(jsonStr) {
+  const bytes = new TextEncoder().encode(jsonStr);
+  if (typeof CompressionStream === 'undefined') return 'r' + bytesToBase64url(bytes);
+  try {
+    const cs = new CompressionStream('gzip');
+    const w = cs.writable.getWriter(); w.write(bytes); w.close();
+    const buf = await new Response(cs.readable).arrayBuffer();
+    return 'g' + bytesToBase64url(new Uint8Array(buf));
+  } catch (e) { return 'r' + bytesToBase64url(bytes); }
+}
+async function decodeShareString(s) {
+  const tag = s[0], bytes = base64urlToBytes(s.slice(1));
+  if (tag === 'r' || typeof DecompressionStream === 'undefined') return new TextDecoder().decode(bytes);
+  const ds = new DecompressionStream('gzip');
+  const w = ds.writable.getWriter(); w.write(bytes); w.close();
+  const buf = await new Response(ds.readable).arrayBuffer();
+  return new TextDecoder().decode(buf);
 }
 // Whether the quote should show a "No Putting Green" option. Only when there's
 // standard yard area to install without the green; for a putting-green-only job
@@ -2911,6 +3116,88 @@ function getCatalog() {
 
 function saveCatalog(cat) {
   localStorage.setItem(CATALOG_KEY, JSON.stringify(cat));
+}
+
+// The 'YYYY-MM' bucket for a date value. A date-only string is read literally (no Date
+// parsing → no UTC/local shift). A number/timestamp uses local calendar components.
+function monthKeyOf(val) {
+  if (val == null || val === '') return null;
+  if (typeof val === 'string') {
+    const m = val.match(/^(\d{4})-(\d{2})/);
+    if (m) return m[1] + '-' + m[2];
+  }
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return null;
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+// ── Job-history dashboard ───────────────────────────────────────────────────
+// Aggregate insight from the projects already in localStorage — no new data entry.
+// Pure: takes the projects array (and an optional per-project revenue accessor) and
+// returns totals, product mix, job-size distribution, and a per-month timeline. Revenue
+// is only summed for jobs where a price is known (a project may carry `quotedPrice`);
+// counts/sqft always work.
+function computeJobStats(projects, priceOf) {
+  const list = Array.isArray(projects) ? projects : [];
+  const getPrice = typeof priceOf === 'function'
+    ? priceOf
+    : (p => { const v = parseFloat(p && p.quotedPrice); return isFinite(v) ? v : null; });
+
+  const jobSizes = [];      // installed sqft per job (with any turf)
+  const productCount = {};  // product -> jobs that used it
+  const productSqFt = {};   // product -> total installed sqft
+  const byMonth = {};       // 'YYYY-MM' -> { jobs, sqft, revenue }
+  let totalSqFt = 0, totalRevenue = 0, jobsWithRevenue = 0, jobsWithArea = 0;
+
+  list.forEach(p => {
+    const turf = (p.turf || []).filter(r => r.product && (parseFloat(r.installedSqFt) || 0) > 0 && r.role !== 'alt-turf');
+    const jobSqFt = turf.reduce((s, r) => s + (parseFloat(r.installedSqFt) || 0), 0);
+    if (jobSqFt > 0) { jobSizes.push(jobSqFt); totalSqFt += jobSqFt; jobsWithArea++; }
+    turf.forEach(r => {
+      productCount[r.product] = (productCount[r.product] || 0) + 1;
+      productSqFt[r.product] = (productSqFt[r.product] || 0) + (parseFloat(r.installedSqFt) || 0);
+    });
+    const price = getPrice(p);
+    if (price != null && isFinite(price)) { totalRevenue += price; jobsWithRevenue++; }
+
+    // Timeline keyed by install date if present, else the created date. A date-only
+    // string ('YYYY-MM-DD') is a calendar date — read its year-month straight from the
+    // string so it can't shift a day across the UTC boundary (which mis-filed month-edge
+    // jobs for users west of UTC). A timestamp (created) uses local calendar components.
+    const key = monthKeyOf(p.installDate) || monthKeyOf(p.created);
+    if (key) {
+      const m = byMonth[key] || (byMonth[key] = { jobs: 0, sqft: 0, revenue: 0 });
+      m.jobs++; m.sqft += jobSqFt; if (price != null && isFinite(price)) m.revenue += price;
+    }
+  });
+
+  jobSizes.sort((a, b) => a - b);
+  const median = jobSizes.length
+    ? (jobSizes.length % 2 ? jobSizes[(jobSizes.length - 1) / 2]
+        : (jobSizes[jobSizes.length/2 - 1] + jobSizes[jobSizes.length/2]) / 2)
+    : 0;
+
+  const topProducts = Object.keys(productCount)
+    .map(name => ({ name, jobs: productCount[name], sqft: productSqFt[name] }))
+    .sort((a, b) => b.jobs - a.jobs || b.sqft - a.sqft);
+
+  const months = Object.keys(byMonth).sort()
+    .map(key => ({ month: key, jobs: byMonth[key].jobs, sqft: byMonth[key].sqft, revenue: byMonth[key].revenue }));
+
+  return {
+    totalJobs: list.length,
+    jobsWithArea,
+    totalSqFt: Math.round(totalSqFt),
+    avgJobSqFt: jobsWithArea ? Math.round(totalSqFt / jobsWithArea) : 0,
+    medianJobSqFt: Math.round(median),
+    largestJobSqFt: jobSizes.length ? Math.round(jobSizes[jobSizes.length - 1]) : 0,
+    smallestJobSqFt: jobSizes.length ? Math.round(jobSizes[0]) : 0,
+    totalRevenue: Math.round(totalRevenue),
+    jobsWithRevenue,
+    avgRevenue: jobsWithRevenue ? Math.round(totalRevenue / jobsWithRevenue) : 0,
+    topProducts,
+    months,
+  };
 }
 
 function getProjects() {
@@ -3064,6 +3351,11 @@ function closeAutoBackupModal() {
 // ═══════════════════════════════════════════════════════
 
 window.onload = () => {
+  // If opened via a #share= link, render the read-only proposal and skip the app.
+  if (typeof maybeRenderSharedProposal === 'function' && location.hash.indexOf('#share=') === 0) {
+    maybeRenderSharedProposal();
+    return;
+  }
   // The "ResizeObserver loop completed with undelivered notifications" message is a
   // benign browser notification (not a real error). Our observer already defers its
   // work to rAF; this narrowly swallows only that exact message so it can't surface
@@ -4202,6 +4494,8 @@ function removeQuoteMisc(i) {
 
 function calcQuote() {
   const proj = getCurrentProject(); if(!proj) return;
+  window._wtProposalCogs = null; // reset; the first scenario below sets the proposal's COGS
+  window._wtProposalScenarios = []; // reset; each scenario appends its label + COGS
   const shippingCost = resolveShipping(proj); // same freight on every scenario
   const container = document.getElementById('quoteOptionsContainer');
   if (!container) return;
@@ -4439,6 +4733,15 @@ function calcQuote() {
             ${priceBlock}
             <div class="opt-breakdown">${breakdown}</div>
           </div>`;
+        // Remember every scenario (label + COGS) so the branded proposal can quote
+        // from any of them, not just the first. calcQuote resets this list at the top.
+        (window._wtProposalScenarios || (window._wtProposalScenarios = [])).push({ label: `${cardLabel} · ${pgLabel}`, cogs });
+        if (window._wtProposalCogs == null) {
+          window._wtProposalCogs = cogs;
+          // Record the recommended sell price on the project so the Dashboard can sum
+          // revenue without re-running the quote for every saved job.
+          proj.quotedPrice = Math.round(applyMargin(cogs, marginPct) * 100) / 100;
+        }
         cardIdx++;
       });
 
@@ -4773,6 +5076,7 @@ function defaultMiscItemsForNewProject(catalogItems) {
 
 function renderSettingsTables() {
   const cat = getCatalog();
+  populateBusinessInfoUI();
   renderSettingsTurfTable(cat.turf);
   renderSettingsInfillTable(cat.infill);
   renderSettingsRockTable(cat.rock || []);
@@ -6061,6 +6365,65 @@ function computePaverPlan(input) {
   };
 }
 
+// ── Ground cover: bark dust / mulch and river rock ──────────────────────────
+// Both are ordered by the cubic yard and installed at a per-sq-ft rate. The
+// material "type" carries a coverage rating: how many square feet one cubic yard
+// covers per inch of depth. Pure geometric coverage is 324 (27 ft³ × 12 in/ft), so a
+// lower number means the material settles/packs and you need more. Volume =
+// (area × depth) ÷ coverage. Pure — no DOM, no persistence.
+function computeGroundCoverPlan(input) {
+  const areaSqFt   = Math.max(0, parseFloat(input.areaSqFt) || 0);
+  const depthIn    = Math.max(0, parseFloat(input.depthIn) || 0);
+  const covRaw     = parseFloat(input.coveragePerInch);
+  const coverage   = (isFinite(covRaw) && covRaw > 0) ? covRaw : 324; // 324 = geometric ft² per yd³ per inch (27 ft³ × 12 in)
+  const installRate= Math.max(0, parseFloat(input.installRatePerSqFt) || 0);
+  const costPerYd  = Math.max(0, parseFloat(input.costPerCuYd) || 0);
+
+  if (areaSqFt <= 0 || depthIn <= 0) {
+    return { ok:false, reason:'missing-input',
+      cubicYards:0, cubicYardsToOrder:0, cubicFeet:0, installCost:0, materialCost:0, total:0, coverage };
+  }
+
+  const cubicFeet   = areaSqFt * (depthIn / 12);
+  const cubicYards  = (areaSqFt * depthIn) / coverage;   // = cubicFeet/27 at geometric coverage
+  const cubicYardsToOrder = Math.ceil(cubicYards * 2 - 1e-9) / 2; // round UP to next half yard
+  const installCost = areaSqFt * installRate;
+  const materialCost= cubicYardsToOrder * costPerYd;
+
+  return {
+    ok: true,
+    cubicFeet,
+    cubicYards,                 // exact
+    cubicYardsToOrder,          // rounded up to the next half yard
+    installCost,
+    materialCost,               // 0 when no cost/yd entered
+    total: installCost + materialCost,
+    coverage,
+  };
+}
+
+function getGroundCoverConfig(proj, key) {
+  const p = (proj && proj[key]) || {};
+  return {
+    useMoasure: p.useMoasure !== false,
+    areaSqFt:   p.areaSqFt != null ? p.areaSqFt : '',
+    depthIn:    p.depthIn != null ? p.depthIn : (key === 'riverRock' ? 2 : 3),
+    typeName:   p.typeName != null ? p.typeName : '',
+    coveragePerInch: p.coveragePerInch != null ? p.coveragePerInch : 324, // geometric coverage
+    installRatePerSqFt: p.installRatePerSqFt != null ? p.installRatePerSqFt : '',
+    costPerCuYd: p.costPerCuYd != null ? p.costPerCuYd : '',
+  };
+}
+
+function groundCoverAreaForProject(proj, key) {
+  const cfg = getGroundCoverConfig(proj, key);
+  if (cfg.useMoasure) {
+    const raw = (proj && proj.layout && proj.layout.area) || 0;
+    return getAdjustedShapeArea(proj, raw) || raw || 0;
+  }
+  return parseFloat(cfg.areaSqFt) || 0;
+}
+
 function getPaverConfig(proj) {
   const p = (proj && proj.pavers) || {};
   return {
@@ -6230,6 +6593,23 @@ function setPrimarySeamOffset(ft, skipList) {
   if (skipList) renderRollLayoutStableCanvas(); else renderRollLayout();
   if (!skipList) renderLayersList(proj);
 }
+// Pure: sweep roll direction (0–179°) and seam offset for a set of points and return
+// the lowest-ordered-footage combination. Shared by the per-layer auto-minimize and the
+// one-click global minimizer so they always agree.
+function bestRollForPoints(pts, opts) {
+  if (!pts || pts.length < 3) return null;
+  const effW = effectiveRollWidth(opts);
+  let best = null;
+  for (let deg = 0; deg < 180; deg += 1) {
+    for (let ti = 0; ti < 8; ti++) {
+      const t = (ti / 8) * effW;
+      const L = computeRollLayout(pts, deg, t, opts);
+      if (!best || L.totalOrdered < best.totalOrdered) best = { deg, t, totalOrdered: L.totalOrdered };
+    }
+  }
+  return best;
+}
+
 // Per-layer auto-minimize: sweep roll direction + seam offset on this layer's
 // own (positioned) display points and store the lowest-ordered combination.
 function autoRotateLayer(layerId) {
@@ -6238,22 +6618,76 @@ function autoRotateLayer(layerId) {
   const layoutNow = window._wtCurrentRollLayout;
   const s = layoutNow && layoutNow.secondaryShapes && layoutNow.secondaryShapes[layerId];
   const pts = (s && (s.displayPoints || s.points));
-  if (!pts || pts.length < 3) return;
-  const effW = effectiveRollWidth(opts);
-  let best = null;
-  for (let deg = 0; deg < 180; deg += 1) {
-    for (let ti = 0; ti < 8; ti++) {
-      const t = (ti/8) * effW;
-      const L = computeRollLayout(pts, deg, t, opts);
-      if (!best || L.totalOrdered < best.totalOrdered) best = { deg, t, totalOrdered: L.totalOrdered };
-    }
-  }
+  const best = bestRollForPoints(pts, opts);
   if (!best) return;
   if (!proj.layout.layerRoll) proj.layout.layerRoll = {};
   proj.layout.layerRoll[layerId] = { rotation: best.deg, translation: +best.t.toFixed(2) };
   save();
   renderRollLayout();
   renderLayersList(proj);
+}
+
+// One-click GLOBAL waste minimizer: run the roll sweep on the primary shape and every
+// install layer, apply each layer's lowest-ordered direction/offset, and report the
+// before/after ordered footage. Returns { beforeOrdered, afterOrdered, changed }.
+function optimizeAllLayers() {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) { alert('Open a project with a layout first.'); return null; }
+  const opts = getRollOpts(proj);
+  const layoutNow = window._wtCurrentRollLayout || computeRollLayout(proj.layout.points, proj.layout.rotation || 0, proj.layout.translation || 0, opts);
+  const orderedOf = pts => { const b = bestRollForPoints(pts, opts); return b ? b.totalOrdered : 0; };
+  const currentOrderedOf = pts => (pts && pts.length >= 3) ? computeRollLayout(pts, 0, 0, opts).totalOrdered : 0;
+
+  // Before: sum the ordered footage the layers currently produce.
+  let beforeOrdered = 0, afterOrdered = 0, changed = 0;
+
+  // Primary shape.
+  const primPts = (layoutNow && layoutNow.points) || proj.layout.points;
+  if (primPts && primPts.length >= 3) {
+    const curL = computeRollLayout(primPts, proj.layout.rotation || 0, proj.layout.translation || 0, opts);
+    const best = bestRollForPoints(primPts, opts);
+    beforeOrdered += curL.totalOrdered;
+    afterOrdered += best ? best.totalOrdered : curL.totalOrdered;
+    if (best && best.totalOrdered < curL.totalOrdered - 1e-6) {
+      proj.layout.rotation = best.deg;
+      proj.layout.translation = +best.t.toFixed(2);
+      changed++;
+    }
+  }
+
+  // Each install layer.
+  const shapes = (layoutNow && layoutNow.secondaryShapes) || [];
+  if (!proj.layout.layerRoll) proj.layout.layerRoll = {};
+  shapes.forEach((s, i) => {
+    const mode = (proj.layout.secondaryShapeModes || {})[i];
+    if (mode !== 'install' && mode !== 'putting-green') return;
+    const pts = s.displayPoints || s.points;
+    if (!pts || pts.length < 3) return;
+    const cur = getLayerRoll(proj, i, proj.layout.rotation || 0, proj.layout.translation || 0);
+    const curL = computeRollLayout(pts, (cur && cur.rotation) || 0, (cur && cur.translation) || 0, opts);
+    const best = bestRollForPoints(pts, opts);
+    beforeOrdered += curL.totalOrdered;
+    afterOrdered += best ? best.totalOrdered : curL.totalOrdered;
+    if (best && best.totalOrdered < curL.totalOrdered - 1e-6) {
+      proj.layout.layerRoll[i] = { rotation: best.deg, translation: +best.t.toFixed(2) };
+      changed++;
+    }
+  });
+
+  save();
+  renderRollLayout();
+  renderLayersList(proj);
+  return { beforeOrdered: Math.round(beforeOrdered), afterOrdered: Math.round(afterOrdered), changed };
+}
+
+function onClickOptimizeAll() {
+  const r = optimizeAllLayers();
+  if (!r) return;
+  const saved = r.beforeOrdered - r.afterOrdered;
+  if (r.changed && saved > 0) {
+    showLayoutToast(`Waste minimized: ${saved.toLocaleString()} ft² less ordered across ${r.changed} layer${r.changed===1?'':'s'} (${r.beforeOrdered.toLocaleString()} → ${r.afterOrdered.toLocaleString()} ft²).`);
+  } else {
+    showLayoutToast('Already optimal — no roll direction change reduced the order.');
+  }
 }
 // Escape a string for safe insertion into an HTML attribute value.
 function escAttr(s) {
@@ -8899,6 +9333,28 @@ function layoutFitPoints(layout, showRects) {
   // Everything hidden: fall back to the primary outline so there's still something
   // to frame rather than a blank/NaN transform.
   return pts.length ? pts : [...(layout.basePoints || [])];
+}
+
+// A CLEAN site diagram for the customer proposal: temporarily hide the roll
+// internals (purchased rectangles, waste hatch, piece + edge dimensions) so the image
+// shows the yard and its shapes, not the cutting plan. Snapshots the canvas, then puts
+// every toggle back exactly as the user had it.
+function renderCleanDiagram() {
+  const canvas = document.getElementById('rollLayoutCanvas');
+  const proj = getCurrentProject();
+  if (!canvas || !proj || !proj.layout || !proj.layout.points) return '';
+  const ids = ['showRectanglesToggle', 'showDimensionsToggle', 'showPieceDimensionsToggle'];
+  const prev = {};
+  ids.forEach(id => { const el = document.getElementById(id); if (el) { prev[id] = el.checked; el.checked = false; } });
+  let img = '';
+  try {
+    renderRollLayoutStableCanvas(); // redraw with the toggles off
+    img = canvas.toDataURL('image/png');
+  } catch (e) {}
+  // Restore the toggles and the on-screen view.
+  ids.forEach(id => { const el = document.getElementById(id); if (el && prev[id] != null) el.checked = prev[id]; });
+  try { renderRollLayoutStableCanvas(); } catch (e) {}
+  return img;
 }
 
 function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
@@ -12289,6 +12745,194 @@ function openInstallerSheet() {
   showExportModal('Installer Sheet', 'Copy this and paste it into an email to your installer.', buildInstallerSheetText(proj));
 }
 
+// Branded customer proposal — a clean, printable one-pager with the site diagram, the
+// materials, and the (sell) price. Opens in a new window; the customer/you Save as PDF
+// or print from there. No backend — the diagram is pasted in as a PNG from the canvas.
+function openProposal() {
+  const proj = getCurrentProject(); if (!proj) { alert('Open a project first.'); return; }
+  calcQuote(); // make sure the scenarios + COGS are fresh
+  const scenarios = (window._wtProposalScenarios || []).slice();
+  const cogs = window._wtProposalCogs || (scenarios[0] && scenarios[0].cogs) || 0;
+  const marginPct = getProfitMargin();
+  const model = buildProposalModel(proj, marginPct, getBusinessInfo(), cogs);
+
+  // CLEAN site diagram (no roll rectangles / dimensions) for the customer.
+  const diagram = renderCleanDiagram();
+
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const money = v => '$' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const b = model.business;
+  const dateStr = model.installDate && typeof fmtExportDate === 'function' ? fmtExportDate(model.installDate) : '';
+
+  const turfRows = model.turf.map(t =>
+    `<tr><td>${esc(t.product)}</td><td>${esc(roleLabel(t.role))}</td><td style="text-align:right;">${t.installedSqFt.toLocaleString()} ft²</td></tr>`).join('');
+  const infillRows = model.infill.map(i =>
+    `<tr><td>${esc(i.product)}</td><td>Infill</td><td style="text-align:right;">${i.bags.toLocaleString()} bags</td></tr>`).join('');
+  const edgeRow = model.edging
+    ? `<tr><td>${esc(model.edging.material)}</td><td>Edging</td><td style="text-align:right;">${model.edging.linearFt.toLocaleString()} ln ft</td></tr>` : '';
+  const miscRows = model.misc.map(m =>
+    `<tr><td>${esc(m.name)}</td><td>Additional</td><td style="text-align:right;">${m.qty.toLocaleString()}</td></tr>`).join('');
+
+  // The scenario picker (only shown when there's more than one option). Each option
+  // carries its sell price so the popup can switch the total with no round-trip.
+  const priceFor = c => (marginPct >= 99 ? c : c / (1 - marginPct/100));
+  const picker = scenarios.length > 1
+    ? `<div class="noprint" style="margin:10px 0;font-size:13px;">Option shown to customer:
+         <select id="propScenario" onchange="var o=this.options[this.selectedIndex];document.getElementById('propTotal').textContent=o.getAttribute('data-price-fmt');">
+           ${scenarios.map((s,i)=>`<option value="${i}" data-price-fmt="${money(priceFor(s.cogs))}"${s.cogs===cogs?' selected':''}>${esc(s.label)} — ${money(priceFor(s.cogs))}</option>`).join('')}
+         </select></div>`
+    : '';
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Proposal — ${esc(model.projectName)}</title>
+  <style>
+    @page { margin: 0.6in; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #1a2b22; margin: 0; padding: 28px; }
+    .head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom: 3px solid #2e7d46; padding-bottom: 16px; }
+    .brand { font-size: 26px; font-weight: 800; color: #2e7d46; letter-spacing:-0.5px; }
+    .tagline { font-size: 12px; color: #6b7c73; margin-top: 2px; }
+    .contact { font-size: 12px; color: #4a5a51; text-align:right; line-height:1.6; }
+    h1 { font-size: 15px; text-transform: uppercase; letter-spacing: 1px; color:#6b7c73; margin: 26px 0 8px; }
+    .meta { display:flex; gap:32px; font-size:13px; margin-bottom: 4px; flex-wrap:wrap; }
+    .meta b { color:#1a2b22; }
+    .diagram { margin: 14px 0 6px; text-align:center; }
+    .diagram img { max-width: 100%; max-height: 340px; border:1px solid #e0e6e2; border-radius:8px; }
+    table { width:100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+    th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:#6b7c73; border-bottom:2px solid #e0e6e2; padding:8px 6px; }
+    td { padding: 9px 6px; border-bottom: 1px solid #eef2ef; }
+    .total { margin-top: 22px; background:#f2f8f4; border-radius: 10px; padding: 18px 22px; display:flex; justify-content:space-between; align-items:center; }
+    .total .lbl { font-size: 13px; text-transform:uppercase; letter-spacing:1px; color:#4a5a51; }
+    .total .amt { font-size: 30px; font-weight: 800; color:#2e7d46; }
+    .foot { margin-top: 28px; font-size: 11px; color:#8a998f; border-top:1px solid #eef2ef; padding-top:12px; }
+    .noprint { margin: 8px 0; }
+    @media print { .noprint { display:none; } body { padding:0; } }
+  </style></head><body>
+    <div class="noprint" style="text-align:center;">
+      <button onclick="window.print()" style="padding:10px 22px;font-size:14px;background:#2e7d46;color:#fff;border:none;border-radius:8px;cursor:pointer;">Print / Save as PDF</button>
+    </div>
+    ${picker}
+    <div class="head">
+      <div><div class="brand">${esc(b.name)}</div><div class="tagline">${esc(b.tagline)}</div></div>
+      <div class="contact">${[b.phone, b.email, b.license ? 'Lic. ' + b.license : ''].filter(Boolean).map(esc).join('<br>')}</div>
+    </div>
+
+    <h1>Proposal</h1>
+    <div class="meta"><div><b>Project:</b> ${esc(model.projectName)}</div>${model.address ? `<div><b>Site:</b> ${esc(model.address)}</div>` : ''}${dateStr ? `<div><b>Install:</b> ${esc(dateStr)}</div>` : ''}</div>
+
+    ${diagram ? `<div class="diagram"><img src="${diagram}" alt="Site layout"></div>` : ''}
+
+    <h1>Scope &amp; Materials</h1>
+    <table><thead><tr><th>Product</th><th>Area / Type</th><th style="text-align:right;">Quantity</th></tr></thead>
+      <tbody>${turfRows}${infillRows}${edgeRow}${miscRows}</tbody></table>
+
+    <div class="total"><div class="lbl">Total Investment</div><div class="amt" id="propTotal">${money(model.price)}</div></div>
+
+    <div class="foot">${esc(b.name)} — this proposal covers the scope and materials listed above. Prices valid for 30 days. ${model.totalInstalledSqFt ? 'Approx. ' + model.totalInstalledSqFt.toLocaleString() + ' ft² of turf.' : ''}</div>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) { alert('Please allow pop-ups to open the proposal.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
+// Build a shareable link: encode a customer-safe payload into the URL hash. Async
+// because gzip is async. Copies the link and shows it in a modal.
+async function shareProject() {
+  const proj = getCurrentProject(); if (!proj) { alert('Open a project first.'); return; }
+  calcQuote();
+  const scenarios = (window._wtProposalScenarios || []).slice();
+  const payload = buildSharePayload(proj, getProfitMargin(), getBusinessInfo(), scenarios);
+  let encoded;
+  try { encoded = await encodeShareString(JSON.stringify(payload)); }
+  catch (e) { alert('Could not build the share link.'); return; }
+  const base = location.origin + location.pathname;
+  const url = base + '#share=' + encoded;
+  if (url.length > 30000) {
+    alert('This layout is very detailed, so the share link is long and may not work everywhere. It will still open in a browser that accepts it.');
+  }
+  const done = () => {};
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(done).catch(done);
+  }
+  showExportModal('Share Link', 'A read-only proposal link — anyone can open it in a browser, no login needed. Copied to your clipboard.', url);
+}
+
+// If the page was opened with a #share= payload, decode it and render a full-page,
+// read-only proposal (no app chrome). Reconstructs just enough of a project to redraw a
+// clean diagram. Returns true if it handled a share link.
+async function maybeRenderSharedProposal() {
+  const hash = location.hash || '';
+  const m = hash.match(/#share=(.+)$/);
+  if (!m) return false;
+  let payload;
+  try { payload = JSON.parse(await decodeShareString(m[1])); }
+  catch (e) { document.body.innerHTML = '<div style="font-family:sans-serif;padding:40px;text-align:center;color:#6b7c73;">This proposal link could not be opened.</div>'; return true; }
+  renderSharedProposal(payload);
+  return true;
+}
+
+function renderSharedProposal(payload) {
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const money = v => '$' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const b = payload.business || getBusinessInfo();
+  const dateStr = payload.installDate && typeof fmtExportDate === 'function' ? fmtExportDate(payload.installDate) : '';
+
+  // Redraw a clean diagram from the shared geometry by standing up a temporary project.
+  let diagram = '';
+  try {
+    if (payload.layout && payload.layout.points && payload.layout.points.length >= 3) {
+      const tmp = { id:'__shared__', name: payload.name, layout: JSON.parse(JSON.stringify(payload.layout)) };
+      const prevProjects = projects, prevId = currentId;
+      projects = [tmp]; currentId = '__shared__';
+      renderRollLayout();
+      diagram = renderCleanDiagram();
+      projects = prevProjects; currentId = prevId;
+    }
+  } catch (e) {}
+
+  const turfRows = (payload.turf || []).map(t =>
+    `<tr><td>${esc(t.product)}</td><td>${esc(roleLabel(t.role))}</td><td style="text-align:right;">${(t.installedSqFt||0).toLocaleString()} ft²</td></tr>`).join('');
+  const infillRows = (payload.infill || []).map(i =>
+    `<tr><td>${esc(i.product)}</td><td>Infill</td><td style="text-align:right;">${(i.bags||0).toLocaleString()} bags</td></tr>`).join('');
+  const edgeRow = payload.edging
+    ? `<tr><td>${esc(payload.edging.material)}</td><td>Edging</td><td style="text-align:right;">${(payload.edging.linearFt||0).toLocaleString()} ln ft</td></tr>` : '';
+  const miscRows = (payload.misc || []).map(mm =>
+    `<tr><td>${esc(mm.name)}</td><td>Additional</td><td style="text-align:right;">${(mm.qty||0).toLocaleString()}</td></tr>`).join('');
+
+  const options = payload.options || [];
+  const firstPrice = options[0] ? options[0].price : 0;
+  const picker = options.length > 1
+    ? `<div style="margin:10px 0;font-size:13px;">Option:
+         <select onchange="document.getElementById('sharedTotal').textContent=this.options[this.selectedIndex].getAttribute('data-p');">
+           ${options.map((o,i)=>`<option data-p="${money(o.price)}"${i===0?' selected':''}>${esc(o.label)} — ${money(o.price)}</option>`).join('')}
+         </select></div>`
+    : '';
+
+  document.body.innerHTML = `
+    <div style="max-width:820px;margin:0 auto;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a2b22;padding:28px;">
+      ${picker}
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #2e7d46;padding-bottom:16px;">
+        <div><div style="font-size:26px;font-weight:800;color:#2e7d46;letter-spacing:-0.5px;">${esc(b.name)}</div><div style="font-size:12px;color:#6b7c73;margin-top:2px;">${esc(b.tagline||'')}</div></div>
+        <div style="font-size:12px;color:#4a5a51;text-align:right;line-height:1.6;">${[b.phone,b.email,b.license?'Lic. '+b.license:''].filter(Boolean).map(esc).join('<br>')}</div>
+      </div>
+      <h1 style="font-size:15px;text-transform:uppercase;letter-spacing:1px;color:#6b7c73;margin:26px 0 8px;">Proposal</h1>
+      <div style="display:flex;gap:32px;font-size:13px;flex-wrap:wrap;"><div><b>Project:</b> ${esc(payload.name||'Turf Installation')}</div>${payload.address?`<div><b>Site:</b> ${esc(payload.address)}</div>`:''}${dateStr?`<div><b>Install:</b> ${esc(dateStr)}</div>`:''}</div>
+      ${diagram?`<div style="margin:14px 0 6px;text-align:center;"><img src="${diagram}" style="max-width:100%;max-height:340px;border:1px solid #e0e6e2;border-radius:8px;" alt="Site layout"></div>`:''}
+      <h1 style="font-size:15px;text-transform:uppercase;letter-spacing:1px;color:#6b7c73;margin:26px 0 8px;">Scope &amp; Materials</h1>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr>
+        <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#6b7c73;border-bottom:2px solid #e0e6e2;padding:8px 6px;">Product</th>
+        <th style="text-align:left;font-size:11px;text-transform:uppercase;color:#6b7c73;border-bottom:2px solid #e0e6e2;padding:8px 6px;">Area / Type</th>
+        <th style="text-align:right;font-size:11px;text-transform:uppercase;color:#6b7c73;border-bottom:2px solid #e0e6e2;padding:8px 6px;">Quantity</th>
+      </tr></thead><tbody>${turfRows}${infillRows}${edgeRow}${miscRows}</tbody></table>
+      <div style="margin-top:22px;background:#f2f8f4;border-radius:10px;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:13px;text-transform:uppercase;letter-spacing:1px;color:#4a5a51;">Total Investment</div>
+        <div id="sharedTotal" style="font-size:30px;font-weight:800;color:#2e7d46;">${money(firstPrice)}</div>
+      </div>
+      <div style="margin-top:28px;font-size:11px;color:#8a998f;border-top:1px solid #eef2ef;padding-top:12px;">${esc(b.name)} — this proposal covers the scope and materials listed above. Prices valid for 30 days.${payload.totalSqFt?' Approx. '+payload.totalSqFt.toLocaleString()+' ft² of turf.':''}</div>
+    </div>`;
+  document.title = 'Proposal — ' + (payload.name || 'Waterloo Turf');
+}
+
 function copyExportText() {
   const ta = document.getElementById('exportText'); if (!ta) return;
   const btn = document.getElementById('exportCopyBtn');
@@ -13099,8 +13743,191 @@ function switchTab(name, el) {
   if (panel) panel.classList.add('active');
   if (name==='quote') updateMaterialsSummary();
   if (name==='layout') renderLayoutTab();
+  if (name==='dashboard') renderDashboard();
   if (name==='pavers') renderPaverTab();
+  if (name==='mulch') renderGroundCoverTab('mulch');
+  if (name==='riverRock') renderGroundCoverTab('riverRock');
   if (name==='settings') renderSettingsTables();
+}
+
+// ── Bark/Mulch & River Rock tabs (shared) ──────────────────────────────────
+function groundCoverLabel(key) { return key === 'riverRock' ? 'river rock' : 'bark / mulch'; }
+
+function renderGroundCoverTab(key) {
+  const wrap = document.getElementById(key + 'Fields');
+  const resEl = document.getElementById(key + 'Results');
+  const proj = getCurrentProject();
+  if (!proj) { if (resEl) resEl.innerHTML = '<div class="hint">Open or create a project to use this calculator.</div>'; if (wrap) wrap.innerHTML = ''; return; }
+  const cfg = getGroundCoverConfig(proj, key);
+  const label = groundCoverLabel(key);
+  if (wrap) {
+    wrap.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:14px;max-width:640px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="${key}UseMoasure" ${cfg.useMoasure ? 'checked' : ''} onchange="onGroundCoverInput('${key}')" style="width:auto;margin:0;">
+          Use the imported Moasure area
+        </label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label class="field-label">Area to cover (sq ft)</label>
+            <input type="number" id="${key}Area" min="0" step="0.1" class="manual-input" onchange="onGroundCoverInput('${key}')" oninput="onGroundCoverInput('${key}')">
+            <div class="hint" id="${key}AreaSource"></div>
+          </div>
+          <div>
+            <label class="field-label">Depth (in)</label>
+            <input type="number" id="${key}Depth" min="0" step="0.25" value="${cfg.depthIn}" class="manual-input" onchange="onGroundCoverInput('${key}')" oninput="onGroundCoverInput('${key}')">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;">
+          <div>
+            <label class="field-label">Type</label>
+            <input type="text" id="${key}Type" value="${(cfg.typeName+'').replace(/"/g,'&quot;')}" placeholder="e.g. ${key==='riverRock'?'3/4&quot; river rock':'medium fir bark'}" class="manual-input" onchange="onGroundCoverInput('${key}')" oninput="onGroundCoverInput('${key}')">
+          </div>
+          <div>
+            <label class="field-label" title="How many square feet one cubic yard covers per inch of depth. 324 is exact geometric coverage; lower it if the material settles/packs so you need more.">Coverage (ft² / yd³ · in)</label>
+            <input type="number" id="${key}Coverage" min="1" step="1" value="${cfg.coveragePerInch}" class="manual-input" onchange="onGroundCoverInput('${key}')" oninput="onGroundCoverInput('${key}')">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label class="field-label">Install rate ($ / sq ft)</label>
+            <input type="number" id="${key}InstallRate" min="0" step="0.05" value="${cfg.installRatePerSqFt}" class="manual-input" onchange="onGroundCoverInput('${key}')" oninput="onGroundCoverInput('${key}')">
+          </div>
+          <div>
+            <label class="field-label">Material cost ($ / cu yd) <span style="font-weight:normal;color:var(--text-light);">optional</span></label>
+            <input type="number" id="${key}CostPerYd" min="0" step="1" value="${cfg.costPerCuYd}" class="manual-input" onchange="onGroundCoverInput('${key}')" oninput="onGroundCoverInput('${key}')">
+          </div>
+        </div>
+      </div>`;
+  }
+  // Area field state
+  const areaEl = document.getElementById(key + 'Area');
+  const srcEl = document.getElementById(key + 'AreaSource');
+  if (cfg.useMoasure) {
+    const a = groundCoverAreaForProject(proj, key);
+    if (areaEl) { areaEl.value = a ? (Math.round(a*100)/100) : ''; areaEl.disabled = true; }
+    if (srcEl) srcEl.textContent = a ? 'From the imported layout. Uncheck above to override.' : 'No layout imported yet — uncheck above to enter an area.';
+  } else {
+    if (areaEl) { areaEl.value = cfg.areaSqFt; areaEl.disabled = false; }
+    if (srcEl) srcEl.textContent = 'Manually entered.';
+  }
+  renderGroundCoverResults(key);
+}
+
+function onGroundCoverInput(key) {
+  const proj = getCurrentProject();
+  if (!proj) return;
+  const val = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const useMoasure = !!(document.getElementById(key + 'UseMoasure') || {}).checked;
+  proj[key] = {
+    useMoasure,
+    areaSqFt: useMoasure ? ((proj[key] && proj[key].areaSqFt) || '') : val(key + 'Area'),
+    depthIn: val(key + 'Depth'),
+    typeName: val(key + 'Type'),
+    coveragePerInch: val(key + 'Coverage'),
+    installRatePerSqFt: val(key + 'InstallRate'),
+    costPerCuYd: val(key + 'CostPerYd'),
+  };
+  save();
+  const areaEl = document.getElementById(key + 'Area');
+  const srcEl = document.getElementById(key + 'AreaSource');
+  if (useMoasure) {
+    const a = groundCoverAreaForProject(proj, key);
+    if (areaEl) { areaEl.value = a ? (Math.round(a*100)/100) : ''; areaEl.disabled = true; }
+    if (srcEl) srcEl.textContent = a ? 'From the imported layout. Uncheck above to override.' : 'No layout imported yet — uncheck above to enter an area.';
+  } else {
+    if (areaEl) areaEl.disabled = false;
+    if (srcEl) srcEl.textContent = 'Manually entered.';
+  }
+  renderGroundCoverResults(key);
+}
+
+function renderGroundCoverResults(key) {
+  const el = document.getElementById(key + 'Results');
+  if (!el) return;
+  const proj = getCurrentProject();
+  if (!proj) { el.innerHTML = ''; return; }
+  const cfg = getGroundCoverConfig(proj, key);
+  const area = groundCoverAreaForProject(proj, key);
+  const plan = computeGroundCoverPlan({
+    areaSqFt: area, depthIn: cfg.depthIn, coveragePerInch: cfg.coveragePerInch,
+    installRatePerSqFt: cfg.installRatePerSqFt, costPerCuYd: cfg.costPerCuYd,
+  });
+  if (!plan.ok) { el.innerHTML = '<div class="hint">Enter an area and a depth to see how many cubic yards to order.</div>'; return; }
+  const money = v => '$' + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const hasCosts = plan.installCost > 0 || plan.materialCost > 0;
+  el.innerHTML = `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;">
+      <div style="flex:1;min-width:190px;background:var(--surface2);border-radius:10px;padding:16px;">
+        <div style="font-size:12px;color:var(--text-light);">CUBIC YARDS TO ORDER</div>
+        <div style="font-size:32px;font-weight:800;color:var(--green);">${plan.cubicYardsToOrder.toLocaleString(undefined,{maximumFractionDigits:1})}</div>
+        <div style="font-size:12px;color:var(--text-mid);">${plan.cubicYards.toLocaleString(undefined,{maximumFractionDigits:2})} yd³ exact · rounded up to the ½ yard</div>
+      </div>
+      ${hasCosts ? `
+      <div style="flex:1;min-width:190px;background:var(--surface2);border-radius:10px;padding:16px;">
+        <div style="font-size:12px;color:var(--text-light);">JOB TOTAL</div>
+        <div style="font-size:32px;font-weight:800;color:var(--text);">${money(plan.total)}</div>
+        <div style="font-size:12px;color:var(--text-mid);">install ${money(plan.installCost)}${plan.materialCost>0?` · material ${money(plan.materialCost)}`:''}</div>
+      </div>` : ''}
+      <div style="flex:1;min-width:190px;padding:16px;">
+        <div style="font-size:13px;color:var(--text-mid);line-height:1.9;">
+          Area: <strong>${area.toLocaleString(undefined,{maximumFractionDigits:1})} ft²</strong> @ <strong>${(parseFloat(cfg.depthIn)||0)}"</strong><br>
+          ${cfg.typeName ? `Type: <strong>${(cfg.typeName+'').replace(/</g,'&lt;')}</strong><br>` : ''}
+          Coverage: <strong>${(parseFloat(cfg.coveragePerInch)||324)} ft²/yd³·in</strong><br>
+          Volume: <strong>${plan.cubicFeet.toLocaleString(undefined,{maximumFractionDigits:0})} ft³</strong>
+        </div>
+      </div>
+    </div>
+    <div class="hint" style="margin-top:14px;">Cubic yards = (area × depth) ÷ coverage. Coverage 324 is exact geometric fill; lower it for materials that settle. Install is priced per sq ft. This tab is a standalone estimator — it doesn't change the turf quote.</div>`;
+}
+
+// ── Job History Dashboard ──────────────────────────────────────────────────
+function renderDashboard() {
+  const el = document.getElementById('dashboardBody');
+  if (!el) return;
+  const stats = computeJobStats(getProjects());
+  if (!stats.totalJobs) { el.innerHTML = '<div class="hint">No saved projects yet. Build a few quotes and your history will show up here.</div>'; return; }
+  const n = v => Number(v).toLocaleString();
+  const money = v => '$' + Number(v).toLocaleString();
+
+  const card = (label, value, sub) => `
+    <div style="flex:1;min-width:150px;background:var(--surface2);border-radius:10px;padding:16px;">
+      <div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;">${label}</div>
+      <div style="font-size:26px;font-weight:800;color:var(--text);">${value}</div>
+      ${sub ? `<div style="font-size:11px;color:var(--text-mid);">${sub}</div>` : ''}
+    </div>`;
+
+  const revCard = stats.jobsWithRevenue
+    ? card('Revenue', money(stats.totalRevenue), `${n(stats.jobsWithRevenue)} priced job${stats.jobsWithRevenue===1?'':'s'} · avg ${money(stats.avgRevenue)}`)
+    : card('Revenue', '—', 'Record a quoted price to track revenue');
+
+  // Product mix — top few by jobs.
+  const maxJobs = stats.topProducts.length ? stats.topProducts[0].jobs : 1;
+  const productRows = stats.topProducts.slice(0, 8).map(p => `
+    <div style="display:flex;align-items:center;gap:10px;margin:6px 0;font-size:13px;">
+      <div style="width:150px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.name.replace(/"/g,'&quot;')}">${p.name.replace(/</g,'&lt;')}</div>
+      <div style="flex:1;background:var(--surface2);border-radius:6px;height:18px;overflow:hidden;"><div style="width:${Math.max(4,(p.jobs/maxJobs)*100)}%;height:100%;background:var(--green);"></div></div>
+      <div style="width:120px;text-align:right;color:var(--text-mid);flex-shrink:0;">${p.jobs} job${p.jobs===1?'':'s'} · ${n(Math.round(p.sqft))} ft²</div>
+    </div>`).join('');
+
+  // Monthly timeline (jobs + sqft).
+  const maxMonthSqft = stats.months.reduce((mx,m)=>Math.max(mx,m.sqft),0) || 1;
+  const monthRows = stats.months.slice(-12).map(m => `
+    <div style="display:flex;align-items:center;gap:10px;margin:5px 0;font-size:12px;">
+      <div style="width:70px;flex-shrink:0;color:var(--text-mid);">${m.month}</div>
+      <div style="flex:1;background:var(--surface2);border-radius:6px;height:16px;overflow:hidden;"><div style="width:${Math.max(3,(m.sqft/maxMonthSqft)*100)}%;height:100%;background:#5b9dd9;"></div></div>
+      <div style="width:170px;text-align:right;color:var(--text-mid);flex-shrink:0;">${m.jobs} job${m.jobs===1?'':'s'} · ${n(Math.round(m.sqft))} ft²${m.revenue?' · '+money(m.revenue):''}</div>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+      ${card('Total Jobs', n(stats.totalJobs), `${n(stats.jobsWithArea)} with turf area`)}
+      ${card('Turf Sold', n(stats.totalSqFt) + ' ft²', `avg ${n(stats.avgJobSqFt)} · median ${n(stats.medianJobSqFt)} ft²`)}
+      ${card('Largest Job', n(stats.largestJobSqFt) + ' ft²', stats.smallestJobSqFt?`smallest ${n(stats.smallestJobSqFt)} ft²`:'')}
+      ${revCard}
+    </div>
+    ${productRows ? `<h3 style="font-size:13px;color:var(--text-mid);margin:18px 0 8px;">Most-used turf products</h3>${productRows}` : ''}
+    ${monthRows ? `<h3 style="font-size:13px;color:var(--text-mid);margin:22px 0 8px;">By month <span style="font-weight:normal;color:var(--text-light);">(turf area; last 12)</span></h3>${monthRows}` : ''}`;
 }
 
 // ── Paver tab ──────────────────────────────────────────────────────────────

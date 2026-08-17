@@ -5,6 +5,177 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 34) — Fix: Dashboard mis-filed month-boundary jobs west of UTC (timezone bug)
+
+`computeJobStats` bucketed the monthly timeline by `new Date(installDate)` then read
+`.getMonth()` in local time. An install date is a date-only string ('YYYY-MM-DD') that
+`Date` parses as UTC midnight, so for users west of UTC (e.g. Pacific) a job dated the 1st
+shifted to the previous day — and into the previous MONTH — on the dashboard. This also
+failed two dashboard tests on a Pacific machine while passing on a UTC box.
+
+New `monthKeyOf(val)` reads the year-month straight from a date-only string (no Date
+parsing → no shift) and falls back to local calendar components for a numeric timestamp
+(`created`). The timeline now buckets by the calendar date shown, in every timezone.
+
+Tests **1635 → 1640** (README **1640**): monthKeyOf reads the literal year-month, handles
+year-end and blank/null, and a 2026-06-01 job buckets into 2026-06. Verified the whole
+suite passes under UTC, America/Los_Angeles, Asia/Tokyo, and Australia/Sydney.
+
+---
+
+## 2026-07-22 (cont'd 33) — Fix: test suite could fail Sync & Push on a newer Node (async codec test)
+
+The share-codec test added in cont'd 30 ran an un-awaited `(async () => { ... })()` block.
+On Node builds where `CompressionStream`/`Response` are ambient globals, the sandbox could
+take the gzip path and reject the promise, producing an UNHANDLED rejection that exits
+`node` non-zero — so `Sync and Push.command` aborted even though the printed count read
+"Failed: 0". (It happened to exit 0 on the dev box, hiding the problem.)
+
+Replaced the async block with a deterministic SYNCHRONOUS roundtrip that forces the raw
+(non-gzip) path via the already-tested byte base64url, and made the runner source
+TextEncoder/TextDecoder from `util` so the suite behaves identically on every Node version
+(no reliance on globals leaking into the vm). No app code changed — this is a test-suite
+robustness fix.
+
+Tests **1632 → 1635** (README **1635**): the 3 codec-roundtrip asserts are now counted
+(they weren't before, being fire-and-forget). Runner exits 0 deterministically.
+
+---
+
+## 2026-07-22 (cont'd 32) — One-click global waste minimizer — list item #4
+
+New ✨ Minimize waste (all layers) button on the Layout toolbar. It runs the roll-direction
+sweep (all 180° × 8 seam offsets) on the primary shape AND every install layer at once,
+applies each layer's lowest-ordered-footage direction, and shows a toast with the
+before/after ordered sqft and how many layers changed.
+
+Refactored the sweep into a pure `bestRollForPoints(pts, opts)` shared by the existing
+per-layer "Auto" button and the new global pass (`optimizeAllLayers`), so they can't drift.
+optimizeAllLayers returns { beforeOrdered, afterOrdered, changed } and skips deselected /
+non-install layers.
+
+Known limitation: each layer is optimized independently for lowest ordered footage. For
+layers that SHARE physical rolls (Share roll-group), the true global optimum can differ
+slightly because cross-layer nesting interacts; for separate rolls it's exact.
+
+Tests **1625 → 1632** (README **1632**): the sweep is no worse than either fixed
+orientation, beats the worse one when a real saving exists, returns an angle within a half
+turn, handles <3 points / null → null, and a square is no worse than axis-aligned.
+
+---
+
+## 2026-07-22 (cont'd 31) — Job History Dashboard — list item #3
+
+New Dashboard tab that mines the projects already in localStorage — no new data entry.
+Shows total jobs, total turf sold (with average/median/largest/smallest job size), a
+revenue summary, a most-used-turf-products bar list, and a by-month timeline of jobs and
+turf area. Pure `computeJobStats(projects, priceOf?)` does the aggregation.
+
+Revenue is summed only for jobs that have a known price. calcQuote now records the
+recommended sell price on the project (`proj.quotedPrice`) so revenue populates as you
+open quotes; a custom price accessor is also supported. Alt-turf rows are excluded from
+sqft and product mix everywhere, matching the rest of the app.
+
+Tests **1613 → 1625** (README **1625**): counts, total/avg/median/largest sqft, revenue
+only from priced jobs, product ranking with alt-turf excluded, monthly aggregation keyed
+by install date (else created), empty-portfolio zeros, and a custom price accessor.
+
+Note: hit the recurring str_replace dropped-header bug (the edit that added renderDashboard
+ate renderPaverTab's header); caught by the parse check + a grep for both function
+definitions, and re-added.
+
+---
+
+## 2026-07-22 (cont'd 30) — Shareable no-backend proposal link — list item #2
+
+New 🔗 Share Link button (Quote Builder). It serializes a CUSTOMER-SAFE slice of the job
+into the URL hash and copies the link: anyone can open it in a browser — no login, no
+server. Opening a `#share=` link renders a full-page, read-only proposal (business header,
+job/site/date, a clean site diagram redrawn from the shared geometry, the Scope &
+Materials table, and the total), with an option dropdown when the job has more than one
+scenario.
+
+Customer-safe by construction: the payload carries the proposal materials, the layout
+geometry (rounded points, for redrawing the diagram), and the SELL prices per scenario —
+never COGS, margin, the catalog, or crews. `buildSharePayload` builds it; the link is
+gzipped via the browser's CompressionStream (with a plain-text fallback) and encoded with
+a pure, URL-safe base64url (no +, /, =). `maybeRenderSharedProposal` runs first thing on
+load and, on a share link, renders the proposal and skips the app entirely.
+
+Tests **1604 → 1613** (README **1613**): base64url is URL-safe and byte-exact (incl. odd
+lengths and high bytes); the payload leaks no cost/margin/catalog/crew data; options carry
+sell prices; alt-turf excluded; points rounded; and the encode→decode roundtrip
+reconstructs the payload and layout. (Test sandbox now provides TextEncoder/Uint8Array so
+the codec path runs headlessly.)
+
+---
+
+## 2026-07-22 (cont'd 29) — Proposal polish: clean site diagram + pick which scenario to quote
+
+Two follow-ups on the proposal.
+
+1. CLEAN diagram. The proposal previously snapshotted the canvas as-is — roll rectangles,
+   waste hatch, and piece/edge dimensions included, which look technical to a customer.
+   New `renderCleanDiagram()` temporarily switches those three toggles off, redraws,
+   snapshots, then restores every toggle to exactly what the user had — so the customer
+   sees the yard and its shapes, not the cutting plan, and the on-screen view is unchanged.
+
+2. Scenario picker. calcQuote now stashes EVERY scenario (label + COGS), not just the
+   first. When a job has more than one option, the proposal window shows an "Option shown
+   to customer" dropdown that switches the Total Investment between scenarios instantly
+   (each option carries its own sell price; no reopen). A single-option job shows no
+   picker and behaves as before.
+
+Tests **1594 → 1604** (README **1604**): the clean diagram turns the roll toggles off at
+snapshot time and restores them, redrawing twice; per-scenario price = each scenario's
+COGS with margin; and openProposal wires the clean diagram, the >1-scenario picker, and
+the updatable total.
+
+---
+
+## 2026-07-22 (cont'd 28) — Branded customer Proposal (print / Save-as-PDF) — list item #1
+
+A one-click customer-facing proposal (Quote Builder → 📄 Proposal). Opens a clean, branded
+one-pager in a new window with your business header, the job/site/date, the SITE DIAGRAM
+pasted from the layout canvas, a Scope & Materials table (turf by product + installed sqft,
+infill, edging, misc — alt-turf excluded), and the total investment. Print or Save as PDF
+from there. No backend — the diagram is a PNG from the canvas.
+
+The price is the SELL price (COGS with your margin), never the raw cost — pulled from the
+recommended (first) quote scenario's COGS, which calcQuote now stashes. Business identity
+(name, tagline, phone, email, license) lives in a new Settings → Business Info card,
+stored globally, defaulting to "Waterloo Turf".
+
+Pure `buildProposalModel(proj, marginPct, business, cogs)` assembles the model (used by the
+tests); `openProposal()` renders/opens the window.
+
+Tests **1583 → 1594** (README **1594**): price = COGS with margin; alt-turf excluded;
+base+green listed; totals; zero-qty rows dropped; multi-line address flattened; business
+info defaults + round-trip; role labels.
+
+---
+
+## 2026-07-22 (cont'd 27) — New Bark/Mulch & River Rock tabs (ground-cover estimators)
+
+Two new standalone tabs, same shell as Pavers, sharing one pure `computeGroundCoverPlan`.
+Each takes the Moasure area (or manual), a depth in inches, a Type (a name plus a coverage
+value), an install rate per sq ft, and an optional material cost per cubic yard.
+
+Both materials are ordered by the cubic yard. Coverage is modelled the way landscaping
+coverage charts work: square feet one cubic yard covers per inch of depth — geometric fill
+is 324 (27 ft³ × 12 in), and lowering it accounts for materials that settle/pack so you
+need more. Cubic yards = (area × depth) ÷ coverage, rounded UP to the next half yard;
+install = area × rate; material = ordered yards × $/yd; total = both. Result card shows
+yards to order (exact + rounded), the job total broken into install/material, and the
+area/depth/coverage/volume. Settings persist per project (`proj.mulch`, `proj.riverRock`).
+Standalone estimators — they don't change the turf quote or COGS.
+
+Tests **1568 → 1583** (README **1583**): geometric coverage matches area×depth/12/27;
+lower coverage needs more; install/material/total; half-yard round-up; missing inputs →
+not ok; per-material default depths; and Moasure vs manual area.
+
+---
+
 ## 2026-07-22 (cont'd 26) — New Pavers tab: how many pavers to order
 
 Added a standalone Pavers tab. It estimates how many pavers to order for an area: it uses
