@@ -5,6 +5,29 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 39) — Dashboard honesty: quotes vs won jobs (status + close rate)
+
+The Dashboard treated every saved project as a completed job, so "revenue" counted quotes
+that were never landed — misleading. Added a per-project Status (Quote/pending · Won ·
+Lost), set from a dropdown in the Quote Builder top bar (`proj.status`, default pending;
+existing projects read as pending).
+
+`computeJobStats` is now status-aware. It splits the view into:
+- Pipeline (all quotes): quote count, open/won/lost tally, a close rate (won ÷ (won +
+  lost)), and open pipeline value (sum of pending quotes' prices).
+- Booked (WON jobs only): revenue, turf installed, job sizes, product mix, and the monthly
+  timeline — none of which count pending or lost quotes anymore.
+
+renderDashboard shows the two sections separately and prompts you to mark jobs Won once you
+land them. Booked revenue/turf are "—" until something is Won.
+
+Tests **1622 → 1624** (README **1624**): won/lost/pending tally (no-status → pending),
+close rate = won ÷ decided (null when nothing's decided), booked revenue/sqft/products/
+timeline count won jobs only, lost/pending excluded, pipeline sums pending quotes, and
+getProjectStatus normalizes junk to pending.
+
+---
+
 ## 2026-07-22 (cont'd 38) — Fix: estimator tabs didn't refresh on project switch (paver settings LOOKED global)
 
 Paver settings were already stored per project (`proj.pavers`), and mulch/river rock too

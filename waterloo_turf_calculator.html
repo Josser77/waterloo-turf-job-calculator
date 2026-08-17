@@ -1232,6 +1232,15 @@
           <select class="topbar-crew-select" id="projectCrewSelect" onchange="setProjectCrew(this.value)"></select>
         </div>
         <div class="topbar-divider"></div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          <label style="margin:0;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);white-space:nowrap;">Status</label>
+          <select class="topbar-crew-select" id="projectStatusSelect" onchange="setProjectStatus(this.value)" title="Won/Lost drives the Dashboard: only won jobs count as booked revenue; the close rate is won ÷ (won + lost).">
+            <option value="pending">Quote (pending)</option>
+            <option value="won">Won</option>
+            <option value="lost">Lost</option>
+          </select>
+        </div>
+        <div class="topbar-divider"></div>
       </div>
       <div class="topbar-legend">
         <div class="topbar-legend-item">
@@ -1723,7 +1732,7 @@
       <div class="tab-panel" id="panel-dashboard">
         <div class="card">
           <h2 style="margin-top:0;">Job History Dashboard</h2>
-          <p class="hint" style="margin-top:-4px;">Insight from every project you've saved — no new data entry. Revenue is summed only for jobs where you've recorded a quoted price (Quote Builder).</p>
+          <p class="hint" style="margin-top:-4px;">Your quotes at a glance. Projects are quotes until you mark them <strong>Won</strong> or <strong>Lost</strong> (Status, top of the Quote Builder). <strong>Booked</strong> totals — revenue, turf, products — count won jobs only; pending quotes show as pipeline. Close rate is won ÷ (won + lost).</p>
           <div id="dashboardBody"></div>
         </div>
       </div>
@@ -2935,6 +2944,26 @@ function setProjectCrew(crewId) {
   calcQuote();
 }
 
+// A project's win/loss status. Default 'pending' — a quote that hasn't converted yet.
+// This is what lets the Dashboard separate the pipeline (all quotes) from booked work
+// (won jobs) and compute a close rate.
+function getProjectStatus(proj) {
+  const s = proj && proj.status;
+  return (s === 'won' || s === 'lost') ? s : 'pending';
+}
+function setProjectStatus(status) {
+  const proj = getCurrentProject();
+  if (!proj) return;
+  proj.status = (status === 'won' || status === 'lost') ? status : 'pending';
+  save();
+  renderSidebar();
+}
+function renderProjectStatusSelect() {
+  const sel = document.getElementById('projectStatusSelect');
+  const proj = getCurrentProject();
+  if (sel && proj) sel.value = getProjectStatus(proj);
+}
+
 function getCatalog() {
   try {
     const c = JSON.parse(localStorage.getItem(CATALOG_KEY));
@@ -2966,25 +2995,46 @@ function monthKeyOf(val) {
 
 // ── Job-history dashboard ───────────────────────────────────────────────────
 // Aggregate insight from the projects already in localStorage — no new data entry.
-// Pure: takes the projects array (and an optional per-project revenue accessor) and
-// returns totals, product mix, job-size distribution, and a per-month timeline. Revenue
-// is only summed for jobs where a price is known (a project may carry `quotedPrice`);
-// counts/sqft always work.
+// Pure. Projects are QUOTES; only those marked "won" are booked work, so the headline
+// aggregates (sqft, revenue, product mix, timeline) are computed over WON jobs, while
+// pipeline (pending quotes) and a close rate are reported separately. This keeps the
+// dashboard honest: a quote you haven't landed is not revenue.
 function computeJobStats(projects, priceOf) {
   const list = Array.isArray(projects) ? projects : [];
   const getPrice = typeof priceOf === 'function'
     ? priceOf
     : (p => { const v = parseFloat(p && p.quotedPrice); return isFinite(v) ? v : null; });
+  const statusOf = p => (p && (p.status === 'won' || p.status === 'lost')) ? p.status : 'pending';
+  const jobSqFtOf = p => (p.turf || [])
+    .filter(r => r.product && (parseFloat(r.installedSqFt) || 0) > 0 && r.role !== 'alt-turf')
+    .reduce((s, r) => s + (parseFloat(r.installedSqFt) || 0), 0);
 
-  const jobSizes = [];      // installed sqft per job (with any turf)
-  const productCount = {};  // product -> jobs that used it
-  const productSqFt = {};   // product -> total installed sqft
-  const byMonth = {};       // 'YYYY-MM' -> { jobs, sqft, revenue }
+  // Status tallies across ALL quotes.
+  let wonCount = 0, lostCount = 0, pendingCount = 0;
+  let pipelineValue = 0, pipelineCount = 0;
+  list.forEach(p => {
+    const st = statusOf(p);
+    if (st === 'won') wonCount++;
+    else if (st === 'lost') lostCount++;
+    else {
+      pendingCount++;
+      const pr = getPrice(p);
+      if (pr != null && isFinite(pr)) { pipelineValue += pr; pipelineCount++; }
+    }
+  });
+  const decided = wonCount + lostCount;
+  const closeRate = decided ? wonCount / decided : null; // 0..1, or null if nothing decided
+
+  // Headline aggregates over WON jobs only (booked work).
+  const wonJobs = list.filter(p => statusOf(p) === 'won');
+  const jobSizes = [];
+  const productCount = {}, productSqFt = {};
+  const byMonth = {};
   let totalSqFt = 0, totalRevenue = 0, jobsWithRevenue = 0, jobsWithArea = 0;
 
-  list.forEach(p => {
+  wonJobs.forEach(p => {
     const turf = (p.turf || []).filter(r => r.product && (parseFloat(r.installedSqFt) || 0) > 0 && r.role !== 'alt-turf');
-    const jobSqFt = turf.reduce((s, r) => s + (parseFloat(r.installedSqFt) || 0), 0);
+    const jobSqFt = jobSqFtOf(p);
     if (jobSqFt > 0) { jobSizes.push(jobSqFt); totalSqFt += jobSqFt; jobsWithArea++; }
     turf.forEach(r => {
       productCount[r.product] = (productCount[r.product] || 0) + 1;
@@ -2992,11 +3042,8 @@ function computeJobStats(projects, priceOf) {
     });
     const price = getPrice(p);
     if (price != null && isFinite(price)) { totalRevenue += price; jobsWithRevenue++; }
-
     // Timeline keyed by install date if present, else the created date. A date-only
-    // string ('YYYY-MM-DD') is a calendar date — read its year-month straight from the
-    // string so it can't shift a day across the UTC boundary (which mis-filed month-edge
-    // jobs for users west of UTC). A timestamp (created) uses local calendar components.
+    // string is read literally so it can't shift a month across the UTC boundary.
     const key = monthKeyOf(p.installDate) || monthKeyOf(p.created);
     if (key) {
       const m = byMonth[key] || (byMonth[key] = { jobs: 0, sqft: 0, revenue: 0 });
@@ -3018,7 +3065,15 @@ function computeJobStats(projects, priceOf) {
     .map(key => ({ month: key, jobs: byMonth[key].jobs, sqft: byMonth[key].sqft, revenue: byMonth[key].revenue }));
 
   return {
-    totalJobs: list.length,
+    // Status across all quotes
+    totalQuotes: list.length,
+    wonCount, lostCount, pendingCount,
+    closeRate,                         // 0..1 or null
+    closeRatePct: closeRate == null ? null : Math.round(closeRate * 100),
+    pipelineCount, pipelineValue: Math.round(pipelineValue),
+
+    // Booked (won jobs only)
+    wonJobs: wonCount,
     jobsWithArea,
     totalSqFt: Math.round(totalSqFt),
     avgJobSqFt: jobsWithArea ? Math.round(totalSqFt / jobsWithArea) : 0,
@@ -3030,6 +3085,9 @@ function computeJobStats(projects, priceOf) {
     avgRevenue: jobsWithRevenue ? Math.round(totalRevenue / jobsWithRevenue) : 0,
     topProducts,
     months,
+
+    // Back-compat alias
+    totalJobs: list.length,
   };
 }
 
@@ -3653,6 +3711,7 @@ function loadProject(id) {
 
   populateJobInfo(proj);
   renderProjectCrewSelect();
+  renderProjectStatusSelect();
   renderTurfRows(proj);
   renderInfillRows(proj);
   renderRockRows(proj);
@@ -13598,20 +13657,22 @@ function renderDashboard() {
   const el = document.getElementById('dashboardBody');
   if (!el) return;
   const stats = computeJobStats(getProjects());
-  if (!stats.totalJobs) { el.innerHTML = '<div class="hint">No saved projects yet. Build a few quotes and your history will show up here.</div>'; return; }
+  if (!stats.totalQuotes) { el.innerHTML = '<div class="hint">No saved projects yet. Build a few quotes and your history will show up here.</div>'; return; }
   const n = v => Number(v).toLocaleString();
   const money = v => '$' + Number(v).toLocaleString();
 
-  const card = (label, value, sub) => `
+  const card = (label, value, sub, accent) => `
     <div style="flex:1;min-width:150px;background:var(--surface2);border-radius:10px;padding:16px;">
       <div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;">${label}</div>
-      <div style="font-size:26px;font-weight:800;color:var(--text);">${value}</div>
+      <div style="font-size:26px;font-weight:800;color:${accent||'var(--text)'};">${value}</div>
       ${sub ? `<div style="font-size:11px;color:var(--text-mid);">${sub}</div>` : ''}
     </div>`;
 
-  const revCard = stats.jobsWithRevenue
-    ? card('Revenue', money(stats.totalRevenue), `${n(stats.jobsWithRevenue)} priced job${stats.jobsWithRevenue===1?'':'s'} · avg ${money(stats.avgRevenue)}`)
-    : card('Revenue', '—', 'Record a quoted price to track revenue');
+  const closeStr = stats.closeRatePct == null ? '—' : stats.closeRatePct + '%';
+  const bookedRevStr = stats.wonJobs ? money(stats.totalRevenue) : '—';
+  const bookedRevSub = stats.wonJobs
+    ? `${n(stats.jobsWithRevenue)} won job${stats.jobsWithRevenue===1?'':'s'} priced · avg ${money(stats.avgRevenue)}`
+    : 'No jobs marked Won yet';
 
   // Product mix — top few by jobs.
   const maxJobs = stats.topProducts.length ? stats.topProducts[0].jobs : 1;
@@ -13622,7 +13683,7 @@ function renderDashboard() {
       <div style="width:120px;text-align:right;color:var(--text-mid);flex-shrink:0;">${p.jobs} job${p.jobs===1?'':'s'} · ${n(Math.round(p.sqft))} ft²</div>
     </div>`).join('');
 
-  // Monthly timeline (jobs + sqft).
+  // Monthly timeline (won jobs).
   const maxMonthSqft = stats.months.reduce((mx,m)=>Math.max(mx,m.sqft),0) || 1;
   const monthRows = stats.months.slice(-12).map(m => `
     <div style="display:flex;align-items:center;gap:10px;margin:5px 0;font-size:12px;">
@@ -13631,15 +13692,26 @@ function renderDashboard() {
       <div style="width:170px;text-align:right;color:var(--text-mid);flex-shrink:0;">${m.jobs} job${m.jobs===1?'':'s'} · ${n(Math.round(m.sqft))} ft²${m.revenue?' · '+money(m.revenue):''}</div>
     </div>`).join('');
 
+  const wonEmptyNote = !stats.wonJobs
+    ? '<div class="hint" style="margin:10px 0 4px;">Nothing is marked <strong>Won</strong> yet, so there are no booked totals below. Set a project\'s Status to <strong>Won</strong> (top bar of the Quote Builder) once you land it — then its revenue, turf, and products appear here.</div>'
+    : '';
+
   el.innerHTML = `
-    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
-      ${card('Total Jobs', n(stats.totalJobs), `${n(stats.jobsWithArea)} with turf area`)}
-      ${card('Turf Sold', n(stats.totalSqFt) + ' ft²', `avg ${n(stats.avgJobSqFt)} · median ${n(stats.medianJobSqFt)} ft²`)}
-      ${card('Largest Job', n(stats.largestJobSqFt) + ' ft²', stats.smallestJobSqFt?`smallest ${n(stats.smallestJobSqFt)} ft²`:'')}
-      ${revCard}
+    <h3 style="font-size:13px;color:var(--text-mid);margin:0 0 8px;">Pipeline</h3>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;">
+      ${card('Quotes', n(stats.totalQuotes), `${n(stats.pendingCount)} open · ${n(stats.wonCount)} won · ${n(stats.lostCount)} lost`)}
+      ${card('Close rate', closeStr, stats.closeRatePct==null?'Mark jobs Won/Lost to track':`${n(stats.wonCount)} won of ${n(stats.wonCount+stats.lostCount)} decided`)}
+      ${card('Open pipeline', stats.pipelineCount?money(stats.pipelineValue):'—', stats.pipelineCount?`${n(stats.pipelineCount)} pending quote${stats.pipelineCount===1?'':'s'}`:'No pending priced quotes')}
     </div>
-    ${productRows ? `<h3 style="font-size:13px;color:var(--text-mid);margin:18px 0 8px;">Most-used turf products</h3>${productRows}` : ''}
-    ${monthRows ? `<h3 style="font-size:13px;color:var(--text-mid);margin:22px 0 8px;">By month <span style="font-weight:normal;color:var(--text-light);">(turf area; last 12)</span></h3>${monthRows}` : ''}`;
+    ${wonEmptyNote}
+    <h3 style="font-size:13px;color:var(--text-mid);margin:20px 0 8px;">Booked <span style="font-weight:normal;color:var(--text-light);">(won jobs only)</span></h3>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;">
+      ${card('Booked revenue', bookedRevStr, bookedRevSub, 'var(--green)')}
+      ${card('Turf installed', n(stats.totalSqFt) + ' ft²', stats.wonJobs?`avg ${n(stats.avgJobSqFt)} · median ${n(stats.medianJobSqFt)} ft²`:'—')}
+      ${card('Largest job', stats.largestJobSqFt?n(stats.largestJobSqFt)+' ft²':'—', stats.smallestJobSqFt?`smallest ${n(stats.smallestJobSqFt)} ft²`:'')}
+    </div>
+    ${productRows ? `<h3 style="font-size:13px;color:var(--text-mid);margin:22px 0 8px;">Most-used turf products <span style="font-weight:normal;color:var(--text-light);">(won jobs)</span></h3>${productRows}` : ''}
+    ${monthRows ? `<h3 style="font-size:13px;color:var(--text-mid);margin:22px 0 8px;">By month <span style="font-weight:normal;color:var(--text-light);">(won jobs; turf area; last 12)</span></h3>${monthRows}` : ''}`;
 }
 
 // ── Paver tab ──────────────────────────────────────────────────────────────

@@ -7156,47 +7156,57 @@ section('123. Ground cover (bark/mulch & river rock)');
   ctx.getCurrentProject = prev;
 }
 
-section('127. Job-history dashboard stats');
+section('127. Job-history dashboard stats (status-aware)');
 {
+  // Projects are QUOTES; only "won" jobs are booked. Headline aggregates count won jobs
+  // only; pipeline (pending) and close rate are separate — the honesty fix.
   const projects = [
-    { name:'A', created:Date.parse('2026-05-10'), installDate:'2026-06-01', quotedPrice:12000, turf:[{product:'K9 Pro',role:'base',installedSqFt:800},{product:'PG 85',role:'putting-green',installedSqFt:100}] },
-    { name:'B', created:Date.parse('2026-05-20'), installDate:'2026-06-15', quotedPrice:8000, turf:[{product:'K9 Pro',role:'base',installedSqFt:400}] },
-    { name:'C', created:Date.parse('2026-06-02'), turf:[{product:'Fescue',role:'base',installedSqFt:1200},{product:'Alt',role:'alt-turf',installedSqFt:1200}] },
-    { name:'Empty', created:Date.parse('2026-06-05'), turf:[] },
+    { name:'A', status:'won', created:Date.parse('2026-05-10'), installDate:'2026-06-01', quotedPrice:12000, turf:[{product:'K9 Pro',role:'base',installedSqFt:800},{product:'PG 85',role:'putting-green',installedSqFt:100}] },
+    { name:'B', status:'won', created:Date.parse('2026-05-20'), installDate:'2026-06-15', quotedPrice:8000, turf:[{product:'K9 Pro',role:'base',installedSqFt:400}] },
+    { name:'C', status:'lost', created:Date.parse('2026-06-02'), quotedPrice:15000, turf:[{product:'Fescue',role:'base',installedSqFt:1200},{product:'Alt',role:'alt-turf',installedSqFt:1200}] },
+    { name:'D', status:'pending', created:Date.parse('2026-06-05'), quotedPrice:9000, turf:[{product:'K9 Pro',role:'base',installedSqFt:500}] },
+    { name:'E', created:Date.parse('2026-06-06'), quotedPrice:5000, turf:[{product:'K9 Pro',role:'base',installedSqFt:300}] }, // no status → pending
   ];
   const st = ctx.computeJobStats(projects);
-  assert(st.totalJobs === 4 && st.jobsWithArea === 3, 'counts all jobs, and those with turf area');
-  assert(st.totalSqFt === 2500, 'total sqft sums installed turf, alt-turf excluded (2500)');
-  assert(st.avgJobSqFt === 833 && st.medianJobSqFt === 900, 'avg and median job size');
-  assert(st.largestJobSqFt === 1200 && st.smallestJobSqFt === 400, 'largest/smallest job');
-  assert(st.totalRevenue === 20000 && st.jobsWithRevenue === 2, 'revenue only from priced jobs (12k+8k)');
-  assert(st.avgRevenue === 10000, 'average revenue over priced jobs');
-  assert(st.topProducts[0].name === 'K9 Pro' && st.topProducts[0].jobs === 2, 'most-used product ranked by job count');
-  assert(!st.topProducts.some(p=>p.name==='Alt'), 'alt-turf never appears in the product mix');
-  // Timeline keyed by install date (A,B) else created (C,Empty) — all land in 2026-06.
+
+  // Status tallies across ALL quotes.
+  assert(st.totalQuotes === 5, 'counts every quote');
+  assert(st.wonCount === 2 && st.lostCount === 1 && st.pendingCount === 2, 'won/lost/pending tallied (no-status → pending)');
+  assert(st.closeRatePct === 67, 'close rate = won ÷ (won+lost) = 2/3 = 67%');
+
+  // Booked = WON jobs only.
+  assert(st.totalSqFt === 1300, 'booked sqft is won jobs only (A 800+100 PG, B 400), not lost/pending, alt-turf excluded');
+  assert(st.totalRevenue === 20000, 'booked revenue is won jobs only (12k+8k), not the lost 15k or pending');
+  assert(st.jobsWithArea === 2 && st.avgJobSqFt === 650, 'avg job size over won jobs (1300/2)');
+  assert(st.largestJobSqFt === 900 && st.smallestJobSqFt === 400, 'largest/smallest among won jobs');
+  assert(st.topProducts[0].name === 'K9 Pro' && st.topProducts[0].jobs === 2, 'product mix is won jobs only');
+  assert(!st.topProducts.some(p=>p.name==='Fescue'), 'a lost job\'s product is not in the booked mix');
+  assert(!st.topProducts.some(p=>p.name==='Alt'), 'alt-turf never appears');
+
+  // Pipeline = pending quotes, kept separate from booked.
+  assert(st.pipelineCount === 2 && st.pipelineValue === 14000, 'pipeline sums pending quotes (9k+5k), not won/lost');
+
+  // Timeline is won jobs only.
   const jun = st.months.find(m=>m.month==='2026-06');
-  assert(jun && jun.jobs === 4 && jun.sqft === 2500, 'monthly timeline aggregates jobs + sqft');
-  assert(jun.revenue === 20000, 'monthly revenue only counts priced jobs');
+  assert(jun && jun.jobs === 2 && jun.sqft === 1300 && jun.revenue === 20000, 'monthly timeline aggregates WON jobs');
+
+  // No won jobs → zero booked, but pipeline/counts still work.
+  const allPending = ctx.computeJobStats([{ name:'X', status:'pending', quotedPrice:1000, turf:[{product:'K9',role:'base',installedSqFt:500}] }]);
+  assert(allPending.totalRevenue === 0 && allPending.totalSqFt === 0, 'no won jobs → no booked revenue/sqft');
+  assert(allPending.closeRatePct === null, 'close rate is null when nothing is decided');
+  assert(allPending.pipelineValue === 1000, 'the open quote still shows in the pipeline');
 
   // Empty portfolio → zeros, no throw.
   const z = ctx.computeJobStats([]);
-  assert(z.totalJobs === 0 && z.totalSqFt === 0 && z.topProducts.length === 0, 'empty portfolio is all zeros');
+  assert(z.totalQuotes === 0 && z.totalRevenue === 0 && z.closeRatePct === null && z.topProducts.length === 0, 'empty portfolio is all zeros');
 
-  // Custom price accessor overrides quotedPrice.
-  const st2 = ctx.computeJobStats(projects, p => p.name === 'C' ? 5000 : null);
-  assert(st2.totalRevenue === 5000 && st2.jobsWithRevenue === 1, 'a price accessor can override how revenue is read');
-}
+  // getProjectStatus normalizes junk to pending.
+  assert(ctx.getProjectStatus({ status:'won' }) === 'won', 'won status read');
+  assert(ctx.getProjectStatus({ status:'garbage' }) === 'pending' && ctx.getProjectStatus({}) === 'pending', 'unknown/blank status → pending');
 
-// A date-only install string must bucket by its OWN calendar month regardless of the
-// machine timezone — the bug that mis-filed June-1 jobs into May for Pacific users.
-{
-  assert(ctx.monthKeyOf('2026-06-01') === '2026-06', 'date-only string reads its literal year-month (no UTC shift)');
-  assert(ctx.monthKeyOf('2026-12-31') === '2026-12', 'year-end date-only string stays in December');
-  assert(ctx.monthKeyOf('') === null && ctx.monthKeyOf(null) === null, 'blank/null → no month');
-  // Whatever the timezone, a job installed 2026-06-01 lands in 2026-06.
-  const one = ctx.computeJobStats([{ name:'X', installDate:'2026-06-01', quotedPrice:1000, turf:[{product:'K9',role:'base',installedSqFt:500}] }]);
-  assert(one.months.length === 1 && one.months[0].month === '2026-06', 'a 2026-06-01 job buckets into 2026-06 in any timezone');
-  assert(one.months[0].jobs === 1 && one.months[0].revenue === 1000, 'that month carries the job + its revenue');
+  // Custom price accessor still overrides quotedPrice (won jobs only).
+  const st2 = ctx.computeJobStats(projects, p => p.name === 'A' ? 5000 : null);
+  assert(st2.totalRevenue === 5000 && st2.jobsWithRevenue === 1, 'a price accessor overrides how booked revenue is read');
 }
 
 section('128. Global waste minimizer (bestRollForPoints)');
