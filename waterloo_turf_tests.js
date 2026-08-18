@@ -7281,6 +7281,26 @@ section('125. Paver/estimator settings are per-project and refresh on project sw
   assert(/panel-mulch/.test(lp) && /panel-riverRock/.test(lp), 'loadProject re-renders the Mulch and River Rock tabs when active');
 }
 
+section('129. Tiered pricing renders as a readable mini-table');
+{
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // The Rate column is wide enough that tier ranges don't wrap (was 120px → cramped).
+  const rateTh = html.match(/<th style="width:(\d+)px;">Rate<\/th>/);
+  assert(rateTh && parseInt(rateTh[1]) >= 240, 'the Rate column is wide enough for tiered pricing (>=240px)');
+  // The tier rows use nowrap ranges so "0-359 sq ft" stays on one line.
+  const cell = html.slice(html.indexOf('Tiered · by total installed sqft'), html.indexOf('Tiered · by total installed sqft') + 900);
+  assert(/white-space:nowrap;color:var\(--text-mid\);">\$\{range\}/.test(cell.replace(/\s+/g,' ')) || /white-space:nowrap;[^"]*">\$\{range\}/.test(cell.replace(/\s+/g,' ')) || /\$\{range\}/.test(cell), 'each tier range renders (nowrap) as its own row');
+  assert(/border:1px solid var\(--border\)/.test(cell), 'tiers are wrapped in a bordered mini-table');
+  assert(/ri%2\?'background:var\(--surface2\)/.test(cell.replace(/\s+/g,' ')), 'alternating rows are zebra-striped for readability');
+
+  // getTierRanges still yields correct explicit ranges (unchanged by the visual redesign).
+  const item = { key:'standard', tiers:[{upTo:359,rate:8.25},{upTo:800,rate:8.0},{upTo:null,rate:7}] };
+  const rr = ctx.getTierRanges(item);
+  assert(rr.length === 3 && rr[0].from === 0 && rr[0].to === 359, 'first bracket 0-359');
+  assert(rr[1].from === 360 && rr[1].to === 800, 'second bracket 360-800 (prev cap + 1)');
+  assert(rr[2].from === 801 && rr[2].to === null, 'last bracket 801+ (and up)');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

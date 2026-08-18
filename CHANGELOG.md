@@ -5,6 +5,22 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 40) — Tiered pricing display: readable mini-table (was cramped/wrapping)
+
+The Settings labor-rates Rate column was capped at 120px, so a tiered rate's sqft ranges
+wrapped 2-3 lines each ("0-359" split, "901- 1,500 sqft" on three lines) — hard to scan.
+Widened the Rate column to 270px (Service 35%→28%, Unit fixed 70px to make room) and
+redesigned each tiered line as a bordered mini-table: one row per bracket, range (nowrap)
+on the left in muted text, bold rate on the right, alternating zebra striping. Verified the
+rendered output on the exact screenshot's 9-tier item.
+
+Purely presentational — getTierRanges and the pricing math are unchanged.
+
+Tests **1624 → 1631** (README **1631**): the Rate column is >=240px, tier rows render in a
+bordered striped mini-table, and getTierRanges still yields correct explicit brackets.
+
+---
+
 ## 2026-07-22 (cont'd 39) — Dashboard honesty: quotes vs won jobs (status + close rate)
 
 The Dashboard treated every saved project as a completed job, so "revenue" counted quotes

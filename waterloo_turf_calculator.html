@@ -5264,10 +5264,10 @@ function renderLaborRatesTable() {
     <table class="settings-table" style="width:100%;" id="laborRatesSortTable">
       <thead><tr>
         <th style="width:24px;padding:0;"></th>
-        <th style="width:35%">Service</th>
+        <th style="width:28%">Service</th>
         <th>Notes</th>
-        <th>Unit</th>
-        <th style="width:120px;">Rate</th>
+        <th style="width:70px;">Unit</th>
+        <th style="width:270px;">Rate</th>
         <th></th>
       </tr></thead>
       <tbody>
@@ -5280,17 +5280,20 @@ function renderLaborRatesTable() {
             <td>
               ${(item.key === 'standard' || item.key === 'putting')
                 ? (itemIsTiered(item)
-                    ? `<div style="display:flex;flex-direction:column;gap:3px;">
-                         <div style="font-size:11px;color:#2f9e44;font-weight:700;">Tiered · by total installed sqft</div>
-                         <div style="font-size:11px;color:var(--text-mid);line-height:1.5;">
-                           ${getTierRanges(item).map(r => {
+                    ? `<div style="display:flex;flex-direction:column;gap:0;min-width:230px;">
+                         <div style="font-size:11px;color:#2f9e44;font-weight:700;margin-bottom:4px;">Tiered · by total installed sqft</div>
+                         <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+                           ${getTierRanges(item).map((r, ri) => {
                              const range = r.to == null
-                               ? `${r.from.toLocaleString()}+ sqft`
-                               : `${r.from.toLocaleString()}–${r.to.toLocaleString()} sqft`;
-                             return `<div style="display:flex;justify-content:space-between;gap:10px;"><span>${range}</span><span style="font-weight:600;white-space:nowrap;">$${r.rate.toFixed(2)}/sqft</span></div>`;
+                               ? `${r.from.toLocaleString()}+ sq ft`
+                               : `${r.from.toLocaleString()}–${r.to.toLocaleString()} sq ft`;
+                             return `<div style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:5px 10px;font-size:12px;${ri%2?'background:var(--surface2);':''}">
+                               <span style="white-space:nowrap;color:var(--text-mid);">${range}</span>
+                               <span style="white-space:nowrap;font-weight:700;color:var(--text);">$${r.rate.toFixed(2)}<span style="font-weight:400;color:var(--text-light);">/sqft</span></span>
+                             </div>`;
                            }).join('')}
                          </div>
-                         <button class="btn-edit" style="font-size:11px;padding:2px 8px;align-self:flex-start;margin-top:2px;" onclick="openTierModal(${i})">Edit tiers</button>
+                         <button class="btn-edit" style="font-size:11px;padding:2px 8px;align-self:flex-start;margin-top:6px;" onclick="openTierModal(${i})">Edit tiers</button>
                        </div>`
                     : `<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
                          <span style="color:var(--text-light);font-size:13px;">$</span>
