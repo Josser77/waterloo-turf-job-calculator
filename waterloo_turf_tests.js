@@ -6396,11 +6396,14 @@ section('99. Top-bar material aggregates (edging, rock, sand)');
   assert(/overflow-x:\s*auto/.test(tmRule), '.top-metrics scrolls sideways instead of clipping when tight');
   assert(/min-width:\s*0/.test(tmRule), '.top-metrics has min-width:0 so it can actually scroll');
   assert(/border-bottom/.test(tmRule), '.top-metrics is its own bar (has a bottom border), not inline with the tabs');
-  // It must be a SIBLING after .tabs closes, not a child of the tab row.
-  const tabsClose = html.indexOf('id="tabSettings"');
+  // The metrics bar is its OWN bar (a sibling of .tabs, not nested inside the tab row),
+  // and now sits ABOVE the tabs. Verify it's not a child of .tabs: the .tabs div must
+  // open and close without containing #topMetrics.
+  const tabsOpen = html.indexOf('<div class="tabs">');
   const metricsOpen = html.indexOf('id="topMetrics"');
-  const tabsDivClose = html.indexOf('</div>', tabsClose);
-  assert(metricsOpen > tabsDivClose, 'the metrics bar comes after the tab row closes (its own bar)');
+  const tabsDivClose = html.indexOf('</div>', tabsOpen);
+  assert(!(metricsOpen > tabsOpen && metricsOpen < tabsDivClose), 'the metrics bar is not nested inside the tab row (its own bar)');
+  assert(metricsOpen < tabsOpen, 'the metrics bar (calculated amounts) sits above the tabs');
   assert(/\.top-metrics \.tm \{[^}]*flex-shrink:\s*0/.test(html), 'the cells keep their width so the bar scrolls rather than squishing them');
 }
 
@@ -7299,6 +7302,68 @@ section('129. Tiered pricing renders as a readable mini-table');
   assert(rr.length === 3 && rr[0].from === 0 && rr[0].to === 359, 'first bracket 0-359');
   assert(rr[1].from === 360 && rr[1].to === 800, 'second bracket 360-800 (prev cap + 1)');
   assert(rr[2].from === 801 && rr[2].to === null, 'last bracket 801+ (and up)');
+}
+
+section('130. Project search filter');
+{
+  const projects = [
+    { name:'Smith Backyard', address:'123 Oak St, Tigard', status:'won', created:1 },
+    { name:'Jones Putting Green', address:'45 Elm Ave', status:'lost', created:2 },
+    { name:'Smith Front Yard', address:'123 Oak St, Tigard', status:'pending', created:3 },
+    { name:'Untitled', created:4 },
+  ];
+  const names = q => ctx.filterProjects(projects, q).map(p => p.name);
+
+  assert(ctx.filterProjects(projects, '').length === 4, 'empty query returns everything');
+  assert(ctx.filterProjects(projects, '   ').length === 4, 'whitespace-only query returns everything');
+  assert(JSON.stringify(names('smith')) === JSON.stringify(['Smith Backyard','Smith Front Yard']), 'matches project name');
+  assert(JSON.stringify(names('oak')) === JSON.stringify(['Smith Backyard','Smith Front Yard']), 'matches on address');
+  assert(JSON.stringify(names('SMITH')) === JSON.stringify(['Smith Backyard','Smith Front Yard']), 'case-insensitive');
+  assert(JSON.stringify(names('won')) === JSON.stringify(['Smith Backyard']), 'matches on status label (won)');
+  assert(JSON.stringify(names('smith won')) === JSON.stringify(['Smith Backyard']), 'multi-term AND: every term must match');
+  assert(names('xyz').length === 0, 'no matches → empty');
+  // Non-mutating and safe on junk input.
+  ctx.filterProjects(projects, 'smith');
+  assert(projects.length === 4, 'does not mutate the input array');
+  assert(ctx.filterProjects(null, 'x').length === 0, 'null projects → empty, no throw');
+  assert(ctx.filterProjects([{created:1}], 'anything').length === 0, 'a project with no name/address/matching status is filtered out');
+  assert(ctx.filterProjects([{name:'X', created:1}], 'pending').length === 1, 'a status-less project reads as a pending quote');
+}
+
+section('131. Auto-backup config (enable + interval)');
+{
+  const store = {}; const realLS = ctx.localStorage;
+  ctx.localStorage = { getItem:k=>store[k]||null, setItem:(k,v)=>store[k]=v };
+
+  // Default: enabled, 5 min (historical behavior) when nothing saved.
+  assert(ctx.getAutoBackupConfig().enabled === true && ctx.getAutoBackupConfig().intervalMin === 5, 'defaults to enabled every 5 min');
+
+  // normalize clamps junk so throttling can't be broken.
+  assert(ctx.normalizeAutoBackupConfig({ intervalMin:0 }).intervalMin === 5, 'interval 0 → 5 (never zero)');
+  assert(ctx.normalizeAutoBackupConfig({ intervalMin:-9 }).intervalMin === 5, 'negative interval → 5');
+  assert(ctx.normalizeAutoBackupConfig({ intervalMin:99999 }).intervalMin === 1440, 'huge interval clamped to a day');
+  assert(ctx.normalizeAutoBackupConfig({ intervalMin:'abc' }).intervalMin === 5, 'non-numeric interval → 5');
+  assert(ctx.normalizeAutoBackupConfig({ intervalMin:10 }).enabled === true, 'enabled defaults true when unspecified');
+  assert(ctx.normalizeAutoBackupConfig({ enabled:false, intervalMin:15 }).enabled === false, 'enabled:false is honored');
+
+  // Round-trip + derived ms.
+  ctx.setAutoBackupConfig({ enabled:false, intervalMin:15 });
+  assert(ctx.getAutoBackupConfig().enabled === false && ctx.getAutoBackupConfig().intervalMin === 15, 'config round-trips');
+  assert(ctx.autoBackupIntervalMs() === 15 * 60 * 1000, 'interval ms derives from config');
+
+  // maybeAutoBackup respects the flag + throttle (browser localStorage path).
+  ctx.projects = []; ctx.getCatalog = () => ({}); ctx.getCrews = () => []; ctx.getActiveCrewId = () => null; ctx.getMiscItems = () => [];
+  store['wt_autobackups_v1'] = JSON.stringify([]);
+  ctx.setAutoBackupConfig({ enabled:false, intervalMin:5 });
+  ctx.maybeAutoBackup();
+  assert(ctx.getAutoBackups().length === 0, 'disabled → no snapshot written');
+  ctx.setAutoBackupConfig({ enabled:true, intervalMin:5 });
+  ctx.maybeAutoBackup();
+  assert(ctx.getAutoBackups().length === 1, 'enabled → one snapshot written');
+  ctx.maybeAutoBackup();
+  assert(ctx.getAutoBackups().length === 1, 'a second call within the interval is throttled');
+
+  ctx.localStorage = realLS;
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

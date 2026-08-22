@@ -5,6 +5,105 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 45) — Layout declutter: totals bar, sidebar room, Help + Sync moved
+
+Several UI moves to give the project list more room and tidy the chrome:
+- The live totals bar (Installed / Ordered / Turf LF / Edging / Rock / Sand / Scrap) now
+  sits ABOVE the tab row instead of below it.
+- Shrank the sidebar Waterloo Turf logo (160→90px) and tightened its padding, so the
+  project list (flex:1) gets noticeably more vertical space.
+- Moved "How to Use This Tool" out of the sidebar to a compact "? Help" button at the
+  right end of the always-visible tab row.
+- Moved the "⇄ Sync / Backup" dropdown out of the sidebar into a "Backup & Sync" card at
+  the top of the ⚙ Settings tab (Export Selected/All, Import Merge/Replace, Auto-backups,
+  Reset). "Export Selected" still reads the sidebar checkboxes. In-app docs updated to the
+  new location.
+
+Net effect: the sidebar bottom is just New/Delete Project, so more projects show at once.
+
+Tests **1655 → 1656** (README **1656**): updated the layout assertion — the metrics bar is
+its own bar (not nested in the tab row) and now sits above the tabs.
+
+---
+
+## 2026-07-22 (cont'd 44) — Auto-backup: on/off toggle + configurable interval
+
+The Auto-Backups dialog (Sync menu → ↻ Auto-backups) now has a "back up while I work"
+toggle and an interval picker (1, 5, 10, 15, 30 min, or 1 hour). The interval was hardcoded
+at 5 minutes and couldn't be turned off. maybeAutoBackup() now reads the saved config and
+skips entirely when disabled, or throttles to the chosen interval (Electron disk path and
+browser localStorage path both honor it). Still keeps the last 8 snapshots.
+
+Config stored in localStorage (`wt_autobackup_config_v1`); pure `normalizeAutoBackupConfig`
+defaults to enabled/5-min and clamps the interval to 1..1440 minutes so a bad value can't
+break throttling. A custom saved interval outside the presets is preserved in the dropdown.
+
+Tests **1643 → 1655** (README **1655**): defaults, clamping (0/negative/huge/non-numeric),
+enabled:false honored, round-trip + derived ms, and maybeAutoBackup writes when enabled,
+skips when disabled, and throttles within the interval.
+
+---
+
+## 2026-07-22 (cont'd 43) — Project search
+
+Added a search box at the top of the project sidebar. Type to filter the list live; matches
+(case-insensitive) on project name, job address, and status label (won / lost / pending
+quote). Multiple words are AND-matched, so "smith won" finds Smith jobs marked won. A ✕
+clears it, and an empty search shows everything. Sort still applies on top of the filtered
+set, and "All" now selects just the visible (filtered) projects rather than the whole
+hidden list.
+
+Pure `filterProjects(projects, query)` does the matching; renderSidebar applies the current
+query.
+
+Tests **1631 → 1643** (README **1643**): matches on name/address/status, case-insensitive,
+multi-term AND, empty/whitespace → all, no-match → empty, non-mutating, and safe on
+null/nameless input.
+
+---
+
+## 2026-07-22 (cont'd 42) — Backed out Send to Jobber
+
+Removed the Send-to-Jobber feature added in cont'd 41 — the real backend (OAuth broker,
+token refresh, GraphiQL field verification, ongoing hosting) is more than it's worth for
+now. Reverted cleanly: the 🧾 Send to Jobber button, the Settings card, all JS
+(getJobberConfig/setJobberConfig/buildJobberQuotePayload + the send/search/connect UI),
+the localStorage config, tests (section 130), and the companion jobber-worker.js /
+SETUP_JOBBER.md files. `applyMargin` and everything else untouched. Building a Jobber quote
+stays manual from the quote totals, as before.
+
+Tests **1645 → 1631** (README **1631**): back to the pre-Jobber count; all green under UTC
+and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 41) — Send to Jobber (finished lump-sum quote via a small backend)
+
+New 🧾 Send to Jobber button (Quote Builder) + Settings → Send to Jobber card. Pushes the
+current quote into Jobber as a single lump-sum line ("Artificial Turf Installation") at
+your quoted price, attached to an existing Jobber client you search & pick. The quote lands
+as a draft for you to review and send in Jobber.
+
+Architecture: the calculator stays Jobber-agnostic. Pure `buildJobberQuotePayload(proj,
+opts)` builds a neutral payload (dollars, one line, the picked client id) and POSTs it to a
+small Cloudflare Worker (delivered separately: jobber-worker.js + SETUP_JOBBER.md) that
+holds the OAuth client secret — which cannot live in a single-file browser app — completes
+the one-time Jobber connect, auto-refreshes the hourly token, searches clients, and runs
+the GraphQL quoteCreate. Config (backend URL + shared secret) stored in localStorage
+(`wt_jobber_v1`); the send flow is a modal with total confirm + client search.
+
+Constraints (documented in the guide): the live Jobber calls could not be tested in this
+environment, so three field details (money dollars-vs-cents, the quoteCreate input shape,
+the client-search arg) are marked to verify once in Jobber's GraphiQL — each is a one-line
+switch in the Worker. This is opt-in; leave the settings blank and nothing changes.
+
+Tests **1631 → 1645** (README **1645**): payload requires a client and positive total,
+emits exactly one lump-sum line at the sell price in dollars, applies title/description/
+message/total overrides, rounds money robustly (0.1+0.2 → 0.30), and the config
+round-trips. (The fetch/OAuth paths live in the Worker and are verified on-device.)
+
+---
+
 ## 2026-07-22 (cont'd 40) — Tiered pricing display: readable mini-table (was cramped/wrapping)
 
 The Settings labor-rates Rate column was capped at 120px, so a tiered rate's sqft ranges

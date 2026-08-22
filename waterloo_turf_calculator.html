@@ -80,9 +80,10 @@
   }
 
   .sidebar-logo {
-    padding: 16px 14px 12px;
+    padding: 10px 14px 8px;
     border-bottom: 1px solid rgba(255,255,255,0.12);
     text-align: center;
+    flex-shrink: 0;
   }
   .sidebar-logo .brand {
     font-family: 'Raleway', sans-serif;
@@ -247,6 +248,23 @@
     flex-shrink: 0;
     align-items: stretch;
   }
+  /* Help button lives at the right end of the always-visible tab row. */
+  .tab-help-btn {
+    margin-left: auto;
+    align-self: center;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text-mid);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .tab-help-btn:hover { background: var(--green); color: #fff; border-color: var(--green); }
   /* Live layout totals — its own full-width bar directly below the tab row, so the
      numbers are easy to scan and never collide with or overflow past the tabs. */
   .top-metrics {
@@ -1129,7 +1147,7 @@
   <div class="sidebar">
     <button class="nav-toggle" onclick="toggleNavCollapse()" title="Show/hide the project list" aria-label="Toggle project list">«</button>
     <div class="sidebar-logo">
-      <svg viewBox="0 0 944.71 807.55" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:160px;display:block;margin:0 auto 8px;">
+      <svg viewBox="0 0 944.71 807.55" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:90px;display:block;margin:0 auto 4px;">
         <defs><style>.cls-1{fill:#fff;}</style></defs>
         <g>
           <g>
@@ -1187,6 +1205,13 @@
         All
       </label>
     </div>
+    <div style="position:relative;margin:0 0 8px;">
+      <input type="text" id="projectSearch" placeholder="Search projects…" autocomplete="off"
+        oninput="onProjectSearch(this.value)"
+        style="width:100%;box-sizing:border-box;padding:6px 26px 6px 10px;font-size:13px;border:1px solid rgba(255,255,255,0.18);border-radius:7px;background:rgba(255,255,255,0.08);color:#fff;">
+      <span id="projectSearchClear" onclick="clearProjectSearch()" title="Clear search"
+        style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;color:rgba(255,255,255,0.6);font-size:14px;line-height:1;">✕</span>
+    </div>
     <div class="project-list" id="projectList"></div>
 
     <div class="sidebar-actions">
@@ -1194,31 +1219,7 @@
       <button class="btn-sidebar danger" onclick="deleteCurrentProject()">Delete Project</button>
     </div>
 
-    <div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,0.08);">
-      <button onclick="document.getElementById('docsModal').classList.add('open')"
-        style="width:100%;padding:9px;border:1px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);font-family:'Nunito Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;"
-        onmouseover="this.style.background='rgba(255,255,255,0.12)';this.style.color='#fff';"
-        onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='rgba(255,255,255,0.7)';">
-        ? How to Use This Tool
-      </button>
-    </div>
-
-    <div class="backup-bar" style="position:relative;">
-      <button class="btn-backup" style="width:100%;" onclick="toggleSyncMenu()">⇄ Sync / Backup ▾</button>
-      <input type="file" id="importFileInput" accept=".json" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="importBackup(this)">
-      <div id="syncMenu" style="display:none;position:absolute;bottom:100%;left:0;right:0;margin-bottom:6px;background:#1f4d3a;border:1px solid rgba(255,255,255,0.15);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.3);overflow:hidden;z-index:50;">
-        <div id="syncMenuSelectedCount" style="padding:8px 12px;font-size:11px;color:rgba(255,255,255,0.55);border-bottom:1px solid rgba(255,255,255,0.08);"></div>
-        <button class="sync-menu-item" onclick="exportBackup('selected')">↓ Export Selected</button>
-        <button class="sync-menu-item" onclick="exportBackup('all')">↓ Export Everything (Projects + Settings)</button>
-        <div style="border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;"></div>
-        <button class="sync-menu-item" onclick="triggerImport('merge')">↑ Import &amp; Merge</button>
-        <button class="sync-menu-item" onclick="triggerImport('replace')">↑ Import &amp; Replace All</button>
-        <div style="border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;"></div>
-        <button class="sync-menu-item" onclick="closeSyncMenu();openAutoBackupModal()">↻ Auto-backups</button>
-        <div style="border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;"></div>
-        <button class="sync-menu-item" style="color:#ff8a8a;" onclick="factoryResetApp()">⚠ Reset to New-User State</button>
-      </div>
-    </div>
+    <input type="file" id="importFileInput" accept=".json" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="importBackup(this)">
   </div>
 
   <!-- MAIN -->
@@ -1258,16 +1259,6 @@
       </div>
     </div>
 
-    <div class="tabs">
-      <div class="tab active" onclick="switchTab('quote',this)">Quote Builder</div>
-      <div class="tab" onclick="switchTab('layout',this)">Layout</div>
-      <div class="tab" onclick="switchTab('dashboard',this)">Dashboard</div>
-      <div class="tab" onclick="switchTab('pavers',this)">Pavers</div>
-      <div class="tab" onclick="switchTab('mulch',this)">Bark / Mulch</div>
-      <div class="tab" onclick="switchTab('riverRock',this)">River Rock</div>
-      <div class="tab" id="tabSettings" onclick="switchTab('settings',this)">⚙ Settings</div>
-    </div>
-
     <div class="top-metrics" id="topMetrics" title="Live layout totals — from the roll plan">
       <div class="tm"><span class="tm-l">Installed</span><input type="text" id="layoutArea" class="tm-v" readonly></div>
       <div class="tm"><span class="tm-l">Ordered</span><input type="text" id="rollOrderedOut" class="tm-v" readonly></div>
@@ -1276,6 +1267,17 @@
       <div class="tm"><span class="tm-l">Rock</span><input type="text" id="topRockOut" class="tm-v" readonly title="Total rock to order across all rock lines"></div>
       <div class="tm"><span class="tm-l">Sand</span><input type="text" id="topInfillOut" class="tm-v" readonly title="Total infill bags and weight across all infill lines"></div>
       <div class="tm"><span class="tm-l">Scrap</span><input type="text" id="rollWasteOut" class="tm-v" readonly></div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('quote',this)">Quote Builder</div>
+      <div class="tab" onclick="switchTab('layout',this)">Layout</div>
+      <div class="tab" onclick="switchTab('dashboard',this)">Dashboard</div>
+      <div class="tab" onclick="switchTab('pavers',this)">Pavers</div>
+      <div class="tab" onclick="switchTab('mulch',this)">Bark / Mulch</div>
+      <div class="tab" onclick="switchTab('riverRock',this)">River Rock</div>
+      <div class="tab" id="tabSettings" onclick="switchTab('settings',this)">⚙ Settings</div>
+      <button class="tab-help-btn" onclick="document.getElementById('docsModal').classList.add('open')" title="How to use this tool">? Help</button>
     </div>
 
     <div class="content">
@@ -1827,6 +1829,19 @@
       <div class="tab-panel" id="panel-settings">
 
         <div class="card">
+          <div class="card-header"><div class="card-title">Backup &amp; Sync</div></div>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">Export your data to a file (keep copies somewhere safe — email, Google Drive), import it back, or manage auto-backups. For "Export Selected", tick projects in the sidebar list first.</p>
+          <div id="syncMenuSelectedCount" style="font-size:12px;color:var(--text-mid);margin-bottom:10px;"></div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <button class="btn btn-sm" onclick="exportBackup('selected')">↓ Export Selected</button>
+            <button class="btn btn-sm" onclick="exportBackup('all')">↓ Export Everything</button>
+            <button class="btn btn-ghost btn-sm" onclick="triggerImport('merge')">↑ Import &amp; Merge</button>
+            <button class="btn btn-ghost btn-sm" onclick="triggerImport('replace')">↑ Import &amp; Replace All</button>
+            <button class="btn btn-ghost btn-sm" onclick="openAutoBackupModal()">↻ Auto-backups</button>
+            <button class="btn btn-ghost btn-sm" style="color:#e03131;border-color:#f3bcbc;" onclick="factoryResetApp()">⚠ Reset to New-User State</button>
+          </div>
+        </div>
+
           <div class="card-header">
             <div class="card-title" style="display:flex;align-items:center;gap:8px;">Roll Settings<a class="help-badge" data-lockok="1" title="Open the User Guide" onclick="openGuideAt('doc-settings')">?</a></div>
           </div>
@@ -2138,7 +2153,18 @@
 <div class="modal-overlay" id="autoBackupModal">
   <div class="modal" style="width:460px;">
     <div class="modal-title">Auto-Backups</div>
-    <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">The app automatically saves a snapshot of all your data (every few minutes, while in use) to a file on disk, separate from your browser/app storage. These let you roll back if something goes wrong. For an off-machine copy, use the "↓ Backup" button to save a file you can move or email.</p>
+    <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">The app automatically saves a snapshot of all your data (at the interval you set below, while in use) to a file on disk, separate from your browser/app storage. These let you roll back if something goes wrong. For an off-machine copy, use the "↓ Backup" button to save a file you can move or email.</p>
+    <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin:0;">
+        <input type="checkbox" id="autoBackupEnabled" onchange="onAutoBackupConfigChange()" style="width:auto;margin:0;">
+        <span>Automatically back up while I work</span>
+      </label>
+      <div id="autoBackupIntervalRow" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;">
+        <label style="margin:0;color:var(--text-mid);">Every</label>
+        <select id="autoBackupInterval" onchange="onAutoBackupConfigChange()" style="width:auto;"></select>
+        <span id="autoBackupOffNote" style="font-size:12px;color:var(--text-light);"></span>
+      </div>
+    </div>
     <div id="autoBackupList"></div>
     <div id="autoBackupPath" style="font-size:11px;color:var(--text-light);margin-top:10px;word-break:break-all;"></div>
     <div class="modal-footer">
@@ -2584,10 +2610,10 @@
       <!-- BACKUP -->
       <div class="docs-section">
         <div class="docs-h2" id="doc-backup">Backup, Sync & Restore</div>
-        <p>Your data is stored in your browser's local storage. <strong>This means it can be lost if you clear your browser cache.</strong> Use the <strong>⇄ Sync / Backup</strong> menu at the bottom of the sidebar regularly to export a JSON file. Keep backups somewhere safe (email to yourself, save to Google Drive, etc.).</p>
+        <p>Your data is stored in your browser's local storage. <strong>This means it can be lost if you clear your browser cache.</strong> Use the <strong>Backup &amp; Sync</strong> card in the <strong>⚙ Settings</strong> tab regularly to export a JSON file. Keep backups somewhere safe (email to yourself, save to Google Drive, etc.).</p>
 
         <div class="docs-h3">Selecting Projects</div>
-        <p>Each project in the sidebar list has a checkbox. Check "All" at the top of the project list to select everything, or check individual projects. The Sync menu shows how many are currently selected.</p>
+        <p>Each project in the sidebar list has a checkbox. Check "All" at the top of the project list to select everything, or check individual projects. The Backup &amp; Sync card (Settings) shows how many are currently selected.</p>
 
         <div class="docs-h3">Export Options</div>
         <ul class="docs-list">
@@ -2614,10 +2640,10 @@
         <p>For syncing individual jobs between devices (e.g. Mac ↔ iPad): check the project(s) you've been working on, "Export Selected," transfer the file (AirDrop, email, Drive), then on the other device use "Import &amp; Merge." If both devices edited the same project since the last sync, you'll be prompted to choose which version to keep.</p>
 
         <div class="docs-h3">Auto-Backups</div>
-        <p>The app also keeps automatic local snapshots in the background (every few minutes while in use, up to the last 8). Click <strong>↻ Auto-backups</strong> (in the Sync menu) to view, download, or restore one of these snapshots — useful if you accidentally delete or overwrite a project. Auto-backups live in the same browser storage as your data, so they don't protect against clearing the browser cache; for that, use a downloaded export file.</p>
+        <p>The app also keeps automatic local snapshots in the background (at the interval you choose, up to the last 8). Click <strong>↻ Auto-backups</strong> (in the Backup &amp; Sync card, Settings) to turn auto-backup on/off, set how often it runs (1 min to 1 hour), and view, download, or restore a snapshot — useful if you accidentally delete or overwrite a project. Auto-backups live in the same browser storage as your data, so they don't protect against clearing the browser cache; for that, use a downloaded export file.</p>
 
         <div class="docs-h3">Reset to New-User State</div>
-        <p><strong>⚠ Reset to New-User State</strong> (bottom of the Sync menu) permanently erases all projects, catalog, crew rates, misc items, setup status, and auto-backups on this device, then reloads — simulating exactly what a brand-new install looks like. Requires two confirmations. <strong>Export Everything (Projects + Settings) first</strong> if you want to restore afterward — this cannot be undone and is not itself covered by auto-backup (auto-backups are cleared as part of the reset).</p>
+        <p><strong>⚠ Reset to New-User State</strong> (in the Backup &amp; Sync card, Settings) permanently erases all projects, catalog, crew rates, misc items, setup status, and auto-backups on this device, then reloads — simulating exactly what a brand-new install looks like. Requires two confirmations. <strong>Export Everything (Projects + Settings) first</strong> if you want to restore afterward — this cannot be undone and is not itself covered by auto-backup (auto-backups are cleared as part of the reset).</p>
         <p>After a reset, you'll still see a starter list of turf, infill, and rock products (names only, no vendor pricing) and a starter labor rate / price sheet list (item names and units, but every rate field is blank). This is intentional — a brand-new install ships with these starter lists so you're not starting from a completely empty catalog, but with zero pricing pre-filled so nothing gets quoted using placeholder numbers. Fill in your real costs and rates in Settings before creating quotes.</p>
       </div>
 
@@ -3112,7 +3138,33 @@ let sortMode = localStorage.getItem(SORT_KEY) || 'name';
 // ═══════════════════════════════════════════════════════
 const AUTOBACKUP_KEY = 'wt_autobackups_v1';
 const AUTOBACKUP_MAX = 8;
-const AUTOBACKUP_MIN_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const AUTOBACKUP_MIN_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes (fallback default)
+const AUTOBACKUP_CONFIG_KEY = 'wt_autobackup_config_v1';
+// Interval options offered in the UI (minutes). 0 is not here — "off" is the enabled flag.
+const AUTOBACKUP_INTERVAL_CHOICES = [1, 5, 10, 15, 30, 60];
+
+// Pure: normalize a stored/typed config to { enabled:bool, intervalMin:number }.
+// Defaults to enabled every 5 min (the historical behavior). Interval is clamped to a
+// sane 1..1440 minute range so a bad value can't disable throttling or spam the disk.
+function normalizeAutoBackupConfig(raw) {
+  const r = raw || {};
+  const enabled = r.enabled === undefined ? true : !!r.enabled;
+  let m = parseFloat(r.intervalMin);
+  if (!isFinite(m) || m <= 0) m = 5;
+  m = Math.max(1, Math.min(1440, m));
+  return { enabled, intervalMin: m };
+}
+function getAutoBackupConfig() {
+  try { return normalizeAutoBackupConfig(JSON.parse(localStorage.getItem(AUTOBACKUP_CONFIG_KEY))); }
+  catch (e) { return normalizeAutoBackupConfig(null); }
+}
+function setAutoBackupConfig(cfg) {
+  localStorage.setItem(AUTOBACKUP_CONFIG_KEY, JSON.stringify(normalizeAutoBackupConfig(cfg)));
+}
+// The active throttle interval in ms (from config).
+function autoBackupIntervalMs() {
+  return getAutoBackupConfig().intervalMin * 60 * 1000;
+}
 
 function getAutoBackups() {
   try {
@@ -3134,11 +3186,14 @@ function snapshotData() {
 }
 
 function maybeAutoBackup() {
+  const cfg = getAutoBackupConfig();
+  if (!cfg.enabled) return; // auto-backup turned off in the Auto-Backups dialog
+  const intervalMs = cfg.intervalMin * 60 * 1000;
   const snapshot = { time: Date.now(), data: snapshotData() };
 
   if (window.electronAPI && window.electronAPI.writeAutoBackup) {
     // Electron build: throttle on the renderer side, write to disk in userData
-    if (!window._wtLastAutoBackup || (snapshot.time - window._wtLastAutoBackup) >= AUTOBACKUP_MIN_INTERVAL_MS) {
+    if (!window._wtLastAutoBackup || (snapshot.time - window._wtLastAutoBackup) >= intervalMs) {
       window._wtLastAutoBackup = snapshot.time;
       window.electronAPI.writeAutoBackup(snapshot, AUTOBACKUP_MAX).catch(()=>{});
     }
@@ -3149,7 +3204,7 @@ function maybeAutoBackup() {
   try {
     const list = getAutoBackups();
     const last = list[0];
-    if (last && (snapshot.time - last.time) < AUTOBACKUP_MIN_INTERVAL_MS) return;
+    if (last && (snapshot.time - last.time) < intervalMs) return;
     list.unshift(snapshot);
     while (list.length > AUTOBACKUP_MAX) list.pop();
     localStorage.setItem(AUTOBACKUP_KEY, JSON.stringify(list));
@@ -3230,11 +3285,43 @@ async function restoreAutoBackup(i) {
 }
 
 function openAutoBackupModal() {
+  renderAutoBackupConfig();
   renderAutoBackupList();
   document.getElementById('autoBackupModal').classList.add('open');
 }
 function closeAutoBackupModal() {
   document.getElementById('autoBackupModal').classList.remove('open');
+}
+
+// Populate the enable toggle + interval picker from the saved config.
+function renderAutoBackupConfig() {
+  const cfg = getAutoBackupConfig();
+  const enabledEl = document.getElementById('autoBackupEnabled');
+  const sel = document.getElementById('autoBackupInterval');
+  const row = document.getElementById('autoBackupIntervalRow');
+  const offNote = document.getElementById('autoBackupOffNote');
+  if (enabledEl) enabledEl.checked = cfg.enabled;
+  if (sel) {
+    const label = m => m >= 60 ? (m/60 === 1 ? '1 hour' : (m/60) + ' hours') : m + ' min';
+    // Include the saved interval even if it's a custom value not in the preset list.
+    const choices = AUTOBACKUP_INTERVAL_CHOICES.slice();
+    if (!choices.includes(cfg.intervalMin)) { choices.push(cfg.intervalMin); choices.sort((a,b)=>a-b); }
+    sel.innerHTML = choices.map(m => `<option value="${m}"${m===cfg.intervalMin?' selected':''}>${label(m)}</option>`).join('');
+    sel.disabled = !cfg.enabled;
+  }
+  if (row) row.style.opacity = cfg.enabled ? '1' : '0.5';
+  if (offNote) offNote.textContent = cfg.enabled ? '' : '— auto-backup is off';
+}
+
+// Save the config from the controls, then re-render to reflect enabled/disabled state.
+function onAutoBackupConfigChange() {
+  const enabledEl = document.getElementById('autoBackupEnabled');
+  const sel = document.getElementById('autoBackupInterval');
+  setAutoBackupConfig({
+    enabled: enabledEl ? enabledEl.checked : true,
+    intervalMin: sel ? parseFloat(sel.value) : 5,
+  });
+  renderAutoBackupConfig();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3296,7 +3383,7 @@ function showEmpty() {
 
 function renderSidebar() {
   const list = document.getElementById('projectList');
-  let sorted = [...projects];
+  let sorted = filterProjects(projects, window._wtProjectSearch || '');
 
   if (sortMode === 'name') sorted.sort((a,b)=>a.name.localeCompare(b.name));
   else if (sortMode === 'newest') sorted.sort((a,b)=>b.created - a.created);
@@ -3310,6 +3397,16 @@ function renderSidebar() {
   // Prune selections for projects that no longer exist
   const validIds = new Set(projects.map(p=>p.id));
   window._wtSelectedProjects.forEach(id => { if (!validIds.has(id)) window._wtSelectedProjects.delete(id); });
+
+  if (!sorted.length) {
+    const q = (window._wtProjectSearch || '').trim();
+    list.innerHTML = q
+      ? `<div style="padding:12px 4px;font-size:13px;color:rgba(255,255,255,0.55);">No projects match “${q.replace(/</g,'&lt;')}”.</div>`
+      : `<div style="padding:12px 4px;font-size:13px;color:rgba(255,255,255,0.55);">No projects yet.</div>`;
+    updateSelectAllCheckbox();
+    updateSyncMenuCount();
+    return;
+  }
 
   list.innerHTML = sorted.map(p => `
     <div class="project-item${p.id===currentId?' active':''}">
@@ -3327,6 +3424,40 @@ function renderSidebar() {
   updateSyncMenuCount();
 }
 
+// Pure: filter projects by a free-text query. Matches (case-insensitively) on the project
+// name, job address, and status label — every whitespace-separated term must match
+// somewhere, so "smith won" finds Smith jobs marked won. Empty query → all projects.
+function filterProjects(projects, query) {
+  const list = Array.isArray(projects) ? projects : [];
+  const q = (query || '').trim().toLowerCase();
+  if (!q) return [...list];
+  const terms = q.split(/\s+/);
+  const statusLabel = p => {
+    const s = (p && p.status === 'won') ? 'won' : (p && p.status === 'lost') ? 'lost' : 'pending quote';
+    return s;
+  };
+  return list.filter(p => {
+    const hay = [p.name, p.address, statusLabel(p)].filter(Boolean).join(' ').toLowerCase();
+    return terms.every(t => hay.indexOf(t) !== -1);
+  });
+}
+
+function onProjectSearch(value) {
+  window._wtProjectSearch = value || '';
+  const clear = document.getElementById('projectSearchClear');
+  if (clear) clear.style.display = value ? 'block' : 'none';
+  renderSidebar();
+}
+function clearProjectSearch() {
+  window._wtProjectSearch = '';
+  const input = document.getElementById('projectSearch');
+  if (input) input.value = '';
+  const clear = document.getElementById('projectSearchClear');
+  if (clear) clear.style.display = 'none';
+  renderSidebar();
+  if (input) input.focus();
+}
+
 function toggleProjectSelected(id, checked) {
   if (!window._wtSelectedProjects) window._wtSelectedProjects = new Set();
   if (checked) window._wtSelectedProjects.add(id);
@@ -3337,8 +3468,11 @@ function toggleProjectSelected(id, checked) {
 
 function toggleSelectAllProjects(checkbox) {
   if (!window._wtSelectedProjects) window._wtSelectedProjects = new Set();
-  if (checkbox.checked) projects.forEach(p => window._wtSelectedProjects.add(p.id));
-  else window._wtSelectedProjects.clear();
+  // Operate on the currently VISIBLE (filtered) projects, so "All" with a search active
+  // selects just those matches rather than the whole hidden list.
+  const visible = filterProjects(projects, window._wtProjectSearch || '');
+  if (checkbox.checked) visible.forEach(p => window._wtSelectedProjects.add(p.id));
+  else visible.forEach(p => window._wtSelectedProjects.delete(p.id));
   renderSidebar();
 }
 
@@ -3346,8 +3480,12 @@ function updateSelectAllCheckbox() {
   const cb = document.getElementById('selectAllProjects');
   if (!cb) return;
   const sel = window._wtSelectedProjects || new Set();
-  cb.checked = projects.length > 0 && sel.size === projects.length;
-  cb.indeterminate = sel.size > 0 && sel.size < projects.length;
+  // Reflect the state of the VISIBLE (filtered) projects so the box makes sense with a
+  // search active: checked when every visible project is selected.
+  const visible = filterProjects(projects, window._wtProjectSearch || '');
+  const visibleSelected = visible.filter(p => sel.has(p.id)).length;
+  cb.checked = visible.length > 0 && visibleSelected === visible.length;
+  cb.indeterminate = visibleSelected > 0 && visibleSelected < visible.length;
 }
 
 function updateSyncMenuCount() {
