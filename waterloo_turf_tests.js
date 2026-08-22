@@ -7366,6 +7366,51 @@ section('131. Auto-backup config (enable + interval)');
   ctx.localStorage = realLS;
 }
 
+section('132. Tab panels are balanced (no card orphaned outside a panel)');
+{
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Every .tab-panel must be div-balanced so a card can't leak onto other tabs. Walk from
+  // each panel's opening div and confirm it closes only after its known last card. In
+  // particular panel-settings must contain Default Shipping (its last card) — the bug that
+  // orphaned Turf Products / Default Shipping onto the Dashboard closed the panel early.
+  function panelSpan(id) {
+    const openIdx = html.indexOf('id="' + id + '"');
+    // step back to the <div that owns this id
+    const divStart = html.lastIndexOf('<div', openIdx);
+    let depth = 0, i = divStart;
+    const re = /<div\b|<\/div>/g; re.lastIndex = divStart;
+    let m;
+    while ((m = re.exec(html))) {
+      depth += m[0] === '</div>' ? -1 : 1;
+      if (depth === 0) return html.slice(divStart, m.index + m[0].length);
+    }
+    return '';
+  }
+  const settings = panelSpan('panel-settings');
+  assert(settings.includes('Default Shipping'), 'panel-settings contains its LAST card (Default Shipping) — i.e. it does not close early');
+  assert(settings.includes('Backup &amp; Sync') && settings.includes('Turf Products') && settings.includes('Profit Margin'), 'panel-settings contains all its cards');
+  const dash = panelSpan('panel-dashboard');
+  assert(!dash.includes('Turf Products') && !dash.includes('Default Shipping'), 'the dashboard panel does not swallow settings cards');
+}
+
+section('133. Duplicate project (deep copy as a fresh quote)');
+{
+  const proj = { id:'p1', name:'Smith Backyard', created:100, status:'won', quotedPrice:12000,
+    turf:[{product:'K9', installedSqFt:800}], pavers:{ paverWidthIn:12 } };
+  const copy = ctx.duplicateProjectObject(proj, 'p999', 555);
+  assert(copy.id === 'p999' && copy.created === 555, 'gets a fresh id and created time');
+  assert(copy.name === 'Smith Backyard (copy)', 'name gets a "(copy)" suffix');
+  assert(copy.status === 'pending', 'the copy is a fresh pending quote, not won/lost');
+  assert(copy.quotedPrice === undefined, 'the recorded price is dropped on the copy');
+  assert(copy.turf !== proj.turf && copy.turf[0].product === 'K9', 'turf is deep-copied');
+  assert(copy.pavers !== proj.pavers && copy.pavers.paverWidthIn === 12, 'per-project settings are deep-copied');
+  copy.turf[0].product = 'CHANGED';
+  assert(proj.turf[0].product === 'K9', 'mutating the copy never touches the original');
+  // Safe on junk.
+  const empty = ctx.duplicateProjectObject(null, 'x', 1);
+  assert(empty.id === 'x' && empty.name === 'Untitled (copy)' && empty.status === 'pending', 'null project → a named, pending copy');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

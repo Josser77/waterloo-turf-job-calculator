@@ -184,7 +184,7 @@
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     padding: 8px 28px;
-    display: none;
+    display: flex;
     align-items: center;
     gap: 0;
     flex-shrink: 0;
@@ -222,6 +222,7 @@
     align-items: center;
     gap: 16px;
     flex-shrink: 0;
+    margin-left: auto;
   }
   .topbar-legend-item {
     display: flex;
@@ -248,10 +249,9 @@
     flex-shrink: 0;
     align-items: stretch;
   }
-  /* Help button lives at the right end of the always-visible tab row. */
-  .tab-help-btn {
-    margin-left: auto;
-    align-self: center;
+  /* Help button at the right end of the project top bar. */
+  .topbar-help-btn {
+    margin-left: 16px;
     background: transparent;
     border: 1px solid var(--border);
     border-radius: 7px;
@@ -263,8 +263,9 @@
     cursor: pointer;
     transition: all 0.15s;
     flex-shrink: 0;
+    white-space: nowrap;
   }
-  .tab-help-btn:hover { background: var(--green); color: #fff; border-color: var(--green); }
+  .topbar-help-btn:hover { background: var(--green); color: #fff; border-color: var(--green); }
   /* Live layout totals — its own full-width bar directly below the tab row, so the
      numbers are easy to scan and never collide with or overflow past the tabs. */
   .top-metrics {
@@ -1214,9 +1215,15 @@
     </div>
     <div class="project-list" id="projectList"></div>
 
-    <div class="sidebar-actions">
-      <button class="btn-sidebar" onclick="openNewProjectModal()">＋ New Project</button>
-      <button class="btn-sidebar danger" onclick="deleteCurrentProject()">Delete Project</button>
+    <div class="sidebar-actions" style="position:relative;">
+      <button class="btn-sidebar" onclick="toggleActionsMenu(event)">⚙ Actions ▾</button>
+      <div id="actionsMenu" style="display:none;position:absolute;bottom:100%;left:0;right:0;margin-bottom:6px;background:#1f4d3a;border:1px solid rgba(255,255,255,0.15);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.3);overflow:hidden;z-index:50;">
+        <button class="sync-menu-item" onclick="closeActionsMenu();openNewProjectModal()">＋ New Project</button>
+        <button class="sync-menu-item" onclick="closeActionsMenu();renameCurrentProject()">✎ Rename Project</button>
+        <button class="sync-menu-item" onclick="closeActionsMenu();duplicateCurrentProject()">⧉ Duplicate Project</button>
+        <div style="border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;"></div>
+        <button class="sync-menu-item" style="color:#ff8a8a;" onclick="closeActionsMenu();deleteCurrentProject()">🗑 Delete Project</button>
+      </div>
     </div>
 
     <input type="file" id="importFileInput" accept=".json" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="importBackup(this)">
@@ -1257,6 +1264,7 @@
           Standard input
         </div>
       </div>
+      <button class="topbar-help-btn" onclick="document.getElementById('docsModal').classList.add('open')" title="How to use this tool">? Help</button>
     </div>
 
     <div class="top-metrics" id="topMetrics" title="Live layout totals — from the roll plan">
@@ -1277,7 +1285,6 @@
       <div class="tab" onclick="switchTab('mulch',this)">Bark / Mulch</div>
       <div class="tab" onclick="switchTab('riverRock',this)">River Rock</div>
       <div class="tab" id="tabSettings" onclick="switchTab('settings',this)">⚙ Settings</div>
-      <button class="tab-help-btn" onclick="document.getElementById('docsModal').classList.add('open')" title="How to use this tool">? Help</button>
     </div>
 
     <div class="content">
@@ -1829,19 +1836,6 @@
       <div class="tab-panel" id="panel-settings">
 
         <div class="card">
-          <div class="card-header"><div class="card-title">Backup &amp; Sync</div></div>
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">Export your data to a file (keep copies somewhere safe — email, Google Drive), import it back, or manage auto-backups. For "Export Selected", tick projects in the sidebar list first.</p>
-          <div id="syncMenuSelectedCount" style="font-size:12px;color:var(--text-mid);margin-bottom:10px;"></div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;">
-            <button class="btn btn-sm" onclick="exportBackup('selected')">↓ Export Selected</button>
-            <button class="btn btn-sm" onclick="exportBackup('all')">↓ Export Everything</button>
-            <button class="btn btn-ghost btn-sm" onclick="triggerImport('merge')">↑ Import &amp; Merge</button>
-            <button class="btn btn-ghost btn-sm" onclick="triggerImport('replace')">↑ Import &amp; Replace All</button>
-            <button class="btn btn-ghost btn-sm" onclick="openAutoBackupModal()">↻ Auto-backups</button>
-            <button class="btn btn-ghost btn-sm" style="color:#e03131;border-color:#f3bcbc;" onclick="factoryResetApp()">⚠ Reset to New-User State</button>
-          </div>
-        </div>
-
           <div class="card-header">
             <div class="card-title" style="display:flex;align-items:center;gap:8px;">Roll Settings<a class="help-badge" data-lockok="1" title="Open the User Guide" onclick="openGuideAt('doc-settings')">?</a></div>
           </div>
@@ -1951,6 +1945,21 @@
           <div class="field-group" style="max-width:200px;">
             <label>Default shipping cost ($)</label>
             <input type="number" id="defaultShippingInput" min="0" step="1" oninput="updateDefaultShipping(this.value)">
+          </div>
+        </div>
+
+        <!-- BACKUP & SYNC (bottom of settings) -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">Backup &amp; Sync</div></div>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">Export your data to a file (keep copies somewhere safe — email, Google Drive), import it back, or manage auto-backups. For "Export Selected", tick projects in the sidebar list first.</p>
+          <div id="syncMenuSelectedCount" style="font-size:12px;color:var(--text-mid);margin-bottom:10px;"></div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <button class="btn btn-sm" onclick="exportBackup('selected')">↓ Export Selected</button>
+            <button class="btn btn-sm" onclick="exportBackup('all')">↓ Export Everything</button>
+            <button class="btn btn-ghost btn-sm" onclick="triggerImport('merge')">↑ Import &amp; Merge</button>
+            <button class="btn btn-ghost btn-sm" onclick="triggerImport('replace')">↑ Import &amp; Replace All</button>
+            <button class="btn btn-ghost btn-sm" onclick="openAutoBackupModal()">↻ Auto-backups</button>
+            <button class="btn btn-ghost btn-sm" style="color:#e03131;border-color:#f3bcbc;" onclick="factoryResetApp()">⚠ Reset to New-User State</button>
           </div>
         </div>
 
@@ -2613,7 +2622,7 @@
         <p>Your data is stored in your browser's local storage. <strong>This means it can be lost if you clear your browser cache.</strong> Use the <strong>Backup &amp; Sync</strong> card in the <strong>⚙ Settings</strong> tab regularly to export a JSON file. Keep backups somewhere safe (email to yourself, save to Google Drive, etc.).</p>
 
         <div class="docs-h3">Selecting Projects</div>
-        <p>Each project in the sidebar list has a checkbox. Check "All" at the top of the project list to select everything, or check individual projects. The Backup &amp; Sync card (Settings) shows how many are currently selected.</p>
+        <p>Use the <strong>⚙ Actions</strong> menu at the bottom of the sidebar to create, rename, duplicate, or delete a project. Each project in the sidebar list has a checkbox. Check "All" at the top of the project list to select everything, or check individual projects. The Backup &amp; Sync card (Settings) shows how many are currently selected.</p>
 
         <div class="docs-h3">Export Options</div>
         <ul class="docs-list">
@@ -3369,8 +3378,12 @@ window.onload = () => {
 };
 
 function showEmpty() {
-  document.getElementById('projectTitle').value = '';
-  document.getElementById('topbar').classList.remove('visible');
+  const t = document.getElementById('projectTitle');
+  if (t) { t.value = ''; t.placeholder = 'Select a project'; t.disabled = true; }
+  // Keep the top bar visible even with no project selected; just show the empty state.
+  document.getElementById('topbar').classList.add('visible');
+  const cs = document.getElementById('projectCrewSelect'); if (cs) cs.disabled = true;
+  const ss = document.getElementById('projectStatusSelect'); if (ss) ss.disabled = true;
   document.getElementById('turfRows').innerHTML = '';
   document.getElementById('infillRows').innerHTML = '';
   document.getElementById('rockRows').innerHTML = '';
@@ -3512,6 +3525,10 @@ document.addEventListener('click', (e) => {
   const menu = document.getElementById('syncMenu');
   const btn = e.target.closest && e.target.closest('.backup-bar');
   if (menu && menu.style.display !== 'none' && !btn) menu.style.display = 'none';
+  // Same for the sidebar Actions menu.
+  const am = document.getElementById('actionsMenu');
+  const inActions = e.target.closest && e.target.closest('.sidebar-actions');
+  if (am && am.style.display !== 'none' && !inActions) am.style.display = 'none';
 });
 
 function sortProjects(mode, btn) {
@@ -3844,8 +3861,11 @@ function loadProject(id) {
     document.querySelector('.sidebar-backdrop').classList.remove('open');
   }
 
-  document.getElementById('projectTitle').value = proj.name;
+  const _t = document.getElementById('projectTitle');
+  if (_t) { _t.value = proj.name; _t.disabled = false; _t.placeholder = 'Project Name'; }
   document.getElementById('topbar').classList.add('visible');
+  const _cs = document.getElementById('projectCrewSelect'); if (_cs) _cs.disabled = false;
+  const _ss = document.getElementById('projectStatusSelect'); if (_ss) _ss.disabled = false;
 
   populateJobInfo(proj);
   renderProjectCrewSelect();
@@ -3889,7 +3909,7 @@ function saveProjectTitle() {
 }
 
 function deleteCurrentProject() {
-  if (!currentId) return;
+  if (!currentId) { alert('Select a project first.'); return; }
   if (!confirm('Delete this project? This cannot be undone.')) return;
   projects = projects.filter(p=>p.id!==currentId);
   save();
@@ -3897,6 +3917,49 @@ function deleteCurrentProject() {
   renderSidebar();
   if (projects.length) loadProject(projects[0].id);
   else showEmpty();
+}
+
+// Actions dropdown (sidebar): new / rename / duplicate / delete.
+function toggleActionsMenu(e) {
+  if (e) e.stopPropagation();
+  const m = document.getElementById('actionsMenu');
+  if (!m) return;
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+function closeActionsMenu() {
+  const m = document.getElementById('actionsMenu');
+  if (m) m.style.display = 'none';
+}
+function renameCurrentProject() {
+  const proj = getCurrentProject();
+  if (!proj) { alert('Select a project first.'); return; }
+  const name = prompt('Rename project:', proj.name || '');
+  if (name === null) return;
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  proj.name = trimmed;
+  const t = document.getElementById('projectTitle'); if (t) t.value = trimmed;
+  save();
+  renderSidebar();
+}
+// Pure: a deep copy of a project as a fresh quote (new id/created, "(copy)" name,
+// pending status, no recorded price). Testable.
+function duplicateProjectObject(proj, newId, now) {
+  const copy = JSON.parse(JSON.stringify(proj || {}));
+  copy.id = newId;
+  copy.name = ((proj && proj.name) || 'Untitled') + ' (copy)';
+  copy.created = now;
+  copy.status = 'pending';
+  delete copy.quotedPrice;
+  return copy;
+}
+function duplicateCurrentProject() {
+  const proj = getCurrentProject();
+  if (!proj) { alert('Select a project first.'); return; }
+  const copy = duplicateProjectObject(proj, 'p' + Date.now(), Date.now());
+  projects.push(copy);
+  save();
+  loadProject(copy.id);
 }
 
 function getCurrentProject() {

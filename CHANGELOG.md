@@ -5,6 +5,58 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 48) — Top bar always visible; sidebar Actions menu (new/rename/duplicate/delete)
+
+- The project top bar (project name / Crew / Status / legend / Help) now stays visible at
+  all times. With no project selected it shows a disabled "Select a project" title and
+  disabled Crew/Status; picking a project in the sidebar populates and enables everything.
+  Side benefit: the ? Help button is now always reachable, including the empty state.
+- Replaced the sidebar's two buttons (New / Delete) with an "⚙ Actions ▾" dropdown:
+  New Project, Rename Project (prompt), Duplicate Project, Delete Project. Rename and
+  Delete no-op with a nudge if nothing is selected.
+- Duplicate makes a deep copy as a fresh quote: new id/created, "(copy)" name, status reset
+  to pending, recorded price dropped. Pure `duplicateProjectObject` does the copy.
+
+Tests **1659 → 1667** (README **1667**): duplicate gets a fresh id/created, "(copy)" name,
+pending status, dropped price, deep-copied turf/settings, originals untouched, and null-safe.
+Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 47) — Help button to the project top bar; Backup & Sync to the bottom of Settings
+
+- Moved the "? Help" button off the tab row and onto the project top bar (the row with the
+  project name / Crew / Status), right-aligned next to the color legend. Note: that bar is
+  only visible when a project is open, so on the empty state (no projects) Help isn't shown
+  there — open or create a project to reach it.
+- Moved the Backup & Sync card from the top of the Settings tab to the BOTTOM (after
+  Default Shipping), so Settings opens on Roll Settings / catalogs as before.
+
+Both are presentational moves. Panel div-balance re-verified (the structural guard from
+cont'd 46 still passes: Backup & Sync is now the last card inside panel-settings).
+
+Tests **1659** (unchanged; README **1659**), green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 46) — Fix: Settings cards leaked onto every tab (Dashboard, etc.)
+
+Regression from cont'd 45: inserting the Backup & Sync card consumed the Roll Settings
+card's opening `<div class="card">` without re-adding one, so Roll Settings' closing tag
+closed `panel-settings` itself. Every settings card after that point (Turf Products, Infill,
+Rock, Edging, Misc, Labor Rates, Profit Margin, Default Shipping) was left OUTSIDE any tab
+panel and therefore rendered on ALL tabs — including the Dashboard. Restored the missing
+card wrapper; panel-settings now closes after its last card (Default Shipping).
+
+Added a structural test that walks each tab panel's div balance and asserts panel-settings
+still contains its last card and the dashboard panel doesn't swallow settings cards — this
+would have caught the leak.
+
+Tests **1656 → 1659** (README **1659**). Verified headlessly: no settings card is visible on
+the Dashboard tab, and all of them show on the Settings tab.
+
+---
+
 ## 2026-07-22 (cont'd 45) — Layout declutter: totals bar, sidebar room, Help + Sync moved
 
 Several UI moves to give the project list more room and tidy the chrome:
