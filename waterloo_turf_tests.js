@@ -7411,6 +7411,27 @@ section('133. Duplicate project (deep copy as a fresh quote)');
   assert(empty.id === 'x' && empty.name === 'Untitled (copy)' && empty.status === 'pending', 'null project → a named, pending copy');
 }
 
+section('134. Minimize-waste applies the primary direction (slider sync)');
+{
+  // Regression: renderRollLayout reads the rotation from the slider inputs, so
+  // optimizeAllLayers MUST write the chosen primary rotation/translation to those inputs
+  // — otherwise the redraw clobbers proj.layout.rotation and nothing changes on screen.
+  // Assert the source still updates both the slider inputs and proj.layout on a win.
+  const html = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  const fn = html.slice(html.indexOf('function optimizeAllLayers'), html.indexOf('function onClickOptimizeAll'));
+  assert(/rollRotationInput/.test(fn) && /rollTranslationInput/.test(fn), 'optimizeAllLayers touches the roll sliders');
+  // On the win branch it must set BOTH proj.layout.rotation and the slider value.
+  assert(/riEl\.value\s*=\s*best\.deg/.test(fn), 'it writes the optimized rotation to the rotation slider');
+  assert(/tiEl\.value\s*=\s*\+best\.t/.test(fn), 'it writes the optimized seam offset to the translation slider');
+  assert(/proj\.layout\.rotation\s*=\s*best\.deg/.test(fn), 'it also records the rotation on the project');
+  // And the underlying sweep still finds a real win for a 40x20 rectangle.
+  const opts = { rollWidth:15, rollLength:100, sideTrim:0, cuttingMargin:0, allowJoinSeams:false };
+  const rect = [{x:0,y:0},{x:40,y:0},{x:40,y:20},{x:0,y:20}];
+  const at0 = ctx.computeRollLayout(rect, 0, 0, opts).totalOrdered;
+  const best = ctx.bestRollForPoints(rect, opts);
+  assert(best.totalOrdered < at0, 'the sweep still finds a lower-ordered direction than the un-rotated layout');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

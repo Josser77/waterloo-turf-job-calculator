@@ -5,6 +5,28 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 49) — Fix: Minimize waste reported a saving but nothing changed
+
+The ✨ Minimize waste (all layers) button showed a "saved X ft²" toast but the layout,
+ordered footage, and roll direction never actually changed for the PRIMARY shape.
+
+Root cause: renderRollLayout() reads the primary rotation/translation from the slider
+inputs (rollRotationInput / rollTranslationInput) and then overwrites proj.layout.rotation
+from them. optimizeAllLayers set proj.layout.rotation but not the sliders, so the very next
+redraw clobbered the optimized value back to the old slider position. The toast's numbers
+came from an independent sweep, so it promised a saving that was never applied. (Install
+layers were fine — they read proj.layout.layerRoll, which the optimizer does update.)
+
+Fix: optimizeAllLayers now also writes the chosen primary rotation + seam offset to the two
+slider inputs (and computes over getBaseLayoutPoints, matching the renderer's coordinate
+frame). Verified in a headless browser: a 40×20 job went from 1,230 → 945 ft² ordered with
+the rotation slider moving 0° → 88°, matching the toast.
+
+Tests **1667 → 1672** (README **1672**): the source updates both sliders and proj.layout on
+a win, and the sweep still finds a real reduction. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 48) — Top bar always visible; sidebar Actions menu (new/rename/duplicate/delete)
 
 - The project top bar (project name / Crew / Status / legend / Help) now stays visible at

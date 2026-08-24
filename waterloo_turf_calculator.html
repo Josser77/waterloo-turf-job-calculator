@@ -6760,16 +6760,26 @@ function optimizeAllLayers() {
   // Before: sum the ordered footage the layers currently produce.
   let beforeOrdered = 0, afterOrdered = 0, changed = 0;
 
-  // Primary shape.
-  const primPts = (layoutNow && layoutNow.points) || proj.layout.points;
+  // Primary shape. IMPORTANT: renderRollLayout() reads the rotation/translation from the
+  // slider inputs (not proj.layout.rotation) and then overwrites proj.layout.* from them.
+  // So to actually apply an optimized primary direction we must update the sliders too —
+  // otherwise the redraw clobbers it and nothing changes on screen. Use the same base
+  // points the renderer uses (getBaseLayoutPoints handles any view rotation).
+  const primPts = getBaseLayoutPoints(proj);
   if (primPts && primPts.length >= 3) {
-    const curL = computeRollLayout(primPts, proj.layout.rotation || 0, proj.layout.translation || 0, opts);
+    const riEl = document.getElementById('rollRotationInput');
+    const tiEl = document.getElementById('rollTranslationInput');
+    const curRot = riEl ? (parseFloat(riEl.value) || 0) : (proj.layout.rotation || 0);
+    const curTrans = tiEl ? (parseFloat(tiEl.value) || 0) : (proj.layout.translation || 0);
+    const curL = computeRollLayout(primPts, curRot, curTrans, opts);
     const best = bestRollForPoints(primPts, opts);
     beforeOrdered += curL.totalOrdered;
     afterOrdered += best ? best.totalOrdered : curL.totalOrdered;
     if (best && best.totalOrdered < curL.totalOrdered - 1e-6) {
       proj.layout.rotation = best.deg;
       proj.layout.translation = +best.t.toFixed(2);
+      if (riEl) riEl.value = best.deg;               // so renderRollLayout applies it
+      if (tiEl) tiEl.value = +best.t.toFixed(2);
       changed++;
     }
   }
