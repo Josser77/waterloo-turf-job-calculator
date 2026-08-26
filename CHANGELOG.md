@@ -5,6 +5,22 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 52) — Vendor Pricing: remove an imported price list
+
+Added a "🗑 Remove price list" button on the Vendor Pricing tab (next to Import). It shows
+only when the active vendor has a file; clicking it confirms, then deletes the file bytes
+from IndexedDB and clears the vendor's fileName/fileType — the vendor itself stays, ready
+for a fresh import. (Deleting the whole vendor via its × chip already removed its file too;
+this is the "keep the vendor, drop just the file" case.)
+
+Verified headlessly: after import the button is visible and the table renders; after Remove
+the IndexedDB blob is gone, the metadata is cleared, the vendor remains, and the viewer
+returns to the "no price list yet" prompt.
+
+Tests **1687** (README **1687**), green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 51) — Vendor UI consistency: crew-style chips + modal (no browser prompts)
 
 Made vendor add/rename/select match the crew "pricing" UI exactly, per request:

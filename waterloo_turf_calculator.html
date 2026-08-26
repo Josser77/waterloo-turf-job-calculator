@@ -1845,6 +1845,7 @@
             <div id="vendorTabs" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
             <button class="btn btn-sm" onclick="addVendorPrompt()">+ Add vendor</button>
             <span style="flex:1;"></span>
+            <button id="vendorRemoveFileBtn" class="btn btn-ghost btn-sm" style="display:none;color:#e03131;border-color:#f3bcbc;" onclick="removeVendorFile()">🗑 Remove price list</button>
             <label class="btn btn-sm" style="cursor:pointer;">
               ↑ Import price list
               <input type="file" id="vendorFileInput" accept=".pdf,.xlsx,.xlsm,.xls,.csv,.tsv" style="display:none;" onchange="onVendorFileImport(this)">
@@ -13928,9 +13929,27 @@ function renderVendorTab() {
       </div>`;
     }).join('') : '<span style="font-size:12px;color:var(--text-light);align-self:center;">No vendors yet — add one →</span>';
   }
+  // Show "Remove price list" only when the active vendor actually has a file.
+  const rmBtn = document.getElementById('vendorRemoveFileBtn');
+  if (rmBtn) {
+    const av = vendors.find(v => v.id === active);
+    rmBtn.style.display = (av && av.fileName) ? '' : 'none';
+  }
   renderVendorViewer(active);
 }
 function onVendorSelect(id) { setActiveVendorId(id); renderVendorTab(); }
+
+// Remove just the imported file for the active vendor (keeps the vendor itself).
+function removeVendorFile() {
+  const vendors = getVendors();
+  const v = vendors.find(x => x.id === getActiveVendorId());
+  if (!v || !v.fileName) return;
+  if (!confirm('Remove the price list "' + (v.fileName || '') + '" from ' + (v.name || 'this vendor') + '? The vendor stays; you can import a new file anytime.')) return;
+  vendorFileDelete(v.id).catch(()=>{});
+  v.fileName = ''; v.fileType = '';
+  setVendors(vendors);
+  renderVendorTab();
+}
 
 function addVendorPrompt() {
   openNameModal({
