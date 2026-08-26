@@ -1840,7 +1840,7 @@
       <div class="tab-panel" id="panel-vendors">
         <div class="card">
           <div class="card-header"><div class="card-title">Vendor Pricing</div></div>
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">Keep each supplier's price list here for quick reference — import a PDF, Excel (.xlsx), or CSV and switch between vendors. Files are stored on this device only (not in the JSON backup), so re-import from the vendor if you move machines.</p>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">Keep each supplier's price list here for quick reference — import a PDF, Excel (.xlsx), or CSV and switch between vendors. Drag a vendor chip (by the ⠿ grip) to reorder them. Files are stored on this device only (not in the JSON backup), so re-import from the vendor if you move machines.</p>
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:14px;">
             <div id="vendorTabs" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
             <button class="btn btn-sm" onclick="addVendorPrompt()">+ Add vendor</button>
@@ -1876,12 +1876,12 @@
             <label style="align-self:end;margin:0;">Cutting Margin (in)</label>
             <input type="number" id="rollWidthInput" value="15" min="1" step="0.5" class="manual-input" onfocus="this.dataset.prev=this.value" onchange="onRollSettingEdit('rollWidth', this)">
             <input type="number" id="rollLengthInput" value="100" min="1" step="1" class="manual-input" onfocus="this.dataset.prev=this.value" onchange="onRollSettingEdit('rollLength', this)">
-            <input type="number" id="sideTrimInput" value="4" min="0" step="0.5" class="manual-input" onfocus="this.dataset.prev=this.value" onchange="onRollSettingEdit('sideTrim', this)">
-            <input type="number" id="cuttingMarginInput" value="4" min="0" step="0.5" class="manual-input" onfocus="this.dataset.prev=this.value" onchange="onRollSettingEdit('cuttingMargin', this)">
+            <input type="number" id="sideTrimInput" value="10" min="0" step="0.5" class="manual-input" onfocus="this.dataset.prev=this.value" onchange="onRollSettingEdit('sideTrim', this)">
+            <input type="number" id="cuttingMarginInput" value="6" min="0" step="0.5" class="manual-input" onfocus="this.dataset.prev=this.value" onchange="onRollSettingEdit('cuttingMargin', this)">
             <div style="align-self:start;font-size:11px;color:var(--text-light);line-height:1.4;">Fixed product width — every roll is 15 ft wide.</div>
             <div style="align-self:start;font-size:11px;color:var(--text-light);line-height:1.4;">Length of <strong>one physical roll</strong> (15 × 100) — the point where a long run gets split across rolls. <strong>Not</strong> what you order; that's <strong>Ordered Linear Ft</strong> (Layout sidebar), per job.</div>
-            <div style="align-self:start;font-size:11px;color:var(--text-light);line-height:1.4;">Trimmed off each roll's edge for the S-seam (usable width = roll width − trim).</div>
-            <div style="align-self:start;font-size:11px;color:var(--text-light);line-height:1.4;">Extra length added to <strong>every cut piece</strong> before rounding up to the next whole foot.</div>
+            <div style="align-self:start;font-size:11px;color:var(--text-light);line-height:1.4;">Total width trimmed off the roll for the S-seam — enter both edges <strong>combined</strong>, not per side (usable width = roll width − trim). E.g. 4 in means 4 in total.</div>
+            <div style="align-self:start;font-size:11px;color:var(--text-light);line-height:1.4;">Added once to <strong>each cut piece</strong> (a single allowance, not per end) before rounding up to the next whole foot.</div>
           </div>
         </div>
 
@@ -1941,7 +1941,7 @@
             <div class="card-title">Labor Rates &amp; Price Sheet</div>
             <button class="btn btn-primary btn-sm" onclick="openAddCrewModal()">＋ Add Crew</button>
           </div>
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">Define different rate sets for each crew. Select which crew a project uses via the <strong>Crew</strong> dropdown in the topbar when a project is open.</p>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">Define different rate sets for each crew. Drag a crew chip (by the ⠿ grip) to reorder them. Select which crew a project uses via the <strong>Crew</strong> dropdown in the topbar when a project is open.</p>
           <div id="crewTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;"></div>
           <div id="laborRatesTable"></div>
           <div style="margin-top:10px;">
@@ -2591,7 +2591,7 @@
         <ul class="docs-list">
           <li><strong>Roll Width</strong> — width of the turf roll as purchased.</li>
           <li><strong>Roll Length</strong> — maximum length of a single piece; longer runs are split, each adding a Cutting Margin.</li>
-          <li><strong>Side Trimming</strong> — width trimmed off each roll for S-seams (Roll Width − Side Trimming = usable width per strip).</li>
+          <li><strong>Side Trimming</strong> — total width trimmed off each roll for S-seams, entered as both edges combined (not per side): Roll Width − Side Trimming = usable width per strip.</li>
           <li><strong>Cutting Margin</strong> — extra length added per cut/seam.</li>
           <li><strong>Roll Direction</strong> — angle of rolls relative to shape. "Horizontal"/"Vertical" snap to 0°/90°. "Auto" searches all 180° × 8 translation offsets and picks the combination with the lowest ordered sqft for that one layer. The <strong>✨ Minimize waste (all layers)</strong> button above the canvas runs that same search on the primary shape AND every install layer at once, applies the lowest-waste direction to each, and reports how much less turf is ordered.</li>
           <li><strong>Seam Translation</strong> — shifts where seam lines fall; can reduce strip count. Max value equals the effective roll width.</li>
@@ -5555,9 +5555,17 @@ function renderCrewTabs() {
 
   el.innerHTML = crews.map(crew => {
     const isActive = crew.id === activeId;
-    return `<div style="display:flex;align-items:center;gap:0;">
+    return `<div draggable="true"
+      ondragstart="onCrewDragStart('${crew.id}',event)" ondragover="onCrewDragOver(event)"
+      ondrop="onCrewDrop('${crew.id}',event)" ondragend="onCrewDragEnd(event)"
+      data-crew-id="${crew.id}"
+      style="display:flex;align-items:center;gap:0;cursor:grab;">
+      <span title="Drag to reorder"
+        style="padding:7px 4px 7px 6px;border:1px solid ${isActive?'#55B763':'var(--border)'};border-right:none;border-radius:7px 0 0 7px;
+               background:${isActive?'#55B763':'var(--surface2)'};color:${isActive?'#cfead6':'var(--text-light)'};
+               font-size:12px;line-height:1;user-select:none;">⠿</span>
       <button onclick="switchActiveCrew('${crew.id}')"
-        style="padding:7px 14px;border-radius:7px 0 0 7px;border:1px solid ${isActive?'#55B763':'var(--border)'};
+        style="padding:7px 12px;border:1px solid ${isActive?'#55B763':'var(--border)'};border-left:none;
                background:${isActive?'#55B763':'var(--surface)'};color:${isActive?'#fff':'var(--text-mid)'};
                font-size:12px;font-weight:${isActive?'700':'500'};font-family:'Nunito Sans',sans-serif;cursor:pointer;">
         ${crew.name}${isActive?' ✓':''}
@@ -5577,8 +5585,29 @@ function renderCrewTabs() {
 function switchActiveCrew(id) {
   setActiveCrewId(id);
   renderCrewTabs();
-  renderLaborRatesTable();
-  if (currentId) calcQuote();
+  renderLaborRatesTable();  if (currentId) calcQuote();
+}
+
+// Drag-to-reorder for crew chips (mirrors the vendor chips).
+let _crewDragId = null;
+function onCrewDragStart(id, e) {
+  _crewDragId = id;
+  if (e && e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', id); } catch (_) {} }
+  if (e && e.currentTarget) e.currentTarget.style.opacity = '0.5';
+}
+function onCrewDragOver(e) { if (e) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'; } return false; }
+function onCrewDrop(id, e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  let dragId = _crewDragId;
+  if (!dragId && e && e.dataTransfer) { try { dragId = e.dataTransfer.getData('text/plain'); } catch (_) {} }
+  _crewDragId = null;
+  if (!dragId || dragId === id) { renderCrewTabs(); return; }
+  saveCrews(reorderById(getCrews(), dragId, id));
+  renderCrewTabs();
+}
+function onCrewDragEnd(e) {
+  _crewDragId = null;
+  if (e && e.currentTarget) e.currentTarget.style.opacity = '';
 }
 
 function openAddCrewModal() {
@@ -8683,7 +8712,7 @@ function getRollOpts(proj) {
 // A project "overrides" iff proj.rollSettings exists; otherwise it resolves to the
 // global default. Cutting Margin is the usual per-job override lever.
 const ROLL_DEFAULTS_KEY = 'wt_rollDefaults'; // global default store
-const ROLL_DEFAULTS_FALLBACK = { rollWidth: 15, rollLength: 100, sideTrim: 4, cuttingMargin: 4, allowJoinSeams: false };
+const ROLL_DEFAULTS_FALLBACK = { rollWidth: 15, rollLength: 100, sideTrim: 10, cuttingMargin: 6, allowJoinSeams: false };
 
 function getGlobalRollDefaults() {
   try {
@@ -13909,12 +13938,21 @@ function renderVendorTab() {
   if (!vendors.some(v => v.id === active)) active = vendors[0] ? vendors[0].id : '';
   setActiveVendorId(active);
   if (el) {
-    // Chip row matching the crew tabs: [ name ✓ ][ ✎ ][ × ].
+    // Chip row matching the crew tabs: [ ⠿ grip ][ name ✓ ][ ✎ ][ × ]. Drag a chip by the
+    // grip (or anywhere on it) to reorder; the order is saved.
     el.innerHTML = vendors.length ? vendors.map(v => {
       const isActive = v.id === active;
-      return `<div style="display:flex;align-items:center;gap:0;">
+      return `<div draggable="true"
+        ondragstart="onVendorDragStart('${v.id}',event)" ondragover="onVendorDragOver(event)"
+        ondrop="onVendorDrop('${v.id}',event)" ondragend="onVendorDragEnd(event)"
+        data-vendor-id="${v.id}"
+        style="display:flex;align-items:center;gap:0;cursor:grab;">
+        <span title="Drag to reorder"
+          style="padding:7px 4px 7px 6px;border:1px solid ${isActive?'#55B763':'var(--border)'};border-right:none;border-radius:7px 0 0 7px;
+                 background:${isActive?'#55B763':'var(--surface2)'};color:${isActive?'#cfead6':'var(--text-light)'};
+                 font-size:12px;line-height:1;user-select:none;">⠿</span>
         <button onclick="onVendorSelect('${v.id}')"
-          style="padding:7px 14px;border-radius:7px 0 0 7px;border:1px solid ${isActive?'#55B763':'var(--border)'};
+          style="padding:7px 12px;border:1px solid ${isActive?'#55B763':'var(--border)'};border-left:none;
                  background:${isActive?'#55B763':'var(--surface)'};color:${isActive?'#fff':'var(--text-mid)'};
                  font-size:12px;font-weight:${isActive?'700':'500'};font-family:'Nunito Sans',sans-serif;cursor:pointer;">
           ${(v.name||'Vendor').replace(/</g,'&lt;')}${isActive?' ✓':''}
@@ -13938,6 +13976,42 @@ function renderVendorTab() {
   renderVendorViewer(active);
 }
 function onVendorSelect(id) { setActiveVendorId(id); renderVendorTab(); }
+
+// Pure: move vendor `dragId` to the slot currently held by `dropId`. Returns a new array;
+// leaves the list unchanged if either id is missing or they're the same. Testable.
+function reorderVendors(vendors, dragId, dropId) {
+  return reorderById(vendors, dragId, dropId);
+}
+// Generic: reorder any [{id}] list by moving dragId to dropId's slot. New array, non-mutating.
+function reorderById(list, dragId, dropId) {
+  const arr = Array.isArray(list) ? list.slice() : [];
+  const from = arr.findIndex(x => x.id === dragId);
+  const to = arr.findIndex(x => x.id === dropId);
+  if (from < 0 || to < 0 || from === to) return arr;
+  const [item] = arr.splice(from, 1);
+  arr.splice(to, 0, item);
+  return arr;
+}
+let _vendorDragId = null;
+function onVendorDragStart(id, e) {
+  _vendorDragId = id;
+  if (e && e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', id); } catch (_) {} }
+  if (e && e.currentTarget) e.currentTarget.style.opacity = '0.5';
+}
+function onVendorDragOver(e) { if (e) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'; } return false; }
+function onVendorDrop(id, e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  let dragId = _vendorDragId;
+  if (!dragId && e && e.dataTransfer) { try { dragId = e.dataTransfer.getData('text/plain'); } catch (_) {} }
+  _vendorDragId = null;
+  if (!dragId || dragId === id) { renderVendorTab(); return; }
+  setVendors(reorderVendors(getVendors(), dragId, id));
+  renderVendorTab();
+}
+function onVendorDragEnd(e) {
+  _vendorDragId = null;
+  if (e && e.currentTarget) e.currentTarget.style.opacity = '';
+}
 
 // Remove just the imported file for the active vendor (keeps the vendor itself).
 function removeVendorFile() {

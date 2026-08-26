@@ -4818,7 +4818,7 @@ section('58. Roll settings (global default + per-project override)');
   // Empty storage → standard 15×100 with default trim/margin.
   const d = ctx.getGlobalRollDefaults();
   assert(d.rollWidth === 15 && d.rollLength === 100, 'default roll size is 15 ft × 100 ft');
-  assert(d.sideTrim === 4 && d.cuttingMargin === 4, 'default trim/margin = 4 / 4');
+  assert(d.sideTrim === 10 && d.cuttingMargin === 6, 'default trim/margin = 10 / 6');
 
   // A stored partial global is merged over the fallback (missing keys keep defaults).
   const prevGet = ctx.localStorage.getItem;
@@ -7468,6 +7468,35 @@ section('135. Vendor pricing parsers (CSV / xlsx / kind)');
   // Rendering guards.
   assert(/no rows/i.test(ctx.renderVendorTable([])), 'empty rows → a friendly message, not a broken table');
   assert(/<table/.test(ctx.renderVendorTable([['H1','H2'],['a','b']])), 'rows render to a table');
+}
+
+section('136. Vendor reordering (drag to sort)');
+{
+  const V = [{id:'a',name:'A'},{id:'b',name:'B'},{id:'c',name:'C'},{id:'d',name:'D'}];
+  const ids = arr => arr.map(v => v.id).join('');
+  assert(ids(ctx.reorderVendors(V, 'a', 'c')) === 'bcad', 'drag forward: a onto c → b c a d');
+  assert(ids(ctx.reorderVendors(V, 'd', 'a')) === 'dabc', 'drag backward: d onto a → d a b c');
+  assert(ids(ctx.reorderVendors(V, 'b', 'c')) === 'acbd', 'drag onto neighbor swaps them');
+  assert(ids(ctx.reorderVendors(V, 'b', 'b')) === 'abcd', 'dropping on itself is a no-op');
+  assert(ids(ctx.reorderVendors(V, 'x', 'a')) === 'abcd', 'unknown drag id → unchanged');
+  assert(ids(ctx.reorderVendors(V, 'a', 'y')) === 'abcd', 'unknown drop id → unchanged');
+  ctx.reorderVendors(V, 'a', 'c');
+  assert(ids(V) === 'abcd', 'the original array is never mutated');
+  assert(ctx.reorderVendors(null, 'a', 'b').length === 0, 'null list → empty, no throw');
+}
+
+section('137. Crew reordering shares the generic reorderById helper');
+{
+  const crews = [{id:'c1',name:'Angel'},{id:'c2',name:'Stacey'},{id:'c3',name:'Israel'}];
+  const ids = arr => arr.map(c => c.id).join('');
+  assert(ids(ctx.reorderById(crews, 'c3', 'c1')) === 'c3c1c2', 'crew drag: c3 onto c1 → c3 c1 c2');
+  assert(ids(ctx.reorderById(crews, 'c1', 'c3')) === 'c2c3c1', 'crew drag forward: c1 onto c3');
+  assert(ids(ctx.reorderById(crews, 'c2', 'c2')) === 'c1c2c3', 'self-drop is a no-op');
+  // reorderVendors delegates to the same helper, so both stay in lock-step.
+  const V = [{id:'a'},{id:'b'},{id:'c'}];
+  assert(ctx.reorderVendors(V,'a','c').map(v=>v.id).join('') === ctx.reorderById(V,'a','c').map(v=>v.id).join(''), 'reorderVendors and reorderById agree');
+  ctx.reorderById(crews, 'c1', 'c3');
+  assert(ids(crews) === 'c1c2c3', 'original crew array not mutated');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

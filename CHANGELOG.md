@@ -5,6 +5,63 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 56) — Reorder crew chips too (shared with vendors)
+
+Crew chips are now drag-to-reorder, same as vendors: each has a ⠿ grip, drop it on another
+chip to move it, order is saved. Reordering never changes which crew is active. Factored the
+move into one pure helper `reorderById(list, dragId, dropId)`; `reorderVendors` now delegates
+to it, so crews and vendors share the exact same tested logic. Same desktop-only caveat as
+vendors (HTML5 drag; no iPad touch-drag).
+
+Tests **1695 → 1700** (README **1700**): crew moves via reorderById, reorderVendors delegates
+consistently, non-mutating. Verified drag end-to-end headlessly (order changes + persists,
+active crew preserved). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 55) — Reorder vendor chips by drag-and-drop
+
+Vendor chips can now be dragged to sort them however you like. Each chip gets a ⠿ grip and
+is draggable; drop it on another chip to move it there, and the new order is saved. Pure
+`reorderVendors(list, dragId, dropId)` does the move (new array, non-mutating, no-ops on
+unknown/same ids). Note: HTML5 drag works on desktop (Mac/Windows); touch-drag on iPad isn't
+supported by this method — ask if you want ◀ ▶ buttons for iPad too.
+
+Tests **1687 → 1695** (README **1695**): forward/backward/adjacent moves, self- and
+unknown-id no-ops, non-mutating, null-safe. Verified drag end-to-end headlessly (order
+changes and persists). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 54) — New default Side Trim (10 in) and Cutting Margin (6 in)
+
+Changed the default Roll Settings: S-Seam Side Trim 4 → 10 in (total, not per side) and
+Cutting Margin 4 → 6 in (per piece). Updated in both the input defaults and
+ROLL_DEFAULTS_FALLBACK, so new/reset installs get 10/6. Default usable width is now
+15 − 10/12 = 14.167 ft.
+
+Note: this only affects fresh/new-user state and anywhere the app falls back to the default
+— existing saved roll settings (global or per-project) keep their current values until reset.
+
+Test updated (the guardrail that asserts the default correctly caught the change): default
+trim/margin now 10/6. Tests **1687**, green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 53) — Clarify Side Trim & Cutting Margin help text (no math change)
+
+Reworded the Roll Settings help text (and the User Guide glossary) to remove a per-side
+ambiguity. The math was already correct and is unchanged:
+- S-Seam Side Trim is a TOTAL taken off the roll width once (usable = rollWidth − trim/12),
+  not per edge. Text now says "enter both edges combined, not per side. E.g. 4 in means 4 in
+  total."
+- Cutting Margin is added once per cut piece (a single allowance, not per end) before
+  rounding up to the next whole foot. Text now says so.
+
+No code or test change (1687). Verified parse + suite green.
+
+---
+
 ## 2026-07-22 (cont'd 52) — Vendor Pricing: remove an imported price list
 
 Added a "🗑 Remove price list" button on the Vendor Pricing tab (next to Import). It shows
