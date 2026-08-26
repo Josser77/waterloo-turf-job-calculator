@@ -84,7 +84,7 @@ Run the test suite before committing any changes to `waterloo_turf_calculator.ht
 node waterloo_turf_tests.js
 ```
 
-All tests should pass (currently **1672** — this is exactly what
+All tests should pass (currently **1687** — this is exactly what
 `node waterloo_turf_tests.js` prints on its `Tests:` line; if you're updating this
 number, copy it from the runner rather than adding to the previous figure). The
 `Sync and Push.command` script runs
@@ -121,3 +121,8 @@ One click sweeps every roll direction (180° × 8 seam offsets) on the primary s
 ## Project search (sidebar)
 
 Live filter box over the project list — matches on name, address, and status (won/lost/pending). Multi-word AND matching. Pure `filterProjects`.
+
+
+## Vendor Pricing (tab)
+
+Import and view each supplier's price list (PDF / Excel / CSV), switchable per vendor like crews. PDFs embed; Excel/CSV render as a table (xlsx parsed library-free via DecompressionStream). Files stored in IndexedDB (not in the JSON backup — re-importable reference docs).

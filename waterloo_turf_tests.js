@@ -7432,6 +7432,44 @@ section('134. Minimize-waste applies the primary direction (slider sync)');
   assert(best.totalOrdered < at0, 'the sweep still finds a lower-ordered direction than the un-rotated layout');
 }
 
+section('135. Vendor pricing parsers (CSV / xlsx / kind)');
+{
+  // File-kind classification.
+  assert(ctx.vendorFileKind('list.PDF') === 'pdf', 'PDF (any case) → pdf');
+  assert(ctx.vendorFileKind('Prices.xlsx') === 'xlsx' && ctx.vendorFileKind('a.xls') === 'xlsx', 'Excel → xlsx');
+  assert(ctx.vendorFileKind('x.csv') === 'csv' && ctx.vendorFileKind('x.tsv') === 'csv', 'CSV/TSV → csv');
+  assert(ctx.vendorFileKind('notes.docx') === 'unsupported' && ctx.vendorFileKind('') === 'unsupported', 'anything else → unsupported');
+
+  // CSV: quotes, doubled quotes, embedded commas, blank trailing line.
+  const csv = ctx.parseCSV('Product,Price\nK9 Turf,3.50\n"Fescue, Lite",4.00\n');
+  assert(csv.length === 3, 'trailing newline does not add an empty row');
+  assert(csv[0][0] === 'Product' && csv[0][1] === 'Price', 'header row');
+  assert(csv[2][0] === 'Fescue, Lite' && csv[2][1] === '4.00', 'quoted field keeps its comma');
+  const q = ctx.parseCSV('a,"he said ""hi""",c');
+  assert(q[0][1] === 'he said "hi"', 'doubled quotes unescape to one quote');
+
+  // xlsx shared strings: multiple <t> runs in one <si> concatenate.
+  const ss = ctx.parseXlsxSharedStrings('<sst><si><t>Product</t></si><si><t>K9</t></si><si><r><t>Split</t></r><r><t>Run</t></r></si></sst>');
+  assert(ss.length === 3 && ss[0] === 'Product' && ss[2] === 'SplitRun', 'shared strings parse and concatenate runs');
+
+  // xlsx sheet: shared-string cells (t=s) resolve; inline (t=inlineStr) and numbers pass through.
+  const shared = ['Product', 'K9 Turf'];
+  const sheet = '<worksheet><sheetData>' +
+    '<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row>' +
+    '<row r="2"><c r="A2"><v>3.5</v></c><c r="B2" t="inlineStr"><is><t>each</t></is></c></row>' +
+    '</sheetData></worksheet>';
+  const rows = ctx.parseXlsxSheet(sheet, shared);
+  assert(rows.length === 2, 'two rows parsed');
+  assert(rows[0][0] === 'Product' && rows[0][1] === 'K9 Turf', 'shared-string cells resolve via the index');
+  assert(rows[1][0] === '3.5' && rows[1][1] === 'each', 'number and inline-string cells read correctly');
+  // xml entity decoding in values.
+  assert(ctx.parseXlsxSheet('<sheetData><row><c t="inlineStr"><is><t>A &amp; B</t></is></c></row></sheetData>', [])[0][0] === 'A & B', 'xml entities decode');
+
+  // Rendering guards.
+  assert(/no rows/i.test(ctx.renderVendorTable([])), 'empty rows → a friendly message, not a broken table');
+  assert(/<table/.test(ctx.renderVendorTable([['H1','H2'],['a','b']])), 'rows render to a table');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

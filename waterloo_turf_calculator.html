@@ -1284,6 +1284,7 @@
       <div class="tab" onclick="switchTab('pavers',this)">Pavers</div>
       <div class="tab" onclick="switchTab('mulch',this)">Bark / Mulch</div>
       <div class="tab" onclick="switchTab('riverRock',this)">River Rock</div>
+      <div class="tab" onclick="switchTab('vendors',this)">Vendor Pricing</div>
       <div class="tab" id="tabSettings" onclick="switchTab('settings',this)">⚙ Settings</div>
     </div>
 
@@ -1833,6 +1834,29 @@
       <!-- ══════════════════════════════════════
            TAB: SETTINGS
       ══════════════════════════════════════ -->
+      <!-- ══════════════════════════════════════
+           TAB: VENDOR PRICING
+      ══════════════════════════════════════ -->
+      <div class="tab-panel" id="panel-vendors">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Vendor Pricing</div></div>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">Keep each supplier's price list here for quick reference — import a PDF, Excel (.xlsx), or CSV and switch between vendors. Files are stored on this device only (not in the JSON backup), so re-import from the vendor if you move machines.</p>
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:14px;">
+            <div id="vendorTabs" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+            <button class="btn btn-sm" onclick="addVendorPrompt()">+ Add vendor</button>
+            <span style="flex:1;"></span>
+            <label class="btn btn-sm" style="cursor:pointer;">
+              ↑ Import price list
+              <input type="file" id="vendorFileInput" accept=".pdf,.xlsx,.xlsm,.xls,.csv,.tsv" style="display:none;" onchange="onVendorFileImport(this)">
+            </label>
+          </div>
+          <div id="vendorViewer" style="min-height:320px;"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════
+           TAB: SETTINGS
+      ══════════════════════════════════════ -->
       <div class="tab-panel" id="panel-settings">
 
         <div class="card">
@@ -2215,6 +2239,21 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeCrewModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveCrewModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reusable name modal (vendors, project rename) — same look as the crew modal. -->
+<div class="modal-overlay" id="nameModal">
+  <div class="modal" style="width:380px;">
+    <div class="modal-title" id="nameModalTitle">Rename</div>
+    <div class="field-group">
+      <label id="nameModalLabel">Name</label>
+      <input type="text" id="nameModalInput" onkeydown="if(event.key==='Enter'){event.preventDefault();saveNameModal();}">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeNameModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNameModal()">Save</button>
     </div>
   </div>
 </div>
@@ -2803,6 +2842,169 @@ function getCrews() {
 function saveCrews(crews) { localStorage.setItem(CREWS_KEY, JSON.stringify(crews)); }
 function getActiveCrewId() { return localStorage.getItem(ACTIVE_CREW_KEY) || 'crew_main'; }
 function setActiveCrewId(id) { localStorage.setItem(ACTIVE_CREW_KEY, id); }
+
+// ── Vendor Pricing ──────────────────────────────────────────────────────────
+// Reference price lists (PDF / Excel / CSV) the user can view, one per vendor, switchable
+// like crews. Metadata (name, filename, type) lives in localStorage; the file BYTES live
+// in IndexedDB — a PDF is far too big for localStorage's ~5MB shared budget, and IndexedDB
+// is still offline + no-backend. Note: vendor files are NOT part of the JSON export/backup
+// (they're re-importable reference docs), only the metadata is.
+const VENDORS_KEY = 'wt_vendors_v1';
+const ACTIVE_VENDOR_KEY = 'wt_active_vendor_v1';
+function getVendors() {
+  try { const d = JSON.parse(localStorage.getItem(VENDORS_KEY)); if (Array.isArray(d)) return d; } catch (e) {}
+  return [];
+}
+function setVendors(v) { localStorage.setItem(VENDORS_KEY, JSON.stringify(Array.isArray(v) ? v : [])); }
+function getActiveVendorId() { return localStorage.getItem(ACTIVE_VENDOR_KEY) || ''; }
+function setActiveVendorId(id) { localStorage.setItem(ACTIVE_VENDOR_KEY, id || ''); }
+// Classify an upload by extension → 'pdf' | 'xlsx' | 'csv' | 'unsupported'. Pure.
+function vendorFileKind(fileName) {
+  const n = String(fileName || '').toLowerCase();
+  if (n.endsWith('.pdf')) return 'pdf';
+  if (n.endsWith('.xlsx') || n.endsWith('.xlsm') || n.endsWith('.xls')) return 'xlsx';
+  if (n.endsWith('.csv') || n.endsWith('.tsv')) return 'csv';
+  return 'unsupported';
+}
+
+// IndexedDB blob store (one ArrayBuffer per vendor id).
+const VENDOR_DB = 'wt_vendor_files';
+const VENDOR_STORE = 'files';
+function vendorDbOpen() {
+  return new Promise((resolve, reject) => {
+    const r = indexedDB.open(VENDOR_DB, 1);
+    r.onupgradeneeded = () => { r.result.createObjectStore(VENDOR_STORE); };
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+async function vendorFilePut(id, arrayBuffer) {
+  const db = await vendorDbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(VENDOR_STORE, 'readwrite');
+    tx.objectStore(VENDOR_STORE).put(arrayBuffer, id);
+    tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+  });
+}
+async function vendorFileGet(id) {
+  const db = await vendorDbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(VENDOR_STORE, 'readonly');
+    const rq = tx.objectStore(VENDOR_STORE).get(id);
+    rq.onsuccess = () => resolve(rq.result || null); rq.onerror = () => reject(rq.error);
+  });
+}
+async function vendorFileDelete(id) {
+  const db = await vendorDbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(VENDOR_STORE, 'readwrite');
+    tx.objectStore(VENDOR_STORE).delete(id);
+    tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+  });
+}
+
+// ── Parsers (pure/regex so the table renders without any library) ──
+// CSV → array of rows. Handles quoted fields, doubled quotes, embedded commas/newlines.
+function parseCSV(text) {
+  const s = String(text == null ? '' : text);
+  const rows = []; let row = [], field = '', i = 0, inQ = false;
+  while (i < s.length) {
+    const c = s[i];
+    if (inQ) {
+      if (c === '"') { if (s[i+1] === '"') { field += '"'; i += 2; continue; } inQ = false; i++; continue; }
+      field += c; i++; continue;
+    }
+    if (c === '"') { inQ = true; i++; continue; }
+    if (c === ',' || c === '\t') { row.push(field); field = ''; i++; continue; }
+    if (c === '\r') { i++; continue; }
+    if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
+    field += c; i++;
+  }
+  row.push(field); rows.push(row);
+  if (rows.length && rows[rows.length-1].length === 1 && rows[rows.length-1][0] === '') rows.pop();
+  return rows;
+}
+function xmlDecode(s) {
+  return String(s == null ? '' : s)
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n))
+    .replace(/&amp;/g, '&');
+}
+// xlsx sharedStrings.xml → array of strings (each <si> may hold multiple <t> runs). Pure.
+function parseXlsxSharedStrings(xml) {
+  if (!xml) return [];
+  const out = [];
+  const siRe = /<si>([\s\S]*?)<\/si>/g; let m;
+  while ((m = siRe.exec(xml))) {
+    const tRe = /<t[^>]*>([\s\S]*?)<\/t>/g; let t, str = '';
+    while ((t = tRe.exec(m[1]))) str += xmlDecode(t[1]);
+    out.push(str);
+  }
+  return out;
+}
+// xlsx sheet XML + shared strings → array of row arrays. Pure (regex-based).
+function parseXlsxSheet(xml, shared) {
+  shared = shared || [];
+  if (!xml) return [];
+  const rows = [];
+  const rowRe = /<row\b[^>]*>([\s\S]*?)<\/row>/g; let rm;
+  while ((rm = rowRe.exec(xml))) {
+    const cells = [];
+    const cRe = /<c\b([^>]*)(?:\/>|>([\s\S]*?)<\/c>)/g; let cm;
+    while ((cm = cRe.exec(rm[1]))) {
+      const attrs = cm[1] || '', body = cm[2] || '';
+      const tAttr = (attrs.match(/\bt="([^"]+)"/) || [])[1];
+      let val = '';
+      if (tAttr === 's') { // shared string index
+        const v = (body.match(/<v>([\s\S]*?)<\/v>/) || [])[1];
+        val = v != null ? (shared[+v] || '') : '';
+      } else if (tAttr === 'inlineStr') {
+        const t = (body.match(/<t[^>]*>([\s\S]*?)<\/t>/) || [])[1];
+        val = xmlDecode(t || '');
+      } else { // number / boolean / cached formula value
+        const v = (body.match(/<v>([\s\S]*?)<\/v>/) || [])[1];
+        val = v != null ? xmlDecode(v) : '';
+      }
+      cells.push(val);
+    }
+    rows.push(cells);
+  }
+  return rows;
+}
+// Unzip the entries we need from an xlsx ArrayBuffer using the browser's built-in
+// DecompressionStream (no ZIP library). Returns { name: text }. Async, browser-only.
+async function unzipXlsx(arrayBuffer, wantSuffixes) {
+  const bytes = new Uint8Array(arrayBuffer);
+  const dv = new DataView(arrayBuffer);
+  const dec = new TextDecoder();
+  const out = {}; let i = 0;
+  while (i + 4 <= bytes.length) {
+    if (dv.getUint32(i, true) !== 0x04034b50) break; // local file header
+    const flags = dv.getUint16(i + 6, true);
+    const method = dv.getUint16(i + 8, true);
+    const compSize = dv.getUint32(i + 18, true);
+    const nameLen = dv.getUint16(i + 26, true);
+    const extraLen = dv.getUint16(i + 28, true);
+    const nameStart = i + 30;
+    const name = dec.decode(bytes.subarray(nameStart, nameStart + nameLen));
+    const dataStart = nameStart + nameLen + extraLen;
+    if (flags & 0x08) throw new Error('streamed-zip'); // sizes in trailing descriptor — unsupported
+    const comp = bytes.subarray(dataStart, dataStart + compSize);
+    if (!wantSuffixes || wantSuffixes.some(w => name === w || name.endsWith(w))) {
+      let data;
+      if (method === 0) data = comp;
+      else {
+        const ds = new DecompressionStream('deflate-raw');
+        const wr = ds.writable.getWriter(); wr.write(comp); wr.close();
+        data = new Uint8Array(await new Response(ds.readable).arrayBuffer());
+      }
+      out[name] = dec.decode(data);
+    }
+    i = dataStart + compSize;
+  }
+  return out;
+}
 
 // Profit margin: percentage of SELL PRICE (not cost) that is profit.
 // sellPrice = COGS / (1 - margin/100). Stored globally, applies to all crews.
@@ -3933,14 +4135,15 @@ function closeActionsMenu() {
 function renameCurrentProject() {
   const proj = getCurrentProject();
   if (!proj) { alert('Select a project first.'); return; }
-  const name = prompt('Rename project:', proj.name || '');
-  if (name === null) return;
-  const trimmed = name.trim();
-  if (!trimmed) return;
-  proj.name = trimmed;
-  const t = document.getElementById('projectTitle'); if (t) t.value = trimmed;
-  save();
-  renderSidebar();
+  openNameModal({
+    title: 'Rename Project', label: 'Project name', value: proj.name || '',
+    onSave: (name) => {
+      proj.name = name;
+      const t = document.getElementById('projectTitle'); if (t) t.value = name;
+      save();
+      renderSidebar();
+    },
+  });
 }
 // Pure: a deep copy of a project as a fresh quote (new id/created, "(copy)" name,
 // pending status, no recorded price). Testable.
@@ -13667,7 +13870,175 @@ function switchTab(name, el) {
   if (name==='pavers') renderPaverTab();
   if (name==='mulch') renderGroundCoverTab('mulch');
   if (name==='riverRock') renderGroundCoverTab('riverRock');
+  if (name==='vendors') renderVendorTab();
   if (name==='settings') renderSettingsTables();
+}
+
+// ── Reusable name modal (matches the crew modal's look) ─────────────────────
+let _nameModalOnSave = null;
+function openNameModal(opts) {
+  opts = opts || {};
+  document.getElementById('nameModalTitle').textContent = opts.title || 'Rename';
+  document.getElementById('nameModalLabel').textContent = opts.label || 'Name';
+  const inp = document.getElementById('nameModalInput');
+  inp.value = opts.value || '';
+  inp.placeholder = opts.placeholder || '';
+  _nameModalOnSave = typeof opts.onSave === 'function' ? opts.onSave : null;
+  document.getElementById('nameModal').classList.add('open');
+  setTimeout(() => { inp.focus(); inp.select(); }, 0);
+}
+function closeNameModal() {
+  document.getElementById('nameModal').classList.remove('open');
+  _nameModalOnSave = null;
+}
+function saveNameModal() {
+  const inp = document.getElementById('nameModalInput');
+  const val = inp.value.trim();
+  if (!val) { inp.focus(); return; }
+  const cb = _nameModalOnSave;
+  closeNameModal();
+  if (cb) cb(val);
+}
+
+// ── Vendor Pricing tab ──────────────────────────────────────────────────────
+function renderVendorTab() {
+  const el = document.getElementById('vendorTabs');
+  const vendors = getVendors();
+  let active = getActiveVendorId();
+  if (!vendors.some(v => v.id === active)) active = vendors[0] ? vendors[0].id : '';
+  setActiveVendorId(active);
+  if (el) {
+    // Chip row matching the crew tabs: [ name ✓ ][ ✎ ][ × ].
+    el.innerHTML = vendors.length ? vendors.map(v => {
+      const isActive = v.id === active;
+      return `<div style="display:flex;align-items:center;gap:0;">
+        <button onclick="onVendorSelect('${v.id}')"
+          style="padding:7px 14px;border-radius:7px 0 0 7px;border:1px solid ${isActive?'#55B763':'var(--border)'};
+                 background:${isActive?'#55B763':'var(--surface)'};color:${isActive?'#fff':'var(--text-mid)'};
+                 font-size:12px;font-weight:${isActive?'700':'500'};font-family:'Nunito Sans',sans-serif;cursor:pointer;">
+          ${(v.name||'Vendor').replace(/</g,'&lt;')}${isActive?' ✓':''}
+        </button>
+        <button onclick="renameVendorPrompt('${v.id}')"
+          style="padding:7px 8px;border:1px solid ${isActive?'#55B763':'var(--border)'};border-left:none;
+                 background:${isActive?'#2B7653':'var(--surface2)'};color:${isActive?'#fff':'var(--text-light)'};
+                 font-size:11px;cursor:pointer;" title="Rename vendor">✎</button>
+        <button onclick="deleteVendorConfirm('${v.id}')"
+          style="padding:7px 8px;border:1px solid ${isActive?'#55B763':'var(--border)'};border-left:none;border-radius:0 7px 7px 0;
+                 background:var(--surface2);color:var(--text-light);font-size:11px;cursor:pointer;" title="Delete vendor">×</button>
+      </div>`;
+    }).join('') : '<span style="font-size:12px;color:var(--text-light);align-self:center;">No vendors yet — add one →</span>';
+  }
+  renderVendorViewer(active);
+}
+function onVendorSelect(id) { setActiveVendorId(id); renderVendorTab(); }
+
+function addVendorPrompt() {
+  openNameModal({
+    title: 'Add Vendor', label: 'Vendor name', placeholder: 'e.g. SynLawn, ForeverLawn',
+    onSave: (name) => {
+      const vendors = getVendors();
+      const id = 'v' + Date.now();
+      vendors.push({ id, name, fileName: '', fileType: '', addedAt: Date.now() });
+      setVendors(vendors);
+      setActiveVendorId(id);
+      renderVendorTab();
+    },
+  });
+}
+function renameVendorPrompt(id) {
+  const vendors = getVendors();
+  const v = vendors.find(x => x.id === (id || getActiveVendorId()));
+  if (!v) { alert('Add a vendor first.'); return; }
+  openNameModal({
+    title: 'Rename Vendor', label: 'Vendor name', value: v.name || '',
+    onSave: (name) => { v.name = name; setVendors(vendors); renderVendorTab(); },
+  });
+}
+function deleteVendorConfirm(id) {
+  const vendors = getVendors();
+  const vid = id || getActiveVendorId();
+  const v = vendors.find(x => x.id === vid);
+  if (!v) { alert('Add a vendor first.'); return; }
+  if (!confirm('Delete vendor "' + (v.name || '') + '" and its price list? This cannot be undone.')) return;
+  setVendors(vendors.filter(x => x.id !== vid));
+  vendorFileDelete(vid).catch(()=>{});
+  if (getActiveVendorId() === vid) setActiveVendorId('');
+  renderVendorTab();
+}
+
+function onVendorFileImport(input) {
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  let vendors = getVendors();
+  let id = getActiveVendorId();
+  // If no vendor is selected yet, create one named after the file.
+  if (!vendors.some(v => v.id === id)) {
+    id = 'v' + Date.now();
+    vendors.push({ id, name: file.name.replace(/\.[^.]+$/, ''), fileName: '', fileType: '', addedAt: Date.now() });
+  }
+  const kind = vendorFileKind(file.name);
+  if (kind === 'unsupported') { alert('Please import a PDF, Excel (.xlsx), or CSV file.'); input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    vendorFilePut(id, reader.result).then(() => {
+      const v = vendors.find(x => x.id === id);
+      v.fileName = file.name; v.fileType = kind;
+      setVendors(vendors);
+      setActiveVendorId(id);
+      renderVendorTab();
+    }).catch(() => alert('Could not store this file (it may be too large for the browser).'));
+  };
+  reader.onerror = () => alert('Could not read that file.');
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+
+async function renderVendorViewer(id) {
+  const el = document.getElementById('vendorViewer');
+  if (!el) return;
+  const vendors = getVendors();
+  const v = vendors.find(x => x.id === id);
+  if (!v) { el.innerHTML = '<div class="hint">No vendor selected. Click <strong>+ Add vendor</strong>, then <strong>↑ Import price list</strong>.</div>'; return; }
+  if (!v.fileName) { el.innerHTML = '<div class="hint">No price list for <strong>' + (v.name||'').replace(/</g,'&lt;') + '</strong> yet. Click <strong>↑ Import price list</strong> to add a PDF, Excel, or CSV.</div>'; return; }
+  el.innerHTML = '<div class="hint">Loading ' + (v.fileName||'').replace(/</g,'&lt;') + '…</div>';
+  let buf;
+  try { buf = await vendorFileGet(id); } catch (e) { buf = null; }
+  if (!buf) { el.innerHTML = '<div class="hint">This vendor\'s file isn\'t on this device (it isn\'t part of the JSON backup). Re-import it with <strong>↑ Import price list</strong>.</div>'; return; }
+
+  const header = '<div style="font-size:12px;color:var(--text-mid);margin-bottom:8px;">' + (v.fileName||'').replace(/</g,'&lt;') + '</div>';
+  if (v.fileType === 'pdf') {
+    const blob = new Blob([buf], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    el.innerHTML = header + '<iframe src="' + url + '" style="width:100%;height:70vh;border:1px solid var(--border);border-radius:8px;" title="Vendor price list"></iframe>';
+    return;
+  }
+  try {
+    let rows;
+    if (v.fileType === 'csv') {
+      rows = parseCSV(new TextDecoder().decode(buf));
+    } else { // xlsx
+      const entries = await unzipXlsx(buf, ['xl/sharedStrings.xml', 'sheet1.xml']);
+      const shared = parseXlsxSharedStrings(entries['xl/sharedStrings.xml'] || '');
+      const sheetName = Object.keys(entries).find(n => n.endsWith('sheet1.xml'));
+      rows = parseXlsxSheet(entries[sheetName] || '', shared);
+    }
+    el.innerHTML = header + renderVendorTable(rows);
+  } catch (e) {
+    // Fall back to a download link when parsing isn't possible (e.g. streamed xlsx).
+    const blob = new Blob([buf]);
+    const url = URL.createObjectURL(blob);
+    el.innerHTML = header + '<div class="hint">This spreadsheet couldn\'t be shown as a table. <a href="' + url + '" download="' + escAttr(v.fileName) + '">Download it</a> to open in Excel.</div>';
+  }
+}
+function renderVendorTable(rows) {
+  if (!rows || !rows.length) return '<div class="hint">The file has no rows to show.</div>';
+  const esc = s => String(s == null ? '' : s).replace(/</g, '&lt;');
+  const head = rows[0], body = rows.slice(1);
+  let html = '<div style="overflow:auto;max-height:70vh;border:1px solid var(--border);border-radius:8px;"><table style="border-collapse:collapse;width:100%;font-size:13px;">';
+  html += '<thead><tr>' + head.map(h => '<th style="text-align:left;padding:7px 10px;background:var(--surface2);border-bottom:2px solid var(--border);position:sticky;top:0;">' + esc(h) + '</th>').join('') + '</tr></thead><tbody>';
+  html += body.map((r, ri) => '<tr style="' + (ri%2?'background:var(--surface2);':'') + '">' + head.map((_, ci) => '<td style="padding:6px 10px;border-bottom:1px solid var(--border);">' + esc(r[ci] != null ? r[ci] : '') + '</td>').join('') + '</tr>').join('');
+  html += '</tbody></table></div>';
+  return html;
 }
 
 // ── Bark/Mulch & River Rock tabs (shared) ──────────────────────────────────

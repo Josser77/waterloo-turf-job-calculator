@@ -5,6 +5,50 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 51) — Vendor UI consistency: crew-style chips + modal (no browser prompts)
+
+Made vendor add/rename/select match the crew "pricing" UI exactly, per request:
+- The vendor dropdown is now a chip row identical to the crew tabs — each vendor is a
+  [ name ✓ ][ ✎ rename ][ × delete ] chip, active one highlighted green. "+ Add vendor"
+  and "↑ Import price list" sit alongside.
+- Add and Rename now open a styled modal (the same look as the Add/Rename Crew modal),
+  replacing the plain browser prompt() I'd used.
+
+Added one reusable name modal (openNameModal/saveNameModal/closeNameModal) and also routed
+the project Rename (Actions menu) through it, so there are NO browser prompt() dialogs left
+anywhere in the app — everything uses the app's own modal styling. Enter saves; Esc/Cancel
+closes.
+
+No test-count change (UI wiring; the vendor data/parsers are already covered). Verified
+headlessly: chips render, the modal opens titled correctly, and add/rename update the vendor
+list. Tests **1687** (README **1687**), green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 50) — Vendor Pricing tab (import & view PDF / Excel / CSV per vendor)
+
+New Vendor Pricing tab. Keep each supplier's price list for quick reference, switch between
+vendors with a dropdown (like crews): + Add vendor, Rename, Delete, and ↑ Import price list.
+
+- PDF price lists render in an embedded viewer (blob URL in an iframe).
+- Excel (.xlsx) and CSV render as a scrollable table. xlsx is parsed with NO library: the
+  file is unzipped using the browser's built-in DecompressionStream (deflate-raw), and the
+  sheet + shared strings are parsed from their XML. Streamed/exotic xlsx falls back to a
+  download link.
+- Storage: file BYTES live in IndexedDB (a PDF is far too big for localStorage's ~5MB
+  shared budget); vendor metadata (name, filename, type) lives in localStorage. IMPORTANT:
+  vendor files are NOT in the JSON export/backup — they're re-importable reference docs, so
+  moving machines means re-importing. Metadata is small and does ride along in localStorage.
+
+Pure, tested parsers: parseCSV (quotes/doubled-quotes/embedded commas), parseXlsxSharedStrings,
+parseXlsxSheet (shared-string / inline / number cells, entity decoding), vendorFileKind,
+renderVendorTable. Full path (real .xlsx → IndexedDB → unzip → table, and PDF embed)
+verified headlessly with an openpyxl-generated workbook.
+
+Tests **1672 → 1687** (README **1687**). Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 49) — Fix: Minimize waste reported a saving but nothing changed
 
 The ✨ Minimize waste (all layers) button showed a "saved X ft²" toast but the layout,
