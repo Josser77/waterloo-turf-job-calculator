@@ -7607,7 +7607,7 @@ section('142. Getting Started walkthrough');
   assert(!/Vendor pricing<\/strong> — import/.test(settingsStep), 'the Settings step no longer lists Vendor Pricing as a Settings item');
   assert(/Import your <strong>Moasure CSV<\/strong>/.test(src), 'the create step imports the Moasure CSV');
   assert(/roll rotation<\/strong> and <strong>seam offsets/.test(src), 'the Layout step covers rotation and seams');
-  assert(/sit in the strip along the <strong>top bar<\/strong>/.test(src), 'the Layout step points to the top-bar totals strip for order figures');
+  assert(/sit in the bar just <strong>above the tabs<\/strong>/.test(src), 'the Layout step locates the totals bar above the tabs');
   // Multi-file Moasure import is a Layout-tab capability, not the new-project modal.
   const createStep = src.slice(src.indexOf('Create a project & import Moasure'), src.indexOf("actionFn: 'wizardGoNewProject'"));
   assert(/combine several Moasure files[\s\S]{0,80}Layout<\/strong> tab/.test(createStep), 'the create step says multi-file import happens on the Layout tab');
@@ -7620,6 +7620,11 @@ section('142. Getting Started walkthrough');
   assert(/function wizardGoNewProject[\s\S]{0,120}openNewProjectModal/.test(src), 'a Create action opens the new-project modal');
   assert(/function wizardGoLayout[\s\S]{0,80}gotoTab\('layout'\)/.test(src), 'a Layout action switches to the Layout tab');
   assert(/actionFn:\s*'wizardGoSettings'/.test(src) && /actionFn:\s*'wizardGoNewProject'/.test(src) && /actionFn:\s*'wizardGoLayout'/.test(src), 'the three work steps carry their action buttons');
+  // The card can be minimized to a pill so it stops covering the Layout controls.
+  assert(/function wizardMinimize[\s\S]{0,80}applyWizardMinimized/.test(src), 'there is a minimize action');
+  assert(/function wizardExpand[\s\S]{0,80}applyWizardMinimized/.test(src), 'the pill expands back to the card');
+  assert(/id="wizardPill"[\s\S]{0,120}wizardExpand\(\)/.test(src), 'the minimized pill reopens the walkthrough on click');
+  assert(/\$\{step\.actionFn\}\(\);wizardMinimize\(\)/.test(src), 'clicking a step action tucks the card away automatically');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

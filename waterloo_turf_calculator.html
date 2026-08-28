@@ -2262,10 +2262,13 @@
 
 <!-- GETTING STARTED WALKTHROUGH (floating, non-blocking coach card) -->
 <div class="modal-overlay" id="wizardModal" style="z-index:1300;background:transparent;pointer-events:none;align-items:flex-end;justify-content:flex-end;padding:20px;">
-  <div class="modal" style="width:400px;max-width:94vw;max-height:86vh;overflow:auto;pointer-events:auto;margin:0;box-shadow:0 10px 44px rgba(0,0,0,0.30);">
+  <div class="modal" id="wizardCard" style="width:400px;max-width:94vw;max-height:86vh;overflow:auto;pointer-events:auto;margin:0;box-shadow:0 10px 44px rgba(0,0,0,0.30);">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px;">
       <div class="modal-title" id="wizardTitle" style="margin:0;">Welcome</div>
-      <button onclick="closeWizard()" title="Close" style="background:none;border:none;font-size:20px;line-height:1;color:var(--text-light);cursor:pointer;padding:0 2px;">✕</button>
+      <div style="display:flex;gap:2px;flex-shrink:0;">
+        <button onclick="wizardMinimize()" title="Minimize — get it out of the way" style="background:none;border:none;font-size:20px;line-height:1;color:var(--text-light);cursor:pointer;padding:0 6px;">–</button>
+        <button onclick="closeWizard()" title="Close" style="background:none;border:none;font-size:18px;line-height:1;color:var(--text-light);cursor:pointer;padding:0 2px;">✕</button>
+      </div>
     </div>
     <div id="wizardProgress" style="display:flex;gap:5px;margin-bottom:14px;"></div>
     <div id="wizardBody" style="font-size:14px;color:var(--text);line-height:1.55;min-height:180px;"></div>
@@ -2282,6 +2285,12 @@
         <button class="btn btn-primary btn-sm" id="wizardNextBtn" onclick="wizardNext()">Next →</button>
       </div>
     </div>
+  </div>
+  <div id="wizardPill" onclick="wizardExpand()" title="Resume the walkthrough"
+    style="display:none;pointer-events:auto;cursor:pointer;background:var(--green);color:#fff;
+           border-radius:22px;padding:10px 16px;font-size:13px;font-weight:700;font-family:'Nunito Sans',sans-serif;
+           box-shadow:0 6px 24px rgba(0,0,0,0.28);white-space:nowrap;">
+    ▸ Getting Started<span style="opacity:0.85;font-weight:500;"> · <span id="wizardPillStep">Step 1 of 6</span></span>
   </div>
 </div>
 
@@ -2619,7 +2628,7 @@
         <p>Rotates the drawing to match how you're viewing the yard on-site. Purely cosmetic — does not affect area, roll counts, or any calculations.</p>
 
         <div class="docs-h3">Roll Settings &amp; the Layout key metrics</div>
-        <p>The four roll <strong>dimensions</strong> live under the <strong>⚙ Settings</strong> tab → <em>Roll Settings</em>. They're a <strong>global default</strong> shared by every project. With a project open, changing any value pops a quick dialog — <strong>Every project (global default)</strong> or <strong>Only this project</strong> — so you decide the scope of each change; <em>Cancel</em> reverts it. A per-project override is field-granular (overriding one field still tracks the global for the others), and a status line shows whether the open job is on the global or overriding, with <em>Reset this job to the global default</em> to drop it. With no project open, editing just sets the global default. Standard rolls are 15 ft × 100 ft. The <strong>live layout totals</strong> — <strong>Installed SqFt</strong> (the total installed turf across <em>all</em> Install layers, primary plus every secondary marked Install, plus any Free-fill layers, minus any cutouts), <strong>Ordered SqFt</strong>, <strong>Ordered Linear Ft</strong>, <strong>Perimeter</strong>, and <strong>Scrap</strong> — sit in the <strong>top toolbar</strong>, just right of the <strong>⚙ Settings</strong> tab, so they stay visible on every tab. The rest of the controls are split into <strong>sub-tabs</strong> at the top of the right pane — <em>Layers</em> (the per-layer list — the day-to-day controls, shown first), <em>Results</em>, <em>Apply</em>, <em>Display</em>, and (only when a putting green exists) <em>Fringe</em> — so each section is one click away with no long scroll. <strong>Roll direction &amp; seam offset are set per layer:</strong> the <em>primary shape</em> has its own <strong>Roll dir / Seam off</strong> sliders (plus Horizontal / Vertical / Auto) in its card at the top of the <em>Layers</em> list, and each install layer has the same in its own card (until changed, a secondary layer "matches primary"). While you drag a roll-direction, seam, or rotate slider, the canvas holds its current size so nothing jumps — it re-fits to the shape when you release. Each layer's name is shown on the diagram. The roll dimensions themselves:</p>
+        <p>The four roll <strong>dimensions</strong> live under the <strong>⚙ Settings</strong> tab → <em>Roll Settings</em>. They're a <strong>global default</strong> shared by every project. With a project open, changing any value pops a quick dialog — <strong>Every project (global default)</strong> or <strong>Only this project</strong> — so you decide the scope of each change; <em>Cancel</em> reverts it. A per-project override is field-granular (overriding one field still tracks the global for the others), and a status line shows whether the open job is on the global or overriding, with <em>Reset this job to the global default</em> to drop it. With no project open, editing just sets the global default. Standard rolls are 15 ft × 100 ft. The <strong>live layout totals</strong> — <strong>Installed SqFt</strong> (the total installed turf across <em>all</em> Install layers, primary plus every secondary marked Install, plus any Free-fill layers, minus any cutouts), <strong>Ordered SqFt</strong>, <strong>Ordered Linear Ft</strong>, <strong>Perimeter</strong>, and <strong>Scrap</strong> — sit in the always-visible <strong>totals bar just above the tabs</strong>, so they stay visible on every tab. The rest of the controls are split into <strong>sub-tabs</strong> at the top of the right pane — <em>Layers</em> (the per-layer list — the day-to-day controls, shown first), <em>Results</em>, <em>Apply</em>, <em>Display</em>, and (only when a putting green exists) <em>Fringe</em> — so each section is one click away with no long scroll. <strong>Roll direction &amp; seam offset are set per layer:</strong> the <em>primary shape</em> has its own <strong>Roll dir / Seam off</strong> sliders (plus Horizontal / Vertical / Auto) in its card at the top of the <em>Layers</em> list, and each install layer has the same in its own card (until changed, a secondary layer "matches primary"). While you drag a roll-direction, seam, or rotate slider, the canvas holds its current size so nothing jumps — it re-fits to the shape when you release. Each layer's name is shown on the diagram. The roll dimensions themselves:</p>
         <ul class="docs-list">
           <li><strong>Roll Width</strong> — width of the turf roll as purchased.</li>
           <li><strong>Roll Length</strong> — maximum length of a single piece; longer runs are split, each adding a Cutting Margin.</li>
@@ -2631,7 +2640,7 @@
         <p>Each roll strip only orders the length it actually needs based on where it intersects the shape — strips don't all buy the full bounding-box length. Ordered length is rounded up to the next whole foot, since turf is sold in Roll Width × 1ft increments. This produces accurate per-strip quantities and more realistic scrap percentages.</p>
 
         <div class="docs-h3">Roll Results</div>
-        <p>The <strong>Results</strong> tab shows the rolls/piece count and per-layer breakdown, with extra detail (cut/nest tools, Piece List) under a small <strong>Advanced</strong> twisty so a standard install isn't cluttered. Both <strong>Apply</strong> buttons — <em>Apply Installed SqFt → turf row</em> and <em>Apply Ordered SqFt → turf row</em> — live together on the <strong>Apply</strong> tab. <em>Apply Ordered SqFt</em> is usually the one you want: it sets the row's <strong>SqFt to Order</strong> <em>and</em> its <strong>Installed SqFt</strong>, so infill (which derives its area from Installed SqFt), labor, and rock all cascade from the one click. <em>Apply Installed SqFt</em> sets just the installed area. Each applies to the <strong>one row</strong> selected in its dropdown. <strong>🔗 Live link:</strong> under <em>Apply Ordered SqFt</em> there's a <strong>Live</strong> checkbox (on by default) that keeps the selected row in sync with the layout automatically — no button press. <strong>Ordered SqFt</strong> follows the roll plan, so it updates when you change <strong>roll rotation or seam offset</strong>. <strong>Installed SqFt</strong> follows the shape's area (role-aware — a Base Yard row includes the putting-green footprint; Alt Turf rows are skipped since they're priced on the base), so it updates when you <strong>edit the shape or its exclusions</strong>, and that cascades to infill, rock, and labor. Rotating rolls does <em>not</em> change Installed (it doesn't change how much ground you cover), so materials don't churn while you're just comparing roll options. Updates fire when you release a slider (not mid-drag), targeting the row picked in the dropdown; turn it off to explore freely without touching the quote. <strong>Installed SqFt, Ordered SqFt, Ordered Linear Ft, Perimeter, and Scrap</strong> all live in the always-visible totals strip in the top toolbar (right of ⚙ Settings).</p>
+        <p>The <strong>Results</strong> tab shows the rolls/piece count and per-layer breakdown, with extra detail (cut/nest tools, Piece List) under a small <strong>Advanced</strong> twisty so a standard install isn't cluttered. Both <strong>Apply</strong> buttons — <em>Apply Installed SqFt → turf row</em> and <em>Apply Ordered SqFt → turf row</em> — live together on the <strong>Apply</strong> tab. <em>Apply Ordered SqFt</em> is usually the one you want: it sets the row's <strong>SqFt to Order</strong> <em>and</em> its <strong>Installed SqFt</strong>, so infill (which derives its area from Installed SqFt), labor, and rock all cascade from the one click. <em>Apply Installed SqFt</em> sets just the installed area. Each applies to the <strong>one row</strong> selected in its dropdown. <strong>🔗 Live link:</strong> under <em>Apply Ordered SqFt</em> there's a <strong>Live</strong> checkbox (on by default) that keeps the selected row in sync with the layout automatically — no button press. <strong>Ordered SqFt</strong> follows the roll plan, so it updates when you change <strong>roll rotation or seam offset</strong>. <strong>Installed SqFt</strong> follows the shape's area (role-aware — a Base Yard row includes the putting-green footprint; Alt Turf rows are skipped since they're priced on the base), so it updates when you <strong>edit the shape or its exclusions</strong>, and that cascades to infill, rock, and labor. Rotating rolls does <em>not</em> change Installed (it doesn't change how much ground you cover), so materials don't churn while you're just comparing roll options. Updates fire when you release a slider (not mid-drag), targeting the row picked in the dropdown; turn it off to explore freely without touching the quote. <strong>Installed SqFt, Ordered SqFt, Ordered Linear Ft, Perimeter, and Scrap</strong> all live in the always-visible totals bar just above the tabs.</p>
 
         <p><strong>Use layout perimeter (X ft):</strong> a button under <em>Linear Feet of Edging</em> on the Quote Builder fills the field with the layout's <strong>total boundary length across every shape</strong> — the same "Total — all edges" the Layers tab shows. It's a <strong>click, not an automatic fill</strong>, and that's deliberate: this is the <em>maximum</em> possible edging, but edging only goes where turf meets soil or a bed — any run against a house, patio, or driveway needs none. So the number is offered as a starting point for you to trim down, rather than silently over-quoting every job with a hardscape edge. The button only appears once a layout exists, and its figure updates as shapes are added or edited.</p>
         <p>The <strong>New Project</strong> dialog has the same button under its <em>Edging (Linear Feet)</em> field — <strong>"↧ Use CSV perimeter (X ft)"</strong> — as soon as you attach a CSV, so you can set edging while creating the job rather than going back for it. It offers the <strong>all-shapes</strong> total (the "Perimeter" line above it is the main outline only), which is the same figure the Layers tab shows once the project exists, so the number doesn't change on create.</p>
@@ -14039,26 +14048,6 @@ function switchTab(name, el) {
 // ── Getting Started walkthrough ─────────────────────────────────────────────
 const WIZARD_KEY = 'wt_wizard_seen_v1';
 const WIZARD_DISMISS_KEY = 'wt_wizard_hide_v1'; // set only when the user ticks "don't show again"
-// Simple inline diagram of the app layout (no dependency on live DOM positions).
-const WIZARD_LAYOUT_SVG = `<svg viewBox="0 0 320 150" style="width:100%;max-width:340px;display:block;margin:6px auto 2px;border:1px solid var(--border);border-radius:8px;background:var(--surface);">
-  <rect x="0" y="0" width="78" height="150" fill="#22452f"/>
-  <rect x="10" y="12" width="58" height="9" rx="2" fill="#ffffff" opacity="0.85"/>
-  <rect x="10" y="30" width="58" height="14" rx="3" fill="#ffffff" opacity="0.18"/>
-  <rect x="10" y="48" width="58" height="14" rx="3" fill="#55B763" opacity="0.9"/>
-  <rect x="10" y="66" width="58" height="14" rx="3" fill="#ffffff" opacity="0.18"/>
-  <rect x="10" y="128" width="58" height="12" rx="3" fill="#ffffff" opacity="0.28"/>
-  <rect x="86" y="10" width="226" height="18" rx="3" fill="var(--surface2)" stroke="var(--border)"/>
-  <rect x="92" y="15" width="46" height="8" rx="2" fill="#55B763"/>
-  <rect x="146" y="15" width="34" height="8" rx="2" fill="var(--text-light)" opacity="0.5"/>
-  <rect x="186" y="15" width="34" height="8" rx="2" fill="var(--text-light)" opacity="0.5"/>
-  <rect x="226" y="15" width="34" height="8" rx="2" fill="var(--text-light)" opacity="0.5"/>
-  <rect x="86" y="36" width="226" height="104" rx="4" fill="var(--surface)" stroke="var(--border)"/>
-  <rect x="96" y="48" width="120" height="9" rx="2" fill="#2B7653"/>
-  <rect x="96" y="66" width="206" height="7" rx="2" fill="var(--text-light)" opacity="0.35"/>
-  <rect x="96" y="80" width="206" height="7" rx="2" fill="var(--text-light)" opacity="0.35"/>
-  <rect x="96" y="100" width="96" height="30" rx="4" fill="#55B763" opacity="0.15" stroke="#55B763"/>
-  <rect x="206" y="100" width="96" height="30" rx="4" fill="var(--surface2)" stroke="var(--border)"/>
-</svg>`;
 const WIZARD_STEPS = [
   { title: 'Welcome 👋', body:
     `<p>This tool helps you plan turf jobs — how much turf, infill, edging, and base to order, plus labor and a pricing reference.</p>
@@ -14084,9 +14073,8 @@ const WIZARD_STEPS = [
      <p style="margin-top:10px;color:var(--text-light);">Need to combine several Moasure files into one job? Do that on the <strong>Layout</strong> tab, which supports importing multiple files.</p>`,
     actionLabel: '＋ Start a new project', actionFn: 'wizardGoNewProject' },
   { title: 'Lay out the job', body:
-    `${WIZARD_LAYOUT_SVG}
-     <p style="margin-top:6px;">Open the <strong>Layout</strong> tab — this is where you'll <strong>spend most of your time</strong>. Adjust <strong>roll rotation</strong> and <strong>seam offsets</strong>, manage <strong>layers</strong>, and let <strong>✨ Minimize waste</strong> find the lowest-waste roll direction.</p>
-     <p style="margin-top:8px;color:var(--text-light);">Your order figures — <strong>Installed</strong>, <strong>Ordered</strong>, <strong>Turf LF</strong>, and <strong>Scrap</strong> — sit in the strip along the <strong>top bar</strong> (just right of ⚙ Settings) and stay visible on every tab, so they're an easy running reference as you adjust the layout. The Layout tab also builds the installer cut list.</p>`,
+    `<p>Open the <strong>Layout</strong> tab — this is where you'll <strong>spend most of your time</strong>. Adjust <strong>roll rotation</strong> and <strong>seam offsets</strong>, manage <strong>layers</strong>, and let <strong>✨ Minimize waste</strong> find the lowest-waste roll direction.</p>
+     <p style="margin-top:8px;color:var(--text-light);">Your order figures — <strong>Installed</strong>, <strong>Ordered</strong>, <strong>Turf LF</strong>, and <strong>Scrap</strong> — sit in the bar just <strong>above the tabs</strong>, and stay visible on every tab, so they're an easy running reference as you adjust the layout. The Layout tab also builds the installer cut list.</p>`,
     actionLabel: '📐 Go to the Layout tab', actionFn: 'wizardGoLayout' },
   { title: 'Pricing (optional)', body:
     `<p>Want a quick price? The <strong>Quote Builder</strong> shows priced options (with and without a putting green, alternate turf, and so on) from your installed square footage.</p>
@@ -14098,6 +14086,7 @@ const WIZARD_STEPS = [
     final: true },
 ];
 let _wizardStep = 0;
+let _wizardMinimized = false;
 // Pure: keep a step index within [0, total-1]. Testable.
 function clampWizardStep(i, total) {
   if (!(total > 0)) return 0;
@@ -14106,10 +14095,25 @@ function clampWizardStep(i, total) {
 }
 function openWizard(startIndex) {
   _wizardStep = clampWizardStep(startIndex || 0, WIZARD_STEPS.length);
+  _wizardMinimized = false;
   const cb = document.getElementById('wizardDontShow'); if (cb) cb.checked = false;
   renderWizardStep();
+  applyWizardMinimized();
   document.getElementById('wizardModal').classList.add('open');
 }
+// Collapse the coach card to a small pill (so it stops covering the Layout controls),
+// and bring it back on click.
+function applyWizardMinimized() {
+  const card = document.getElementById('wizardCard');
+  const pill = document.getElementById('wizardPill');
+  if (!card || !pill) return;
+  card.style.display = _wizardMinimized ? 'none' : '';
+  pill.style.display = _wizardMinimized ? 'inline-block' : 'none';
+  const label = document.getElementById('wizardPillStep');
+  if (label) label.textContent = `Step ${_wizardStep + 1} of ${WIZARD_STEPS.length}`;
+}
+function wizardMinimize() { _wizardMinimized = true; applyWizardMinimized(); }
+function wizardExpand() { _wizardMinimized = false; applyWizardMinimized(); }
 function closeWizard() {
   document.getElementById('wizardModal').classList.remove('open');
   // Only stop showing it next time if the user explicitly ticked "don't show again".
@@ -14132,8 +14136,8 @@ function renderWizardStep() {
   const step = WIZARD_STEPS[_wizardStep] || WIZARD_STEPS[0];
   document.getElementById('wizardTitle').textContent = step.title;
   const cta = step.actionFn
-    ? `<div style="margin-top:16px;"><button class="btn btn-primary btn-sm" onclick="${step.actionFn}()" style="font-weight:700;">${step.actionLabel}</button>
-       <div style="font-size:12px;color:var(--text-light);margin-top:6px;">Do that here, then click <strong>Next →</strong> to continue.</div></div>`
+    ? `<div style="margin-top:16px;"><button class="btn btn-primary btn-sm" onclick="${step.actionFn}();wizardMinimize()" style="font-weight:700;">${step.actionLabel}</button>
+       <div style="font-size:12px;color:var(--text-light);margin-top:6px;">This tucks the card into a pill so it's out of your way. Reopen it to click <strong>Next →</strong>.</div></div>`
     : '';
   document.getElementById('wizardBody').innerHTML = step.body + cta;
   document.getElementById('wizardStepLabel').textContent = `Step ${_wizardStep + 1} of ${total}`;
@@ -14141,6 +14145,8 @@ function renderWizardStep() {
   document.getElementById('wizardProgress').innerHTML = WIZARD_STEPS.map((_, i) =>
     `<span style="height:5px;flex:1;border-radius:3px;background:${i <= _wizardStep ? 'var(--green)' : 'var(--border)'};"></span>`
   ).join('');
+  const label = document.getElementById('wizardPillStep');
+  if (label) label.textContent = `Step ${_wizardStep + 1} of ${WIZARD_STEPS.length}`;
   const backBtn = document.getElementById('wizardBackBtn');
   backBtn.style.visibility = _wizardStep === 0 ? 'hidden' : 'visible';
   const nextBtn = document.getElementById('wizardNextBtn');

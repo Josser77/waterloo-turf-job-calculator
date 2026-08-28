@@ -5,6 +5,42 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 70) — Remove the layout diagram from walkthrough step 4
+
+Dropped the small SVG app-layout diagram from the "Lay out the job" step; it now reads as plain
+text. Also removed the now-unused WIZARD_LAYOUT_SVG constant (no dead code left).
+
+Tests **1766** (unchanged). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 69) — Walkthrough card can minimize to a pill (stops covering Layout controls)
+
+The floating coach card sits bottom-right, which is exactly where the Layout tab's right-pane
+controls live. Added a minimize button (–) that collapses the card to a small "▸ Getting
+Started · Step X of 6" pill in the corner; click the pill to bring the card back. Also,
+clicking a step's action button (Open Settings / Start a project / Go to Layout) now
+auto-minimizes the card, so you land on the page you navigated to with nothing in the way.
+Minimize works on touch too (unlike a drag), so it's iPad-safe.
+
+Tests **1762 → 1766** (README **1766**): minimize/expand functions, the pill reopens on click,
+and actions auto-minimize. Verified end-to-end in a browser. Green under UTC and
+America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 68) — Fix totals-strip location in walkthrough + docs (above the tabs)
+
+The walkthrough's Layout step said the order figures sit "just right of ⚙ Settings" — wrong.
+The totals bar (#topMetrics) is its own row directly above the tab row. Corrected the
+walkthrough copy to "just above the tabs", and fixed the same stale description in two places
+in the User Guide.
+
+Tests **1762** (unchanged count; updated the Layout-step assertion to the corrected wording).
+Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 67) — Walkthrough copy fixes: multi-file import + order figures
 
 Two accuracy fixes in the walkthrough:
