@@ -2657,8 +2657,8 @@ section('37. Putting green fringe: layer mode, config persistence, and quote cos
     // Fringe summary shows correct perimeter/sqft/cost
     const summary = inputs.fringeSummary.innerHTML;
     assert(summary.includes('60.0 ft'), `fringe summary shows PG perimeter 60.0 ft (got: ${summary})`);
-    assert(summary.includes('152.0 sqft'), `fringe summary shows fringe sqft 152.0 (got: ${summary})`);
-    assert(summary.includes('$304.00'), `fringe summary shows fringe material cost $304.00 = 152*2.00 (got: ${summary})`);
+    assert(summary.includes('12 lin ft'), `fringe summary shows 12 linear ft to order (got: ${summary})`);
+    assert(summary.includes('$24.00'), `fringe summary shows fringe material cost $24.00 = 12 lin ft * 2.00 (got: ${summary})`);
 
     // Quote: "No Putting Green" card has no fringe line; "With PG" card does, and COGS includes it
     const html = inputs.quoteOptionsContainer.innerHTML;
@@ -2667,7 +2667,7 @@ section('37. Putting green fringe: layer mode, config persistence, and quote cos
     const withPgCard = cards.find(c => c.includes('WT PDX Putt 85'));
     assert(noPgCard && !noPgCard.includes('PG Fringe'), '"No Putting Green" card has no PG Fringe line');
     assert(withPgCard && withPgCard.includes('PG Fringe'), '"With Putting Green" card includes a PG Fringe line');
-    assert(withPgCard.includes('$304.00'), '"With Putting Green" card shows fringe cost $304.00');
+    assert(withPgCard.includes('$24.00'), '"With Putting Green" card shows fringe cost $24.00 (12 lin ft * $2.00)');
     assert(withPgCard.includes('Putting green turf'), '"With Putting Green" card shows the green\'s turf material line');
 
     // Sanity: total COGS for the PG card includes fringe cost as an additive component.
@@ -2677,7 +2677,7 @@ section('37. Putting green fringe: layer mode, config persistence, and quote cos
     // roll, so it needs a second width). Base install (labor) is outline−green = 1800.
     // Std yard: 1800*$8=$14,400; PG labor: 200*$12=$2,400; base turf mat: 2250*$2.50=$5,625;
     // PG turf mat: 300*$3.50=$1,050; fringe: $304.
-    const expectedCogs = 1800*8 + 200*12 + 2250*2.50 + 300*3.50 + 304;
+    const expectedCogs = 1800*8 + 200*12 + 2250*2.50 + 300*3.50 + 24; // fringe now 12 lin ft * $2 = $24
     const priceMatch = withPgCard.match(/opt-price\">(\$[\d,]+\.\d\d)<\/div>/);
     assert(priceMatch, 'PG card has a price figure');
     const actualCogs = parseFloat(priceMatch[1].replace(/[$,]/g,''));
@@ -7497,6 +7497,58 @@ section('137. Crew reordering shares the generic reorderById helper');
   assert(ctx.reorderVendors(V,'a','c').map(v=>v.id).join('') === ctx.reorderById(V,'a','c').map(v=>v.id).join(''), 'reorderVendors and reorderById agree');
   ctx.reorderById(crews, 'c1', 'c3');
   assert(ids(crews) === 'c1c2c3', 'original crew array not mutated');
+}
+
+section('138. Cut list PDF filename = "<project> - Cut List"');
+{
+  assert(ctx.cutListDocTitle('Smith Backyard') === 'Smith Backyard - Cut List', 'uses the project name + " - Cut List"');
+  assert(ctx.cutListDocTitle('  Jones Putting Green  ') === 'Jones Putting Green - Cut List', 'trims surrounding whitespace');
+  assert(ctx.cutListDocTitle('') === 'Turf Job - Cut List', 'blank name → a sensible fallback');
+  assert(ctx.cutListDocTitle(null) === 'Turf Job - Cut List', 'null name → fallback, no throw');
+  // The print document actually uses it as its <title> (which becomes the Save-as-PDF name).
+  const doc = ctx.buildCutListPrintDoc({ jobName: 'Maple Ave Yard', cutListHtml: '' });
+  assert(doc.indexOf('<title>Maple Ave Yard - Cut List</title>') !== -1, 'the print doc <title> drives the filename');
+}
+
+section('139. Fringe order = pieces packed across the roll width → linear feet');
+{
+  const f = ctx.fringeOrderFromPieces;
+  // Four 15 ft pieces, 1 ft fringe, 15 ft roll: each piece fills a full-width row → 4 rows,
+  // 4 linear feet (NOT 60 — the old bug treated the 60 sqft footprint as 60 linear feet).
+  assert(JSON.stringify(f([15,15,15,15], 15, 1)) === JSON.stringify({rows:4,linearFt:4,orderedSqFt:60}), 'four 15 ft pieces → 4 rows, 4 lin ft');
+  // Thirty 1 ft pieces pack 15-per-row → 2 rows, 2 linear feet.
+  assert(f(Array(30).fill(1), 15, 1).linearFt === 2, 'thirty 1 ft pieces → 2 lin ft (15 across each row)');
+  // Two 11 ft + one 12 ft can't share a 15 ft row → 3 rows.
+  assert(f([11,11,12], 15, 1).rows === 3, 'pieces that do not fit two-across each take their own row');
+  // Fringe wider than 1 ft: rows × width, rounded up to a whole foot. 3 rows × 1.5 = 4.5 → 5.
+  assert(f([15,15,15], 15, 1.5).linearFt === 5, '3 rows of a 1.5 ft fringe → ceil(4.5) = 5 lin ft');
+  assert(f([], 15, 1).linearFt === 0 && f([5], 15, 0).linearFt === 0, 'empty pieces or zero width → 0 lin ft');
+
+  // Full plan: 20x10 green, 1 ft fringe, 15 ft roll — the case from the bug report.
+  const pg = [{x:0,y:0},{x:20,y:0},{x:20,y:10},{x:0,y:10}];
+  const plan = ctx.computeFringePlan(pg, 1, 100, 15);
+  assert(plan.linearFtToOrder > 0 && plan.linearFtToOrder < plan.totalSqFt, 'linear ft to order is far below the raw material sqft (no longer 1 lin ft per sqft)');
+  assert(plan.orderedSqFt === plan.linearFtToOrder * plan.rollWidth, 'ordered roll area = linear ft * roll width');
+}
+
+section('140. Fringe turf type');
+{
+  // Type label helper covers the new fringe type plus the existing ones.
+  assert(ctx.turfTypeLabel('putting') === 'Putting Green', 'putting → Putting Green');
+  assert(ctx.turfTypeLabel('fringe') === 'Fringe', 'fringe → Fringe');
+  assert(ctx.turfTypeLabel('standard') === 'Standard', 'standard → Standard');
+  assert(ctx.turfTypeLabel(undefined) === 'Standard' && ctx.turfTypeLabel('') === 'Standard', 'missing type → Standard');
+  // The Fringe type exists and is selectable, but the default catalog does NOT presume any
+  // product is fringe — the user designates their own (a product like K9 Cascade Pro is often
+  // used as base yard, so it ships as "standard"). PDX Putt stays "putting".
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/WT K9 Cascade Pro'.*type:\s*'standard'/.test(src), 'default catalog: K9 Cascade Pro ships as "standard" (not hardcoded fringe)');
+  assert(/WT PDX Putt 85'.*type:\s*'putting'/.test(src), 'default catalog: the PDX Putt product is type "putting"');
+  // "Fringe" is offered as a type option in Settings.
+  assert(/<option value="fringe">Fringe<\/option>/.test(src), 'Fringe is an available turf-type option');
+  // The product picker for new projects lists ALL turf products (no type filtering), so a
+  // fringe-typed product can still be chosen and used as a base-yard row.
+  assert(/turfCheckboxes[\s\S]{0,400}cat\.turf\.map/.test(src), 'new-project turf picker lists all products regardless of type');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

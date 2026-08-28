@@ -2076,6 +2076,7 @@
         <select id="ciTurfType">
           <option value="standard">Standard</option>
           <option value="putting">Putting Green</option>
+          <option value="fringe">Fringe</option>
         </select>
       </div>
       <div class="field-group">
@@ -2536,7 +2537,7 @@
         <div class="docs-h3">Putting Green Fringe</div>
         <p>Once a layer is set to <strong>Putting Green</strong>, a <strong>Fringe</strong> sub-tab appears in the Layout right pane. Open it and check <strong>"Add a fringe border around the putting green"</strong> to enable it, then choose a <strong>Fringe Turf Product</strong> from your catalog and set the <strong>Fringe Width</strong> (in feet) — the border strip's width all the way around the green.</p>
         <p>The fringe is calculated as a ring around the putting green's actual perimeter (traced from its Moasure outline), offset outward by the fringe width with properly mitered corners — adjacent pieces meet exactly edge-to-edge with no overlap and no gap, so the canvas doesn't show doubled-up or duplicated-looking pieces. Rather than cutting one piece per original boundary point — which for a Moasure-captured outline with curves or rounded corners could mean dozens (or with very fine-grained traces, over a hundred) of tiny pieces — nearby straight or gently-curved sections of the perimeter are first merged into single longer pieces wherever the boundary stays within about half the fringe width of a straight line between their endpoints, capped at Max Roll Length so each piece can still be cut from one roll. Each merged piece is then a simple trapezoid (a rectangle once cut) running between mitered corners; on any unusually sharp or jagged corner where a true miter would spike out unreasonably far, that corner is squared off (beveled) instead, keeping every piece a sensible size. This intentionally orders a bit more material than the bare ring area — the summary shows the ring area, total sqft to order, and the difference between them — in exchange for far fewer seams and cuts, which is worth it for most jobs. The fringe width directly controls all of this: a wider fringe both adds more sqft per piece and allows more merging (since the deviation tolerance scales with width), so changing it reflows the whole plan.</p>
-        <p>On the canvas, the fringe is drawn in orange around the green. By default each piece is filled and labeled ("Fringe 1", "Fringe 2", etc.) so you can match the diagram to your cut list. Uncheck <strong>"Show fringe pieces on canvas"</strong> to instead draw a single smooth outline at the fringe width, following the green's actual outline point-for-point — this is closer to how the fringe would actually look once installed, rather than the coarser straight-edged pieces used for cutting/ordering. This only affects the canvas drawing; the Piece List, sqft, and pricing are unaffected either way.</p>
+        <p>On the canvas, the fringe is drawn in orange around the green. Set which turf is your fringe by giving that product the <strong>Fringe</strong> type in Settings → Turf Products; the Fringe tab then defaults to it automatically. A product's type is just a default hint — a fringe-typed product can still be used as base yard turf in any project, and you can always pick a different fringe product on this tab per project. By default each piece is filled and labeled ("Fringe 1", "Fringe 2", etc.) so you can match the diagram to your cut list. Uncheck <strong>"Show fringe pieces on canvas"</strong> to instead draw a single smooth outline at the fringe width, following the green's actual outline point-for-point — this is closer to how the fringe would actually look once installed, rather than the coarser straight-edged pieces used for cutting/ordering. This only affects the canvas drawing; the Piece List, sqft, and pricing are unaffected either way.</p>
         <p><strong>Blade direction &amp; the 15 ft cut limit.</strong> Every fringe piece is cut so its <strong>blades face in toward the green</strong> (the grain runs radially, across the fringe depth). Because the grain has to run that way, each piece's length — the run <em>along</em> the green's edge — lies across the roll's <strong>width</strong>, so <strong>no fringe piece can be longer than the roll is wide</strong> (15 ft by default; it follows your roll width setting, minus side trim). Any side of the green longer than that is automatically split into multiple pieces that each fit the roll. This adds seams but not much material — the total sqft to order is essentially the same, just cut into more, shorter pieces. A narrower roll produces more (shorter) pieces.</p>
         <p>Fringe material cost is added to any quote option that includes a putting green (it has no effect on "No Putting Green" options), using the same turf material pricing as the main yard's products.</p>
 
@@ -4860,7 +4861,7 @@ function calcQuote() {
   // Putting green fringe: a border strip around the PG perimeter, priced
   // using its own turf product. Independent of which turf combo is selected —
   // applies to any scenario that includes a putting green.
-  let fringeSqFt = 0, fringeCost = 0, fringePerimeter = 0;
+  let fringeSqFt = 0, fringeCost = 0, fringePerimeter = 0, fringeLinearFt = 0;
   const fringe = getFringeConfig(proj);
   if (fringe.enabled && fringe.width > 0) {
     const pgIdx = getPuttingGreenShapeIndex(proj);
@@ -4874,7 +4875,10 @@ function calcQuote() {
       fringePerimeter = plan.perimeter;
       const ci = cat.turf.find(t=>t.name===fringe.turfProduct);
       const cpsf = ci ? parseFloat(ci.costPerLinFt)||0 : 0;
-      fringeCost = fringeSqFt * cpsf;
+      // Fringe is bought as roll: order LINEAR FEET (pieces packed across the roll width),
+      // not the raw material sqft. Pricing is per linear foot of roll.
+      fringeLinearFt = plan.linearFtToOrder;
+      fringeCost = fringeLinearFt * cpsf;
     }
   }
 
@@ -5010,7 +5014,7 @@ function calcQuote() {
         }
         if (turfMatCost) breakdown += `<div class="opt-line"><span>Turf materials</span><span>${fmt(turfMatCost)}</span></div>`;
         if (pgTurfMatCost) breakdown += `<div class="opt-line"><span>Putting green turf</span><span>${fmt(pgTurfMatCost)}</span></div>`;
-        if (scenarioFringeCost) breakdown += `<div class="opt-line"><span>PG Fringe (${fringeSqFt.toLocaleString(undefined,{maximumFractionDigits:1})} sqft)</span><span>${fmt(scenarioFringeCost)}</span></div>`;
+        if (scenarioFringeCost) breakdown += `<div class="opt-line"><span>PG Fringe (${fringeLinearFt.toLocaleString()} lin ft roll)</span><span>${fmt(scenarioFringeCost)}</span></div>`;
         if (edgeCost) breakdown += `<div class="opt-line"><span>Edging</span><span>${fmt(edgeCost)}</span></div>`;
         if (dailyMinAdj > 0) breakdown += `<div class="opt-line"><span>Daily minimum adjustment (labor floor $${getCrewDailyMinimum().toLocaleString()}/day)</span><span>${fmt(dailyMinAdj)}</span></div>`;
         if (tierInfillCost) breakdown += `<div class="opt-line"><span>Infill${infillTiers.length > 1 ? ' ('+infillTier+')' : ''}</span><span>${fmt(tierInfillCost)}</span></div>`;
@@ -5425,7 +5429,7 @@ function renderSettingsTurfTable(items) {
           <tr>
             <td><div class="item-name">${t.name}</div></td>
             <td style="font-size:12px;color:var(--text-mid);">${t.tdName||'—'}</td>
-            <td><span class="chip">${t.type==='putting'?'Putting Green':'Standard'}</span></td>
+            <td><span class="chip">${turfTypeLabel(t.type)}</span></td>
             <td class="item-cost">${t.costPerLinFt ? '$'+parseFloat(t.costPerLinFt).toFixed(2) : '—'}</td>
             <td style="color:var(--text-light);font-size:12px;">${t.notes||'—'}</td>
             <td><div class="item-actions">
@@ -6162,7 +6166,7 @@ function openCatalogPicker(type) {
   } else {
     list.innerHTML = items.map((item, idx) => {
       let meta = '';
-      if (type === 'turf')   meta = item.type === 'putting' ? 'Putting Green' : 'Standard';
+      if (type === 'turf')   meta = turfTypeLabel(item.type);
       if (type === 'infill') meta = item.lbsPerSqFt ? item.lbsPerSqFt + ' lbs/sqft' : '';
       if (type === 'rock')   meta = item.defaultDepth ? item.defaultDepth + '" default depth' : '';
       return `
@@ -7274,6 +7278,10 @@ function getPuttingGreenShapeIndex(proj) {
 function getFringeConfig(proj) {
   return (proj.layout && proj.layout.fringe) || { enabled: false, width: 3, turfProduct: '', piecesVisible: true };
 }
+// Human label for a turf product's type. Pure.
+function turfTypeLabel(type) {
+  return type === 'putting' ? 'Putting Green' : type === 'fringe' ? 'Fringe' : 'Standard';
+}
 
 // Render the Putting Green Fringe config section: hidden entirely unless a
 // secondary shape is marked as the putting green. Populates the turf product
@@ -7321,10 +7329,21 @@ function renderFringeSection(proj) {
   fieldsEl.style.display = fringe.enabled ? '' : 'none';
   visibleEl.checked = fringe.piecesVisible !== false;
 
-  // Populate turf product dropdown from catalog
+  // Populate turf product dropdown from catalog. Fringe-type products are listed first and,
+  // when no fringe product has been chosen yet, the first fringe-type product is selected by
+  // default (so designating K9 Cascade Pro as "Fringe" makes it the fringe automatically).
   const cat = getCatalog();
-  productEl.innerHTML = (cat.turf||[]).map(t =>
-    `<option value="${t.name}" ${t.name===fringe.turfProduct?'selected':''}>${t.name}</option>`
+  const allTurf = cat.turf || [];
+  const fringeTypeProducts = allTurf.filter(t => t.type === 'fringe');
+  let chosen = fringe.turfProduct;
+  if (!chosen && fringeTypeProducts.length) {
+    chosen = fringeTypeProducts[0].name;
+    fringe.turfProduct = chosen;               // persist the sensible default
+    if (proj.layout) { proj.layout.fringe = fringe; save(); }
+  }
+  const ordered = fringeTypeProducts.concat(allTurf.filter(t => t.type !== 'fringe'));
+  productEl.innerHTML = ordered.map(t =>
+    `<option value="${t.name}" ${t.name===chosen?'selected':''}>${t.name}${t.type==='fringe'?' (fringe)':''}</option>`
   ).join('') || '<option value="">No turf products in catalog</option>';
   widthEl.value = fringe.width || 3;
 
@@ -7346,15 +7365,15 @@ function renderFringeSection(proj) {
   const cat2 = getCatalog();
   const ci = cat2.turf.find(t=>t.name===fringe.turfProduct);
   const cpsf = ci ? parseFloat(ci.costPerLinFt)||0 : 0;
-  const matCost = plan.totalSqFt * cpsf;
+  const matCost = plan.linearFtToOrder * cpsf;
 
   summaryEl.innerHTML = `
     <div>PG Perimeter: <strong>${plan.perimeter.toFixed(1)} ft</strong></div>
     <div>Fringe Width: <strong>${width.toFixed(1)} ft</strong></div>
     <div>Fringe Ring Area: <strong>${plan.ringArea.toFixed(1)} sqft</strong></div>
-    <div>Fringe SqFt to Order: <strong>${plan.totalSqFt.toFixed(1)} sqft</strong></div>
+    <div>Fringe Linear Ft to Order: <strong>${plan.linearFtToOrder} lin ft</strong> <span style="color:var(--text-light);">of ${plan.rollWidth.toFixed(1)} ft roll</span></div>
     ${cpsf ? `<div>Fringe Material Cost: <strong>${fmt(matCost)}</strong></div>` : ''}
-    <div style="margin-top:4px;">${plan.pieces.length} piece${plan.pieces.length===1?'':'s'} — nearby straight/gently-curved sections of the perimeter are merged into single pieces with mitered corners (no overlap) to minimize seams. ${(plan.totalSqFt - plan.ringArea) > 0.05 ? `Ordering ${(plan.totalSqFt - plan.ringArea).toFixed(0)} sqft more than the ring area itself, traded for fewer cuts and seams.` : ''}</div>
+    <div style="margin-top:4px;color:var(--text-light);">${plan.pieces.length} piece${plan.pieces.length===1?'':'s'} cut across the roll width (blades facing the green), packed into ${plan.fringeRows} row${plan.fringeRows===1?'':'s'} → ${plan.linearFtToOrder} lin ft to order. Nearby straight/gently-curved sections are merged with mitered corners to minimize seams.</div>
   `;
 }
 
@@ -8215,14 +8234,42 @@ function computeFringePlan(pgPoints, width, rollLength, rollWidth) {
   // Ring area: sum of each piece's true trapezoid area — the actual ring footprint
   // (now summed over the split pieces; splitting tiles the same footprint).
   const ringArea = pieces.reduce((s,p)=>s+p.area, 0);
-  // totalSqFt: what to ORDER — each piece as a rectangle (length × width),
-  // which is >= its true trapezoid area (the rectangle fully contains the
-  // trapezoid; any excess is waste trimmed on-site).
+  // totalSqFt: the fringe MATERIAL area (each piece as a length × width rectangle). This is
+  // the footprint you cut, NOT what you order — fringe is bought as ROLL, and every piece is
+  // cut with its length running across the roll's WIDTH (blades face the green). So multiple
+  // pieces share one "row" across the 15 ft width, and each row consumes one fringe-width of
+  // roll LENGTH. Ordered linear feet come from packing the pieces across the width.
   const totalSqFt = pieces.reduce((s,p)=>s + p.length*p.width, 0);
+  const order = fringeOrderFromPieces(pieces.map(p=>p.length), rollWidth, width);
 
   return { pieces, perimeter, pgArea, ringArea, totalSqFt, rollWidth,
+    linearFtToOrder: order.linearFt,   // linear feet of roll to order (pieces packed across the width)
+    fringeRows: order.rows,            // how many across-the-width rows those pieces pack into
+    orderedSqFt: order.orderedSqFt,    // roll area actually bought = linearFt × rollWidth
     bladeDirection: 'radial-inward', // all blades face the green
     maxPieceLength: rollWidth };
+}
+
+// Pure: given the fringe piece lengths (each already ≤ roll width), pack them across the
+// roll WIDTH — first-fit-decreasing bin packing, capacity = roll width. Each resulting row
+// is one strip across the roll that consumes one fringe-width of roll length. Returns the
+// row count, the linear feet of roll to order (rows × fringe width, rounded up to a whole
+// foot), and the roll area that buys. Testable.
+function fringeOrderFromPieces(pieceLengths, rollWidth, fringeWidth) {
+  const cap = rollWidth > 0 ? rollWidth : 15;
+  const w = fringeWidth > 0 ? fringeWidth : 0;
+  const items = (pieceLengths || []).filter(l => l > 1e-9).map(l => Math.min(l, cap)).sort((a,b)=>b-a);
+  const used = [];
+  items.forEach(len => {
+    let placed = false;
+    for (let i = 0; i < used.length; i++) {
+      if (used[i] + len <= cap + 1e-9) { used[i] += len; placed = true; break; }
+    }
+    if (!placed) used.push(len);
+  });
+  const rows = used.length;
+  const linearFt = w > 0 ? Math.ceil(rows * w - 1e-9) : 0;
+  return { rows, linearFt, orderedSqFt: linearFt * cap };
 }
 
 // Sutherland-Hodgman: clip polygon to axis-aligned rect [xmin,xmax] x [ymin,ymax]
@@ -11945,6 +11992,12 @@ function openCutListModal() {
 // output (no DOM), so it's unit-testable. It carries its OWN <style> — including
 // the CSS variables the cut-list cards/SVG reference — because it renders inside
 // an isolated iframe with none of the app's stylesheet available.
+// The Save-as-PDF filename comes from the print document's <title>. Format it as
+// "<project name> - Cut List". Pure/testable.
+function cutListDocTitle(jobName) {
+  const name = String(jobName == null ? '' : jobName).trim() || 'Turf Job';
+  return name + ' - Cut List';
+}
 function buildCutListPrintDoc(opts) {
   opts = opts || {};
   const jobName = opts.jobName || 'Turf Job';
@@ -11952,7 +12005,7 @@ function buildCutListPrintDoc(opts) {
   const diagramImg = opts.diagramImg || '';
   const cutListHtml = opts.cutListHtml || '';
   return '<!DOCTYPE html><html><head><meta charset="utf-8">'
-    + '<title>Turf Cut List \u2014 ' + escAttr(jobName) + '</title>'
+    + '<title>' + escAttr(cutListDocTitle(jobName)) + '</title>'
     + '<style>'
     +   ':root{--surface:#fff;--border:#ccc;--text:#111;--text-light:#555;--text-mid:#333;--green:#2e7d32;}'
     +   '*{box-sizing:border-box;}'

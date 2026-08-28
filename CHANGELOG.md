@@ -5,6 +5,79 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 60) — Don't hardcode K9 as fringe; type is a hint, not a lock
+
+Follow-up to cont'd 59. Reverted the default catalog so K9 Cascade Pro ships as "standard"
+again — the app no longer presumes any product is the fringe. You designate your own fringe
+product by setting its type to Fringe in Settings.
+
+Clarified (and covered by tests) that a product's type never restricts where it's used: the
+new-project picker lists every turf product regardless of type, and the row role
+(base / alt / putting-green) is independent of type. So a product typed "Fringe" is still
+fully usable as base yard turf — the type only labels it and sets the Fringe tab's default.
+Softened the in-app help text accordingly.
+
+Tests **1718 → 1720** (README **1720**): K9 ships standard, Fringe is an available type
+option, and the product picker isn't type-filtered. Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 59) — "Fringe" turf type (designate your fringe product)
+
+Added Fringe as a third turf type alongside Standard and Putting Green (Settings → Turf
+Products → Type). Parallels how a putting-green product is typed: mark your fringe turf (e.g.
+K9 Cascade Pro) as "Fringe" and the Layout → Fringe tab defaults to it automatically, listing
+fringe-type products first. The default catalog now ships K9 Cascade Pro as type "fringe"
+(PDX Putt stays "putting"). New pure helper turfTypeLabel; the product table chip and the
+labor-line meta now show "Fringe" where applicable.
+
+Note: this designates the fringe product by type; the fringe is still configured and priced
+via the Layout → Fringe tab (its own line, by linear feet). It is not a separate quote-builder
+turf ROW — say the word if you also want a fringe row there.
+
+Tests **1712 → 1718** (README **1718**): type label for all three types + fallback, and the
+default catalog's K9=fringe / PDX Putt=putting. Verified in-browser: Type dropdown shows
+Fringe, K9 shows the Fringe chip, and the Fringe tab auto-selects the fringe-type product.
+Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 58) — Fix: putting-green fringe was ordered/priced as area, not roll linear feet
+
+The fringe was massively over-ordered and over-priced. It computed the fringe MATERIAL area
+(≈ perimeter × fringe width, e.g. 68 sqft for a 20×10 green with 1 ft fringe) and then
+multiplied that area by the turf's per-LINEAR-FOOT cost — treating ~68 sqft as ~68 linear
+feet of roll. On a $30/lin-ft roll that's ~$2,040 for fringe that should cost ~$180.
+
+Fix: fringe pieces are cut with their length across the roll WIDTH (blades facing the green),
+so they're now packed across the roll width (first-fit-decreasing) into rows; each row uses
+one fringe-width of roll LENGTH. Order quantity is those linear feet (rounded up to a whole
+foot), and cost = linear feet × per-lin-ft. New pure helper `fringeOrderFromPieces`;
+computeFringePlan now returns linearFtToOrder / fringeRows / orderedSqFt. The Fringe summary
+and the quote breakdown now show "lin ft to order" instead of sqft.
+
+Example (20×10 green, 1 ft fringe, 15 ft roll): 6 pieces of 11–12 ft pack to 6 rows → 6 lin
+ft (only one 11–12 ft piece fits across a 15 ft width), i.e. ~$180 not ~$2,040.
+
+Tests **1705 → 1712** (README **1712**): packing across the width, rounding, zero cases, and
+the full-plan linear-feet output; updated the three end-to-end fringe assertions that had
+codified the old area pricing. Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 57) — Cut list PDF filename now "<project name> - Cut List"
+
+When you Print / Save-as-PDF the installer cut list, the suggested filename is taken from the
+print document's <title>. Changed that title from "Turf Cut List — <name>" to
+"<project name> - Cut List" (e.g. "Smith Backyard - Cut List"), so saved files sort and read
+by project. Blank/unnamed projects fall back to "Turf Job - Cut List". Pure helper
+`cutListDocTitle`.
+
+Tests **1700 → 1705** (README **1705**): name formatting, trimming, fallbacks, and that the
+print doc's <title> uses it. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 56) — Reorder crew chips too (shared with vendors)
 
 Crew chips are now drag-to-reorder, same as vendors: each has a ⠿ grip, drop it on another
