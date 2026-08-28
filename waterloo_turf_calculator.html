@@ -14067,25 +14067,26 @@ const WIZARD_STEPS = [
   { title: 'First — set up your Settings', body:
     `<p>Before your first job, open <strong>⚙ Settings</strong> and get your catalog in place:</p>
      <ul style="margin:10px 0 0 18px;padding:0;">
+       <li style="margin-bottom:6px;"><strong>Roll Settings</strong> — your roll width and length, S-seam side trim, and cutting margin. These drive how much turf gets ordered, so set them to how your crews actually cut.</li>
        <li style="margin-bottom:6px;"><strong>Turf products</strong> — your turf lines, each one's type (Standard / Putting Green / Fringe) and cost.</li>
        <li style="margin-bottom:6px;"><strong>Infill products</strong>, plus <strong>rock / base</strong> and <strong>edging</strong> materials.</li>
        <li style="margin-bottom:6px;"><strong>Crew labor rates</strong> — a rate set per crew.</li>
-       <li style="margin-bottom:6px;"><strong>Vendor pricing</strong> — import each supplier's price list for quick reference.</li>
      </ul>
-     <p style="margin-top:10px;color:var(--text-light);">You do this once. The built-in defaults are a fine starting point — refine as you go.</p>`,
+     <p style="margin-top:10px;color:var(--text-light);">You do this once. The built-in defaults are a fine starting point — refine as you go. (Supplier price lists live on their own <strong>Vendor Pricing</strong> tab.)</p>`,
     actionLabel: '⚙ Open Settings', actionFn: 'wizardGoSettings' },
   { title: 'Create a project & import Moasure', body:
     `<p>Bottom-left, click <strong>⚙ Actions → New Project</strong>.</p>
      <ul style="margin:10px 0 0 18px;padding:0;">
        <li style="margin-bottom:6px;">Name it with the <strong>customer's name</strong>.</li>
        <li style="margin-bottom:6px;">Tick the <strong>turf</strong> you're using and set each role (Base Yard, Putting Green, Fringe…).</li>
-       <li style="margin-bottom:6px;">Import your <strong>Moasure CSV</strong> to pull in the measured areas — you can import several files into one job.</li>
-     </ul>`,
+       <li style="margin-bottom:6px;">Import your <strong>Moasure CSV</strong> here to pull in the measured area.</li>
+     </ul>
+     <p style="margin-top:10px;color:var(--text-light);">Need to combine several Moasure files into one job? Do that on the <strong>Layout</strong> tab, which supports importing multiple files.</p>`,
     actionLabel: '＋ Start a new project', actionFn: 'wizardGoNewProject' },
   { title: 'Lay out the job', body:
     `${WIZARD_LAYOUT_SVG}
      <p style="margin-top:6px;">Open the <strong>Layout</strong> tab — this is where you'll <strong>spend most of your time</strong>. Adjust <strong>roll rotation</strong> and <strong>seam offsets</strong>, manage <strong>layers</strong>, and let <strong>✨ Minimize waste</strong> find the lowest-waste roll direction.</p>
-     <p style="margin-top:8px;color:var(--text-light);">The Layout tab tells you how much turf, infill, edging, and base to order, and builds the installer cut list.</p>`,
+     <p style="margin-top:8px;color:var(--text-light);">Your order figures — <strong>Installed</strong>, <strong>Ordered</strong>, <strong>Turf LF</strong>, and <strong>Scrap</strong> — sit in the strip along the <strong>top bar</strong> (just right of ⚙ Settings) and stay visible on every tab, so they're an easy running reference as you adjust the layout. The Layout tab also builds the installer cut list.</p>`,
     actionLabel: '📐 Go to the Layout tab', actionFn: 'wizardGoLayout' },
   { title: 'Pricing (optional)', body:
     `<p>Want a quick price? The <strong>Quote Builder</strong> shows priced options (with and without a putting green, alternate turf, and so on) from your installed square footage.</p>

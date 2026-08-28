@@ -7601,8 +7601,17 @@ section('142. Getting Started walkthrough');
   const iLayout = src.indexOf('Lay out the job');
   assert(iSettings > 0 && iCreate > iSettings && iLayout > iCreate, 'wizard order is Settings → create+import Moasure → Layout');
   assert(/turf products<\/strong>[\s\S]{0,200}Infill products/i.test(src), 'the Settings step lists turf and infill products');
+  // Roll Settings belongs in the Settings step; Vendor Pricing does NOT (it's its own tab).
+  const settingsStep = src.slice(src.indexOf('First — set up your Settings'), src.indexOf("actionFn: 'wizardGoSettings'"));
+  assert(/Roll Settings<\/strong>/.test(settingsStep), 'the Settings step covers Roll Settings');
+  assert(!/Vendor pricing<\/strong> — import/.test(settingsStep), 'the Settings step no longer lists Vendor Pricing as a Settings item');
   assert(/Import your <strong>Moasure CSV<\/strong>/.test(src), 'the create step imports the Moasure CSV');
   assert(/roll rotation<\/strong> and <strong>seam offsets/.test(src), 'the Layout step covers rotation and seams');
+  assert(/sit in the strip along the <strong>top bar<\/strong>/.test(src), 'the Layout step points to the top-bar totals strip for order figures');
+  // Multi-file Moasure import is a Layout-tab capability, not the new-project modal.
+  const createStep = src.slice(src.indexOf('Create a project & import Moasure'), src.indexOf("actionFn: 'wizardGoNewProject'"));
+  assert(/combine several Moasure files[\s\S]{0,80}Layout<\/strong> tab/.test(createStep), 'the create step says multi-file import happens on the Layout tab');
+  assert(!/import several files into one job/.test(createStep), 'the create step no longer implies multi-file import in the new-project modal');
   assert(/spend most of your time/.test(src) && /Layout<\/strong>/.test(src), 'the Layout step is framed as the main workspace');
   assert(/quotes are built in <strong>Jobber<\/strong>/.test(src), 'pricing step notes quotes are built in Jobber');
   // Guided actions: each work step drops the user on the right page while the card stays open.

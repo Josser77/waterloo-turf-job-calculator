@@ -5,6 +5,35 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 67) — Walkthrough copy fixes: multi-file import + order figures
+
+Two accuracy fixes in the walkthrough:
+- Create step no longer implies you can import several Moasure files in the new-project modal
+  (you can't). It now imports one CSV in the modal, and notes that combining multiple files
+  into one job is done on the Layout tab.
+- Layout step no longer vaguely says the Layout tab "tells you how much to order." It points
+  to the always-visible top-bar totals strip (Installed / Ordered / Turf LF / Scrap, right of
+  ⚙ Settings) as the easy running reference.
+
+Tests **1759 → 1762** (README **1762**): the create step ties multi-file import to the Layout
+tab (not the modal), and the Layout step points at the top-bar strip. Green under UTC and
+America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 66) — Walkthrough Settings step: drop Vendor Pricing, add Roll Settings
+
+The Settings step wrongly listed "Vendor pricing" — that's its own tab, not part of Settings.
+Removed it and added <strong>Roll Settings</strong> (roll width/length, S-seam side trim,
+cutting margin — the values that drive how much turf is ordered), which is genuinely the first
+card in the Settings tab. Added a parenthetical noting supplier price lists live on the Vendor
+Pricing tab, so users aren't left looking for them.
+
+Tests **1757 → 1759** (README **1759**): the Settings step covers Roll Settings and no longer
+lists Vendor Pricing as a Settings item. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 65) — Walkthrough is now a guided, non-blocking coach card with per-step actions
 
 Turned the Getting Started walkthrough from a blocking centered modal into a floating,
