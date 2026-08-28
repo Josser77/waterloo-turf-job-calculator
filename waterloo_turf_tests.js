@@ -7544,11 +7544,73 @@ section('140. Fringe turf type');
   const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
   assert(/WT K9 Cascade Pro'.*type:\s*'standard'/.test(src), 'default catalog: K9 Cascade Pro ships as "standard" (not hardcoded fringe)');
   assert(/WT PDX Putt 85'.*type:\s*'putting'/.test(src), 'default catalog: the PDX Putt product is type "putting"');
-  // "Fringe" is offered as a type option in Settings.
-  assert(/<option value="fringe">Fringe<\/option>/.test(src), 'Fringe is an available turf-type option');
+  // "Fringe" is offered as a type option in Settings (now a checkbox — a product can be
+  // more than one type).
+  assert(/id="ciTurfTypeFringe"/.test(src), 'Fringe is an available turf-type checkbox');
+  assert(/id="ciTurfTypeStandard"/.test(src) && /id="ciTurfTypePutting"/.test(src), 'Standard and Putting Green are also type checkboxes');
   // The product picker for new projects lists ALL turf products (no type filtering), so a
   // fringe-typed product can still be chosen and used as a base-yard row.
   assert(/turfCheckboxes[\s\S]{0,400}cat\.turf\.map/.test(src), 'new-project turf picker lists all products regardless of type');
+}
+
+section('141. Turf products support multiple types');
+{
+  // getTurfTypes migrates the old single `type` and returns clean arrays.
+  assert(JSON.stringify(ctx.getTurfTypes({ type:'putting' })) === '["putting"]', 'legacy single type migrates to an array');
+  assert(JSON.stringify(ctx.getTurfTypes({ types:['standard','fringe'] })) === '["standard","fringe"]', 'a types array passes through');
+  assert(JSON.stringify(ctx.getTurfTypes({})) === '["standard"]', 'no type → ["standard"]');
+  assert(JSON.stringify(ctx.getTurfTypes({ types:['standard','bogus','fringe'] })) === '["standard","fringe"]', 'unknown types are dropped');
+  assert(ctx.productHasType({ types:['standard','fringe'] }, 'fringe') === true, 'productHasType finds a member type');
+  assert(ctx.productHasType({ type:'standard' }, 'fringe') === false, 'productHasType false when absent');
+  // Label joins members in a stable order regardless of input order.
+  assert(ctx.turfTypesLabel(['fringe','standard']) === 'Standard · Fringe', 'multi-type label is ordered Standard · Fringe');
+  assert(ctx.turfTypesLabel(['putting']) === 'Putting Green', 'single type label');
+  assert(ctx.turfTypesLabel([]) === 'Standard', 'empty types label → Standard');
+
+  // The new-project modal offers a Fringe role and disables its sqft fields.
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/<option value="fringe"\s+\$\{role==='fringe'/.test(src), 'new-project role dropdown includes a Fringe option');
+  assert(/role === 'fringe'/.test(src), 'the modal disables sqft entry for a fringe row (measured from the green border)');
+  // A fringe selection is pulled out of the priced turf rows and into the fringe config.
+  assert(/selectedTurf\.filter\(r => r\.role !== 'fringe'\)/.test(src), 'fringe-role products are excluded from the area-priced turf rows (no double count)');
+  assert(/turfProduct:\s*fringeSelection\.product/.test(src), 'the fringe selection sets the project fringe turf product');
+}
+
+section('142. Getting Started walkthrough');
+{
+  // Step clamp keeps the index valid regardless of input.
+  assert(ctx.clampWizardStep(-5, 6) === 0, 'below range clamps to 0');
+  assert(ctx.clampWizardStep(99, 6) === 5, 'above range clamps to the last step');
+  assert(ctx.clampWizardStep(2, 6) === 2, 'in-range passes through');
+  assert(ctx.clampWizardStep('x', 6) === 0, 'non-numeric → 0');
+  assert(ctx.clampWizardStep(3, 0) === 0, 'no steps → 0 (no crash)');
+
+  // The wizard is wired into the app: modal exists, auto-opens on first launch, is
+  // replayable from Help, and offers a create-first-project CTA. Source-level checks.
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/id="wizardModal"/.test(src), 'the walkthrough modal exists');
+  assert(/const WIZARD_STEPS = \[/.test(src), 'there is a data-driven step list');
+  assert(/!localStorage\.getItem\(WIZARD_DISMISS_KEY\)[\s\S]{0,120}openWizard\(0\)/.test(src), 'it opens on every launch unless the user opted out');
+  assert(/id="wizardDontShow"/.test(src), 'there is a do-not-show-again checkbox');
+  assert(/wizardDontShow[\s\S]{0,200}setItem\(WIZARD_DISMISS_KEY/.test(src), 'ticking the box sets the dismiss flag; leaving it unticked keeps showing it');
+  assert(/function startWalkthrough/.test(src) && /startWalkthrough\(\)/.test(src), 'Help can replay the walkthrough');
+  assert(/wizardCreateFirstProject[\s\S]{0,120}openNewProjectModal/.test(src), 'the final step can kick off a first project');
+  // The steps follow the real workflow order: Settings first, then create+import, then Layout.
+  const iSettings = src.indexOf('First — set up your Settings');
+  const iCreate = src.indexOf('Create a project & import Moasure');
+  const iLayout = src.indexOf('Lay out the job');
+  assert(iSettings > 0 && iCreate > iSettings && iLayout > iCreate, 'wizard order is Settings → create+import Moasure → Layout');
+  assert(/turf products<\/strong>[\s\S]{0,200}Infill products/i.test(src), 'the Settings step lists turf and infill products');
+  assert(/Import your <strong>Moasure CSV<\/strong>/.test(src), 'the create step imports the Moasure CSV');
+  assert(/roll rotation<\/strong> and <strong>seam offsets/.test(src), 'the Layout step covers rotation and seams');
+  assert(/spend most of your time/.test(src) && /Layout<\/strong>/.test(src), 'the Layout step is framed as the main workspace');
+  assert(/quotes are built in <strong>Jobber<\/strong>/.test(src), 'pricing step notes quotes are built in Jobber');
+  // Guided actions: each work step drops the user on the right page while the card stays open.
+  assert(/pointer-events:none/.test(src.slice(src.indexOf('id="wizardModal"'), src.indexOf('id="wizardModal"') + 260)), 'the walkthrough card is non-blocking (page stays usable)');
+  assert(/function wizardGoSettings[\s\S]{0,80}gotoTab\('settings'\)/.test(src), 'a Settings action switches to the Settings tab');
+  assert(/function wizardGoNewProject[\s\S]{0,120}openNewProjectModal/.test(src), 'a Create action opens the new-project modal');
+  assert(/function wizardGoLayout[\s\S]{0,80}gotoTab\('layout'\)/.test(src), 'a Layout action switches to the Layout tab');
+  assert(/actionFn:\s*'wizardGoSettings'/.test(src) && /actionFn:\s*'wizardGoNewProject'/.test(src) && /actionFn:\s*'wizardGoLayout'/.test(src), 'the three work steps carry their action buttons');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

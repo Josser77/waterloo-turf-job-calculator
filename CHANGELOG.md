@@ -5,6 +5,107 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 65) — Walkthrough is now a guided, non-blocking coach card with per-step actions
+
+Turned the Getting Started walkthrough from a blocking centered modal into a floating,
+non-blocking coach card (bottom-right, no backdrop, pointer-events:none on the overlay so the
+app stays fully usable behind it). Each work step now has an action button that drops the user
+on the right page while the card stays open to guide the next step:
+- "Set up your Settings" → ⚙ Open Settings (switches to the Settings tab)
+- "Create a project & import Moasure" → ＋ Start a new project (opens the new-project modal)
+- "Lay out the job" → 📐 Go to the Layout tab
+
+The card sits above other modals (z-index 1300) so it keeps guiding even while the new-project
+modal is open. Do the action, then Next → to continue.
+
+Tests **1752 → 1757** (README **1757**): non-blocking overlay, the three navigation actions,
+and that the work steps carry their action buttons. Verified end-to-end in a browser (each
+action navigates, the card stays open, and the new-project modal is clickable — not blocked by
+the card). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 64) — Walkthrough steps reordered to match the real workflow
+
+Reordered the Getting Started steps to follow the order owners actually work in:
+1. Welcome, 2. **Set up your Settings first** (turf products, infill, rock/base, edging, crew
+labor rates, vendor pricing), 3. **Create a project & import the Moasure file**, 4. **Lay out
+the job** on the Layout tab (rotation, seam offsets, layers, minimize waste), 5. Pricing
+(optional, Jobber note), 6. Backups & help. Previously Settings came last and the create/plan
+steps were out of order.
+
+Tests **1748 → 1752** (README **1752**): assert the step order (Settings → create+import →
+Layout) and the key content of each. Verified in-browser. Green under UTC and
+America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 63) — Walkthrough shows every launch (opt-out) + Layout/Jobber framing
+
+Per rollout feedback:
+- The Getting Started walkthrough now opens on EVERY launch by default, with a "Don't show
+  this again" checkbox. Closing/skipping without ticking it keeps it appearing next time;
+  ticking it sets a dismiss flag (wt_wizard_hide_v1) so it stops. Still replayable from ? Help
+  regardless. (No longer keyed to the one-time SETUP flag.)
+- Step 2 no longer says users will "live in Quote Builder." It now points them at the Layout
+  tab (after importing Moasure) as the main workspace, and notes the Quote Builder is a
+  pricing add-on since customer quotes are built in Jobber. Step 4 reworded to match (it no
+  longer calls the priced options "your quote" — it's a reference to carry into Jobber).
+
+Tests **1745 → 1748** (README **1748**): every-launch/opt-out wiring, the checkbox, and the
+Layout/Jobber copy. Verified end-to-end (shows again when not opted out, stops when the box is
+ticked, Help still replays). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 62) — Getting Started walkthrough (onboarding wizard)
+
+Added a skippable, replayable 6-step Getting Started walkthrough for new users (franchise
+pilot rollout). Steps: welcome + "you can ignore most of the buttons", a small diagram of the
+app layout, start a project, get your quote, set up Settings once, and backups/help. The copy
+deliberately reassures users they don't need every option to make a quote.
+
+- Auto-opens on first launch (replaces the bare first-launch banner); marks SETUP_KEY +
+  WIZARD_KEY on finish/skip so it doesn't re-nag.
+- Replayable anytime via a "▶ Getting Started walkthrough" button in the ? Help dialog.
+- Progress bar + Back/Next/Skip; the final step offers "Create my first project" (opens the
+  new-project modal) or "Explore on my own".
+
+Data-driven WIZARD_STEPS + pure clampWizardStep. Tests **1734 → 1745** (README **1745**):
+step clamping edge cases, and that the wizard is wired in (modal present, first-launch open,
+Help replay, create-first-project CTA, seen-flag). Verified end-to-end in a browser.
+Green under UTC and America/Los_Angeles.
+
+Note: a one-time tour helps users START but won't fix an overwhelming UI on its own — if the
+pilot feedback persists, the next step is progressive disclosure (hiding advanced tabs until
+needed).
+
+---
+
+## 2026-07-22 (cont'd 61) — Turf products can have multiple types + a Fringe role at project creation
+
+Two related changes:
+- A turf product can now be MORE THAN ONE type. The Settings product Type is now checkboxes
+  (Standard / Putting Green / Fringe) instead of a single dropdown, so e.g. K9 Cascade Pro can
+  be both Standard and Fringe. Stored as a `types` array (old single `type` auto-migrates; a
+  legacy `type` mirror is kept for older reads). The product table shows a combined label
+  ("Standard · Fringe"), and the Fringe tab offers any product whose types include Fringe.
+- The New Project turf picker's Role dropdown adds a **Fringe** option (alongside Base Yard /
+  Alt Turf Option / Putting Green). Marking a product Fringe designates it as the project's
+  fringe turf (enables fringe + sets its product); its sqft fields are disabled since fringe
+  is measured from the green's border. It is deliberately NOT added as an area-priced turf
+  row — pricing stays on the single border-geometry linear-feet calc, so there's no double
+  count. (Fixed along the way: a fringe-only project with no imported CSV now gets a complete
+  empty layout instead of a partial one that crashed rendering.)
+
+New pure helpers getTurfTypes / turfTypesLabel / productHasType.
+
+Tests **1721 → 1734** (README **1734**): type migration/merge/label, and the modal Fringe role
+wiring (role present, sqft disabled, excluded from priced rows, sets the fringe product).
+Verified end-to-end in a browser. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 60) — Don't hardcode K9 as fringe; type is a hint, not a lock
 
 Follow-up to cont'd 59. Reverted the default catalog so K9 Cascade Pro ships as "standard"

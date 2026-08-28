@@ -2072,12 +2072,12 @@
     <!-- Turf fields -->
     <div id="ciTurfFields">
       <div class="field-group">
-        <label>Type</label>
-        <select id="ciTurfType">
-          <option value="standard">Standard</option>
-          <option value="putting">Putting Green</option>
-          <option value="fringe">Fringe</option>
-        </select>
+        <label>Type <span style="font-weight:400;color:var(--text-light);font-size:11px;">(a product can be more than one)</span></label>
+        <div style="display:flex;flex-wrap:wrap;gap:14px;padding:4px 0;">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:500;cursor:pointer;margin:0;"><input type="checkbox" id="ciTurfTypeStandard" style="width:auto;margin:0;">Standard</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:500;cursor:pointer;margin:0;"><input type="checkbox" id="ciTurfTypePutting" style="width:auto;margin:0;">Putting Green</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:500;cursor:pointer;margin:0;"><input type="checkbox" id="ciTurfTypeFringe" style="width:auto;margin:0;">Fringe</label>
+        </div>
       </div>
       <div class="field-group">
         <label>Vendor Product Name (supplier name)</label>
@@ -2260,6 +2260,31 @@
   </div>
 </div>
 
+<!-- GETTING STARTED WALKTHROUGH (floating, non-blocking coach card) -->
+<div class="modal-overlay" id="wizardModal" style="z-index:1300;background:transparent;pointer-events:none;align-items:flex-end;justify-content:flex-end;padding:20px;">
+  <div class="modal" style="width:400px;max-width:94vw;max-height:86vh;overflow:auto;pointer-events:auto;margin:0;box-shadow:0 10px 44px rgba(0,0,0,0.30);">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px;">
+      <div class="modal-title" id="wizardTitle" style="margin:0;">Welcome</div>
+      <button onclick="closeWizard()" title="Close" style="background:none;border:none;font-size:20px;line-height:1;color:var(--text-light);cursor:pointer;padding:0 2px;">✕</button>
+    </div>
+    <div id="wizardProgress" style="display:flex;gap:5px;margin-bottom:14px;"></div>
+    <div id="wizardBody" style="font-size:14px;color:var(--text);line-height:1.55;min-height:180px;"></div>
+    <div class="modal-footer" style="align-items:center;justify-content:space-between;">
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-mid);cursor:pointer;margin:0;">
+          <input type="checkbox" id="wizardDontShow" style="width:auto;margin:0;"> Don't show this again
+        </label>
+        <span style="font-size:12px;color:var(--text-light);" id="wizardStepLabel"></span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" id="wizardSkipBtn" onclick="wizardFinish()">Skip</button>
+        <button class="btn btn-ghost btn-sm" id="wizardBackBtn" onclick="wizardBack()">Back</button>
+        <button class="btn btn-primary btn-sm" id="wizardNextBtn" onclick="wizardNext()">Next →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- TIERED PRICING MODAL -->
 <div class="modal-overlay" id="tierModal">
   <div class="modal" style="width:480px;max-height:85vh;overflow-y:auto;">
@@ -2368,10 +2393,16 @@
         <div style="font-family:'Raleway',sans-serif;font-size:22px;font-weight:800;color:var(--text);">Waterloo Turf Job Calculator</div>
         <div style="font-size:13px;color:var(--text-light);margin-top:4px;">Complete User Guide</div>
       </div>
-      <button onclick="document.getElementById('docsModal').classList.remove('open')"
-        style="background:none;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;color:var(--text-light);cursor:pointer;flex-shrink:0;">
-        Close ✕
-      </button>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <button onclick="startWalkthrough()"
+          style="background:var(--green);border:1px solid var(--green);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;">
+          ▶ Getting Started walkthrough
+        </button>
+        <button onclick="document.getElementById('docsModal').classList.remove('open')"
+          style="background:none;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;color:var(--text-light);cursor:pointer;">
+          Close ✕
+        </button>
+      </div>
     </div>
 
     <div style="font-size:13px;color:var(--text);line-height:1.7;">
@@ -2445,7 +2476,7 @@
       <div class="docs-section">
         <div class="docs-h2" id="doc-project">Creating a Project</div>
         <p>Click <strong>＋ New Project</strong> in the sidebar. Fill in the project name, then optionally import a <strong>Moasure CSV</strong> right from the creation modal — doing so pre-fills the Installed SqFt for all turf rows you select, and attaches the layout so the Layout tab is ready as soon as the project opens.</p>
-        <p>Check off turf products, then enter <strong>Installed SqFt</strong> for each. <strong>Sqft to Order is optional at creation</strong> — leave it blank if you don't have it yet (e.g. you haven't measured/imported the layout). "Create Project" only requires at least one turf product checked. You can fill in or calculate Sqft to Order afterward, either directly on the Quote Builder tab or via the Layout tab's roll planner once you import a Moasure CSV. Set the <strong>Role</strong> for each turf row (Base Yard, Alt Turf Option, Putting Green) at creation time rather than after. Check infill products, enter edging and putting green sqft if known. Rock rows are auto-created from your Settings catalog.</p>
+        <p>Check off turf products, then enter <strong>Installed SqFt</strong> for each. <strong>Sqft to Order is optional at creation</strong> — leave it blank if you don't have it yet (e.g. you haven't measured/imported the layout). "Create Project" only requires at least one turf product checked. You can fill in or calculate Sqft to Order afterward, either directly on the Quote Builder tab or via the Layout tab's roll planner once you import a Moasure CSV. Set the <strong>Role</strong> for each turf row (Base Yard, Alt Turf Option, Putting Green, or Fringe) at creation time rather than after. A product marked <strong>Fringe</strong> becomes the putting-green fringe turf (its sqft is measured from the green border on the Layout → Fringe tab, so no sqft is entered here). Check infill products, enter edging and putting green sqft if known. Rock rows are auto-created from your Settings catalog.</p>
         <p>Projects save automatically and appear in the sidebar sorted by name, newest, or oldest.</p>
       </div>
 
@@ -3567,16 +3598,10 @@ window.onload = () => {
     }, 120);
   });
   renderSidebar();
-  if (!localStorage.getItem(SETUP_KEY)) {
-    // First launch — go straight to Settings
-    const settingsTab = document.getElementById('tabSettings');
-    switchTab('settings', settingsTab);
-    showFirstLaunchBanner();
-  } else if (projects.length) {
-    loadProject(projects[0].id);
-  } else {
-    showEmpty();
-  }
+  if (projects.length) loadProject(projects[0].id); else showEmpty();
+  // Show the Getting Started walkthrough on every launch until the user opts out with the
+  // "Don't show this again" checkbox inside it.
+  if (!localStorage.getItem(WIZARD_DISMISS_KEY)) openWizard(0);
   maybeAutoBackup();
   setInterval(maybeAutoBackup, AUTOBACKUP_MIN_INTERVAL_MS);
 };
@@ -3818,12 +3843,17 @@ function updateTurfSqftFields() {
         <div style="font-size:12px;font-weight:500;color:var(--text-mid);padding:9px 0;">${name}</div>
         ${role === 'alt-turf'
           ? `<input type="number" data-field="installedSqFt" value="" placeholder="= base yard" class="auto-filled" readonly style="margin:0;" title="Alt Turf options are priced on the base yard area; this field isn't used.">`
+          : role === 'fringe'
+          ? `<input type="number" data-field="installedSqFt" value="" placeholder="= green border" class="auto-filled" readonly style="margin:0;" title="Fringe is measured from the putting-green border on the Layout → Fringe tab; this field isn't used.">`
           : `<input type="number" data-field="installedSqFt" value="${prev.installedSqFt||''}" placeholder="0" class="manual-input" style="margin:0;" oninput="checkCreateBtn()">`}
-        <input type="number" data-field="sqFtToOrder" value="${prev.sqFtToOrder||''}" placeholder="0" class="manual-input" style="margin:0;" oninput="checkCreateBtn()">
+        ${role === 'fringe'
+          ? `<input type="number" data-field="sqFtToOrder" value="" placeholder="auto" class="auto-filled" readonly style="margin:0;" title="Fringe order (linear feet) is computed from the green's border.">`
+          : `<input type="number" data-field="sqFtToOrder" value="${prev.sqFtToOrder||''}" placeholder="0" class="manual-input" style="margin:0;" oninput="checkCreateBtn()">`}
         <select data-field="role" onchange="updateTurfSqftFields()" style="font-size:12px;padding:6px 8px;margin:0;">
           <option value="base"          ${role==='base'          ? 'selected':''}>Base Yard</option>
           <option value="alt-turf"      ${role==='alt-turf'      ? 'selected':''}>Alt Turf Option</option>
           <option value="putting-green" ${role==='putting-green' ? 'selected':''}>Putting Green</option>
+          <option value="fringe"        ${role==='fringe'        ? 'selected':''}>Fringe</option>
         </select>
       </div>
     `;
@@ -3990,6 +4020,12 @@ function createProject() {
       return { product: t ? t.name : cb.value, turfType: t ? (t.type||'') : '', role, installedSqFt, sqFtToOrder, linearFt, orderedSqFt };
     });
 
+  // A product marked "Fringe" designates the project's fringe turf (priced from the
+  // putting-green border on the Layout → Fringe tab). It is NOT a normal area-priced turf
+  // row, so pull it out of the turf list and remember it for the fringe config below.
+  const fringeSelection = selectedTurf.find(r => r.role === 'fringe');
+  const turfRowsOnly = selectedTurf.filter(r => r.role !== 'fringe');
+
   const selectedInfill = [...document.querySelectorAll('#infillCheckboxes input:checked')]
     .map(cb => {
       const i = cat.infill.find(x=>x.id===cb.value);
@@ -4016,7 +4052,7 @@ function createProject() {
     id: 'p' + Date.now(),
     name,
     created: Date.now(),
-    turf: selectedTurf,
+    turf: turfRowsOnly,
     infill: selectedInfill,
     rock: rockRows,
     edging,
@@ -4047,6 +4083,23 @@ function createProject() {
       viewCentroid: centroidOf(window._wtNewProjCsv.points),
     };
     window._wtNewProjCsv = null;
+  }
+
+  // If a turf product was marked "Fringe", enable the fringe with that product. Width and the
+  // green come from the Layout → Fringe tab; pricing is the border-geometry linear-feet calc.
+  if (fringeSelection) {
+    // Ensure a COMPLETE layout object exists (a partial {fringe} with no points/shapes breaks
+    // rendering). If no CSV was imported, start an empty-but-valid layout.
+    if (!proj.layout || !Array.isArray(proj.layout.points)) {
+      proj.layout = Object.assign({ points: [], secondaryShapes: [], secondaryShapeModes: {} }, proj.layout || {});
+    }
+    const existingFringe = proj.layout.fringe || {};
+    proj.layout.fringe = {
+      enabled: true,
+      turfProduct: fringeSelection.product,
+      width: existingFringe.width || 3,
+      piecesVisible: existingFringe.piecesVisible !== false,
+    };
   }
 
   projects.unshift(proj);
@@ -5429,7 +5482,7 @@ function renderSettingsTurfTable(items) {
           <tr>
             <td><div class="item-name">${t.name}</div></td>
             <td style="font-size:12px;color:var(--text-mid);">${t.tdName||'—'}</td>
-            <td><span class="chip">${turfTypeLabel(t.type)}</span></td>
+            <td><span class="chip">${turfTypesLabel(getTurfTypes(t))}</span></td>
             <td class="item-cost">${t.costPerLinFt ? '$'+parseFloat(t.costPerLinFt).toFixed(2) : '—'}</td>
             <td style="color:var(--text-light);font-size:12px;">${t.notes||'—'}</td>
             <td><div class="item-actions">
@@ -6040,7 +6093,10 @@ function openEditItemModal(type, index) {
   document.getElementById('ciNotes').value = item.notes || '';
 
   if (type === 'turf') {
-    document.getElementById('ciTurfType').value = item.type || 'standard';
+    const types = getTurfTypes(item);
+    document.getElementById('ciTurfTypeStandard').checked = types.indexOf('standard') !== -1;
+    document.getElementById('ciTurfTypePutting').checked = types.indexOf('putting') !== -1;
+    document.getElementById('ciTurfTypeFringe').checked = types.indexOf('fringe') !== -1;
     document.getElementById('ciTurfTdName').value = item.tdName || '';
     document.getElementById('ciTurfCost').value = item.costPerLinFt || '';
   } else if (type === 'infill') {
@@ -6061,7 +6117,9 @@ function openEditItemModal(type, index) {
 function clearCatalogModal() {
   ['ciName','ciTurfTdName','ciTurfCost','ciCoverage','ciInfillCost','ciDepth','ciRockSqFtPrice','ciEdgingColor','ciEdgingPrice','ciNotes']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
-  document.getElementById('ciTurfType').value = 'standard';
+  const std = document.getElementById('ciTurfTypeStandard'); if (std) std.checked = true;
+  const put = document.getElementById('ciTurfTypePutting'); if (put) put.checked = false;
+  const fr = document.getElementById('ciTurfTypeFringe'); if (fr) fr.checked = false;
 }
 
 function showCatalogFields(type) {
@@ -6086,11 +6144,17 @@ function saveCatalogItem() {
 
   let item;
   if (_ciType === 'turf') {
+    const types = [];
+    if (document.getElementById('ciTurfTypeStandard').checked) types.push('standard');
+    if (document.getElementById('ciTurfTypePutting').checked) types.push('putting');
+    if (document.getElementById('ciTurfTypeFringe').checked) types.push('fringe');
+    if (!types.length) types.push('standard'); // never save a typeless product
     item = {
       id: _ciIndex !== null ? cat.turf[_ciIndex].id : 'turf_' + Date.now(),
       name,
       tdName: document.getElementById('ciTurfTdName').value.trim(),
-      type: document.getElementById('ciTurfType').value,
+      types,
+      type: types[0], // legacy mirror so older reads still work
       costPerLinFt: document.getElementById('ciTurfCost').value,
       notes
     };
@@ -6166,7 +6230,7 @@ function openCatalogPicker(type) {
   } else {
     list.innerHTML = items.map((item, idx) => {
       let meta = '';
-      if (type === 'turf')   meta = turfTypeLabel(item.type);
+      if (type === 'turf')   meta = turfTypesLabel(getTurfTypes(item));
       if (type === 'infill') meta = item.lbsPerSqFt ? item.lbsPerSqFt + ' lbs/sqft' : '';
       if (type === 'rock')   meta = item.defaultDepth ? item.defaultDepth + '" default depth' : '';
       return `
@@ -7282,6 +7346,21 @@ function getFringeConfig(proj) {
 function turfTypeLabel(type) {
   return type === 'putting' ? 'Putting Green' : type === 'fringe' ? 'Fringe' : 'Standard';
 }
+// A product's types as an array. Migrates the old single `type` string; empty → ['standard'].
+// Pure.
+function getTurfTypes(product) {
+  if (!product) return ['standard'];
+  let arr = Array.isArray(product.types) ? product.types.slice() : (product.type ? [product.type] : []);
+  arr = arr.filter(t => t === 'standard' || t === 'putting' || t === 'fringe');
+  return arr.length ? arr : ['standard'];
+}
+// "Standard · Fringe" style label for a set of types, in a stable order. Pure.
+function turfTypesLabel(types) {
+  const order = ['standard', 'putting', 'fringe'];
+  const set = new Set(getTurfTypes({ types }));
+  return order.filter(t => set.has(t)).map(turfTypeLabel).join(' · ') || 'Standard';
+}
+function productHasType(product, type) { return getTurfTypes(product).indexOf(type) !== -1; }
 
 // Render the Putting Green Fringe config section: hidden entirely unless a
 // secondary shape is marked as the putting green. Populates the turf product
@@ -7334,7 +7413,7 @@ function renderFringeSection(proj) {
   // default (so designating K9 Cascade Pro as "Fringe" makes it the fringe automatically).
   const cat = getCatalog();
   const allTurf = cat.turf || [];
-  const fringeTypeProducts = allTurf.filter(t => t.type === 'fringe');
+  const fringeTypeProducts = allTurf.filter(t => productHasType(t, 'fringe'));
   let chosen = fringe.turfProduct;
   if (!chosen && fringeTypeProducts.length) {
     chosen = fringeTypeProducts[0].name;
@@ -13956,6 +14035,156 @@ function switchTab(name, el) {
   if (name==='vendors') renderVendorTab();
   if (name==='settings') renderSettingsTables();
 }
+
+// ── Getting Started walkthrough ─────────────────────────────────────────────
+const WIZARD_KEY = 'wt_wizard_seen_v1';
+const WIZARD_DISMISS_KEY = 'wt_wizard_hide_v1'; // set only when the user ticks "don't show again"
+// Simple inline diagram of the app layout (no dependency on live DOM positions).
+const WIZARD_LAYOUT_SVG = `<svg viewBox="0 0 320 150" style="width:100%;max-width:340px;display:block;margin:6px auto 2px;border:1px solid var(--border);border-radius:8px;background:var(--surface);">
+  <rect x="0" y="0" width="78" height="150" fill="#22452f"/>
+  <rect x="10" y="12" width="58" height="9" rx="2" fill="#ffffff" opacity="0.85"/>
+  <rect x="10" y="30" width="58" height="14" rx="3" fill="#ffffff" opacity="0.18"/>
+  <rect x="10" y="48" width="58" height="14" rx="3" fill="#55B763" opacity="0.9"/>
+  <rect x="10" y="66" width="58" height="14" rx="3" fill="#ffffff" opacity="0.18"/>
+  <rect x="10" y="128" width="58" height="12" rx="3" fill="#ffffff" opacity="0.28"/>
+  <rect x="86" y="10" width="226" height="18" rx="3" fill="var(--surface2)" stroke="var(--border)"/>
+  <rect x="92" y="15" width="46" height="8" rx="2" fill="#55B763"/>
+  <rect x="146" y="15" width="34" height="8" rx="2" fill="var(--text-light)" opacity="0.5"/>
+  <rect x="186" y="15" width="34" height="8" rx="2" fill="var(--text-light)" opacity="0.5"/>
+  <rect x="226" y="15" width="34" height="8" rx="2" fill="var(--text-light)" opacity="0.5"/>
+  <rect x="86" y="36" width="226" height="104" rx="4" fill="var(--surface)" stroke="var(--border)"/>
+  <rect x="96" y="48" width="120" height="9" rx="2" fill="#2B7653"/>
+  <rect x="96" y="66" width="206" height="7" rx="2" fill="var(--text-light)" opacity="0.35"/>
+  <rect x="96" y="80" width="206" height="7" rx="2" fill="var(--text-light)" opacity="0.35"/>
+  <rect x="96" y="100" width="96" height="30" rx="4" fill="#55B763" opacity="0.15" stroke="#55B763"/>
+  <rect x="206" y="100" width="96" height="30" rx="4" fill="var(--surface2)" stroke="var(--border)"/>
+</svg>`;
+const WIZARD_STEPS = [
+  { title: 'Welcome 👋', body:
+    `<p>This tool helps you plan turf jobs — how much turf, infill, edging, and base to order, plus labor and a pricing reference.</p>
+     <p style="margin-top:10px;"><strong>You can ignore most of the buttons.</strong> This walkthrough follows the order you'll actually work in: set up your Settings, create a project and import your measurement, then lay out the job.</p>
+     <p style="margin-top:10px;color:var(--text-light);">About a minute. Skip anytime, and replay it later from the <strong>? Help</strong> button.</p>` },
+  { title: 'First — set up your Settings', body:
+    `<p>Before your first job, open <strong>⚙ Settings</strong> and get your catalog in place:</p>
+     <ul style="margin:10px 0 0 18px;padding:0;">
+       <li style="margin-bottom:6px;"><strong>Turf products</strong> — your turf lines, each one's type (Standard / Putting Green / Fringe) and cost.</li>
+       <li style="margin-bottom:6px;"><strong>Infill products</strong>, plus <strong>rock / base</strong> and <strong>edging</strong> materials.</li>
+       <li style="margin-bottom:6px;"><strong>Crew labor rates</strong> — a rate set per crew.</li>
+       <li style="margin-bottom:6px;"><strong>Vendor pricing</strong> — import each supplier's price list for quick reference.</li>
+     </ul>
+     <p style="margin-top:10px;color:var(--text-light);">You do this once. The built-in defaults are a fine starting point — refine as you go.</p>`,
+    actionLabel: '⚙ Open Settings', actionFn: 'wizardGoSettings' },
+  { title: 'Create a project & import Moasure', body:
+    `<p>Bottom-left, click <strong>⚙ Actions → New Project</strong>.</p>
+     <ul style="margin:10px 0 0 18px;padding:0;">
+       <li style="margin-bottom:6px;">Name it with the <strong>customer's name</strong>.</li>
+       <li style="margin-bottom:6px;">Tick the <strong>turf</strong> you're using and set each role (Base Yard, Putting Green, Fringe…).</li>
+       <li style="margin-bottom:6px;">Import your <strong>Moasure CSV</strong> to pull in the measured areas — you can import several files into one job.</li>
+     </ul>`,
+    actionLabel: '＋ Start a new project', actionFn: 'wizardGoNewProject' },
+  { title: 'Lay out the job', body:
+    `${WIZARD_LAYOUT_SVG}
+     <p style="margin-top:6px;">Open the <strong>Layout</strong> tab — this is where you'll <strong>spend most of your time</strong>. Adjust <strong>roll rotation</strong> and <strong>seam offsets</strong>, manage <strong>layers</strong>, and let <strong>✨ Minimize waste</strong> find the lowest-waste roll direction.</p>
+     <p style="margin-top:8px;color:var(--text-light);">The Layout tab tells you how much turf, infill, edging, and base to order, and builds the installer cut list.</p>`,
+    actionLabel: '📐 Go to the Layout tab', actionFn: 'wizardGoLayout' },
+  { title: 'Pricing (optional)', body:
+    `<p>Want a quick price? The <strong>Quote Builder</strong> shows priced options (with and without a putting green, alternate turf, and so on) from your installed square footage.</p>
+     <p style="margin-top:10px;">It's a handy reference — your customer quotes are built in <strong>Jobber</strong>.</p>` },
+  { title: "Backups & help — you're set", body:
+    `<p>Your work saves automatically <strong>on this device</strong>. Every so often, use <strong>Settings → Backup &amp; Sync → Export</strong> to save a copy somewhere safe (it isn't in the cloud).</p>
+     <p style="margin-top:10px;">Stuck? The <strong>? Help</strong> button (top-right) has the full guide, and you can <strong>replay this walkthrough</strong> from there anytime.</p>
+     <p style="margin-top:10px;font-weight:600;">Ready to go?</p>`,
+    final: true },
+];
+let _wizardStep = 0;
+// Pure: keep a step index within [0, total-1]. Testable.
+function clampWizardStep(i, total) {
+  if (!(total > 0)) return 0;
+  i = Math.round(+i || 0);
+  return Math.max(0, Math.min(total - 1, i));
+}
+function openWizard(startIndex) {
+  _wizardStep = clampWizardStep(startIndex || 0, WIZARD_STEPS.length);
+  const cb = document.getElementById('wizardDontShow'); if (cb) cb.checked = false;
+  renderWizardStep();
+  document.getElementById('wizardModal').classList.add('open');
+}
+function closeWizard() {
+  document.getElementById('wizardModal').classList.remove('open');
+  // Only stop showing it next time if the user explicitly ticked "don't show again".
+  const cb = document.getElementById('wizardDontShow');
+  try {
+    if (cb && cb.checked) localStorage.setItem(WIZARD_DISMISS_KEY, '1');
+    else localStorage.removeItem(WIZARD_DISMISS_KEY);
+    localStorage.setItem(WIZARD_KEY, '1'); // record that it's been seen at least once
+  } catch (e) {}
+}
+function wizardBack() { _wizardStep = clampWizardStep(_wizardStep - 1, WIZARD_STEPS.length); renderWizardStep(); }
+function wizardNext() {
+  if (_wizardStep >= WIZARD_STEPS.length - 1) { wizardFinish(); return; }
+  _wizardStep = clampWizardStep(_wizardStep + 1, WIZARD_STEPS.length);
+  renderWizardStep();
+}
+function wizardFinish() { closeWizard(); }
+function renderWizardStep() {
+  const total = WIZARD_STEPS.length;
+  const step = WIZARD_STEPS[_wizardStep] || WIZARD_STEPS[0];
+  document.getElementById('wizardTitle').textContent = step.title;
+  const cta = step.actionFn
+    ? `<div style="margin-top:16px;"><button class="btn btn-primary btn-sm" onclick="${step.actionFn}()" style="font-weight:700;">${step.actionLabel}</button>
+       <div style="font-size:12px;color:var(--text-light);margin-top:6px;">Do that here, then click <strong>Next →</strong> to continue.</div></div>`
+    : '';
+  document.getElementById('wizardBody').innerHTML = step.body + cta;
+  document.getElementById('wizardStepLabel').textContent = `Step ${_wizardStep + 1} of ${total}`;
+  // Progress dots
+  document.getElementById('wizardProgress').innerHTML = WIZARD_STEPS.map((_, i) =>
+    `<span style="height:5px;flex:1;border-radius:3px;background:${i <= _wizardStep ? 'var(--green)' : 'var(--border)'};"></span>`
+  ).join('');
+  const backBtn = document.getElementById('wizardBackBtn');
+  backBtn.style.visibility = _wizardStep === 0 ? 'hidden' : 'visible';
+  const nextBtn = document.getElementById('wizardNextBtn');
+  const skipBtn = document.getElementById('wizardSkipBtn');
+  if (step.final) {
+    nextBtn.style.display = 'none';
+    skipBtn.style.display = 'none';
+    // Final step gets two explicit choices.
+    if (!document.getElementById('wizardFinalBtns')) {
+      const wrap = document.createElement('span');
+      wrap.id = 'wizardFinalBtns';
+      wrap.style.display = 'inline-flex';
+      wrap.style.gap = '8px';
+      wrap.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="wizardFinish()">Explore on my own</button>
+        <button class="btn btn-primary btn-sm" onclick="wizardCreateFirstProject()">Create my first project</button>`;
+      nextBtn.parentNode.appendChild(wrap);
+    }
+    document.getElementById('wizardFinalBtns').style.display = 'inline-flex';
+  } else {
+    nextBtn.style.display = '';
+    skipBtn.style.display = '';
+    nextBtn.textContent = 'Next →';
+    const fb = document.getElementById('wizardFinalBtns');
+    if (fb) fb.style.display = 'none';
+  }
+}
+function wizardCreateFirstProject() {
+  wizardFinish();
+  if (typeof openNewProjectModal === 'function') openNewProjectModal();
+}
+// Launch point from the Help dialog.
+function startWalkthrough() {
+  const docs = document.getElementById('docsModal');
+  if (docs) docs.classList.remove('open');
+  openWizard(0);
+}
+// Step actions — drop the user on the right page while the coach card stays open.
+function gotoTab(name) {
+  const el = document.getElementById(name === 'settings' ? 'tabSettings' : null) ||
+             document.querySelector('.tab[onclick*="' + name + '"]');
+  switchTab(name, el);
+}
+function wizardGoSettings() { gotoTab('settings'); }
+function wizardGoLayout() { gotoTab('layout'); }
+function wizardGoNewProject() { if (typeof openNewProjectModal === 'function') openNewProjectModal(); }
 
 // ── Reusable name modal (matches the crew modal's look) ─────────────────────
 let _nameModalOnSave = null;
