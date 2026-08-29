@@ -5,6 +5,110 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 76) — Rock/base area now includes the putting green
+
+Per Brian: base goes under the putting green too. rockBaseSqFt now sums <strong>base-role +
+putting-green-role</strong> turf (the full outline), instead of base only. Alt-turf rows stay
+excluded (an alternate product for the same base footprint). autoPopulateRock uses the same
+helper, so both the live area-mode sqft and any priced rock line now cover base + green.
+
+Example (Back putting green: base install 82.37 + green 91.52) → rock area 173.89 sqft, the
+whole outline.
+
+Tests **1792 → 1793** (README **1793**): base+green sum with alt-turf excluded, and a
+green-only job still gets rock. Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 75) — Area-mode rock rows are now robustly live-linked to the turf area
+
+Area-mode rock/base rows already re-pulled the base turf area on a turf edit, but three gaps
+made it unreliable: a total>0 guard skipped the sync when base area was 0 (leaving a stale
+value), cubic-yards rows had their unused sqft clobbered, and load-time didn't re-sync.
+
+New pure helpers rockBaseSqFt (base-role turf area) and syncAreaModeRockSqFt (writes it into
+area-mode rows only). Wired into renderRockRows (so it's live on load and every render),
+autoPopulateRock (replaces the guarded block), and calcQuote (re-syncs before pricing rock).
+Result: change or clear the installed turf area and area-mode rock — and its priced line —
+follow immediately; cubic-yards rows keep the yards you typed.
+
+Note: rock area = base-role turf only (unchanged), so putting-green / alt-turf areas are not
+counted toward rock. Flagging in case that undercounts rock on green-heavy jobs — say the word
+if rock should also cover those.
+
+Tests **1786 → 1792** (README **1792**): base-area sum, area rows track (incl. →0), yards rows
+untouched, no-entryMode defaults to area. Verified end-to-end (400 → 900 → 0 → reload 650).
+Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 74) — Show $/Cu. Yd column in the rock settings table
+
+The Rock / Base Materials settings table now has a <strong>$/Cu. Yd</strong> column (before
+$/SqFt @ 1"), so the cost-per-yard that drives quote pricing is visible at a glance, not just
+inside the edit modal. Blank costs show "—".
+
+Tests **1784 → 1786** (README **1786**): the table header and the per-row cost render. Verified
+in-browser. Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 73) — Remove the rock "Unit" entry mode
+
+Dropped the Unit entry mode from the Rock / Base card — it couldn't be priced by cost-per-yard
+and added confusion. Rows now have just <strong>Area (auto)</strong> and <strong>Cubic
+yards</strong>. rockRowOrder no longer returns units/unitLabel; the unused onRockTextInput and
+the "Cu. Yards / Qty" header wording were removed. Any old row saved as "unit" falls back to
+area (no crash).
+
+Tests **1786 → 1784** (README **1784**): removed the unit-mode assertions, added a fallback
+check. Verified the row now offers only the two modes. Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 72) — Rock/base: cost per cubic yard + optional priced line on the quote
+
+Follow-up to cont'd 71:
+- Rock catalog items now have a <strong>Cost per Cubic Yard</strong> field (Settings → Rock /
+  Base Materials).
+- New Settings toggle <strong>"Show rock/base cost on quotes"</strong> (off by default) for
+  businesses that do NOT build rock into their crew's per-sqft labor rate. When on, rock cost
+  = each material's cost/yd × its cubic yards is added to COGS and shown as a "Rock / base"
+  line on every scenario (per-project, like shipping, so margin applies to it).
+- Cost is driven by the specified depth: cubic yards = area × (depth/12) / 27 (area mode) or
+  the yards typed (cubic-yards mode). Unit mode has no cubic yards, so it isn't priced by the
+  per-yard cost.
+
+New pure helpers rockRowCost / sumRockCost + getRockInQuote/setRockInQuote (localStorage
+wt_rock_in_quote_v1). Default OFF keeps existing quotes unchanged.
+
+Tests **1774 → 1786** (README **1786**): cost per yard, depth sensitivity (½ depth → ½ cost),
+per-mode pricing, no-cost/no-catalog safety, sum across lines, toggle default off, and COGS
+wiring. Verified end-to-end (toggle off → no line, $1,050; on → +$275 rock line). Green under
+UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 71) — Rock/base: enter by cubic yard or by unit (not just auto-from-area)
+
+Each Rock / Base line now has an "Enter by" mode:
+- **Area (auto)** — the existing behavior: tons & cubic yards derived from the turf area ×
+  the catalog depth (default, so nothing changes for existing rows).
+- **Cubic yards** — type the cubic yards directly; tons are derived at 1.4 ton/yd³.
+- **Unit** — type a plain count plus your own label (e.g. "loads", "tons", "bags"); carried
+  as-is with no conversion.
+
+New pure helper rockRowOrder (mode-aware); rows store entryMode / yards / units / unitLabel
+(old rows default to area). Unit-mode rows contribute no tons to the top-bar total (correct —
+a "load" isn't a ton). Note: rock is still an ORDER-QUANTITY helper only — it does not price
+into the customer quote (rock cost lives in the crew's per-sqft labor rate, unchanged).
+
+Tests **1766 → 1774** (README **1774**): all three modes, rounding, blank/NaN safety, unit
+label default, and that unit rows add no tons to the total. Verified end-to-end in a browser.
+Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 70) — Remove the layout diagram from walkthrough step 4
 
 Dropped the small SVG app-layout diagram from the "Lay out the job" step; it now reads as plain

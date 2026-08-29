@@ -1373,15 +1373,16 @@
             <button class="btn btn-ghost btn-sm" onclick="openCatalogPicker('rock')">＋ Add Type</button>
           </div>
 
-          <div class="row-grid-wide" style="display:grid;grid-template-columns:1fr 0.7fr 0.7fr 32px;gap:8px;margin-bottom:6px;">
+          <div class="row-grid-wide" style="display:grid;grid-template-columns:1fr 0.8fr 0.65fr 0.8fr 32px;gap:8px;margin-bottom:6px;">
             <label>Material</label>
+            <label>Enter by</label>
             <label>Tons to Order</label>
             <label>Cu. Yards</label>
             <div></div>
           </div>
 
           <div id="rockRows"></div>
-          <p style="font-size:11px;color:var(--text-light);margin-top:6px;">Depth &amp; density set in Settings → Rock / Base Materials.</p>
+          <p style="font-size:11px;color:var(--text-light);margin-top:6px;">Depth &amp; density set in Settings → Rock / Base Materials. Use <strong>Enter by</strong> to order by <strong>Area (auto)</strong> or type <strong>Cubic yards</strong> directly.</p>
         </div>
 
         <!-- EDGING -->
@@ -1912,6 +1913,10 @@
             <button class="btn btn-primary btn-sm" onclick="openAddItemModal('rock')">＋ Add Material</button>
           </div>
           <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">Default depth is used to pre-fill the depth field on the Rock / Base card when this product is added.</p>
+          <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--text-mid);cursor:pointer;margin-bottom:14px;">
+            <input type="checkbox" id="rockInQuoteToggle" style="width:auto;margin:2px 0 0;" onchange="setRockInQuote(this.checked)">
+            <span><strong>Show rock/base cost on quotes.</strong> Turn this on only if you do <em>not</em> already build rock into your crew's per-sqft labor rate. When on, each material's <strong>Cost per Cubic Yard</strong> × its cubic yards is added to the quote as a "Rock / base" line.</span>
+          </label>
           <div id="settingsRockTable"></div>
         </div>
 
@@ -2112,6 +2117,11 @@
         <label>Price per SqFt at 1" Deep ($)</label>
         <input type="number" id="ciRockSqFtPrice" step="0.01" placeholder="0.00">
         <div class="hint">Price charged per sq ft at 1" depth</div>
+      </div>
+      <div class="field-group">
+        <label>Cost per Cubic Yard ($)</label>
+        <input type="number" id="ciRockYardPrice" step="0.01" placeholder="0.00">
+        <div class="hint">Used to price rock on the quote when "Show rock/base cost on quotes" is on. Quantity = area × the depth above (or the cubic yards you enter on the Rock / Base card).</div>
       </div>
     </div>
 
@@ -2467,7 +2477,7 @@
         <div class="docs-h3">Infill Products</div>
         <p>Add your infill products (e.g. PFS Silica Sand, GD Medium Sand, GD Putting Sand). Set <strong>Lbs per SqFt</strong> so bag quantities calculate automatically, and <strong>Cost per Bag</strong> so infill pricing appears in quotes.</p>
         <div class="docs-h3">Rock / Base Materials</div>
-        <p>Add your base materials (e.g. 1/4" x 3/4" Clean Crush at 4" depth, 1/4" Minus at 1" depth). Set the <strong>Default Depth</strong> — this is locked to what you define here and cannot be changed per-project. <strong>Price per SqFt @ 1"</strong> and <strong>Cost per Ton</strong> are for your own reference when ordering; they don't appear in customer quotes (rock cost is built into your per-sqft labor rate instead — see Labor Rates below).</p>
+        <p>Add your base materials (e.g. 1/4" x 3/4" Clean Crush at 4" depth, 1/4" Minus at 1" depth). Set the <strong>Default Depth</strong> — this is locked to what you define here and cannot be changed per-project. Set <strong>Cost per Cubic Yard</strong> to price rock. By default rock cost does <em>not</em> appear in customer quotes (most crews build rock into their per-sqft labor rate). If yours doesn't, turn on <strong>Show rock/base cost on quotes</strong> and each material's cost/yd × its cubic yards (area × the specified depth, or the yards you enter on the Rock / Base card) is added to the quote as a "Rock / base" line. <strong>Price per SqFt @ 1"</strong> stays a reference-only figure.</p>
         <div class="docs-h3">Miscellaneous Items</div>
         <p>Add any other materials you regularly include (seam tape, adhesive, nails, staples, etc.). Set the name, unit, and price. These can be added to individual quotes later.</p>
         <div class="docs-h3">Labor Rates & Price Sheet</div>
@@ -4382,9 +4392,7 @@ function autoPopulateInfill() {
 
 function autoPopulateRock() {
   const proj = getCurrentProject(); if(!proj) return;
-  const total = (proj.turf||[])
-    .filter(r => (r.role||'base') === 'base')
-    .reduce((s,r)=>s+(parseFloat(r.installedSqFt)||0),0);
+  const total = rockBaseSqFt(proj); // base outline + putting green (rock goes under both)
 
   // Sync rock rows from catalog if project has none or only the old hardcoded single row
   const rockCatalog = getCatalog().rock || [];
@@ -4404,12 +4412,8 @@ function autoPopulateRock() {
     }
   }
 
-  if (total) {
-    (proj.rock||[]).forEach((row, i) => {
-      proj.rock[i].sqFt = total;
-      calcRockRow(i);
-    });
-  }
+  syncAreaModeRockSqFt(proj);
+  (proj.rock||[]).forEach((_, i) => calcRockRow(i));
 
   renderRockRows(proj);
   save();
@@ -4871,6 +4875,11 @@ function calcQuote() {
 
   // Infill costs by tier — tier is now: 'standard', 'upgraded', 'putting-green'
   const cat = getCatalog();
+  // Rock/base cost is a per-project amount (like shipping), shown only when the business
+  // hasn't baked rock into their crew labor rate. Off by default → 0. Area-mode rows track
+  // the current base turf area live, so re-sync before pricing.
+  if (getRockInQuote()) syncAreaModeRockSqFt(proj);
+  const rockCost = getRockInQuote() ? parseFloat(sumRockCost(proj.rock, cat).toFixed(2)) : 0;
   function infillCostForTier(tier) {
     return (proj.infill||[])
       .filter(r => (r.tier||'standard') === tier && parseFloat(r.bags) > 0)
@@ -5059,7 +5068,7 @@ function calcQuote() {
         const scenarioInfillCost = tierInfillCost + (pgSqFt > 0 ? pgInfillCost : 0);
         const scenarioMiscCost = baseMiscCost + (pgSqFt > 0 ? pgMiscCost : 0);
         const scenarioFringeCost = pgSqFt > 0 ? fringeCost : 0;
-        const cogs = laborStd + laborPg + edgeCost + dailyMinAdj + turfMatCost + pgTurfMatCost + scenarioInfillCost + scenarioMiscCost + scenarioFringeCost + shippingCost;
+        const cogs = laborStd + laborPg + edgeCost + dailyMinAdj + turfMatCost + pgTurfMatCost + scenarioInfillCost + scenarioMiscCost + scenarioFringeCost + rockCost + shippingCost;
         const sellPrice = applyMargin(cogs, marginPct);
 
         const cardLabel = letters[cardIdx % 26];
@@ -5083,6 +5092,7 @@ function calcQuote() {
         if (pgSqFt > 0 && pgInfillCost) breakdown += `<div class="opt-line"><span>Putting green infill</span><span>${fmt(pgInfillCost)}</span></div>`;
         baseMiscItems.forEach(r => { breakdown += miscLineHtml(r); });
         if (pgSqFt > 0) pgMiscItems.forEach(r => { breakdown += miscLineHtml(r); });
+        if (rockCost) breakdown += `<div class="opt-line"><span>Rock / base</span><span>${fmt(rockCost)}</span></div>`;
         if (shippingCost) breakdown += `<div class="opt-line"><span>Shipping / freight</span><span>${fmt(shippingCost)}</span></div>`;
 
         const marginAmt = sellPrice - cogs;
@@ -5133,8 +5143,27 @@ function fmt(n) {
 
 function renderRockRows(proj) {
   const container = document.getElementById('rockRows');
+  syncAreaModeRockSqFt(proj);
   container.innerHTML = '';
   (proj.rock||[]).forEach((row,i) => container.appendChild(makeRockRow(row,i)));
+}
+
+// Ground area that rock/base is ordered against = the full base outline the turf covers:
+// base-role turf (outline minus the green) PLUS the putting-green area. Alt-turf rows are
+// excluded (they're an alternate product for the same base footprint). Pure/testable.
+function rockBaseSqFt(proj) {
+  return (proj && proj.turf || [])
+    .filter(r => { const role = r.role || 'base'; return role === 'base' || role === 'putting-green'; })
+    .reduce((s,r)=>s+(parseFloat(r.installedSqFt)||0),0);
+}
+// Keep AREA-mode rock rows live-linked to the current base turf area (including when it's 0).
+// Cubic-yards rows are left alone — they use the yards the user typed. Mutates proj.rock.
+function syncAreaModeRockSqFt(proj) {
+  if (!proj || !proj.rock) return;
+  const total = rockBaseSqFt(proj);
+  proj.rock.forEach(row => {
+    if ((row.entryMode || 'area') === 'area') row.sqFt = total || '';
+  });
 }
 
 // Rock/base order quantities from area + depth. Cubic yards is the raw volume;
@@ -5150,29 +5179,102 @@ function rockQuantities(sqFt, depthInches) {
   };
 }
 
+// What a rock row orders, honoring its entry mode. Pure/testable.
+//  'area'  (default): tons & yards derived from the turf area × catalog depth.
+//  'yards': the user types cubic yards; tons derived at 1.4 ton/yd³.
+function rockRowOrder(row, depthInches) {
+  const mode = (row && row.entryMode) || 'area';
+  if (mode === 'yards') {
+    const y = Math.max(0, parseFloat(row.yards) || 0);
+    return { mode, yards: y ? Math.ceil(y * 10) / 10 : 0, tons: y ? Math.ceil(y * 1.4 * 10) / 10 : 0 };
+  }
+  const q = rockQuantities(row.sqFt, depthInches);
+  return { mode: 'area', yards: q.yards, tons: q.tons };
+}
+
+// Cost of one rock row = cubic yards × cost per yard. Yards come from the row's mode
+// (area → area×depth, or the yards typed). Pure/testable.
+function rockRowCost(row, catItem) {
+  if (!row || !catItem) return 0;
+  const cpy = parseFloat(catItem.costPerYard) || 0;
+  if (cpy <= 0) return 0;
+  const depth = parseFloat(catItem.defaultDepth) || parseFloat(row.depth) || 4;
+  const o = rockRowOrder(row, depth);
+  return parseFloat((o.yards * cpy).toFixed(2));
+}
+function sumRockCost(rockLines, catalog) {
+  const rock = (catalog && catalog.rock) || [];
+  return (rockLines || []).reduce((t, r) => {
+    const ci = rock.find(c => c.name === r.type);
+    return t + rockRowCost(r, ci);
+  }, 0);
+}
+// Global preference: show rock/base as a priced line on the quote (for crews that DON'T bake
+// rock into their per-sqft labor rate). Off by default — existing behavior is unchanged.
+const ROCK_IN_QUOTE_KEY = 'wt_rock_in_quote_v1';
+function getRockInQuote() { try { return localStorage.getItem(ROCK_IN_QUOTE_KEY) === '1'; } catch(e){ return false; } }
+function setRockInQuote(on) {
+  try { if (on) localStorage.setItem(ROCK_IN_QUOTE_KEY,'1'); else localStorage.removeItem(ROCK_IN_QUOTE_KEY); } catch(e){}
+  if (getCurrentProject()) calcQuote();
+}
+
+// Switch a rock row's entry mode and re-render it (the inputs change shape).
+function updateRockMode(i, mode) {
+  const proj = getCurrentProject(); if(!proj) return;
+  proj.rock[i].entryMode = mode;
+  save();
+  const rows = document.querySelectorAll('#rockRows > div');
+  if (rows[i]) rows[i].replaceWith(makeRockRow(proj.rock[i], i));
+  updateMaterialsSummary();
+}
+// Focus-safe numeric input: update the value and only the computed cell (no full re-render).
+function onRockNumInput(i, field, val) {
+  const proj = getCurrentProject(); if(!proj) return;
+  const row = proj.rock[i]; row[field] = val;
+  const o = rockRowOrder(row, parseFloat(row.depth)||4);
+  row.tons = o.tons || ''; row.yards = o.yards || '';
+  const tonsEl = document.getElementById('rockTons'+i);
+  if (tonsEl && row.entryMode === 'yards') tonsEl.textContent = o.tons || '—';
+  save();
+  updateMaterialsSummary();
+}
+
 function makeRockRow(row, i) {
   const div = document.createElement('div');
   div.className = 'row-grid-wide';
-  div.style.cssText = 'display:grid;grid-template-columns:1fr 0.7fr 0.7fr 32px;gap:8px;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border);';
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 0.8fr 0.65fr 0.8fr 32px;gap:8px;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border);';
 
   const cat = getCatalog();
   const catItem = (cat.rock||[]).find(c => c.name === row.type);
   const depth = catItem ? (parseFloat(catItem.defaultDepth)||4) : (parseFloat(row.depth)||4);
   if (row.depth !== depth) row.depth = depth;
+  if (!row.entryMode) row.entryMode = 'area';
 
-  const sqFt = parseFloat(row.sqFt)||0;
-  const q = rockQuantities(sqFt, depth);
-  row.tons = q.tons || '';
-  row.yards = q.yards || '';
+  const o = rockRowOrder(row, depth);
+  row.tons = o.tons || '';
+  row.yards = o.yards || '';
 
-  const autoStyle  = 'width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--highlight-border);border-radius:7px;font-size:13px;font-family:\'DM Mono\',monospace;background:var(--highlight);color:var(--green);font-weight:500;';
+  const autoStyle  = "width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--highlight-border);border-radius:7px;font-size:13px;font-family:'DM Mono',monospace;background:var(--highlight);color:var(--green);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+  const inStyle    = "box-sizing:border-box;padding:8px 10px;border:1px solid #c9a94a;border-radius:7px;font-size:13px;font-family:'DM Mono',monospace;background:#fdf6e3;color:var(--text);";
+  const selStyle   = "width:100%;box-sizing:border-box;padding:7px 6px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--surface);color:var(--text);";
+  const rmode = row.entryMode;
+  const ropt = (v,l)=>`<option value="${v}" ${rmode===v?'selected':''}>${l}</option>`;
+  const rockModeSelect = `<select style="${selStyle}" onchange="updateRockMode(${i}, this.value)">${ropt('area','Area (auto)')}${ropt('yards','Cubic yards')}</select>`;
+  const rockTonsCell = `<div style="${autoStyle}" id="rockTons${i}">${o.tons || '—'}</div>`;
+  let rockQtyCell;
+  if (rmode === 'yards') {
+    rockQtyCell = `<input type="number" min="0" step="0.1" value="${row.yards||''}" placeholder="yd³" style="${inStyle}width:100%;" oninput="onRockNumInput(${i},'yards',this.value)">`;
+  } else {
+    rockQtyCell = `<div style="${autoStyle}" id="rockYards${i}">${o.yards || '—'}</div>`;
+  }
 
   div.innerHTML = `
     <div style="padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface2);color:var(--text);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
       ${row.type || '<span style="color:var(--text-light)">—</span>'}
     </div>
-    <div style="${autoStyle}">${q.tons || '—'}</div>
-    <div style="${autoStyle}">${q.yards || '—'}</div>
+    ${rockModeSelect}
+    ${rockTonsCell}
+    ${rockQtyCell}
     <button class="remove-btn" onclick="removeRockRow(${i})">×</button>
   `;
   return div;
@@ -5204,9 +5306,9 @@ function calcRockRow(i) {
   const depth = catItem ? (parseFloat(catItem.defaultDepth)||4) : (parseFloat(row.depth)||4);
 
   row.depth = depth;
-  const q = rockQuantities(sqFt, depth);
-  row.tons = q.tons || '';
-  row.yards = q.yards || '';
+  const o = rockRowOrder(row, depth);
+  row.tons = o.tons || '';
+  row.yards = o.yards || '';
 
   // Re-render the whole row so all display values update correctly
   const rows = document.querySelectorAll('#rockRows > div');
@@ -5224,7 +5326,7 @@ function addRockRow(prefill) {
   const autoSqFt = (proj.turf||[])
     .filter(r => !r.optional)
     .reduce((s,r)=>s+(parseFloat(r.installedSqFt)||0),0);
-  proj.rock.push({ type: prefill?.type||'', sqFt: autoSqFt||'', depth: prefill?.depth||4, tons:'' });
+  proj.rock.push({ type: prefill?.type||'', sqFt: autoSqFt||'', depth: prefill?.depth||4, tons:'', entryMode:'area' });
   save();
   const rowEl = makeRockRow(proj.rock[i], i);
   document.getElementById('rockRows').appendChild(rowEl);
@@ -5571,6 +5673,8 @@ function renderSettingsEdgingTable(items) {
 
 function renderSettingsRockTable(items) {
   const el = document.getElementById('settingsRockTable');
+  const tog = document.getElementById('rockInQuoteToggle');
+  if (tog) tog.checked = getRockInQuote();
   if (!items || !items.length) {
     el.innerHTML = '<div class="empty" style="padding:24px"><div class="empty-msg">No rock materials yet.</div></div>';
     return;
@@ -5580,6 +5684,7 @@ function renderSettingsRockTable(items) {
       <thead><tr>
         <th>Material Name</th>
         <th>Default Depth</th>
+        <th>$/Cu. Yd</th>
         <th>$/SqFt @ 1"</th>
         <th>Notes</th>
         <th></th>
@@ -5589,6 +5694,7 @@ function renderSettingsRockTable(items) {
           <tr>
             <td><div class="item-name">${t.name}</div></td>
             <td>${t.defaultDepth||4}"</td>
+            <td class="item-cost">${t.costPerYard ? '$'+parseFloat(t.costPerYard).toFixed(2) : '—'}</td>
             <td class="item-cost">${t.pricePerSqFt1in ? '$'+parseFloat(t.pricePerSqFt1in).toFixed(2) : '—'}</td>
             <td style="color:var(--text-light);font-size:12px;">${t.notes||'—'}</td>
             <td><div class="item-actions">
@@ -6114,6 +6220,7 @@ function openEditItemModal(type, index) {
   } else if (type === 'rock') {
     document.getElementById('ciDepth').value = item.defaultDepth || 4;
     document.getElementById('ciRockSqFtPrice').value = item.pricePerSqFt1in || '';
+    document.getElementById('ciRockYardPrice').value = item.costPerYard || '';
   } else if (type === 'edging') {
     document.getElementById('ciEdgingColor').value = item.color || '';
     document.getElementById('ciEdgingPrice').value = item.pricePerBoard || '';
@@ -6124,7 +6231,7 @@ function openEditItemModal(type, index) {
 }
 
 function clearCatalogModal() {
-  ['ciName','ciTurfTdName','ciTurfCost','ciCoverage','ciInfillCost','ciDepth','ciRockSqFtPrice','ciEdgingColor','ciEdgingPrice','ciNotes']
+  ['ciName','ciTurfTdName','ciTurfCost','ciCoverage','ciInfillCost','ciDepth','ciRockSqFtPrice','ciRockYardPrice','ciEdgingColor','ciEdgingPrice','ciNotes']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   const std = document.getElementById('ciTurfTypeStandard'); if (std) std.checked = true;
   const put = document.getElementById('ciTurfTypePutting'); if (put) put.checked = false;
@@ -6189,6 +6296,7 @@ function saveCatalogItem() {
       defaultDepth: parseFloat(document.getElementById('ciDepth').value) || 4,
       costPerTon: '',
       pricePerSqFt1in: document.getElementById('ciRockSqFtPrice').value,
+      costPerYard: document.getElementById('ciRockYardPrice').value,
       notes
     };
     if (_ciIndex !== null) cat.rock[_ciIndex] = item;

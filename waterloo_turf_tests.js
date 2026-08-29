@@ -2367,7 +2367,7 @@ section('35. Materials Rock/Base row shows only material name and tons (no sqft/
   stored35['wt_catalog_v2'] = JSON.stringify(catalog35);
   stored35['wt_projects_v4'] = JSON.stringify([{
     id:'p1', name:'Test', created:1000, turf:[], infill:[], edging:{}, pgSqFt:0, miscItems:[],
-    rock: [{ type:'1/4" x 3/4" Clean Crush', sqFt: 1000, depth: 4, tons: '' }],
+    rock: [{ type:'1/4" x 3/4" Clean Crush', sqFt: 1000, depth: 4, tons: '', entryMode:'area' }],
   }]);
 
   const mockCtx2d35 = {
@@ -2403,6 +2403,7 @@ section('35. Materials Rock/Base row shows only material name and tons (no sqft/
 
   const proj35 = ctx35.getCurrentProject();
   const row35 = proj35.rock[0];
+  row35.sqFt = 1000; // set explicitly; loadProject's live-sync zeroes area-mode rock when there's no base turf
 
   // makeRockRow returns a DOM-like node; in this environment document.createElement
   // is mocked via mockEl(), so just verify the calculation it performs on the row
@@ -7625,6 +7626,68 @@ section('142. Getting Started walkthrough');
   assert(/function wizardExpand[\s\S]{0,80}applyWizardMinimized/.test(src), 'the pill expands back to the card');
   assert(/id="wizardPill"[\s\S]{0,120}wizardExpand\(\)/.test(src), 'the minimized pill reopens the walkthrough on click');
   assert(/\$\{step\.actionFn\}\(\);wizardMinimize\(\)/.test(src), 'clicking a step action tucks the card away automatically');
+}
+
+section('143. Rock/base entry modes (area / cubic yards / unit)');
+{
+  const f = ctx.rockRowOrder;
+  // Default/area mode derives tons + yards from area and depth.
+  const area = f({ sqFt: 400 }, 4);
+  assert(area.mode === 'area' && area.yards === 5 && area.tons === 7, 'area mode derives yards & tons from sqft × depth');
+  assert(f({ entryMode: 'area', sqFt: 0 }, 4).tons === 0, 'zero area → 0');
+  // Cubic-yards mode: user types yards, tons derived at 1.4 ton/yd³.
+  const yd = f({ entryMode: 'yards', yards: 8 }, 4);
+  assert(yd.yards === 8 && yd.tons === 11.2, 'cubic-yards mode: 8 yd³ → 11.2 tons');
+  assert(f({ entryMode: 'yards', yards: '' }, 4).tons === 0, 'blank yards → 0 (no NaN)');
+  assert(f({ entryMode: 'yards', yards: 2.03 }, 4).yards === 2.1, 'entered yards round up to 0.1');
+  // Only two modes exist now: area and cubic yards (unit mode was removed).
+  const yRow = { entryMode: 'yards', yards: 8 }; yRow.tons = f(yRow, 4).tons;
+  assert(ctx.sumRockTons([yRow]) === 11.2, 'yards-mode tons feed the top-bar total');
+  // An unknown/removed mode falls back to area (no crash).
+  assert(f({ entryMode: 'unit', sqFt: 400 }, 4).mode === 'area', 'a removed mode falls back to area');
+}
+
+section('144. Rock/base pricing (cost per yard, depth-aware, optional on quote)');
+{
+  const ci = { name:'Clean Crush', defaultDepth:4, costPerYard:'55' };
+  // Cost = cubic yards × cost/yard, and the yards honor the specified depth.
+  assert(ctx.rockRowCost({ sqFt:400, entryMode:'area' }, ci) === 275, 'area 400 sqft @ 4in × $55/yd = $275 (5 yd)');
+  assert(ctx.rockRowCost({ sqFt:400, entryMode:'area' }, { name:'x', defaultDepth:2, costPerYard:'55' }) === 137.5, 'half the depth → half the yards → half the cost');
+  assert(ctx.rockRowCost({ entryMode:'yards', yards:8 }, ci) === 440, 'cubic-yards mode: 8 yd × $55 = $440');
+  assert(ctx.rockRowCost({ sqFt:400 }, { name:'y', defaultDepth:4 }) === 0, 'no cost-per-yard set → $0');
+  assert(ctx.rockRowCost({ sqFt:400 }, null) === 0, 'no catalog match → $0, no throw');
+  assert(ctx.sumRockCost([{ type:'Clean Crush', sqFt:400, entryMode:'area' }, { type:'Clean Crush', entryMode:'yards', yards:8 }], { rock:[ci] }) === 715, 'sumRockCost adds all rock lines (275 + 440)');
+  // The show-on-quote preference is off by default (rock stays out of the quote unless opted in).
+  assert(typeof ctx.getRockInQuote === 'function' && typeof ctx.setRockInQuote === 'function', 'the show-rock-on-quote preference exists');
+  // costPerYard is captured in the rock catalog modal + a quote toggle is present. Source checks.
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/id="ciRockYardPrice"/.test(src), 'the rock settings modal has a Cost per Cubic Yard field');
+  assert(/<th>\$\/Cu\. Yd<\/th>/.test(src), 'the rock settings table shows a $/Cu. Yd column');
+  assert(/t\.costPerYard \? '\$'\+parseFloat\(t\.costPerYard\)/.test(src), 'the $/Cu. Yd column renders each material cost per yard');
+  assert(/costPerYard: document\.getElementById\('ciRockYardPrice'\)\.value/.test(src), 'cost per yard is saved on the rock item');
+  assert(/id="rockInQuoteToggle"/.test(src) && /onchange="setRockInQuote/.test(src), 'Settings has a show-rock-cost-on-quotes toggle');
+  assert(/\+ scenarioFringeCost \+ rockCost \+ shippingCost/.test(src), 'rock cost is added into COGS when enabled');
+}
+
+section('145. Area-mode rock rows stay live-linked to the base turf area');
+{
+  // rockBaseSqFt = base outline + putting green (rock goes under both); alt-turf is excluded.
+  const proj = { turf: [ {role:'base',installedSqFt:400}, {role:'putting-green',installedSqFt:100}, {role:'alt-turf',installedSqFt:50} ] };
+  assert(ctx.rockBaseSqFt(proj) === 500, 'rockBaseSqFt sums base + putting-green (400 + 100), excludes alt-turf');
+  assert(ctx.rockBaseSqFt({ turf:[{role:'putting-green',installedSqFt:120}] }) === 120, 'a green-only job still gets rock under the green');
+  assert(ctx.rockBaseSqFt({}) === 0 && ctx.rockBaseSqFt({turf:[]}) === 0, 'no turf → 0, no throw');
+  // syncAreaModeRockSqFt pushes the current base+green area into area rows, leaves yards rows alone.
+  const pr = { turf:[{role:'base',installedSqFt:800}], rock:[ {entryMode:'area',sqFt:400}, {entryMode:'yards',yards:10,sqFt:400} ] };
+  ctx.syncAreaModeRockSqFt(pr);
+  assert(pr.rock[0].sqFt === 800, 'area-mode row tracks the current base area (400 → 800)');
+  assert(pr.rock[1].sqFt === 400 && pr.rock[1].yards === 10, 'cubic-yards row is left untouched');
+  // Clearing the turf clears the area row (no stale value), instead of the old total>0 guard.
+  pr.turf[0].installedSqFt = 0; ctx.syncAreaModeRockSqFt(pr);
+  assert(pr.rock[0].sqFt === '', 'base area 0 → area-mode row clears (not stale)');
+  // A row with no explicit entryMode is treated as area.
+  const pr2 = { turf:[{role:'base',installedSqFt:600}], rock:[ {sqFt:100} ] };
+  ctx.syncAreaModeRockSqFt(pr2);
+  assert(pr2.rock[0].sqFt === 600, 'a row without entryMode defaults to area and tracks');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
