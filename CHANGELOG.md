@@ -5,6 +5,29 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 86) — Consistent "Back up now" naming everywhere
+
+Swept the remaining "Export Everything" / "↓ Backup" wording to "Back up now" across the
+Backup & Sync card text, the Auto-Backups dialog, the Vendor tab note, the Help guide, and the
+empty-selection alert. Also removed the now-redundant "↓ Export Everything" button — the
+prominent "Back up now" does the identical full export, so the card no longer has two buttons
+for the same action. The underlying exportBackup('all') is unchanged.
+
+Tests **1844** (unchanged). Verified the card now shows a single Back up now (plus Export
+Selected / Import / Auto-backups / Reset). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 85) — Align http banner wording with the "Back up now" button
+
+The http/wrong-address banner still said "Export Everything" and "Import → Replace" (it predated
+the Back up now button). Updated it to "Back up now" and "Import & Replace All" so it matches the
+actual button labels and the franchise migration message. Copy-only.
+
+Tests **1844** (unchanged). Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 84) — Fix: switching projects didn't reload the Profit Audit tab
 
 loadProject re-renders whichever estimator tab is active (pavers/mulch/riverRock/dashboard) so

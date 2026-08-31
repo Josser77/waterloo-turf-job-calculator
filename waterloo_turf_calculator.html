@@ -1149,7 +1149,7 @@
 
 <div id="schemeBanner" style="display:none;position:sticky;top:0;z-index:2000;background:#8a1c1c;color:#fff;padding:10px 16px;font-size:13px;line-height:1.5;font-family:'Nunito Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.25);">
   <div style="max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-    <span style="flex:1;min-width:240px;"><strong>You're on an outdated address.</strong> This tool now lives at <strong>https://turf.brianyoss.com</strong>. Your projects on this page may not appear at the new address, so <strong>export a backup here first</strong> (Settings → Backup &amp; Sync → Export Everything), then open the new address and use <strong>Import → Replace</strong>. <a href="https://turf.brianyoss.com" style="color:#ffd7d7;text-decoration:underline;font-weight:700;">Open the correct address →</a></span>
+    <span style="flex:1;min-width:240px;"><strong>You're on an outdated address.</strong> This tool now lives at <strong>https://turf.brianyoss.com</strong>. Your projects on this page may not appear at the new address, so <strong>back up here first</strong> (Settings → Backup &amp; Sync → <strong>Back up now</strong>), then open the new address and use <strong>Import &amp; Replace All</strong>. <a href="https://turf.brianyoss.com" style="color:#ffd7d7;text-decoration:underline;font-weight:700;">Open the correct address →</a></span>
     <button onclick="dismissSchemeBanner()" title="Dismiss" style="background:rgba(255,255,255,0.18);border:none;color:#fff;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;font-weight:600;">Dismiss</button>
   </div>
 </div>
@@ -1868,7 +1868,7 @@
       <div class="tab-panel" id="panel-vendors">
         <div class="card">
           <div class="card-header"><div class="card-title">Vendor Pricing</div></div>
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">Keep each supplier's price list here for quick reference — import a PDF, Excel (.xlsx), or CSV and switch between vendors. Drag a vendor chip (by the ⠿ grip) to reorder them. Vendor price lists now travel inside the full backup (Export Everything), so they restore on other devices too, so re-import from the vendor if you move machines.</p>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">Keep each supplier's price list here for quick reference — import a PDF, Excel (.xlsx), or CSV and switch between vendors. Drag a vendor chip (by the ⠿ grip) to reorder them. Vendor price lists now travel inside a full backup (the <strong>Back up now</strong> button in Settings → Backup &amp; Sync), so they restore on other devices too.</p>
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:14px;">
             <div id="vendorTabs" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
             <button class="btn btn-sm" onclick="addVendorPrompt()">+ Add vendor</button>
@@ -2012,11 +2012,10 @@
             <button class="btn btn-primary" onclick="doBackupNow()" style="font-weight:700;">⬇ Back up now</button>
             <div style="flex:1;min-width:180px;font-size:12px;" id="backupStatusLine">Last backup: —</div>
           </div>
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">"Back up now" saves an <strong>Export Everything</strong> file (projects, settings, and vendor price lists). Keep copies somewhere safe — email, Google Drive. Import it back below. For "Export Selected", tick projects in the sidebar list first.</p>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;"><strong>Back up now</strong> saves a complete backup file (projects, settings, and vendor price lists) — keep copies somewhere safe, like email or Google Drive, and import it back below. To back up only certain jobs, tick them in the sidebar list first and use Export Selected.</p>
           <div id="syncMenuSelectedCount" style="font-size:12px;color:var(--text-mid);margin-bottom:10px;"></div>
           <div style="display:flex;flex-wrap:wrap;gap:8px;">
             <button class="btn btn-sm" onclick="exportBackup('selected')">↓ Export Selected</button>
-            <button class="btn btn-sm" onclick="exportBackup('all')">↓ Export Everything</button>
             <button class="btn btn-ghost btn-sm" onclick="triggerImport('merge')">↑ Import &amp; Merge</button>
             <button class="btn btn-ghost btn-sm" onclick="triggerImport('replace')">↑ Import &amp; Replace All</button>
             <button class="btn btn-ghost btn-sm" onclick="openAutoBackupModal()">↻ Auto-backups</button>
@@ -2229,7 +2228,7 @@
 <div class="modal-overlay" id="autoBackupModal">
   <div class="modal" style="width:460px;">
     <div class="modal-title">Auto-Backups</div>
-    <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">The app automatically saves a snapshot of all your data (at the interval you set below, while in use) to a file on disk, separate from your browser/app storage. These let you roll back if something goes wrong. For an off-machine copy, use the "↓ Backup" button to save a file you can move or email. <strong>Note:</strong> auto-backups don't include your vendor price lists — use <strong>Export Everything</strong> to move those between devices.</p>
+    <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">The app automatically saves a snapshot of all your data (at the interval you set below, while in use) to a file on disk, separate from your browser/app storage. These let you roll back if something goes wrong. For an off-machine copy, use the <strong>Back up now</strong> button (Settings → Backup &amp; Sync) to save a file you can move or email. <strong>Note:</strong> auto-backups don't include your vendor price lists — use <strong>Back up now</strong> to move those between devices.</p>
     <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;margin-bottom:14px;">
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin:0;">
         <input type="checkbox" id="autoBackupEnabled" onchange="onAutoBackupConfigChange()" style="width:auto;margin:0;">
@@ -2749,7 +2748,7 @@
         <div class="docs-h3">Export Options</div>
         <ul class="docs-list">
           <li><strong>Export Selected</strong> — saves a JSON file containing only the checked projects. Does not include catalog, crew rates, or misc-item settings — use this for moving a specific job to another device (e.g. syncing one project to your iPad) without overwriting that device's settings.</li>
-          <li><strong>Export Everything (Projects + Settings)</strong> — saves all projects plus your full catalog, crew rates, and misc items. This is the complete backup — use it for disaster recovery, or to seed a brand-new install with your catalog/crew setup (works even with zero projects selected — the catalog/settings export regardless).</li>
+          <li><strong>Back up now</strong> — saves all projects plus your full catalog, crew rates, misc items, and vendor price lists. This is the complete backup — use it for disaster recovery, or to seed a brand-new install with your catalog/crew setup. (There's also <strong>Export Selected</strong> to back up only the projects you've ticked.)</li>
         </ul>
 
         <div class="docs-h3">Import Options</div>
@@ -2774,7 +2773,7 @@
         <p>The app also keeps automatic local snapshots in the background (at the interval you choose, up to the last 8). Click <strong>↻ Auto-backups</strong> (in the Backup &amp; Sync card, Settings) to turn auto-backup on/off, set how often it runs (1 min to 1 hour), and view, download, or restore a snapshot — useful if you accidentally delete or overwrite a project. Auto-backups live in the same browser storage as your data, so they don't protect against clearing the browser cache; for that, use a downloaded export file.</p>
 
         <div class="docs-h3">Reset to New-User State</div>
-        <p><strong>⚠ Reset to New-User State</strong> (in the Backup &amp; Sync card, Settings) permanently erases all projects, catalog, crew rates, misc items, setup status, and auto-backups on this device, then reloads — simulating exactly what a brand-new install looks like. Requires two confirmations. <strong>Export Everything (Projects + Settings) first</strong> if you want to restore afterward — this cannot be undone and is not itself covered by auto-backup (auto-backups are cleared as part of the reset).</p>
+        <p><strong>⚠ Reset to New-User State</strong> (in the Backup &amp; Sync card, Settings) permanently erases all projects, catalog, crew rates, misc items, setup status, and auto-backups on this device, then reloads — simulating exactly what a brand-new install looks like. Requires two confirmations. <strong>Back up now first</strong> if you want to restore afterward — this cannot be undone and is not itself covered by auto-backup (auto-backups are cleared as part of the reset).</p>
         <p>After a reset, you'll still see a starter list of turf, infill, and rock products (names only, no vendor pricing) and a starter labor rate / price sheet list (item names and units, but every rate field is blank). This is intentional — a brand-new install ships with these starter lists so you're not starting from a completely empty catalog, but with zero pricing pre-filled so nothing gets quoted using placeholder numbers. Fill in your real costs and rates in Settings before creating quotes.</p>
       </div>
 
@@ -14112,7 +14111,7 @@ async function exportBackup(scope) {
   let exportProjects;
   if (scope === 'selected') {
     const sel = window._wtSelectedProjects || new Set();
-    if (sel.size === 0) { alert('No projects selected. Check the boxes next to the projects you want to export, or use "Export Everything (Projects + Settings)".'); return; }
+    if (sel.size === 0) { alert('No projects selected. Check the boxes next to the projects you want to export, or use the "Back up now" button to save everything.'); return; }
     exportProjects = projects.filter(p => sel.has(p.id));
   } else {
     exportProjects = projects;
