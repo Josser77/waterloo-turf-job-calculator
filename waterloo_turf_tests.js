@@ -7690,6 +7690,81 @@ section('145. Area-mode rock rows stay live-linked to the base turf area');
   assert(pr2.rock[0].sqFt === 600, 'a row without entryMode defaults to area and tracks');
 }
 
+section('146. Vendor price lists in backups');
+{
+  // Only vendors that actually have a file get backed up.
+  assert(JSON.stringify(ctx.vendorFileIdsWithData([{id:'a',fileName:'p.pdf'},{id:'b'},{id:'c',fileName:'x.csv'}])) === '["a","c"]', 'picks vendors with a stored file');
+  assert(JSON.stringify(ctx.vendorFileIdsWithData([])) === '[]' && JSON.stringify(ctx.vendorFileIdsWithData(null)) === '[]', 'empty/null → no ids');
+  assert(JSON.stringify(ctx.vendorFileIdsWithData([{fileName:'no-id.pdf'}])) === '[]', 'a vendor with a file but no id is skipped');
+  // base64 round-trips arbitrary bytes (needs btoa/atob).
+  if (typeof ctx.btoa === 'function') {
+    const orig = new Uint8Array([0,1,2,254,255,65,10,13]).buffer;
+    const back = new Uint8Array(ctx.base64ToAb(ctx.abToBase64(orig)));
+    assert(JSON.stringify([...back]) === '[0,1,2,254,255,65,10,13]', 'ArrayBuffer → base64 → ArrayBuffer is lossless');
+  }
+  // A full backup carries vendors; a selective (project-only) export must not.
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/scope !== 'selected'[\s\S]{0,400}data\.vendors = vendors/.test(src), 'full export includes vendor price lists');
+  assert(/if \(data\.vendors\) \{ setVendors\(data\.vendors\)/.test(src), 'replace-import restores vendor metadata');
+  assert(/restoreVendorFiles\(data\.vendorFiles\)/.test(src), 'replace-import restores vendor files');
+  assert(/auto-backups don't include your vendor price lists/.test(src), 'the Auto-Backups dialog notes vendor lists are export-only');
+}
+
+section('147. Profit Audit calculations');
+{
+  // Reproduce the Margaret McLean audit from the reference sheet exactly.
+  const audit = { contractPrice:'7762.60', actualRevenue:'7762.60', rows:[
+    {category:'Turf',quoted:'738.00',actual:'768.75'},
+    {category:'Turf Accessories (infill)',quoted:'246.50',actual:'246.57'},
+    {category:'Base Materials',quoted:'',actual:''},
+    {category:'Dump Fees',quoted:'',actual:''},
+    {category:'Labor',quoted:'3940.50',actual:'3734.00'},
+    {category:'Shipping',quoted:'150.00',actual:'50.97'},
+    {category:'Other',quoted:'40.00',actual:'17.86'},
+  ]};
+  const c = ctx.computeProfitAudit(audit);
+  assert(c.rows[0].variance === 30.75 && c.rows[0].variancePct === 4.17, 'Turf variance 30.75 / 4.17%');
+  assert(c.rows[5].variance === -99.03 && c.rows[5].variancePct === -66.02, 'Shipping variance -99.03 / -66.02%');
+  assert(c.cogsQuoted === 5115 && c.cogsActual === 4818.15, 'Total COGS quoted 5115 / actual 4818.15');
+  assert(c.cogsVar === -296.85 && c.cogsVarPct === -5.8, 'COGS variance -296.85 / -5.80%');
+  assert(c.gpQuoted === 2647.6 && c.gpActual === 2944.45, 'Gross Profit 2647.60 → 2944.45');
+  assert(c.gpVar === 296.85 && c.gpVarPct === 11.21, 'Gross Profit variance 296.85 / 11.21%');
+  assert(Math.round(c.gmQuoted*100) === 34 && Math.round(c.gmActual*100) === 38, 'Gross Margin 34% → 38%');
+  assert(c.gmVarPct === 11.21, 'Gross Margin variance % 11.21');
+  // Edge cases.
+  const z = ctx.computeProfitAudit({ contractPrice:'', actualRevenue:'', rows:[] });
+  assert(z.cogsQuoted === 0 && z.gpQuoted === 0 && z.gmQuoted === 0, 'empty audit → all zeros, no NaN');
+  const onlyActual = ctx.computeProfitAudit({ rows:[{category:'x',quoted:'',actual:'50'}] });
+  assert(onlyActual.rows[0].variance === 50 && onlyActual.rows[0].variancePct === 100, 'actual with no quote → 100% variance, not divide-by-zero');
+  // The tab + panel are wired in.
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/switchTab\('profit',this\)">Profit Audit</.test(src), 'the Profit Audit tab exists');
+  assert(/id="panel-profit"/.test(src), 'the Profit Audit panel exists');
+  assert(/name==='profit'\) renderProfitAudit/.test(src), 'switching to the tab renders the audit');
+  assert(/contractPrice: '',/.test(src), 'a new audit starts with a blank Contract Price (entered manually)');
+}
+
+section('148. Filter projects by status');
+{
+  const ps = [{id:'a',status:'won'},{id:'b',status:'lost'},{id:'c',status:'pending'},{id:'d'},{id:'e',status:'won'}];
+  const ids = arr => arr.map(p=>p.id).join('');
+  assert(ids(ctx.filterByStatus(ps,'all')) === 'abcde', 'all → every project');
+  assert(ids(ctx.filterByStatus(ps,'won')) === 'ae', 'won → only won');
+  assert(ids(ctx.filterByStatus(ps,'lost')) === 'b', 'lost → only lost');
+  assert(ids(ctx.filterByStatus(ps,'pending')) === 'cd', 'pending → not-won/not-lost, incl. projects with no status set');
+  assert(ids(ctx.filterByStatus(ps,'')) === 'abcde' && ids(ctx.filterByStatus(ps,null)) === 'abcde', 'empty/null status → all');
+  ctx.filterByStatus(ps,'won');
+  assert(ids(ps) === 'abcde', 'the original array is not mutated');
+  assert(ctx.filterByStatus(null,'won').length === 0, 'non-array input → empty, no throw');
+  // Status filter composes with the search box.
+  const searched = ctx.filterProjects([{id:'a',name:'Smith Won',status:'won'},{id:'b',name:'Smith Lost',status:'lost'},{id:'c',name:'Jones',status:'won'}], 'smith');
+  assert(ids(ctx.filterByStatus(searched,'won')) === 'a', 'status filter stacks on top of the text search');
+  // UI wiring.
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/data-status="won" onclick="setStatusFilter\('won'/.test(src), 'a Won filter button exists');
+  assert(/filterByStatus\(filterProjects\(projects/.test(src), 'renderSidebar applies the status filter on top of the search');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

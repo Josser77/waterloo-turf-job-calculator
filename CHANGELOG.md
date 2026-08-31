@@ -5,6 +5,81 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 81) — Filter the project list by status (All / Pending / Won / Lost)
+
+Added a status filter bar under the sidebar search: All / Pending / Won / Lost, each showing a
+live count (respecting the search box). Pending = anything not marked Won or Lost, so
+brand-new/no-status projects show under Pending. Stacks on top of the text search and the
+A–Z/New/Old sort. New pure helper filterByStatus (non-mutating, null-safe).
+
+Tests **1814 → 1824** (README **1824**): each status, empty/null → all, non-mutating,
+search+status composition, and the button wiring. Verified end-to-end in a browser (counts and
+filtered lists correct). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 80) — Profit Audit: Contract Price starts blank
+
+Per request, a new Profit Audit no longer pre-fills Contract Price from the last quoted price —
+it starts blank for manual entry. Actual Revenue was already blank.
+
+Tests **1813 → 1814** (README **1814**). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 79) — New per-project "Profit Audit" tab
+
+Added a Profit Audit tab (after Dashboard) to each project, mirroring the reference sheet:
+- Header: Job Name + Install Date (from the project), and editable Contract Price and Actual
+  Revenue.
+- A cost table with editable Cost Category / Quoted Cost / Actual Cost and computed Variance
+  and Variance %, color-coded (over budget red, under green). Add/remove category rows;
+  defaults ship as Turf, Turf Accessories (infill), Base Materials, Dump Fees, Labor, Shipping,
+  Other.
+- Totals: Total COGS, Gross Profit (revenue − COGS), and Gross Margin (profit ÷ revenue), each
+  with Expected / Actual / Variance / Variance %. Gross-side variances are green when positive.
+
+Quoted and actual costs are entered manually (Contract Price pre-fills from the last quoted
+price, editable). Stored per project in proj.profitAudit. New pure computeProfitAudit reproduces
+the reference Margaret McLean sheet to the cent.
+
+Tests **1800 → 1813** (README **1813**): every figure from the reference sheet (rows, COGS,
+gross profit, gross margin, variances), plus empty/divide-by-zero edge cases and the tab/panel
+wiring. Verified in-browser. Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 78) — Note in Auto-Backups dialog that vendor lists are export-only
+
+Added a one-line note to the Auto-Backups dialog: auto-backups don't include vendor price
+lists — use Export Everything to move those between devices. Copy-only, no behavior change.
+
+Tests **1799 → 1800** (README **1800**): the note is present. Green under UTC and
+America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 77) — Vendor price lists now included in full backups
+
+"Export Everything" now bundles vendor price lists — both the vendor metadata and the actual
+files (PDF/xlsx/CSV), base64-encoded inside the JSON — and a full "Replace" import restores
+them to the receiving device (metadata to localStorage, bytes back into IndexedDB). Previously
+vendor files lived on one device only. Selective (project-only) exports stay project-only and
+do NOT carry vendors, so they can't clobber another device's vendor setup.
+
+Note: this makes the full backup file larger (a few MB per PDF price list). exportBackup/import
+became async only when files are present, so the no-vendor path stays synchronous.
+
+New helpers: abToBase64 / base64ToAb, vendorFileIdsWithData (pure), collectVendorFiles /
+restoreVendorFiles (async IndexedDB).
+
+Tests **1793 → 1799** (README **1799**): which vendors get backed up, base64 losslessness, and
+that full export/replace-import carry vendors while selective export doesn't. Verified
+end-to-end in a browser (export captures the file, clear, import restores exact bytes). Green
+under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 76) — Rock/base area now includes the putting green
 
 Per Brian: base goes under the putting green too. rockBaseSqFt now sums <strong>base-role +
