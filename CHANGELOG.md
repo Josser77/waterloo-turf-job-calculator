@@ -5,6 +5,24 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 87) — Profit Audit: thousands commas + fix the double-click bug
+
+Two Profit Audit fixes:
+- Money fields (Contract Price, Actual Revenue, Quoted, Actual) now format with thousands
+  commas ("3,940.50"). They're text inputs (number inputs can't show separators) that store the
+  raw comma-free value, so the math is unchanged; new fmtMoneyInput / stripCommas helpers.
+- Fixed the "have to click twice" bug: committing a cell used to call renderProfitAudit, which
+  rebuilt the whole panel and destroyed the input you were clicking into. Commits now update
+  only the computed cells in place (recalcProfitAudit) — clicking straight from one cell to
+  another works on the first click. Add/remove row still do a full render (no focus involved).
+
+Tests **1844 → 1853** (README **1853**): comma formatting (incl. negatives, typed decimals,
+already-formatted input, blank), stripCommas, compute-on-raw-values, and the in-place-commit
+wiring. Verified end-to-end (single-click cell-to-cell focus + live comma recompute). Green
+under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 86) — Consistent "Back up now" naming everywhere
 
 Swept the remaining "Export Everything" / "↓ Backup" wording to "Back up now" across the

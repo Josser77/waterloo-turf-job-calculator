@@ -7743,6 +7743,20 @@ section('147. Profit Audit calculations');
   assert(/name==='profit'\) renderProfitAudit/.test(src), 'switching to the tab renders the audit');
   assert(/activeId === 'panel-profit'\) renderProfitAudit\(proj\)/.test(src), 'switching PROJECTS while on the Profit Audit tab reloads it for the new project');
   assert(/contractPrice: '',/.test(src), 'a new audit starts with a blank Contract Price (entered manually)');
+  // Money fields format with thousands commas, and store the raw comma-free value.
+  assert(ctx.fmtMoneyInput('3940.50') === '3,940.50', 'thousands get a comma');
+  assert(ctx.fmtMoneyInput('7762.6') === '7,762.6' && ctx.fmtMoneyInput('1000') === '1,000', 'commas without dropping typed decimals');
+  assert(ctx.fmtMoneyInput('-206.5') === '-206.5', 'negatives keep their sign');
+  assert(ctx.fmtMoneyInput('3,940.50') === '3,940.50', 'already-formatted input stays correct');
+  assert(ctx.fmtMoneyInput('') === '', 'blank stays blank (placeholder shows)');
+  assert(ctx.stripCommas('12,345.67') === '12345.67', 'stripCommas removes separators for storage/compute');
+  // The audit stores comma-free values, so the math is unaffected by display formatting.
+  const cc = ctx.computeProfitAudit({ contractPrice:'7762.60', actualRevenue:'7762.60', rows:[{category:'Labor',quoted:'3940.50',actual:'3734.00'}] });
+  assert(cc.rows[0].variance === -206.5, 'compute works on stored raw values');
+  // Commits update in place (no full re-render) so cell-to-cell click works on the first click.
+  const src2 = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/onchange="commitProfitMoney\(/.test(src2) && /function recalcProfitAudit/.test(src2), 'money cells commit via an in-place recalc, not a full rebuild');
+  assert(!/onchange="updateProfitRow\(/.test(src2), 'the old full-rebuild-on-commit handler is gone');
 }
 
 section('148. Filter projects by status');
