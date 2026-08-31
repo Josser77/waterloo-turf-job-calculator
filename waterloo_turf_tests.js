@@ -7741,6 +7741,7 @@ section('147. Profit Audit calculations');
   assert(/switchTab\('profit',this\)">Profit Audit</.test(src), 'the Profit Audit tab exists');
   assert(/id="panel-profit"/.test(src), 'the Profit Audit panel exists');
   assert(/name==='profit'\) renderProfitAudit/.test(src), 'switching to the tab renders the audit');
+  assert(/activeId === 'panel-profit'\) renderProfitAudit\(proj\)/.test(src), 'switching PROJECTS while on the Profit Audit tab reloads it for the new project');
   assert(/contractPrice: '',/.test(src), 'a new audit starts with a blank Contract Price (entered manually)');
 }
 
@@ -7763,6 +7764,40 @@ section('148. Filter projects by status');
   const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
   assert(/data-status="won" onclick="setStatusFilter\('won'/.test(src), 'a Won filter button exists');
   assert(/filterByStatus\(filterProjects\(projects/.test(src), 'renderSidebar applies the status filter on top of the search');
+}
+
+section('149. Wrong-address (http) banner detection');
+{
+  const w = ctx.shouldWarnWrongAddress;
+  assert(w('http:','turf.brianyoss.com') === true, 'http on the canonical host → warn');
+  assert(w('https:','turf.brianyoss.com') === false, 'https on the canonical host → no warn');
+  assert(w('http:','TURF.BrianYoss.com') === true, 'host match is case-insensitive');
+  assert(w('http:','localhost') === false && w('http:','127.0.0.1') === false, 'localhost/loopback → no warn');
+  assert(w('file:','') === false, 'file:// (opening the HTML directly) → no warn');
+  assert(w('http:','josser77.github.io') === false, 'other http hosts (previews) → no warn');
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/id="schemeBanner"/.test(src) && /https:\/\/turf\.brianyoss\.com/.test(src), 'the banner element points to the canonical https address');
+  assert(/maybeShowSchemeBanner\(\)/.test(src), 'the check runs on load');
+}
+
+section('150. Backup freshness reminder');
+{
+  const now = Date.parse('2026-08-30T12:00:00Z'), day = 86400000;
+  assert(ctx.daysSince(null, now) === null, 'no timestamp → null days');
+  assert(ctx.daysSince(now - 3*day, now) === 3, 'daysSince counts whole days');
+  const never = ctx.backupStatus(null, now, 7);
+  assert(never.days === null && never.stale === true && /haven't backed up/.test(never.label), 'never backed up → stale, clear label');
+  assert(ctx.backupStatus(now - 2*3600000, now, 7).label === 'Last backup: today', 'a few hours ago → today');
+  assert(ctx.backupStatus(now - day, now, 7).label === 'Last backup: yesterday', '1 day → yesterday');
+  const d3 = ctx.backupStatus(now - 3*day, now, 7);
+  assert(d3.days === 3 && d3.stale === false && d3.label === 'Last backup: 3 days ago', '3 days → not stale');
+  assert(ctx.backupStatus(now - 7*day, now, 7).stale === true, 'at the threshold (7 days) → stale');
+  assert(ctx.backupStatus(now - 20*day, now, 7).stale === true, 'well past threshold → stale');
+  // Wiring: a full export stamps the timestamp; the button + nudge exist.
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/scope !== 'selected'[\s\S]{0,120}setItem\(LAST_BACKUP_KEY/.test(src), 'a full Export Everything records the backup time');
+  assert(/onclick="doBackupNow\(\)"/.test(src) && /id="backupStatusLine"/.test(src), 'the Back up now button + status line exist');
+  assert(/id="backupNudge"/.test(src), 'the sidebar backup nudge exists');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

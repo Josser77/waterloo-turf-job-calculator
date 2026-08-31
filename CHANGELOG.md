@@ -5,6 +5,55 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 84) — Fix: switching projects didn't reload the Profit Audit tab
+
+loadProject re-renders whichever estimator tab is active (pavers/mulch/riverRock/dashboard) so
+it reflects the newly loaded project, but panel-profit was missing from that list — so with the
+Profit Audit tab open, switching projects left the previous project's audit on screen. Added
+the panel-profit case.
+
+Tests **1843 → 1844** (README **1844**). Verified in-browser (Contract Price + panel switch
+from one project to another). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 83) — One-click "Back up now" + last-backup reminder
+
+Web-first backup nudge (no Mac/Windows app work):
+- A prominent green **Back up now** button at the top of Settings -> Backup & Sync runs a full
+  Export Everything, and a status line shows "Last backup: today / N days ago / you haven't
+  backed up yet" (red when stale).
+- A full export now records the time (wt_last_backup_at). When the last backup is 7+ days old
+  (or never), an amber "Back up now" nudge appears in the always-visible sidebar so people are
+  reminded without opening Settings; it clears once they back up.
+
+New pure helpers daysSince / backupStatus (threshold 7 days). Export Selected does not count
+as a backup (partial), so it doesn't reset the reminder.
+
+Tests **1832 -> 1843** (README **1843**): day math, never/today/yesterday/N-days labels, stale
+threshold, and the button/nudge/timestamp wiring. Verified end-to-end (nudge shows when stale,
+clears after backup, Settings line updates). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 82) — Wrong-address banner (http → https migration safety)
+
+Added a sticky red banner that appears only when the app is loaded over plain http at the real
+host (turf.brianyoss.com) — the case where a user's data is stranded in the http origin and the
+project list looks empty. It tells them, in plain language, to Export Everything here, then
+reopen at https://turf.brianyoss.com and Import → Replace, with a direct link to the correct
+address. Dismissible (remembered via localStorage).
+
+Deliberately conservative — never fires on https, file:// (opening the HTML directly),
+localhost/loopback, or GitHub preview hosts, so it can't cry wolf. New pure helper
+shouldWarnWrongAddress.
+
+Tests **1824 → 1832** (README **1832**): warn only on http+canonical host, case-insensitive,
+and silent everywhere else; plus banner/URL wiring. Verified in-browser (renders, dismiss
+persists). Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 81) — Filter the project list by status (All / Pending / Won / Lost)
 
 Added a status filter bar under the sidebar search: All / Pending / Won / Lost, each showing a

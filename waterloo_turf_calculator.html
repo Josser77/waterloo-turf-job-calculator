@@ -1147,6 +1147,13 @@
 </head>
 <body>
 
+<div id="schemeBanner" style="display:none;position:sticky;top:0;z-index:2000;background:#8a1c1c;color:#fff;padding:10px 16px;font-size:13px;line-height:1.5;font-family:'Nunito Sans',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.25);">
+  <div style="max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <span style="flex:1;min-width:240px;"><strong>You're on an outdated address.</strong> This tool now lives at <strong>https://turf.brianyoss.com</strong>. Your projects on this page may not appear at the new address, so <strong>export a backup here first</strong> (Settings → Backup &amp; Sync → Export Everything), then open the new address and use <strong>Import → Replace</strong>. <a href="https://turf.brianyoss.com" style="color:#ffd7d7;text-decoration:underline;font-weight:700;">Open the correct address →</a></span>
+    <button onclick="dismissSchemeBanner()" title="Dismiss" style="background:rgba(255,255,255,0.18);border:none;color:#fff;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;font-weight:600;">Dismiss</button>
+  </div>
+</div>
+
 <div class="app">
   <button class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Menu">☰</button>
   <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
@@ -1226,6 +1233,7 @@
       <button class="status-filter-btn" data-status="won" onclick="setStatusFilter('won',this)">Won</button>
       <button class="status-filter-btn" data-status="lost" onclick="setStatusFilter('lost',this)">Lost</button>
     </div>
+    <div id="backupNudge" style="display:none;margin:0 0 8px;"></div>
     <div class="project-list" id="projectList"></div>
 
     <div class="sidebar-actions" style="position:relative;">
@@ -2000,7 +2008,11 @@
         <!-- BACKUP & SYNC (bottom of settings) -->
         <div class="card">
           <div class="card-header"><div class="card-title">Backup &amp; Sync</div></div>
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">Export your data to a file (keep copies somewhere safe — email, Google Drive), import it back, or manage auto-backups. For "Export Selected", tick projects in the sidebar list first.</p>
+          <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="doBackupNow()" style="font-weight:700;">⬇ Back up now</button>
+            <div style="flex:1;min-width:180px;font-size:12px;" id="backupStatusLine">Last backup: —</div>
+          </div>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">"Back up now" saves an <strong>Export Everything</strong> file (projects, settings, and vendor price lists). Keep copies somewhere safe — email, Google Drive. Import it back below. For "Export Selected", tick projects in the sidebar list first.</p>
           <div id="syncMenuSelectedCount" style="font-size:12px;color:var(--text-mid);margin-bottom:10px;"></div>
           <div style="display:flex;flex-wrap:wrap;gap:8px;">
             <button class="btn btn-sm" onclick="exportBackup('selected')">↓ Export Selected</button>
@@ -3641,6 +3653,33 @@ function onAutoBackupConfigChange() {
 //  INIT
 // ═══════════════════════════════════════════════════════
 
+// ── Canonical-address check ─────────────────────────────────────────────────
+// The app's data lives in per-origin browser storage, so a stranded user on the old http
+// address (or a non-canonical hostname) sees an empty list. Detect that and warn them.
+const CANONICAL_URL = 'https://turf.brianyoss.com';
+const CANONICAL_HOST = 'turf.brianyoss.com';
+// Pure/testable: given a protocol + hostname, should we warn? Only warn on the real deployed
+// host when it's being served over plain http (the stranding case). Never warn for local files,
+// localhost, GitHub preview domains, or anything already on https.
+function shouldWarnWrongAddress(protocol, hostname) {
+  if (protocol !== 'http:') return false;              // https (or file:) is fine
+  return (hostname || '').toLowerCase() === CANONICAL_HOST;
+}
+function maybeShowSchemeBanner() {
+  try {
+    if (typeof location === 'undefined') return;
+    if (localStorage.getItem('wt_scheme_banner_dismissed') === '1') return;
+    if (shouldWarnWrongAddress(location.protocol, location.hostname)) {
+      const el = document.getElementById('schemeBanner');
+      if (el) el.style.display = 'block';
+    }
+  } catch (e) {}
+}
+function dismissSchemeBanner() {
+  const el = document.getElementById('schemeBanner'); if (el) el.style.display = 'none';
+  try { localStorage.setItem('wt_scheme_banner_dismissed', '1'); } catch (e) {}
+}
+
 window.onload = () => {
   // The "ResizeObserver loop completed with undelivered notifications" message is a
   // benign browser notification (not a real error). Our observer already defers its
@@ -3672,6 +3711,7 @@ window.onload = () => {
   // "Don't show this again" checkbox inside it.
   if (!localStorage.getItem(WIZARD_DISMISS_KEY)) openWizard(0);
   maybeAutoBackup();
+  maybeShowSchemeBanner();
   setInterval(maybeAutoBackup, AUTOBACKUP_MIN_INTERVAL_MS);
 };
 
@@ -3749,6 +3789,7 @@ function renderSidebar() {
 
   updateSelectAllCheckbox();
   updateSyncMenuCount();
+  renderBackupStatus();
 }
 
 // Pure: filter projects by a free-text query. Matches (case-insensitively) on the project
@@ -4253,6 +4294,7 @@ function loadProject(id) {
   else if (activeId === 'panel-mulch') renderGroundCoverTab('mulch');
   else if (activeId === 'panel-riverRock') renderGroundCoverTab('riverRock');
   else if (activeId === 'panel-dashboard') renderDashboard();
+  else if (activeId === 'panel-profit') renderProfitAudit(proj);
 }
 
 function saveProjectTitle() {
@@ -5621,6 +5663,7 @@ function defaultMiscItemsForNewProject(catalogItems) {
 }
 
 function renderSettingsTables() {
+  renderBackupStatus();
   const cat = getCatalog();
   renderSettingsTurfTable(cat.turf);
   renderSettingsInfillTable(cat.infill);
@@ -14021,6 +14064,49 @@ function factoryResetApp() {
   location.reload();
 }
 
+// ── Backup freshness reminder ───────────────────────────────────────────────
+const LAST_BACKUP_KEY = 'wt_last_backup_at';
+const BACKUP_STALE_DAYS = 7;
+function getLastBackupAt() {
+  try { const v = parseInt(localStorage.getItem(LAST_BACKUP_KEY), 10); return isNaN(v) ? null : v; } catch(e){ return null; }
+}
+// Pure: whole days between a timestamp and now (null if no timestamp). Testable.
+function daysSince(ts, now) {
+  if (!ts) return null;
+  return Math.floor(((now || Date.now()) - ts) / 86400000);
+}
+// Pure: human status + staleness for the last full backup. Testable.
+function backupStatus(lastAt, now, thresholdDays) {
+  const th = thresholdDays || BACKUP_STALE_DAYS;
+  const d = daysSince(lastAt, now);
+  if (d === null) return { days: null, stale: true, label: "You haven't backed up yet" };
+  if (d <= 0) return { days: 0, stale: false, label: 'Last backup: today' };
+  if (d === 1) return { days: 1, stale: false, label: 'Last backup: yesterday' };
+  return { days: d, stale: d >= th, label: `Last backup: ${d} days ago` };
+}
+function doBackupNow() { exportBackup('all'); }
+// Update the Settings status line and the sidebar nudge from the stored timestamp.
+function renderBackupStatus() {
+  const s = backupStatus(getLastBackupAt(), Date.now());
+  const line = document.getElementById('backupStatusLine');
+  if (line) {
+    line.textContent = s.label + (s.stale ? ' — back up to keep a safe copy.' : '');
+    line.style.color = s.stale ? '#c0392b' : 'var(--text-light)';
+    line.style.fontWeight = s.stale ? '600' : '400';
+  }
+  const nudge = document.getElementById('backupNudge');
+  if (nudge) {
+    if (s.stale) {
+      nudge.style.display = 'block';
+      nudge.innerHTML = `<button onclick="doBackupNow()" title="Export a full backup file"
+        style="width:100%;box-sizing:border-box;background:#8a5a00;color:#fff;border:none;border-radius:7px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Nunito Sans',sans-serif;text-align:left;">
+        ⚠ ${s.days===null?'No backup yet':(s.days+' days since backup')} — Back up now</button>`;
+    } else {
+      nudge.style.display = 'none';
+    }
+  }
+}
+
 async function exportBackup(scope) {
   closeSyncMenu();
   let exportProjects;
@@ -14056,6 +14142,8 @@ async function exportBackup(scope) {
   const suffix = scope === 'selected' ? `_${exportProjects.length}project${exportProjects.length===1?'':'s'}` : '';
   a.download = `wt_backup_${new Date().toISOString().slice(0,10)}${suffix}.json`;
   a.click();
+  // A full "Export Everything" is the real safety net — record it so we can nudge on staleness.
+  if (scope !== 'selected') { try { localStorage.setItem(LAST_BACKUP_KEY, String(Date.now())); } catch(e){} renderBackupStatus(); }
 }
 
 function triggerImport(mode) {
