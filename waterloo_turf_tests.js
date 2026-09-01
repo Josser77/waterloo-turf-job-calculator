@@ -7857,6 +7857,12 @@ section('152. Edging sides (contiguous runs between corners)');
   const src2 = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
   assert(/function toggleEdgingEdge/.test(src2) && /function toggleEdgingExpand/.test(src2), 'per-segment toggle + expand handlers exist');
   assert(/data-edging-partial="1"[\s\S]{0,300}indeterminate = true/.test(src2), 'a partially-selected side renders its parent checkbox as indeterminate');
+  // Click-on-drawing: mode toggle, hit-test off the same rotated arrays, click/hover wiring.
+  assert(/function toggleEdgingClickMode/.test(src2) && /id="edgingClickBtn"/.test(src2), 'there is a click-mode toggle button');
+  assert(/function nearestEdgingEdge/.test(src2) && /addShape\('main', layout\.basePoints\)/.test(src2), 'the hit-test uses the drawn rotated arrays, so clicks map to the right segment at any rotation');
+  assert(/window\._wtEdgingClickMode\) \{ endEdgingClick/.test(src2), 'a click toggles the nearest segment');
+  assert(/window\._wtEdgingClickMode\) \{ onEdgingHoverMove/.test(src2), 'hover outlines the segment under the cursor');
+  assert(/_wtEdgingHover[\s\S]{0,600}setLineDash/.test(src2), 'the hovered segment is drawn dashed');
 }
 
 section('153. Edging selection: checklist + auto-fill wiring');

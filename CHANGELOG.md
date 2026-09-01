@@ -5,6 +5,23 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 93) — Edging: click segments on the drawing
+
+Added click-a-segment on the layout drawing. A "✏ Click edges on the drawing" toggle in the
+Edging panel enters click mode (mutually exclusive with Cut/Draw/Edit/Move like the other canvas
+modes); clicking a segment toggles it, and the segment under the cursor is outlined dashed-blue
+as hover feedback. The hit-test runs against the SAME rotated point arrays the shapes are drawn
+from (basePoints / displayPoints), so clicks map to the correct segment index at any rotation
+(verified: click a segment at 0°, and again after rotating 40° — both hit the right edge). Writes
+the same per-segment selection, so the checklist, highlight, total, and boards all update. Works
+by mouse and by touch (iPad tap).
+
+Tests **1881 → 1886** (README **1886**): mode toggle + button, hit-test off the drawn arrays,
+click/hover wiring, dashed hover. Verified end-to-end with real simulated clicks (select/deselect,
+and correct mapping after a 40° rotation). Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 92) — Edging selection: granular per-segment picking (parent/child)
 
 Selecting a "side" was too coarse. Each multi-segment side (a merged straight run or a curve) is

@@ -1712,7 +1712,8 @@
                 <div class="layout-subpanel" data-panel="edging">
                   <div class="field-group">
                     <label>Edging runs</label>
-                    <p class="hint">Pick the perimeter runs that need benderboard. The total auto-fills <strong>Linear Feet of Edging</strong> on the Quote Builder. Tick a side below (soon: click a side on the drawing).</p>
+                    <p class="hint">Pick the perimeter runs that need benderboard. The total auto-fills <strong>Linear Feet of Edging</strong> on the Quote Builder. Turn on <strong>click mode</strong> and click a segment on the drawing, or tick sides below.</p>
+                    <button type="button" id="edgingClickBtn" class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:8px;" onclick="toggleEdgingClickMode()">✏ Click edges on the drawing</button>
                     <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
                       <button type="button" class="btn btn-ghost btn-sm" onclick="selectAllEdging()">Whole perimeter</button>
                       <button type="button" class="btn btn-ghost btn-sm" onclick="clearEdgingSelection()">Clear</button>
@@ -4921,6 +4922,76 @@ function toggleEdgingExpand(sideKey) {
   window._wtEdgingExpanded = window._wtEdgingExpanded || {};
   window._wtEdgingExpanded[sideKey] = !window._wtEdgingExpanded[sideKey];
   renderEdgingSelection(getCurrentProject());
+}
+
+// ── Click-a-segment on the drawing ──────────────────────────────────────────
+function _edgePointToSegDist(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, len2 = dx*dx + dy*dy;
+  let t = len2 ? ((px-ax)*dx + (py-ay)*dy) / len2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (ax + t*dx), py - (ay + t*dy));
+}
+// Canvas-pixel endpoints for every shape edge, using the SAME transform + rotated arrays the
+// draw uses — so edge index i here matches selection key "<shape>:i".
+function _edgingEdgeCanvasPts() {
+  const t = window._wtCanvasTransform, layout = window._wtCurrentRollLayout;
+  if (!t || !layout) return [];
+  const fwd = p => ({ x: t.pad + (p.x - t.minX) * t.scale, y: t.h - t.pad - (p.y - t.minY) * t.scale });
+  const out = [];
+  const addShape = (key, pts) => {
+    if (!pts || pts.length < 2) return;
+    const n = pts.length, count = n >= 3 ? n : 1;
+    for (let i = 0; i < count; i++) { const a = fwd(pts[i]), b = fwd(pts[(i+1) % n]); out.push({ key: key+':'+i, ax:a.x, ay:a.y, bx:b.x, by:b.y }); }
+  };
+  addShape('main', layout.basePoints);
+  (layout.secondaryShapes || []).forEach((s, n) => {
+    if (layout.layerVisibility && layout.layerVisibility[n] === false) return;
+    addShape('s' + n, s.displayPoints || s.points);
+  });
+  return out;
+}
+function nearestEdgingEdge(canvasX, canvasY, maxDist) {
+  let best = null, bestD = (maxDist || 14);
+  _edgingEdgeCanvasPts().forEach(e => {
+    const d = _edgePointToSegDist(canvasX, canvasY, e.ax, e.ay, e.bx, e.by);
+    if (d < bestD) { bestD = d; best = e.key; }
+  });
+  return best;
+}
+function toggleEdgingClickMode() {
+  if (window._wtLayoutLocked) return;
+  window._wtEdgingClickMode = !window._wtEdgingClickMode;
+  const canvas = document.getElementById('rollLayoutCanvas');
+  const btn = document.getElementById('edgingClickBtn');
+  if (window._wtEdgingClickMode) {
+    if (window._wtCutMode) toggleCutMode();
+    if (window._wtEditMode) toggleEditMode();
+    if (window._wtMoveLayersMode) toggleMoveLayersMode();
+    if (window._wtDrawMode) toggleDrawMode();
+    if (canvas) canvas.style.cursor = 'crosshair';
+    if (btn) { btn.classList.add('btn-primary'); btn.textContent = '✓ Done clicking'; }
+    switchLayoutSubtab('edging');
+  } else {
+    if (canvas) canvas.style.cursor = '';
+    if (btn) { btn.classList.remove('btn-primary'); btn.textContent = '✏ Click edges on the drawing'; }
+    window._wtEdgingHover = null;
+    if (typeof renderRollLayout === 'function') renderRollLayout();
+  }
+}
+// Hover feedback: outline the segment under the cursor so it's clear what a click will toggle.
+function onEdgingHoverMove(evt) {
+  const pos = canvasEventToData(evt); if (!pos) return;
+  const key = nearestEdgingEdge(pos.canvasX, pos.canvasY);
+  if (key !== window._wtEdgingHover) { window._wtEdgingHover = key; if (typeof renderRollLayout === 'function') renderRollLayout(); }
+}
+// A click (not a drag) toggles the nearest segment.
+function endEdgingClick(evt) {
+  if (!window._wtEdgingClickMode) return;
+  const down = window._wtEdgingDownPos; window._wtEdgingDownPos = null;
+  const pos = canvasEventToData(evt); if (!pos) return;
+  if (down && Math.hypot(pos.canvasX - down.canvasX, pos.canvasY - down.canvasY) >= 8) return; // drag, not a click
+  const key = nearestEdgingEdge(pos.canvasX, pos.canvasY);
+  if (key) toggleEdgingEdge(key);
 }
 function selectAllEdging() {
   const proj = getCurrentProject(); if (!proj || !proj.layout) return;
@@ -11277,6 +11348,24 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
         }
       });
     }
+    // Hover feedback while in click mode: dashed outline on the segment under the cursor.
+    if (window._wtEdgingClickMode && window._wtEdgingHover) {
+      const parts = String(window._wtEdgingHover).split(':');
+      const shapeKey = parts[0], i = parseInt(parts[1], 10);
+      let pts = null;
+      if (shapeKey === 'main') pts = layout.basePoints;
+      else if (/^s\d+$/.test(shapeKey)) { const sh = (layout.secondaryShapes || [])[parseInt(shapeKey.slice(1), 10)]; pts = sh && (sh.displayPoints || sh.points); }
+      if (pts && pts.length >= 2 && !isNaN(i)) {
+        const a = pts[i], bpt = pts[(i + 1) % pts.length];
+        if (a && bpt) {
+          const ca = toCanvas(a), cb = toCanvas(bpt);
+          ctx.save(); ctx.setLineDash([6, 4]); ctx.lineCap = 'round';
+          ctx.strokeStyle = '#1565c0'; ctx.lineWidth = 4;
+          ctx.beginPath(); ctx.moveTo(ca.x, ca.y); ctx.lineTo(cb.x, cb.y); ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
   } catch (err) { console.warn('edging highlight skipped:', err); }
 }
 
@@ -13749,6 +13838,11 @@ function setupLayoutCanvasEvents() {
     if (window._wtDrawMode) { onDrawMouseDown(e); return; }
     if (window._wtEditMode) { handleEditPointerDown(e, false); return; }
     if (window._wtMoveLayersMode) { startDragLayer(e); return; }
+    if (window._wtEdgingClickMode) {
+      const p = canvasEventToData(e);
+      window._wtEdgingDownPos = p ? { canvasX: p.canvasX, canvasY: p.canvasY } : null;
+      return; // clicks toggle a segment on release; no pan/drag
+    }
     if (window._wtCutMode) {
       const p = canvasEventToData(e);
       window._wtCutDownPos = p ? { canvasX: p.canvasX, canvasY: p.canvasY } : null;
@@ -13758,8 +13852,8 @@ function setupLayoutCanvasEvents() {
     startDragNesting(e);
     startLayoutPan(e); // idle: drag empty space to pan when zoomed (no piece grabbed)
   });
-  canvas.addEventListener('mousemove', e => { if (window._wtDrawMode) { onDrawMouseMove(e); return; } if (window._wtPan) { moveLayoutPan(e); return; } onLayoutCanvasMouseMove(e); moveDragNesting(e); moveDragLayer(e); });
-  canvas.addEventListener('mouseup', e => { if (window._wtDrawMode) { onDrawMouseUp(e); return; } endLayoutPan(e); onLayoutCanvasMouseUp(e); endCutClick(e); endDragNesting(e); endDragLayer(e); });
+  canvas.addEventListener('mousemove', e => { if (window._wtDrawMode) { onDrawMouseMove(e); return; } if (window._wtEdgingClickMode) { onEdgingHoverMove(e); return; } if (window._wtPan) { moveLayoutPan(e); return; } onLayoutCanvasMouseMove(e); moveDragNesting(e); moveDragLayer(e); });
+  canvas.addEventListener('mouseup', e => { if (window._wtDrawMode) { onDrawMouseUp(e); return; } if (window._wtEdgingClickMode) { endEdgingClick(e); return; } endLayoutPan(e); onLayoutCanvasMouseUp(e); endCutClick(e); endDragNesting(e); endDragLayer(e); });
   canvas.addEventListener('mouseleave', e => {
     if (window._wtDrawMode) { onDrawMouseUp(e); return; }
     // Do NOT end a layer/nesting drag here. Zoom sets the canvas's CSS size to
@@ -13794,6 +13888,11 @@ function setupLayoutCanvasEvents() {
     if (window._wtDrawMode) { onDrawMouseDown(e); return; }
     if (window._wtEditMode) { handleEditPointerDown(e, true); return; }
     if (window._wtMoveLayersMode) { startDragLayer(e); return; }
+    if (window._wtEdgingClickMode) {
+      const p = canvasEventToData(e);
+      window._wtEdgingDownPos = p ? { canvasX: p.canvasX, canvasY: p.canvasY } : null;
+      return;
+    }
     if (window._wtCutMode) {
       const p = canvasEventToData(e);
       window._wtCutDownPos = p ? { canvasX: p.canvasX, canvasY: p.canvasY } : null;
@@ -13803,7 +13902,7 @@ function setupLayoutCanvasEvents() {
     startDragNesting(e); // empty-space one-finger drag falls through to native scroll (panning)
   }, {passive:false});
   canvas.addEventListener('touchmove', e => { if (window._wtDrawMode) { onDrawMouseMove(e); return; } onLayoutCanvasMouseMove(e); moveDragNesting(e); moveDragLayer(e); }, {passive:false});
-  canvas.addEventListener('touchend', e => { if (window._wtDrawMode) { onDrawMouseUp(e); return; } onLayoutCanvasMouseUp(e); endCutClick(e); endDragNesting(e); endDragLayer(e); });
+  canvas.addEventListener('touchend', e => { if (window._wtDrawMode) { onDrawMouseUp(e); return; } if (window._wtEdgingClickMode) { endEdgingClick(e); return; } onLayoutCanvasMouseUp(e); endCutClick(e); endDragNesting(e); endDragLayer(e); });
 
   // Draw-mode keyboard shortcuts: copy / paste / delete the selected shape.
   if (!window._wtDrawKeysBound) {
