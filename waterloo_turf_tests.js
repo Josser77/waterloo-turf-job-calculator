@@ -7860,6 +7860,12 @@ section('153. Edging selection: checklist + auto-fill wiring');
   assert(/getElementById\('edgingLinFt'\)[\s\S]{0,120}calcEdging\(\)/.test(src), 'the selection auto-fills edgingLinFt and recomputes');
   assert(/proj\.layout\.edgingSelection/.test(src), 'the selection is stored on the layout (persists with the project)');
   assert(/name === 'edging'\) renderEdgingSelection/.test(src), 'opening the Edging sub-tab renders the checklist');
+  // Selected runs are highlighted on the canvas using the SAME rotated point arrays the shapes
+  // are drawn from, so the highlight lines up at any rotation.
+  assert(/edging highlight skipped/.test(src), 'the draw function has an edging-highlight pass');
+  assert(/strokeEdge\(layout\.basePoints, i\)/.test(src), 'main-outline runs highlight off basePoints (the drawn, rotated geometry)');
+  assert(/strokeEdge\(sh\.displayPoints \|\| sh\.points, i\)/.test(src), 'secondary-shape runs highlight off displayPoints (what is actually drawn)');
+  assert(/layout\.layerVisibility && layout\.layerVisibility\[n\] === false/.test(src), 'hidden layers are not highlighted');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

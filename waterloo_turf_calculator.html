@@ -11195,6 +11195,45 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   } catch (err) {
     console.warn('grade overlay skipped:', err);
   }
+
+  // ── Highlight the edging-selected runs (drawn last, on top). Uses the SAME rotated point
+  // arrays the shapes were drawn from (basePoints / secondaryShapes[].displayPoints), so edge
+  // i lines up with the drawn shape at any rotation. ──────────────────────────────────────
+  try {
+    const gp = getCurrentProject();
+    const selArr = gp && gp.layout && Array.isArray(gp.layout.edgingSelection) ? gp.layout.edgingSelection : null;
+    if (selArr && selArr.length) {
+      const strokeEdge = (pts, i) => {
+        if (!pts || pts.length < 2) return;
+        const a = pts[i], bpt = pts[(i + 1) % pts.length];
+        if (!a || !bpt) return;
+        const ca = toCanvas(a), cb = toCanvas(bpt);
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = 'rgba(255,110,0,0.30)'; ctx.lineWidth = 11; // soft glow
+        ctx.beginPath(); ctx.moveTo(ca.x, ca.y); ctx.lineTo(cb.x, cb.y); ctx.stroke();
+        ctx.strokeStyle = '#ff6a00'; ctx.lineWidth = 4;               // bright core
+        ctx.beginPath(); ctx.moveTo(ca.x, ca.y); ctx.lineTo(cb.x, cb.y); ctx.stroke();
+        ctx.fillStyle = '#ff6a00';                                    // endpoint dots
+        [ca, cb].forEach(c => { ctx.beginPath(); ctx.arc(c.x, c.y, 3.5, 0, 2 * Math.PI); ctx.fill(); });
+        ctx.restore();
+      };
+      selArr.forEach(key => {
+        const parts = String(key).split(':');
+        const shapeKey = parts[0], i = parseInt(parts[1], 10);
+        if (isNaN(i)) return;
+        if (shapeKey === 'main') {
+          strokeEdge(layout.basePoints, i);
+        } else if (/^s\d+$/.test(shapeKey)) {
+          const n = parseInt(shapeKey.slice(1), 10);
+          const sh = (layout.secondaryShapes || [])[n];
+          if (sh && !(layout.layerVisibility && layout.layerVisibility[n] === false)) {
+            strokeEdge(sh.displayPoints || sh.points, i);
+          }
+        }
+      });
+    }
+  } catch (err) { console.warn('edging highlight skipped:', err); }
 }
 
 // ───────────────────────────────────────────────────────

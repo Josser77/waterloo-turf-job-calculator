@@ -5,6 +5,24 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 90) — Edging runs highlight on the layout drawing
+
+Selected edging runs now highlight boldly on the layout canvas — bright orange with a soft glow
+and endpoint dots, drawn last so it's unmistakable. Rendered from the SAME rotated point arrays
+the shapes are drawn from (main = basePoints, secondary = displayPoints, same index order), so
+the highlight lands exactly on the drawn edges at any roll rotation (verified at 0° and 35°).
+Hidden layers aren't highlighted. Toggling a side from the checklist redraws the highlight
+immediately.
+
+Still to come: clicking a side directly ON the drawing to toggle it (the highlight + checklist
+are now both ready to reflect it).
+
+Tests **1872 → 1876** (README **1876**): highlight pass present, main via basePoints, secondary
+via displayPoints, hidden-layer skip. Verified visually at 0° and 35° rotation. Green under UTC
+and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 89) — Edging run selection: checklist + auto-fill (canvas click next)
 
 New "Edging" sub-tab on the Layout page. It lists every shape's sides (contiguous runs between
