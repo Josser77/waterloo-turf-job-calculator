@@ -5,6 +5,75 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 101) — Consumables are now a per-project product catalog
+
+Reworked installation consumables from a single global config per type into a per-category
+PRODUCT CATALOG with per-project selection:
+- Settings → Installation Consumables: add as many products as you want per type (e.g. a 1-gal
+  glue AND a glue tube), each with its own unit/cost/coverage/waste, and mark a DEFAULT per type.
+- Quote Builder: a per-project "Installation Consumables" card with a dropdown per type — pick
+  the product for THIS job (defaults from Settings), or None. So a big job can use gallon glue
+  and a small job glue tubes.
+- Quote + supplier order use the project's resolved product (its pick, else the default).
+
+Migration (choice a): the old enabled global config becomes a catalog product AND the default for
+its type, so existing projects' quotes are unchanged. Idempotent. New helpers migrateConsumables
+/ getConsumableProducts / getConsumableDefaults / resolveProjectConsumable; consumableUnitsAndCost
+no longer requires an  flag (a selected product is on).
+
+Tests **1922 → 1932** (README **1932**): migration (config→product, enabled→default, idempotent),
+resolver, product compute, and the catalog + per-project UI wiring. Verified end-to-end (two glue
+products; per-job switch gallon↔tube↔none drives the quote). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 100) — Supplier order: fringe turf + rock (when quoted)
+
+Toward franchise flexibility, the supplier order now adapts to how each owner sources materials:
+- **Fringe turf** is listed (linear feet) whenever the job has a putting-green fringe.
+- **Rock/base** is listed (tons/yd³, or units in unit mode) ONLY when "Show rock/base cost on
+  quotes" is on — matching the owner's choice to quote rock. Off → rock stays off the order,
+  sourced separately, as before.
+
+New helpers projectFringeOrder / projectRockOrderItems. Tests **1918 → 1922** (README **1922**):
+the helpers + rock gating on the quote toggle. Verified end-to-end (fringe + rock appear when
+applicable; rock disappears when not quoted). Green under UTC and America/Los_Angeles.
+
+NOTE: the per-project consumables redesign (define multiple seam tape/glue/nails/weed-barrier
+products, pick per project) is the next piece — being built separately since it's a money-path
+data-model change.
+
+---
+
+## 2026-07-22 (cont'd 99) — Supplier order now lists installation consumables
+
+The Supplier Order (material order to email your supplier) now includes the enabled installation
+consumables — seam tape, glue, nails, weed barrier — with their per-job quantities (e.g. "6in
+Nails: 1 box (50 lb)", "3oz Barrier: 2 rolls"), computed the same way the quote does. New
+consumableOrderItems helper + a pluralUnit tidy-up (rolls/gallons, but not "box (50 lb)s"), also
+applied to the quote breakdown for consistency. Rock stays excluded (sourced separately).
+
+Tests **1912 → 1918** (README **1918**): the helper + iteration wiring and unit pluralization.
+Verified end-to-end (nails/weed-barrier appear on the order). Green under UTC and
+America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 98) — Fix: seam length overshot on irregular shapes (21'9" showed 22.6)
+
+A single 21'9" seam was reporting 22.6 ft. Cause: seam length was measured as the overlap of the
+two strips' FULL run lengths, which overshoots when the shape is jagged/irregular — the real seam
+is the shape's cross-section AT the boundary line between the two pieces (exactly what the drawing
+labels). Now computed as shapeWidthAtY(rotated polygon, strip-boundary), summed per layer, with a
+fallback to the old overlap when the rotated polygon isn't available. Rectangles are unchanged
+(boundary width = full width); irregular shapes now match the drawn seam.
+
+Tests **1907 → 1912** (README **1912**): cross-section width, width-at-boundary vs the overlap
+overshoot on a pinched shape, clean-rectangle, and the fallback. Verified on real layouts
+(45×30 → 90; jagged shape reflects the true cut length). Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 97) — Fix: seam length was double-counting the primary layer
 
 Seam length came out ~2× too high on normal jobs. Cause: the roll layout's _installLayers list

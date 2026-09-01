@@ -7915,6 +7915,19 @@ section('154. Installation consumables (seam tape / glue / nails / weed barrier)
   assert(ctx.estimateSeamLength(dup) === 60, 'layout.strips is not added on top of the primary install layer (no double-count)');
   const withLayer = { strips: rect, _installLayers: [ { id:'primary', layout:{ strips: rect } }, { id:1, layout:{ strips: irr } } ] };
   assert(ctx.estimateSeamLength(withLayer) === 90, 'seam sums the primary (60) + a real install layer (30) once each');
+  // A seam's length = the shape's cross-section AT the strip boundary, not the overlap of the two
+  // strips' full runs (which overshoots on jagged/irregular shapes — the 21'9" vs 22.6 bug).
+  const rectPoly = [{x:0,y:0},{x:30,y:0},{x:30,y:20},{x:0,y:20}];
+  assert(ctx.shapeWidthAtY(rectPoly, 10) === 30, 'shapeWidthAtY: rectangle cross-section = full width');
+  // Shape pinched to a 10 ft neck at y=10, but the two strips each run the full 0..30 width.
+  const pinched = [{x:0,y:0},{x:30,y:0},{x:30,y:20},{x:20,y:10},{x:10,y:10},{x:0,y:20}];
+  const layerPinched = { rotated: pinched, strips:[ {clippedArea:1,y1:10,sMinX:0,neededLength:30}, {clippedArea:1,y1:20,sMinX:0,neededLength:30} ] };
+  assert(ctx.seamLengthOfLayer(layerPinched) === 20, 'seam = width at the boundary (20), not the strips-overlap overshoot (30)');
+  assert(ctx.seamLengthOfStrips(layerPinched.strips) === 30, 'the old overlap method would have overshot to 30');
+  const layerRect = { rotated: rectPoly, strips:[ {clippedArea:1,y1:10,sMinX:0,neededLength:30}, {clippedArea:1,y1:20,sMinX:0,neededLength:30} ] };
+  assert(ctx.seamLengthOfLayer(layerRect) === 30, 'clean rectangle: one seam at full width (30)');
+  // No rotated polygon → falls back to the overlap method.
+  assert(ctx.seamLengthOfLayer({ strips: layerRect.strips }) === 30, 'without a polygon it falls back to strip-overlap');
   // Manual override wins over the estimate; blank → estimate.
   assert(ctx.getSeamLength({seamLengthOverride:'240'}) === 240, 'a manual seam-length override is used as-is');
   assert(ctx.getSeamLength({seamLengthOverride:''}) === 0, 'blank override falls back to the estimate');
@@ -7925,6 +7938,50 @@ section('154. Installation consumables (seam tape / glue / nails / weed barrier)
   assert(/consumableLines\.forEach/.test(src), 'each consumable prints its own quote breakdown line');
   assert(/id="seamLengthInput"/.test(src) && /function setSeamLengthOverride/.test(src), 'an editable Seam length field lets the installer override the estimate');
   assert(/const _seamLF = getSeamLength\(proj\)/.test(src), 'the quote uses the override-aware seam length');
+}
+
+section('155. Supplier order lists installation consumables');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/function consumableOrderItems/.test(src), 'there is a consumable-order helper');
+  assert(/consumableOrderItems\(proj\)\.forEach/.test(src), 'the supplier order iterates the enabled consumables');
+  // Tidy unit pluralization: rolls, but not "box (50 lb)s".
+  assert(ctx.pluralUnit('roll', 2) === 'rolls' && ctx.pluralUnit('roll', 1) === 'roll', 'roll → rolls / roll');
+  assert(ctx.pluralUnit('gallon', 3) === 'gallons', 'gallon → gallons');
+  assert(ctx.pluralUnit('box (50 lb)', 2) === 'box (50 lb)', 'a parenthetical unit is not naively pluralized');
+  assert(ctx.pluralUnit('', 2) === 'units', 'blank → units');
+}
+
+section('156. Supplier order: fringe turf + rock (when quoted)');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/function projectFringeOrder/.test(src) && /Turf \(fringe\)/.test(src), 'fringe turf is added to the supplier order');
+  assert(/function projectRockOrderItems/.test(src), 'there is a rock-order helper');
+  assert(/getRockInQuote\(\)\) return \[\]/.test(src), 'rock is on the order ONLY when the business quotes rock (else sourced separately)');
+  assert(/Rock \/ base — /.test(src), 'rock prints a rock/base order line when included');
+}
+
+section('157. Per-project consumables (product catalog + selection)');
+{
+  // Migration v1 (object, one config per type) → v2 (product array + default per type). The
+  // old ENABLED config becomes the default, so existing jobs keep their quote (choice a).
+  const cat = { consumables: { glue: {enabled:true,name:'Gallon Glue',unitLabel:'gallon',costPerUnit:'40',coveragePerUnit:'60',wastePct:'0',roundUp:true}, nails:{enabled:false,name:'',unitLabel:'box',costPerUnit:'',coveragePerUnit:'200'} } };
+  ctx.migrateConsumables(cat);
+  assert(Array.isArray(cat.consumables) && cat.consumables.length === 4, 'migrated to 4 products (one per type)');
+  const glue = cat.consumables.find(p => p.category === 'glue');
+  assert(glue && glue.name === 'Gallon Glue' && glue.coveragePerUnit === '60', 'glue product carries the old config');
+  assert(cat.consumableDefaults.glue === glue.id, 'the enabled glue becomes the default (existing jobs unchanged)');
+  assert(!cat.consumableDefaults.nails, 'a disabled type has no default (off by default)');
+  ctx.migrateConsumables(cat); // idempotent
+  assert(cat.consumables.length === 4, 'migration is idempotent');
+  // A resolved product (no `enabled` field) still computes.
+  assert(ctx.consumableUnitsAndCost({ coveragePerUnit:60, costPerUnit:40 }, 120).units === 2, 'a catalog product (no enabled flag) computes');
+  // UI + resolver wiring.
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/function resolveProjectConsumable/.test(src), 'per-project resolver exists (project pick → catalog default)');
+  assert(/id="projectConsumables"/.test(src) && /function renderProjectConsumables/.test(src), 'the Quote Builder has a per-project consumables picker');
+  assert(/function addConsumableProduct/.test(src) && /function setConsumableDefault/.test(src), 'the Settings catalog can add products + set a default');
+  assert(/const cfg = resolveProjectConsumable\(proj, def\.id\)/.test(src), 'the quote resolves each project\'s chosen consumable product');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

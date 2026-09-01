@@ -1455,6 +1455,13 @@
           <div id="quoteMiscRows"></div>
         </div>
 
+        <!-- INSTALLATION CONSUMABLES (per project) -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">Installation Consumables</div></div>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">Pick the product for this job (defaults from Settings → Installation Consumables). Quantities auto-calculate from seam length, perimeter, and turf area.</p>
+          <div id="projectConsumables"></div>
+        </div>
+
         <!-- FULL MATERIALS SUMMARY -->
         <div class="card">
           <div class="card-header">
@@ -1990,7 +1997,7 @@
         <!-- INSTALLATION CONSUMABLES -->
         <div class="card">
           <div class="card-header"><div class="card-title">Installation Consumables</div></div>
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">Auto-calculated from each job: <strong>seam tape</strong> &amp; <strong>glue</strong> from seam length, <strong>nails</strong> from total perimeter, <strong>weed barrier</strong> from turf area. Enable the ones you want on the quote and set your product, cost, and coverage.</p>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">Define the consumable products you use — you can add more than one per type (e.g. a 1-gal glue and a glue tube). Set a <strong>default</strong> per type for new jobs; then <strong>pick per project</strong> on the Quote Builder. Quantities auto-calculate: seam tape &amp; glue from seam length, nails from total perimeter, weed barrier from turf area.</p>
           <div id="consumablesConfig"></div>
         </div>
 
@@ -2749,7 +2756,7 @@
         <div class="docs-h2" id="doc-exports">Supplier Order &amp; Installer Sheet</div>
         <p>At the top of the <strong>Quote Builder</strong> tab, the <strong>Job Info &amp; Exports</strong> card holds three fields — <strong>Job Address</strong>, <strong>Delivery Date</strong>, and <strong>Install Date</strong> — plus two export buttons. These are saved per project. (There's no Jobber link, so the address and dates are typed here or pasted in.)</p>
         <ul class="docs-list">
-          <li><strong>📦 Supplier Order</strong> — a ready-to-send block listing the job, delivery address, delivery date, and every orderable material with its quantity: turf (by its <strong>Vendor Product Name</strong> from Settings, with ordered sqft and linear ft at 15 ft roll width), infill (bags, with total weight), edging (the selected material's name &amp; color, with boards), <strong>benderboard stakes</strong> (20 per board, colored to match the edging material), and any misc items (shown as <strong>name: quantity — notes</strong>; the unit is dropped and the note comes from the item's Settings entry, blank for one-off custom items). <strong>Rock/base is excluded</strong> (you source it separately) and no longer prints a note.</li>
+          <li><strong>📦 Supplier Order</strong> — a ready-to-send block listing the job, delivery address, delivery date, and every orderable material with its quantity: turf (by its <strong>Vendor Product Name</strong> from Settings, with ordered sqft and linear ft at 15 ft roll width), infill (bags, with total weight), edging (the selected material's name &amp; color, with boards), <strong>benderboard stakes</strong> (20 per board, colored to match the edging material), any misc items (shown as <strong>name: quantity — notes</strong>; the unit is dropped and the note comes from the item's Settings entry, blank for one-off custom items), any enabled <strong>installation consumables</strong> (seam tape, glue, nails, weed barrier) with their per-job quantities, and — when the job has a putting-green fringe — the <strong>fringe turf</strong> (linear feet). <strong>Rock/base</strong> appears only if you have <em>Show rock/base cost on quotes</em> turned on (Settings → Rock/Base); otherwise it stays off the order (sourced separately).</li>
           <li><strong>🔧 Installer Sheet</strong> — the job, install address, install date, the <strong>turf to install per product</strong> with each installed sqft (base yard, putting green, etc.), an <strong>Infill</strong> section (product + bags), an <strong>Edging</strong> section (material + boards + linear ft), all misc items (<strong>name: quantity — notes</strong>, same format as the supplier order), and two fixed sections spelling out responsibilities: <em>Waterloo Turf provides</em> turf, infill, edging, stakes, and screws; <em>Turf installer provides</em> rock, weed cloth, 12" seam tape, adhesive, 6" non-galvanized nails, install labor, and equipment. Alt-turf rows aren't listed (no separate install area).</li>
         </ul>
         <p>Both open a panel with the text and a <strong>⎘ Copy</strong> button — copy it and paste it straight into an email to your supplier or installer. Quantities come from whatever you've entered in the Quote Builder, so fill those in first.</p>
@@ -3348,23 +3355,89 @@ function getCatalog() {
       if (!c.rock) c.rock = DEFAULT_ROCK_CATALOG;
       if (!c.edging) c.edging = DEFAULT_EDGING_CATALOG;
       if (!c.consumables) c.consumables = JSON.parse(JSON.stringify(DEFAULT_CONSUMABLES));
+      migrateConsumables(c);
       return c;
     }
   } catch(e){}
-  return { turf: DEFAULT_TURF_CATALOG, infill: DEFAULT_INFILL_CATALOG, rock: DEFAULT_ROCK_CATALOG, edging: DEFAULT_EDGING_CATALOG, consumables: JSON.parse(JSON.stringify(DEFAULT_CONSUMABLES)) };
+  const fresh = { turf: DEFAULT_TURF_CATALOG, infill: DEFAULT_INFILL_CATALOG, rock: DEFAULT_ROCK_CATALOG, edging: DEFAULT_EDGING_CATALOG, consumables: JSON.parse(JSON.stringify(DEFAULT_CONSUMABLES)) };
+  migrateConsumables(fresh);
+  return fresh;
 }
 // The 4 installation-consumable configs (seam tape, glue, nails, weed barrier).
-function getConsumables() {
-  const cat = getCatalog();
-  const out = JSON.parse(JSON.stringify(DEFAULT_CONSUMABLES));
-  const stored = cat.consumables || {};
-  Object.keys(out).forEach(k => { if (stored[k]) Object.assign(out[k], stored[k]); out[k].metric = DEFAULT_CONSUMABLES[k].metric; });
-  return out;
+// ── Consumables are now a per-category product catalog (v2) ─────────────────────────────────
+// Migrate the old single-config-per-category object into an array of products + a default
+// product per category (the old "enabled" one becomes the default, so existing quotes are
+// unchanged). Idempotent.
+function migrateConsumables(cat) {
+  if (!cat) return;
+  if (typeof DEFAULT_CONSUMABLES === 'undefined' || typeof CONSUMABLE_DEFS === 'undefined') return; // not yet initialized
+  if (Array.isArray(cat.consumables)) { if (!cat.consumableDefaults) cat.consumableDefaults = {}; return; }
+  const src = cat.consumables || DEFAULT_CONSUMABLES;
+  const products = [], defaults = {};
+  CONSUMABLE_DEFS.forEach(def => {
+    const old = (src && src[def.id]) || DEFAULT_CONSUMABLES[def.id];
+    const id = 'cons_' + def.id;
+    products.push({ id, category: def.id, name: old.name || '', unitLabel: old.unitLabel || '',
+      costPerUnit: old.costPerUnit || '', coveragePerUnit: old.coveragePerUnit || '',
+      wastePct: (old.wastePct != null ? old.wastePct : '0'), roundUp: old.roundUp !== false });
+    if (old.enabled) defaults[def.id] = id; // choice (a): the enabled global config → the default
+  });
+  cat.consumables = products;
+  cat.consumableDefaults = defaults;
+}
+function getConsumableProducts() { const c = getCatalog(); return Array.isArray(c.consumables) ? c.consumables : []; }
+function getConsumableDefaults() { const c = getCatalog(); return c.consumableDefaults || {}; }
+function saveConsumableCatalog(products, defaults) {
+  const c = getCatalog();
+  c.consumables = products;
+  if (defaults) c.consumableDefaults = defaults;
+  saveCatalog(c);
+}
+// The consumable product a project uses for a category: its own pick if it has one, else the
+// catalog default. '' / no product → null (not on this job).
+function resolveProjectConsumable(proj, category) {
+  const c = getCatalog();
+  const products = Array.isArray(c.consumables) ? c.consumables : [];
+  let id;
+  if (proj && proj.consumables && Object.prototype.hasOwnProperty.call(proj.consumables, category)) {
+    id = proj.consumables[category];
+  } else {
+    id = (c.consumableDefaults && c.consumableDefaults[category]) || '';
+  }
+  if (!id) return null;
+  return products.find(p => p && p.id === id) || null;
 }
 function saveConsumables(cons) {
   const cat = getCatalog();
   cat.consumables = cons;
   saveCatalog(cat);
+}
+// Per-project consumables picker (Quote Builder): one dropdown per category.
+function setProjectConsumable(category, productId) {
+  const proj = getCurrentProject(); if (!proj) return;
+  if (!proj.consumables) proj.consumables = {};
+  proj.consumables[category] = productId; // '' = none, otherwise a product id
+  save();
+  calcQuote();
+  renderProjectConsumables(proj);
+}
+function renderProjectConsumables(proj) {
+  const el = document.getElementById('projectConsumables');
+  if (!el) return;
+  if (!proj) { el.innerHTML = ''; return; }
+  const products = getConsumableProducts();
+  el.innerHTML = CONSUMABLE_DEFS.map(def => {
+    const list = products.filter(p => p.category === def.id);
+    const chosen = resolveProjectConsumable(proj, def.id);
+    const chosenId = chosen ? chosen.id : '';
+    const opts = ['<option value="">None</option>']
+      .concat(list.map(p => `<option value="${p.id}" ${p.id===chosenId?'selected':''}>${(p.name||'(unnamed)').replace(/</g,'&lt;')}${p.unitLabel?' — '+p.unitLabel:''}</option>`)).join('');
+    const note = chosen ? '' : '<span style="color:var(--text-light);font-size:11px;"> (not on this job)</span>';
+    return `<div style="display:grid;grid-template-columns:1.1fr 1.5fr;gap:8px 12px;align-items:center;margin-bottom:8px;">
+      <label style="font-size:13px;">${def.label}${note}</label>
+      <select onchange="setProjectConsumable('${def.id}',this.value)" style="box-sizing:border-box;width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);">${opts}</select>
+    </div>`;
+  }).join('') + (products.length ? '' : '<p class="hint">Add consumable products in Settings → Installation Consumables first.</p>');
 }
 
 function saveCatalog(cat) {
@@ -4309,6 +4382,7 @@ function loadProject(id) {
   renderTurfRows(proj);
   renderInfillRows(proj);
   renderRockRows(proj);
+  renderProjectConsumables(proj);
   loadEdging(proj);
   renderLayoutTab();
 
@@ -5105,7 +5179,7 @@ function renderEdgingSelection(proj) {
 // multiplied by the cost per unit. Pure/testable.
 //   cfg = { enabled, name, unitLabel, costPerUnit, coveragePerUnit, wastePct, roundUp, metric }
 function consumableUnitsAndCost(cfg, metricValue) {
-  if (!cfg || !cfg.enabled) return { units: 0, cost: 0 };
+  if (!cfg || cfg.enabled === false) return { units: 0, cost: 0 };
   const cov  = parseFloat(cfg.coveragePerUnit) || 0;
   const cost = parseFloat(cfg.costPerUnit) || 0;
   const waste = parseFloat(cfg.wastePct) || 0;
@@ -5116,17 +5190,53 @@ function consumableUnitsAndCost(cfg, metricValue) {
   units = Math.max(0, parseFloat(units.toFixed(cfg.roundUp ? 0 : 2)));
   return { units, cost: parseFloat((units * cost).toFixed(2)) };
 }
-// Seam length = the total cut length where two turf pieces meet. Between two vertically-adjacent
-// strips the seam runs along their shared edge, over the x-range where BOTH have turf — so its
-// length is the overlap of the two strips' turf extents. Summed across the primary + install
-// layers. Empty strips break the chain (no seam across a gap). Pure.
+// Length of a polygon's horizontal cross-section at height y (sum of inside spans). Pure.
+function shapeWidthAtY(poly, y) {
+  if (!Array.isArray(poly) || poly.length < 3) return 0;
+  const xs = [];
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length];
+    if (!a || !b || a.y === b.y) continue;
+    if ((a.y <= y && b.y > y) || (b.y <= y && a.y > y)) {
+      xs.push(a.x + (y - a.y) / (b.y - a.y) * (b.x - a.x));
+    }
+  }
+  xs.sort((p, q) => p - q);
+  let w = 0;
+  for (let i = 0; i + 1 < xs.length; i += 2) w += xs[i + 1] - xs[i];
+  return w;
+}
+// Seam length for one roll-layout layer: the true cut length where adjacent strips meet, i.e.
+// the shape's cross-section AT each internal strip boundary (not the overlap of the two strips'
+// full runs — that overshoots on jagged/irregular shapes). Falls back to strip-overlap only when
+// the rotated polygon isn't available. Pure.
+function seamLengthOfLayer(L) {
+  if (!L || !Array.isArray(L.strips)) return 0;
+  const poly = L.rotated;
+  const strips = L.strips;
+  let total = 0;
+  for (let i = 0; i < strips.length - 1; i++) {
+    const a = strips[i], b = strips[i + 1];
+    if (!a || !b) continue;
+    if (!(a.clippedArea > 1e-9) || !(b.clippedArea > 1e-9)) continue; // one empty → no shared seam
+    if (Array.isArray(poly) && poly.length >= 3 && isFinite(parseFloat(a.y1))) {
+      total += shapeWidthAtY(poly, parseFloat(a.y1)); // width of the shape at the boundary line
+    } else {
+      const aS = parseFloat(a.sMinX) || 0, aE = aS + (parseFloat(a.neededLength) || 0);
+      const bS = parseFloat(b.sMinX) || 0, bE = bS + (parseFloat(b.neededLength) || 0);
+      total += Math.max(0, Math.min(aE, bE) - Math.max(aS, bS));
+    }
+  }
+  return total;
+}
+// Kept for older callers/tests: strip-overlap seam (no polygon needed). Pure.
 function seamLengthOfStrips(strips) {
   if (!Array.isArray(strips)) return 0;
   let total = 0;
   for (let i = 0; i < strips.length - 1; i++) {
     const a = strips[i], b = strips[i + 1];
     if (!a || !b) continue;
-    if (!(a.clippedArea > 1e-9) || !(b.clippedArea > 1e-9)) continue; // a gap → no shared seam
+    if (!(a.clippedArea > 1e-9) || !(b.clippedArea > 1e-9)) continue;
     const aS = parseFloat(a.sMinX) || 0, aE = aS + (parseFloat(a.neededLength) || 0);
     const bS = parseFloat(b.sMinX) || 0, bE = bS + (parseFloat(b.neededLength) || 0);
     total += Math.max(0, Math.min(aE, bE) - Math.max(aS, bS));
@@ -5141,9 +5251,9 @@ function estimateSeamLength(layout) {
   const layers = layout._installLayers;
   let total = 0;
   if (Array.isArray(layers) && layers.length) {
-    layers.forEach(il => { if (il && il.layout) total += seamLengthOfStrips(il.layout.strips); });
+    layers.forEach(il => { if (il && il.layout) total += seamLengthOfLayer(il.layout); });
   } else {
-    total = seamLengthOfStrips(layout.strips);
+    total = seamLengthOfLayer(layout);
   }
   return parseFloat(total.toFixed(2));
 }
@@ -5200,39 +5310,64 @@ function consumableCoverageLabel(id) {
 function renderConsumablesConfig() {
   const el = document.getElementById('consumablesConfig');
   if (!el) return;
-  const cons = getConsumables();
+  const products = getConsumableProducts();
+  const defaults = getConsumableDefaults();
+  const inp = "box-sizing:border-box;width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;";
   el.innerHTML = CONSUMABLE_DEFS.map(def => {
-    const c = cons[def.id];
-    const inp = "box-sizing:border-box;width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-size:13px;";
-    return `<div style="border:1px solid var(--border);border-radius:9px;padding:12px 14px;margin-bottom:10px;background:${c.enabled?'var(--surface)':'var(--surface2)'};">
-      <label style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;cursor:pointer;margin:0 0 8px;">
-        <input type="checkbox" ${c.enabled?'checked':''} onchange="updateConsumable('${def.id}','enabled',this.checked)" style="width:auto;margin:0;">
-        ${def.label} <span style="font-weight:400;font-size:11px;color:var(--text-light);">— from ${def.metricLabel}${def.id==='seamTape'?' + waste %':''}</span>
+    const list = products.filter(p => p.category === def.id);
+    const rows = list.map(p => `
+      <div style="display:grid;grid-template-columns:16px 1.4fr 0.8fr 0.7fr 0.9fr 0.6fr 24px;gap:6px;align-items:center;margin-bottom:6px;">
+        <input type="radio" name="consDefault_${def.id}" ${defaults[def.id]===p.id?'checked':''} onchange="setConsumableDefault('${def.id}','${p.id}')" title="Default for new jobs" style="width:auto;margin:0;">
+        <input type="text" value="${(p.name||'').replace(/"/g,'&quot;')}" placeholder="product name" style="${inp}" onchange="updateConsumableProduct('${p.id}','name',this.value)">
+        <input type="text" value="${(p.unitLabel||'').replace(/"/g,'&quot;')}" placeholder="unit" style="${inp}" onchange="updateConsumableProduct('${p.id}','unitLabel',this.value)">
+        <input type="number" step="0.01" value="${p.costPerUnit}" placeholder="$/unit" style="${inp}" onchange="updateConsumableProduct('${p.id}','costPerUnit',this.value)">
+        <input type="number" step="0.1" value="${p.coveragePerUnit}" placeholder="${def.id==='seamTape'?'/roll (blank=LF)':'coverage'}" title="${consumableCoverageLabel(def.id)}" style="${inp}" onchange="updateConsumableProduct('${p.id}','coveragePerUnit',this.value)">
+        <input type="number" step="1" value="${p.wastePct}" placeholder="waste%" title="Waste / extra %" style="${inp}" onchange="updateConsumableProduct('${p.id}','wastePct',this.value)">
+        <button class="remove-btn" onclick="deleteConsumableProduct('${p.id}')" title="Delete">×</button>
+      </div>`).join('');
+    return `<div style="border:1px solid var(--border);border-radius:9px;padding:12px 14px;margin-bottom:10px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:2px;">${def.label} <span style="font-weight:400;font-size:11px;color:var(--text-light);">— per ${def.metricLabel}</span></div>
+      <div style="font-size:11px;color:var(--text-light);margin-bottom:8px;">Add the products you use. The ⦿ radio picks the <strong>default</strong> for new jobs; pick "None" to leave it off by default. You choose per job on the Quote Builder.</div>
+      ${list.length ? `<div style="display:grid;grid-template-columns:16px 1.4fr 0.8fr 0.7fr 0.9fr 0.6fr 24px;gap:6px;font-size:10px;color:var(--text-light);text-transform:uppercase;margin-bottom:4px;"><div></div><div>Product</div><div>Unit</div><div>$/unit</div><div>Coverage</div><div>Waste%</div><div></div></div>` : ''}
+      ${rows || '<div style="font-size:12px;color:var(--text-light);padding:2px 0 6px;">No products yet.</div>'}
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-mid);cursor:pointer;margin:4px 0 8px;">
+        <input type="radio" name="consDefault_${def.id}" ${!defaults[def.id]?'checked':''} onchange="setConsumableDefault('${def.id}','')" style="width:auto;margin:0;"> None (off by default)
       </label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;${c.enabled?'':'opacity:0.55;pointer-events:none;'}">
-        <div><label style="font-size:11px;color:var(--text-light);">Product / type</label>
-          <input type="text" value="${(c.name||'').replace(/"/g,'&quot;')}" placeholder="e.g. ${def.id==='seamTape'?'SewLong seam tape':def.id==='glue'?'SewLong glue':def.id==='nails'?'6in landscape nails':'3oz weed barrier'}" style="${inp}" onchange="updateConsumable('${def.id}','name',this.value)"></div>
-        <div><label style="font-size:11px;color:var(--text-light);">Unit label</label>
-          <input type="text" value="${(c.unitLabel||'').replace(/"/g,'&quot;')}" placeholder="roll / gallon / box…" style="${inp}" onchange="updateConsumable('${def.id}','unitLabel',this.value)"></div>
-        <div><label style="font-size:11px;color:var(--text-light);">Cost per unit ($)</label>
-          <input type="number" step="0.01" value="${c.costPerUnit}" placeholder="0.00" style="${inp}" onchange="updateConsumable('${def.id}','costPerUnit',this.value)"></div>
-        <div><label style="font-size:11px;color:var(--text-light);">${consumableCoverageLabel(def.id)}</label>
-          <input type="number" step="0.1" value="${c.coveragePerUnit}" placeholder="${def.id==='seamTape'?'blank = by LF':''}" style="${inp}" onchange="updateConsumable('${def.id}','coveragePerUnit',this.value)"></div>
-        <div><label style="font-size:11px;color:var(--text-light);">Waste / extra %</label>
-          <input type="number" step="1" value="${c.wastePct}" placeholder="0" style="${inp}" onchange="updateConsumable('${def.id}','wastePct',this.value)"></div>
-        <div style="display:flex;align-items:flex-end;"><label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-mid);cursor:pointer;margin:0;">
-          <input type="checkbox" ${c.roundUp?'checked':''} onchange="updateConsumable('${def.id}','roundUp',this.checked)" style="width:auto;margin:0;">Round up to whole units</label></div>
-      </div>
+      <button class="btn btn-ghost btn-sm" onclick="addConsumableProduct('${def.id}')">＋ Add ${def.label} product</button>
     </div>`;
   }).join('');
 }
-function updateConsumable(id, field, val) {
-  const cons = getConsumables();
-  if (!cons[id]) return;
-  cons[id][field] = val;
-  saveConsumables(cons);
+function addConsumableProduct(category) {
+  const products = getConsumableProducts();
+  const def = CONSUMABLE_DEFS.find(d => d.id === category) || {};
+  products.push({ id: 'cons_' + category + '_' + Date.now(), category,
+    name: '', unitLabel: category==='glue'?'gallon':category==='nails'?'box':'roll',
+    costPerUnit: '', coveragePerUnit: category==='glue'?'60':category==='nails'?'200':category==='weedBarrier'?'1500':'',
+    wastePct: category==='seamTape'?'10':category==='weedBarrier'?'15':'0', roundUp: true });
+  saveConsumableCatalog(products);
+  renderConsumablesConfig();
+}
+function updateConsumableProduct(id, field, val) {
+  const products = getConsumableProducts();
+  const p = products.find(x => x.id === id); if (!p) return;
+  p[field] = val;
+  saveConsumableCatalog(products);
+  if (getCurrentProject()) calcQuote();
+}
+function deleteConsumableProduct(id) {
+  const products = getConsumableProducts().filter(p => p.id !== id);
+  const defaults = getConsumableDefaults();
+  Object.keys(defaults).forEach(k => { if (defaults[k] === id) defaults[k] = ''; });
+  saveConsumableCatalog(products, defaults);
   renderConsumablesConfig();
   if (getCurrentProject()) calcQuote();
+}
+function setConsumableDefault(category, productId) {
+  const defaults = getConsumableDefaults();
+  defaults[category] = productId || '';
+  saveConsumableCatalog(getConsumableProducts(), defaults);
+  if (getCurrentProject()) calcQuote();
+  renderProjectConsumables && renderProjectConsumables(getCurrentProject());
 }
 
 function calcEdging() {
@@ -5464,7 +5599,6 @@ function calcQuote() {
   const rockCost = getRockInQuote() ? parseFloat(sumRockCost(proj.rock, cat).toFixed(2)) : 0;
   // Installation consumables (seam tape, glue, nails, weed barrier) — auto-calculated from
   // seam length / perimeter / turf area. Per-project totals (like rock/shipping).
-  const _cons = getConsumables();
   const _seamLF = getSeamLength(proj);
   const _perimLF = totalLayerPerimeter(proj);
   const _turfSF = (proj.turf || []).filter(r => (r.role||'base')==='base' || r.role==='putting-green').reduce((s,r)=>s+(parseFloat(r.installedSqFt)||0),0);
@@ -5472,11 +5606,11 @@ function calcQuote() {
   const consumableLines = [];
   let consumablesCost = 0;
   CONSUMABLE_DEFS.forEach(def => {
-    const cfg = _cons[def.id];
+    const cfg = resolveProjectConsumable(proj, def.id);
     const res = consumableUnitsAndCost(cfg, _consMetric(def.metric));
     if (res.cost > 0) {
       consumablesCost += res.cost;
-      const unit = (cfg.unitLabel || 'unit') + (res.units === 1 ? '' : 's');
+      const unit = pluralUnit(cfg.unitLabel || 'unit', res.units);
       consumableLines.push({ label: `${cfg.name || def.label} (${res.units} ${unit})`, cost: res.cost });
     }
   });
@@ -13813,6 +13947,64 @@ function miscItemNotes(item, miscCatalog) {
   return '';
 }
 
+// Tidy plural for a unit label ("roll"→"rolls"), but leave labels that already end in s or a
+// parenthetical (e.g. "box (50 lb)") alone. Pure.
+function pluralUnit(label, n) {
+  label = label || 'unit';
+  if (n === 1) return label;
+  if (/s$|\)$/.test(label)) return label;
+  return label + 's';
+}
+// Fringe turf to order for a project, if fringe is enabled and there's a putting green.
+// { product, linearFt } or null. Uses the current roll layout for the PG geometry + roll width.
+function projectFringeOrder(proj) {
+  if (!proj) return null;
+  const fringe = getFringeConfig(proj);
+  if (!fringe.enabled || !(fringe.width > 0)) return null;
+  const layout = window._wtCurrentRollLayout;
+  const pgIdx = getPuttingGreenShapeIndex(proj);
+  const shapes = (layout && layout.secondaryShapes) || [];
+  const pgShape = pgIdx >= 0 ? shapes[pgIdx] : null;
+  const pgPoints = pgShape ? (pgShape.displayPoints || pgShape.points) : null;
+  if (!pgPoints) return null;
+  const plan = computeFringePlan(pgPoints, fringe.width, layout && layout.rollLength, effectiveRollWidth(layout || {}));
+  if (!plan || !(plan.linearFtToOrder > 0)) return null;
+  return { product: fringe.turfProduct || 'Fringe turf', linearFt: plan.linearFtToOrder };
+}
+// Rock/base order lines for a project — only when the business quotes rock (else it's sourced
+// separately and stays off the order). Each row by tons/yards, or units in unit mode.
+function projectRockOrderItems(proj) {
+  if (!proj || !getRockInQuote()) return [];
+  const cat = getCatalog();
+  return (proj.rock || []).map(r => {
+    const ci = (cat.rock || []).find(c => c.name === r.type);
+    const depth = ci ? (parseFloat(ci.defaultDepth) || 4) : (parseFloat(r.depth) || 4);
+    const o = rockRowOrder(r, depth);
+    if (o.mode === 'unit') {
+      if (!(o.units > 0)) return null;
+      return { type: r.type || 'Rock/base', qty: o.units + ' ' + pluralUnit(o.unitLabel || 'unit', o.units) };
+    }
+    if (!(o.tons > 0) && !(o.yards > 0)) return null;
+    return { type: r.type || 'Rock/base', qty: o.tons + ' tons' + (o.yards ? ' (' + o.yards + ' yd³)' : '') };
+  }).filter(Boolean);
+}
+
+// The enabled installation consumables that have a quantity for THIS job, as order lines.
+function consumableOrderItems(proj) {
+  if (!proj) return [];
+  const seamLF = getSeamLength(proj);
+  const perimLF = totalLayerPerimeter(proj);
+  const turfSF = (proj.turf || []).filter(r => (r.role||'base')==='base' || r.role==='putting-green').reduce((s,r)=>s+(parseFloat(r.installedSqFt)||0),0);
+  const metricVal = m => m === 'seam' ? seamLF : m === 'perimeter' ? perimLF : turfSF;
+  const out = [];
+  CONSUMABLE_DEFS.forEach(def => {
+    const cfg = resolveProjectConsumable(proj, def.id);
+    const res = consumableUnitsAndCost(cfg, metricVal(def.metric));
+    if (res.units > 0) out.push({ name: cfg.name || def.label, units: res.units, unitLabel: cfg.unitLabel || 'unit' });
+  });
+  return out;
+}
+
 function buildSupplierOrderText(proj) {
   if (!proj) return '';
   const cat = getCatalog();
@@ -13860,6 +14052,15 @@ function buildSupplierOrderText(proj) {
       items.push('• ' + m.name + ': ' + qty + (notes ? ' — ' + notes : ''));
     }
   });
+  // Installation consumables (seam tape, glue, nails, weed barrier) — auto-calculated per job.
+  consumableOrderItems(proj).forEach(ci => {
+    items.push('• ' + ci.name + ': ' + ci.units + ' ' + pluralUnit(ci.unitLabel, ci.units));
+  });
+  // Fringe turf, if the project has a putting-green fringe.
+  const fo = projectFringeOrder(proj);
+  if (fo) items.push('• Turf (fringe) — ' + turfVendorName(fo.product, cat) + ': ' + fo.linearFt + ' lin ft × 15 ft roll');
+  // Rock/base — only when the business is quoting rock (otherwise sourced separately).
+  projectRockOrderItems(proj).forEach(ri => items.push('• Rock / base — ' + ri.type + ': ' + ri.qty));
 
   if (items.length) L.push.apply(L, items);
   else L.push('(no orderable materials entered yet)');
