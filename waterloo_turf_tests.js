@@ -7849,6 +7849,14 @@ section('152. Edging sides (contiguous runs between corners)');
   assert(all.length === 8 && all[0].key === 'main#0' && all[4].shapeKey === 's0', '8 sides total, stable keys, secondary shape tagged');
   assert(ctx.selectedEdgingLength(layout, all[0].edgeKeys) === all[0].length, 'a side\'s edge keys sum to its length');
   assert(ctx.edgingSideSelected(all[0], all[0].edgeKeys) === true && ctx.edgingSideSelected(all[0], []) === false, 'edgingSideSelected reflects whether all a side\'s edges are chosen');
+  // Each side exposes its individual segments (with lengths) for granular per-segment picking.
+  const multi = { points:[{x:0,y:0},{x:8,y:0},{x:16,y:0},{x:24,y:0},{x:24,y:12},{x:0,y:12}], secondaryShapes:[] };
+  const ms = ctx.layoutSidesForShapes(multi);
+  assert(ms[0].edges.length === 3 && ms[0].edges.map(e=>e.length).join(',') === '8,8,8', 'a merged straight run exposes its 3 segments with lengths');
+  assert(ctx.selectedEdgingLength(multi, [ms[0].edges[1].key]) === 8, 'selecting ONE child segment counts only that segment (8 ft, not the 24 ft side)');
+  const src2 = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/function toggleEdgingEdge/.test(src2) && /function toggleEdgingExpand/.test(src2), 'per-segment toggle + expand handlers exist');
+  assert(/data-edging-partial="1"[\s\S]{0,300}indeterminate = true/.test(src2), 'a partially-selected side renders its parent checkbox as indeterminate');
 }
 
 section('153. Edging selection: checklist + auto-fill wiring');
@@ -7860,6 +7868,7 @@ section('153. Edging selection: checklist + auto-fill wiring');
   assert(/getElementById\('edgingLinFt'\)[\s\S]{0,120}calcEdging\(\)/.test(src), 'the selection auto-fills edgingLinFt and recomputes');
   assert(/proj\.layout\.edgingSelection/.test(src), 'the selection is stored on the layout (persists with the project)');
   assert(/name === 'edging'\) renderEdgingSelection/.test(src), 'opening the Edging sub-tab renders the checklist');
+  assert(/renderFringeSection\(proj\);\s*renderEdgingSelection\(proj\);/.test(src), 'the layout render refreshes the edging checklist too (so switching projects updates it)');
   // Selected runs are highlighted on the canvas using the SAME rotated point arrays the shapes
   // are drawn from, so the highlight lines up at any rotation.
   assert(/edging highlight skipped/.test(src), 'the draw function has an edging-highlight pass');

@@ -5,6 +5,35 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 92) — Edging selection: granular per-segment picking (parent/child)
+
+Selecting a "side" was too coarse. Each multi-segment side (a merged straight run or a curve) is
+now a PARENT checkbox with an expandable list of per-segment CHILD checkboxes, so you can edge
+one segment of a run instead of the whole thing. Parent shows checked / indeterminate (some
+segments) / unchecked and toggling it selects/deselects all its segments; single-segment sides
+stay a plain checkbox. Selection is still stored per edge, so the total, highlight, and boards
+all reflect the exact segments chosen. layoutSidesForShapes now returns per-segment 
+(key + length); new toggleEdgingEdge / toggleEdgingExpand handlers.
+
+Tests **1877 → 1881** (README **1881**): per-segment edges with lengths, single-segment selection
+(8 ft not the 24 ft side), and the handler/indeterminate wiring. Verified end-to-end (expand a
+3-segment side, pick one → 8 ft, parent indeterminate; parent-all → 24 ft). Green under UTC and
+America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 91) — Fix: edging checklist didn't refresh on project switch
+
+Same class as the Profit Audit fix. renderEdgingSelection ran on sub-tab open and on toggle,
+but not in the layout render path, so switching projects while on the Edging sub-tab left the
+previous project's sides/checkboxes showing. Added renderEdgingSelection(proj) alongside
+renderFringeSection in the layout render.
+
+Tests **1876 → 1877** (README **1877**). Verified end-to-end (switching Alpha→Bravo updates side
+count, checkboxes, and total). Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 90) — Edging runs highlight on the layout drawing
 
 Selected edging runs now highlight boldly on the layout canvas — bright orange with a soft glow

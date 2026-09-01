@@ -4864,11 +4864,14 @@ function layoutSides(points, thresholdDeg) {
 function layoutSidesForShapes(layout) {
   const out = [];
   layoutShapesForEdging(layout).forEach(shape => {
+    const edgeLen = {};
+    layoutEdges(shape.points).forEach(e => { edgeLen[e.i] = e.length; });
     layoutSides(shape.points).forEach((side, si) => {
       out.push({
         shapeKey: shape.key, shapeName: shape.name, sideIndex: si,
         key: shape.key + '#' + si, length: side.length,
         edgeKeys: side.edgeIndices.map(ei => shape.key + ':' + ei),
+        edges: side.edgeIndices.map(ei => ({ key: shape.key + ':' + ei, length: parseFloat((edgeLen[ei] || 0).toFixed(2)) })),
       });
     });
   });
@@ -4905,6 +4908,20 @@ function toggleEdgingSide(sideKey) {
   setEdgingSelectionArr(proj, [...sel]);
   applyEdgingSelection(proj);
 }
+// Toggle a single segment (child edge) — the granular pick.
+function toggleEdgingEdge(edgeKey) {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  const sel = new Set(getEdgingSelectionArr(proj));
+  sel.has(edgeKey) ? sel.delete(edgeKey) : sel.add(edgeKey);
+  setEdgingSelectionArr(proj, [...sel]);
+  applyEdgingSelection(proj);
+}
+// Expand/collapse a multi-segment side's children.
+function toggleEdgingExpand(sideKey) {
+  window._wtEdgingExpanded = window._wtEdgingExpanded || {};
+  window._wtEdgingExpanded[sideKey] = !window._wtEdgingExpanded[sideKey];
+  renderEdgingSelection(getCurrentProject());
+}
 function selectAllEdging() {
   const proj = getCurrentProject(); if (!proj || !proj.layout) return;
   const sel = new Set();
@@ -4939,6 +4956,8 @@ function renderEdgingSelection(proj) {
   }
   const sel = new Set(getEdgingSelectionArr(proj));
   const sides = layoutSidesForShapes(proj.layout);
+  const expanded = window._wtEdgingExpanded || (window._wtEdgingExpanded = {});
+  const partialSides = [];
   let html = '', lastShape = null;
   sides.forEach(side => {
     if (side.shapeKey !== lastShape) {
@@ -4946,13 +4965,37 @@ function renderEdgingSelection(proj) {
       lastShape = side.shapeKey;
     }
     const on = edgingSideSelected(side, sel);
-    html += `<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0;cursor:pointer;">
-      <input type="checkbox" ${on?'checked':''} onchange="toggleEdgingSide('${side.key}')" style="width:auto;margin:0;">
-      <span>Side ${side.sideIndex + 1}</span>
-      <span style="margin-left:auto;font-family:'DM Mono',monospace;color:var(--text-light);">${side.length.toFixed(1)} ft</span>
-    </label>`;
+    const some = side.edgeKeys.some(k => sel.has(k));
+    const partial = some && !on;
+    if (partial) partialSides.push(side.key);
+    const multi = side.edges.length > 1;
+    const isOpen = !!expanded[side.key];
+    const caret = multi
+      ? `<span onclick="toggleEdgingExpand('${side.key}')" title="${isOpen?'Collapse':'Expand'} segments" style="cursor:pointer;width:14px;display:inline-block;color:var(--text-light);user-select:none;">${isOpen?'▾':'▸'}</span>`
+      : `<span style="width:14px;display:inline-block;"></span>`;
+    html += `<div style="padding:2px 0;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+        ${caret}
+        <input type="checkbox" ${on?'checked':''} ${partial?'data-edging-partial="1"':''} onchange="toggleEdgingSide('${side.key}')" style="width:auto;margin:0;">
+        <span>Side ${side.sideIndex + 1}${multi?` <span style="color:var(--text-light);font-size:11px;">(${side.edges.length} segments)</span>`:''}</span>
+        <span style="margin-left:auto;font-family:'DM Mono',monospace;color:var(--text-light);">${side.length.toFixed(1)} ft</span>
+      </label>`;
+    if (multi && isOpen) {
+      side.edges.forEach((ed, k) => {
+        const eon = sel.has(ed.key);
+        html += `<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:2px 0 2px 34px;">
+          <input type="checkbox" ${eon?'checked':''} onchange="toggleEdgingEdge('${ed.key}')" style="width:auto;margin:0;">
+          <span style="color:var(--text-mid);">Segment ${k + 1}</span>
+          <span style="margin-left:auto;font-family:'DM Mono',monospace;color:var(--text-light);">${ed.length.toFixed(1)} ft</span>
+        </label>`;
+      });
+    }
+    html += `</div>`;
   });
   list.innerHTML = html;
+  // Partial parents render as indeterminate (some but not all segments chosen).
+  partialSides.forEach(() => {});
+  list.querySelectorAll('input[data-edging-partial="1"]').forEach(cb => { cb.indeterminate = true; });
   const total = selectedEdgingLength(proj.layout, [...sel]);
   if (totalEl) totalEl.textContent = total > 0
     ? `Selected: ${total.toFixed(1)} lin ft · ${edgingBoardsForLength(total)} board(s)`
@@ -8145,6 +8188,7 @@ function renderLayoutTab() {
 
   renderRollLayout();
   renderFringeSection(proj);
+  renderEdgingSelection(proj);
   setupLayoutCanvasEvents();
   setupLayoutZoomWheel();
   sizeLayoutCanvas();
