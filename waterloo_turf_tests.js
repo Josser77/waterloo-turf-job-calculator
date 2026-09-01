@@ -7814,6 +7814,54 @@ section('150. Backup freshness reminder');
   assert(/id="backupNudge"/.test(src), 'the sidebar backup nudge exists');
 }
 
+section('151. Edging edge-selection core (which perimeter runs need benderboard)');
+{
+  const rect = [{x:0,y:0},{x:20,y:0},{x:20,y:10},{x:0,y:10}];
+  const e = ctx.layoutEdges(rect);
+  assert(e.length === 4 && e.map(x=>x.length).join(',') === '20,10,20,10', 'closed rectangle → 4 edges with correct lengths');
+  assert(ctx.layoutEdges([{x:0,y:0},{x:12,y:0}]).length === 1, 'a 2-point line → a single edge (not a closed loop)');
+  assert(ctx.layoutEdges([{x:0,y:0}]).length === 0 && ctx.layoutEdges([]).length === 0, 'fewer than 2 points → no edges');
+  const layout = { points: rect, secondaryShapes: [ { name:'Bed', points:[{x:2,y:2},{x:5,y:2},{x:5,y:5},{x:2,y:5}] } ] };
+  const shapes = ctx.layoutShapesForEdging(layout);
+  assert(shapes.length === 2 && shapes[0].key === 'main' && shapes[1].key === 's0', 'main outline + each secondary shape are selectable, with stable keys');
+  assert(ctx.selectedEdgingLength(layout, ['main:0','main:1','s0:0']) === 33, 'selected length sums across shapes (20 + 10 + 3 = 33)');
+  assert(ctx.selectedEdgingLength(layout, []) === 0 && ctx.selectedEdgingLength(layout, new Set()) === 0, 'no selection → 0 (array or Set)');
+  assert(ctx.selectedEdgingLength(layout, ['bogus:9','main:0']) === 20, 'unknown keys are ignored');
+  assert(ctx.edgingBoardsForLength(33) === 2 && ctx.edgingBoardsForLength(20) === 1 && ctx.edgingBoardsForLength(0) === 0, 'boards = ceil(linFt / 20 ft board)');
+}
+
+section('152. Edging sides (contiguous runs between corners)');
+{
+  const rect = [{x:0,y:0},{x:20,y:0},{x:20,y:10},{x:0,y:10}];
+  const rs = ctx.layoutSides(rect);
+  assert(rs.length === 4 && rs.map(s=>s.length).join(',') === '20,10,20,10', 'rectangle → 4 sides');
+  // Two collinear segments along the bottom merge into ONE side.
+  const collinear = [{x:0,y:0},{x:10,y:0},{x:20,y:0},{x:20,y:10},{x:0,y:10}];
+  const cs = ctx.layoutSides(collinear);
+  assert(cs.length === 4 && cs[0].length === 20 && cs[0].edgeIndices.length === 2, 'collinear segments merge into one side (click once = whole straight run)');
+  // A gentle curve stays grouped rather than splitting into one side per tiny segment.
+  const curve = []; for (let i=0;i<=12;i++){ const a=Math.PI*i/12; curve.push({x:10*Math.cos(a), y:10*Math.sin(a)}); }
+  curve.push({x:-10,y:-2},{x:10,y:-2});
+  assert(ctx.layoutSides(curve, 30).length <= 3, 'a gentle curve is a few sides, not ~12');
+  // Sides across shapes + selection round-trip.
+  const layout = { points: rect, secondaryShapes: [ { name:'Bed', points:[{x:2,y:2},{x:5,y:2},{x:5,y:5},{x:2,y:5}] } ] };
+  const all = ctx.layoutSidesForShapes(layout);
+  assert(all.length === 8 && all[0].key === 'main#0' && all[4].shapeKey === 's0', '8 sides total, stable keys, secondary shape tagged');
+  assert(ctx.selectedEdgingLength(layout, all[0].edgeKeys) === all[0].length, 'a side\'s edge keys sum to its length');
+  assert(ctx.edgingSideSelected(all[0], all[0].edgeKeys) === true && ctx.edgingSideSelected(all[0], []) === false, 'edgingSideSelected reflects whether all a side\'s edges are chosen');
+}
+
+section('153. Edging selection: checklist + auto-fill wiring');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/data-tab="edging"/.test(src) && /data-panel="edging"/.test(src), 'the Layout tab has an Edging sub-tab + panel');
+  assert(/function toggleEdgingSide/.test(src) && /function selectAllEdging/.test(src) && /function clearEdgingSelection/.test(src), 'side toggle / whole-perimeter / clear handlers exist');
+  // Auto-fill: the selection total is written into the edging Linear Feet field, then recomputed.
+  assert(/getElementById\('edgingLinFt'\)[\s\S]{0,120}calcEdging\(\)/.test(src), 'the selection auto-fills edgingLinFt and recomputes');
+  assert(/proj\.layout\.edgingSelection/.test(src), 'the selection is stored on the layout (persists with the project)');
+  assert(/name === 'edging'\) renderEdgingSelection/.test(src), 'opening the Edging sub-tab renders the checklist');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

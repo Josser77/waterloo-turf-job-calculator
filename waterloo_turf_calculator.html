@@ -1607,6 +1607,7 @@
                   <button type="button" class="layout-subtab-btn" data-lockok="1" data-tab="results" onclick="switchLayoutSubtab('results')">Results</button>
                   <button type="button" class="layout-subtab-btn" data-lockok="1" data-tab="apply" onclick="switchLayoutSubtab('apply')">Apply</button>
                   <button type="button" class="layout-subtab-btn" data-lockok="1" data-tab="display" onclick="switchLayoutSubtab('display')">Display</button>
+                  <button type="button" class="layout-subtab-btn" data-lockok="1" data-tab="edging" onclick="switchLayoutSubtab('edging')">Edging</button>
                   <button type="button" class="layout-subtab-btn" data-lockok="1" data-tab="fringe" id="layoutSubtabFringeBtn" style="display:none;" onclick="switchLayoutSubtab('fringe')">Fringe</button>
                 </div>
 
@@ -1705,6 +1706,19 @@
                       </label>
                       <div id="fringeSummary" style="font-size:11px;color:var(--text-light);background:var(--bg-alt);border-radius:6px;padding:6px 8px;"></div>
                     </div>
+                  </div>
+                </div>
+
+                <div class="layout-subpanel" data-panel="edging">
+                  <div class="field-group">
+                    <label>Edging runs</label>
+                    <p class="hint">Pick the perimeter runs that need benderboard. The total auto-fills <strong>Linear Feet of Edging</strong> on the Quote Builder. Tick a side below (soon: click a side on the drawing).</p>
+                    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="selectAllEdging()">Whole perimeter</button>
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="clearEdgingSelection()">Clear</button>
+                    </div>
+                    <div id="edgingSelList"></div>
+                    <div id="edgingSelTotal" style="margin-top:10px;font-weight:700;font-size:13px;"></div>
                   </div>
                 </div>
 
@@ -4773,6 +4787,178 @@ function setInfillFromInstalled() {
 //  EDGING
 // ═══════════════════════════════════════════════════════
 
+// ── Edging edge-selection (choose which perimeter runs need benderboard) ─────
+// Edges of a shape's boundary. A 3+ point shape is a closed polygon (includes the closing
+// edge back to the first point); a 2-point shape is a single line. Pure/testable.
+function layoutEdges(points) {
+  const pts = (points || []).filter(p => p && isFinite(p.x) && isFinite(p.y));
+  const n = pts.length;
+  const edges = [];
+  if (n < 2) return edges;
+  const count = n >= 3 ? n : 1; // closed polygon vs. single line
+  for (let i = 0; i < count; i++) {
+    const a = pts[i], b = pts[(i + 1) % n];
+    edges.push({ i, ax: a.x, ay: a.y, bx: b.x, by: b.y, length: Math.hypot(b.x - a.x, b.y - a.y) });
+  }
+  return edges;
+}
+// Every selectable shape in a layout (main outline + each secondary shape), each with a stable
+// key so a chosen edge can be referenced as "<shapeKey>:<edgeIndex>". Pure/testable.
+function layoutShapesForEdging(layout) {
+  const shapes = [];
+  if (layout && Array.isArray(layout.points) && layout.points.length >= 2) {
+    shapes.push({ key: 'main', name: 'Main outline', points: layout.points });
+  }
+  ((layout && layout.secondaryShapes) || []).forEach((sh, idx) => {
+    if (sh && Array.isArray(sh.points) && sh.points.length >= 2) {
+      shapes.push({ key: 's' + idx, name: sh.name || ('Shape ' + (idx + 1)), points: sh.points });
+    }
+  });
+  return shapes;
+}
+// Total linear feet of the selected edges. `selection` is a Set or array of "<shapeKey>:<i>"
+// keys. Pure/testable — this is the number that feeds the edging calc.
+function selectedEdgingLength(layout, selection) {
+  const sel = selection instanceof Set ? selection : new Set(selection || []);
+  let total = 0;
+  layoutShapesForEdging(layout).forEach(shape => {
+    layoutEdges(shape.points).forEach(e => {
+      if (sel.has(shape.key + ':' + e.i)) total += e.length;
+    });
+  });
+  return parseFloat(total.toFixed(2));
+}
+// Group a shape's edges into "sides" — contiguous runs between corners. A vertex is a corner
+// when the boundary turns by more than `thresholdDeg` there, so gentle curves stay one side and
+// sharp corners split sides. Returns sides with their edge indices and total length. Pure.
+function layoutSides(points, thresholdDeg) {
+  const th = (thresholdDeg == null ? 30 : thresholdDeg) * Math.PI / 180;
+  const pts = (points || []).filter(p => p && isFinite(p.x) && isFinite(p.y));
+  const n = pts.length;
+  const edges = layoutEdges(pts);
+  if (edges.length === 0) return [];
+  if (edges.length === 1) return [{ edgeIndices: [0], length: edges[0].length }]; // a line
+  const ang = e => Math.atan2(e.by - e.ay, e.bx - e.ax);
+  const cornerVerts = [];
+  for (let v = 0; v < n; v++) {
+    const eIn = edges[(v - 1 + n) % n], eOut = edges[v];
+    let d = Math.abs(ang(eOut) - ang(eIn));
+    if (d > Math.PI) d = 2 * Math.PI - d;
+    if (d > th) cornerVerts.push(v);
+  }
+  const round2 = x => parseFloat(x.toFixed(2));
+  if (cornerVerts.length === 0) { // smooth closed loop → one side (whole perimeter)
+    return [{ edgeIndices: edges.map(e => e.i), length: round2(edges.reduce((s, e) => s + e.length, 0)) }];
+  }
+  const sides = [];
+  for (let ci = 0; ci < cornerVerts.length; ci++) {
+    const startV = cornerVerts[ci], endV = cornerVerts[(ci + 1) % cornerVerts.length];
+    const idxs = [];
+    let v = startV;
+    do { idxs.push(v); v = (v + 1) % n; } while (v !== endV);
+    sides.push({ edgeIndices: idxs, length: round2(idxs.reduce((s, ei) => s + edges[ei].length, 0)) });
+  }
+  return sides;
+}
+// Every side across every shape, each with a stable key and the edge keys it covers. Pure.
+function layoutSidesForShapes(layout) {
+  const out = [];
+  layoutShapesForEdging(layout).forEach(shape => {
+    layoutSides(shape.points).forEach((side, si) => {
+      out.push({
+        shapeKey: shape.key, shapeName: shape.name, sideIndex: si,
+        key: shape.key + '#' + si, length: side.length,
+        edgeKeys: side.edgeIndices.map(ei => shape.key + ':' + ei),
+      });
+    });
+  });
+  return out;
+}
+// Is a side fully selected? (all its edges present in the selection). Pure.
+function edgingSideSelected(side, selection) {
+  const sel = selection instanceof Set ? selection : new Set(selection || []);
+  return side.edgeKeys.length > 0 && side.edgeKeys.every(k => sel.has(k));
+}
+
+// Boards needed for a length of edging (benderboard is sold in 20 ft boards). Pure.
+function edgingBoardsForLength(linFt) {
+  const v = parseFloat(linFt) || 0;
+  return v > 0 ? Math.ceil(v / 20) : 0;
+}
+
+// ── Edging selection state + wiring (checklist for now; canvas click to follow) ─────────────
+function getEdgingSelectionArr(proj) {
+  return (proj && proj.layout && Array.isArray(proj.layout.edgingSelection)) ? proj.layout.edgingSelection : [];
+}
+function setEdgingSelectionArr(proj, arr) {
+  if (!proj.layout) proj.layout = { points: [], secondaryShapes: [], secondaryShapeModes: {} };
+  proj.layout.edgingSelection = arr;
+}
+// Toggle one whole side (all its edges) on/off, then re-apply.
+function toggleEdgingSide(sideKey) {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  const side = layoutSidesForShapes(proj.layout).find(s => s.key === sideKey);
+  if (!side) return;
+  const sel = new Set(getEdgingSelectionArr(proj));
+  const on = edgingSideSelected(side, sel);
+  side.edgeKeys.forEach(k => { on ? sel.delete(k) : sel.add(k); });
+  setEdgingSelectionArr(proj, [...sel]);
+  applyEdgingSelection(proj);
+}
+function selectAllEdging() {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  const sel = new Set();
+  layoutSidesForShapes(proj.layout).forEach(s => s.edgeKeys.forEach(k => sel.add(k)));
+  setEdgingSelectionArr(proj, [...sel]);
+  applyEdgingSelection(proj);
+}
+function clearEdgingSelection() {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  setEdgingSelectionArr(proj, []);
+  applyEdgingSelection(proj);
+}
+// Persist, auto-fill the edging Linear Feet field from the selection, recompute, and re-render.
+function applyEdgingSelection(proj) {
+  save();
+  const total = selectedEdgingLength(proj.layout, getEdgingSelectionArr(proj));
+  const input = document.getElementById('edgingLinFt');
+  if (input) input.value = total ? total.toFixed(1) : '';
+  if (typeof calcEdging === 'function') calcEdging();
+  renderEdgingSelection(proj);
+  if (typeof renderRollLayout === 'function') renderRollLayout(); // redraw (highlight later)
+}
+function renderEdgingSelection(proj) {
+  const list = document.getElementById('edgingSelList');
+  const totalEl = document.getElementById('edgingSelTotal');
+  if (!list) return;
+  const shapes = proj && proj.layout ? layoutShapesForEdging(proj.layout) : [];
+  if (!shapes.length) {
+    list.innerHTML = '<p class="hint">Import a layout (Moasure CSV) to choose edging runs.</p>';
+    if (totalEl) totalEl.textContent = '';
+    return;
+  }
+  const sel = new Set(getEdgingSelectionArr(proj));
+  const sides = layoutSidesForShapes(proj.layout);
+  let html = '', lastShape = null;
+  sides.forEach(side => {
+    if (side.shapeKey !== lastShape) {
+      html += `<div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px;margin:10px 0 4px;">${(side.shapeName||'Shape').replace(/</g,'&lt;')}</div>`;
+      lastShape = side.shapeKey;
+    }
+    const on = edgingSideSelected(side, sel);
+    html += `<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0;cursor:pointer;">
+      <input type="checkbox" ${on?'checked':''} onchange="toggleEdgingSide('${side.key}')" style="width:auto;margin:0;">
+      <span>Side ${side.sideIndex + 1}</span>
+      <span style="margin-left:auto;font-family:'DM Mono',monospace;color:var(--text-light);">${side.length.toFixed(1)} ft</span>
+    </label>`;
+  });
+  list.innerHTML = html;
+  const total = selectedEdgingLength(proj.layout, [...sel]);
+  if (totalEl) totalEl.textContent = total > 0
+    ? `Selected: ${total.toFixed(1)} lin ft · ${edgingBoardsForLength(total)} board(s)`
+    : 'No runs selected — pick the sides that need edging.';
+}
+
 function calcEdging() {
   const proj = getCurrentProject(); if(!proj) return;
   const rates = getRates();
@@ -7619,6 +7805,7 @@ function switchLayoutSubtab(name) {
   if (bar) bar.querySelectorAll('.layout-subtab-btn').forEach(b => {
     b.classList.toggle('active', b.getAttribute('data-tab') === name);
   });
+  if (name === 'edging') renderEdgingSelection(getCurrentProject());
 }
 
 function renderFringeSection(proj) {

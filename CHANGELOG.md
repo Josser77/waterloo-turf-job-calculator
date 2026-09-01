@@ -5,6 +5,40 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 89) — Edging run selection: checklist + auto-fill (canvas click next)
+
+New "Edging" sub-tab on the Layout page. It lists every shape's sides (contiguous runs between
+corners — a straight run or gentle curve is one clickable side, not many segments), each with a
+checkbox and length, plus "Whole perimeter" and "Clear". Ticking sides sums their length and
+auto-fills Linear Feet of Edging on the Quote Builder (which then drives boards + the top-bar
+EDGING total). Lets you edge the whole perimeter or only the runs that actually need it (skip
+the driveway/house sides). Selection is stored per project (proj.layout.edgingSelection).
+
+Deferred to next: click-a-side directly on the layout drawing + highlighting the selected runs
+(needs the canvas's roll-rotation transform handled carefully so clicks/highlights line up with
+the rotated view). The click will write the same selection state, so the checklist stays in sync.
+
+Tests **1867 → 1872** (README **1872**): sub-tab/panel present, toggle/all/clear handlers,
+auto-fill-then-recompute wiring, per-project persistence. Verified end-to-end (tick sides →
+edging linFt 30, whole perimeter 60, clear empties; top bar reflects it). Green under UTC and
+America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 88) — Edging edge-selection: pure core (canvas UI to follow)
+
+Groundwork for "select which perimeter runs need benderboard": pure, tested helpers to
+enumerate a layout's edges with lengths (layoutEdges), list the selectable shapes with stable
+keys (layoutShapesForEdging), sum a selection into linear feet (selectedEdgingLength), and
+convert to boards (edgingBoardsForLength, ceil(linFt/20)). This total is what will feed the
+existing calcEdging. The canvas selection UI (interaction model TBD with Brian) comes next.
+
+Tests **1853 → 1861** (README **1861**): edge enumeration (closed polygon vs line vs too-few
+points), shape listing, selection summing across shapes, unknown-key safety, and boards math.
+Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 87) — Profit Audit: thousands commas + fix the double-click bug
 
 Two Profit Audit fixes:
