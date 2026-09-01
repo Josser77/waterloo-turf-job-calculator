@@ -7666,7 +7666,7 @@ section('144. Rock/base pricing (cost per yard, depth-aware, optional on quote)'
   assert(/t\.costPerYard \? '\$'\+parseFloat\(t\.costPerYard\)/.test(src), 'the $/Cu. Yd column renders each material cost per yard');
   assert(/costPerYard: document\.getElementById\('ciRockYardPrice'\)\.value/.test(src), 'cost per yard is saved on the rock item');
   assert(/id="rockInQuoteToggle"/.test(src) && /onchange="setRockInQuote/.test(src), 'Settings has a show-rock-cost-on-quotes toggle');
-  assert(/\+ scenarioFringeCost \+ rockCost \+ shippingCost/.test(src), 'rock cost is added into COGS when enabled');
+  assert(/\+ scenarioFringeCost \+ rockCost \+ consumablesCost \+ shippingCost/.test(src), 'rock cost is added into COGS when enabled');
 }
 
 section('145. Area-mode rock rows stay live-linked to the base turf area');
@@ -7881,6 +7881,44 @@ section('153. Edging selection: checklist + auto-fill wiring');
   assert(/strokeEdge\(layout\.basePoints, i\)/.test(src), 'main-outline runs highlight off basePoints (the drawn, rotated geometry)');
   assert(/strokeEdge\(sh\.displayPoints \|\| sh\.points, i\)/.test(src), 'secondary-shape runs highlight off displayPoints (what is actually drawn)');
   assert(/layout\.layerVisibility && layout\.layerVisibility\[n\] === false/.test(src), 'hidden layers are not highlighted');
+}
+
+section('154. Installation consumables (seam tape / glue / nails / weed barrier)');
+{
+  const f = ctx.consumableUnitsAndCost;
+  // Seam tape: seam LF + 10%, bought by the LF → LF × cost (no rounding).
+  assert(JSON.stringify(f({enabled:true,coveragePerUnit:1,costPerUnit:0.50,wastePct:10,roundUp:false}, 100)) === JSON.stringify({units:110,cost:55}), 'seam tape by LF: 100 LF + 10% = 110 LF, $55');
+  // Seam tape by roll (150 LF/roll): ceil(110/150) = 1 roll.
+  assert(f({enabled:true,coveragePerUnit:150,costPerUnit:60,wastePct:10,roundUp:true}, 100).units === 1, 'seam tape by roll: rounds up to 1 roll');
+  // Glue: 1 gallon per 60 LF of seam → ceil(120/60) = 2 gallons.
+  assert(JSON.stringify(f({enabled:true,coveragePerUnit:60,costPerUnit:40,wastePct:0,roundUp:true}, 120)) === JSON.stringify({units:2,cost:80}), 'glue: 1 gal / 60 LF → 2 gallons, $80');
+  // Nails: 1 box per 200 LF of perimeter → ceil(450/200) = 3 boxes.
+  assert(JSON.stringify(f({enabled:true,coveragePerUnit:200,costPerUnit:35,wastePct:0,roundUp:true}, 450)) === JSON.stringify({units:3,cost:105}), 'nails: 1 box / 200 LF → 3 boxes, $105');
+  // Weed barrier: area × 1.15 / 1500 → ceil(2300/1500) = 2 rolls.
+  assert(JSON.stringify(f({enabled:true,coveragePerUnit:1500,costPerUnit:45,wastePct:15,roundUp:true}, 2000)) === JSON.stringify({units:2,cost:90}), 'weed barrier: area×1.15 /1500 → 2 rolls, $90');
+  // Guards: disabled, no coverage, no metric → $0.
+  assert(f({enabled:false,coveragePerUnit:60,costPerUnit:40}, 120).cost === 0, 'disabled → $0');
+  assert(f({enabled:true,coveragePerUnit:0,costPerUnit:40}, 120).cost === 0, 'no coverage → $0 (no divide-by-zero)');
+  assert(f({enabled:true,coveragePerUnit:60,costPerUnit:40}, 0).cost === 0, 'zero metric → $0');
+  // Seam-length estimate: adjacent parallel strips share a seam ≈ the shorter run.
+  // Seam length = the cut length where adjacent strips meet = the x-overlap of their turf.
+  const rect = [{clippedArea:1,sMinX:0,neededLength:30},{clippedArea:1,sMinX:0,neededLength:30},{clippedArea:1,sMinX:0,neededLength:30}];
+  assert(ctx.seamLengthOfStrips(rect) === 60, 'rectangle: two 30 ft seams = 60');
+  const irr = [{clippedArea:1,sMinX:0,neededLength:30},{clippedArea:1,sMinX:0,neededLength:20},{clippedArea:1,sMinX:10,neededLength:20}];
+  assert(ctx.seamLengthOfStrips(irr) === 30, 'irregular strips: seam = overlap of turf x-ranges (20 + 10)');
+  const gap = [{clippedArea:1,sMinX:0,neededLength:30},{clippedArea:0,sMinX:0,neededLength:0},{clippedArea:1,sMinX:0,neededLength:30}];
+  assert(ctx.seamLengthOfStrips(gap) === 0, 'an empty strip breaks the chain — no seam across a gap');
+  assert(ctx.estimateSeamLength({strips:rect}) === 60 && ctx.estimateSeamLength(null) === 0, 'estimateSeamLength sums the layout; null → 0');
+  // Manual override wins over the estimate; blank → estimate.
+  assert(ctx.getSeamLength({seamLengthOverride:'240'}) === 240, 'a manual seam-length override is used as-is');
+  assert(ctx.getSeamLength({seamLengthOverride:''}) === 0, 'blank override falls back to the estimate');
+  // Wiring: config render, per-project cost into COGS, breakdown lines.
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/id="consumablesConfig"/.test(src) && /function renderConsumablesConfig/.test(src), 'the Settings consumables config exists');
+  assert(/\+ rockCost \+ consumablesCost \+ shippingCost/.test(src), 'consumables cost is added into COGS');
+  assert(/consumableLines\.forEach/.test(src), 'each consumable prints its own quote breakdown line');
+  assert(/id="seamLengthInput"/.test(src) && /function setSeamLengthOverride/.test(src), 'an editable Seam length field lets the installer override the estimate');
+  assert(/const _seamLF = getSeamLength\(proj\)/.test(src), 'the quote uses the override-aware seam length');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

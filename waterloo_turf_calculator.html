@@ -1730,6 +1730,11 @@
                       <label>Rolls / Pieces</label>
                       <input type="text" id="rollStripsOut" class="auto-filled" readonly>
                     </div>
+                    <div class="field-group">
+                      <label>Seam length (ft) <span style="font-weight:400;color:var(--text-light);font-size:11px;">— drives seam tape &amp; glue</span></label>
+                      <input type="number" id="seamLengthInput" step="0.1" placeholder="—" onchange="setSeamLengthOverride(this.value)">
+                      <div class="hint" id="seamLengthHint"></div>
+                    </div>
                     <div id="rollLayerBreakdown" style="display:none;font-size:11px;margin-top:6px;padding:6px 8px;background:var(--bg-alt);border-radius:6px;"></div>
 
                     <!-- ADVANCED: extra detail + cut/nest tools, collapsed by default -->
@@ -1980,6 +1985,13 @@
           </div>
           <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">Seam tape, adhesive, nails, staples, etc. These appear as selectable items when building a project.</p>
           <div id="miscItemsTable"></div>
+        </div>
+
+        <!-- INSTALLATION CONSUMABLES -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">Installation Consumables</div></div>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">Auto-calculated from each job: <strong>seam tape</strong> &amp; <strong>glue</strong> from seam length, <strong>nails</strong> from total perimeter, <strong>weed barrier</strong> from turf area. Enable the ones you want on the quote and set your product, cost, and coverage.</p>
+          <div id="consumablesConfig"></div>
         </div>
 
         <!-- LABOR RATES / PRICE LIST -->
@@ -3335,10 +3347,24 @@ function getCatalog() {
     if (c && c.turf && c.infill) {
       if (!c.rock) c.rock = DEFAULT_ROCK_CATALOG;
       if (!c.edging) c.edging = DEFAULT_EDGING_CATALOG;
+      if (!c.consumables) c.consumables = JSON.parse(JSON.stringify(DEFAULT_CONSUMABLES));
       return c;
     }
   } catch(e){}
-  return { turf: DEFAULT_TURF_CATALOG, infill: DEFAULT_INFILL_CATALOG, rock: DEFAULT_ROCK_CATALOG, edging: DEFAULT_EDGING_CATALOG };
+  return { turf: DEFAULT_TURF_CATALOG, infill: DEFAULT_INFILL_CATALOG, rock: DEFAULT_ROCK_CATALOG, edging: DEFAULT_EDGING_CATALOG, consumables: JSON.parse(JSON.stringify(DEFAULT_CONSUMABLES)) };
+}
+// The 4 installation-consumable configs (seam tape, glue, nails, weed barrier).
+function getConsumables() {
+  const cat = getCatalog();
+  const out = JSON.parse(JSON.stringify(DEFAULT_CONSUMABLES));
+  const stored = cat.consumables || {};
+  Object.keys(out).forEach(k => { if (stored[k]) Object.assign(out[k], stored[k]); out[k].metric = DEFAULT_CONSUMABLES[k].metric; });
+  return out;
+}
+function saveConsumables(cons) {
+  const cat = getCatalog();
+  cat.consumables = cons;
+  saveCatalog(cat);
 }
 
 function saveCatalog(cat) {
@@ -5073,6 +5099,134 @@ function renderEdgingSelection(proj) {
     : 'No runs selected — pick the sides that need edging.';
 }
 
+// ── Installation consumables (seam tape, glue, nails, weed barrier) ──────────────────────────
+// One general model prices all four: a metric (seam LF / perimeter LF / turf area SF) is padded
+// by a waste %, divided by how much one unit covers, optionally rounded up to whole units, and
+// multiplied by the cost per unit. Pure/testable.
+//   cfg = { enabled, name, unitLabel, costPerUnit, coveragePerUnit, wastePct, roundUp, metric }
+function consumableUnitsAndCost(cfg, metricValue) {
+  if (!cfg || !cfg.enabled) return { units: 0, cost: 0 };
+  const cov  = parseFloat(cfg.coveragePerUnit) || 0;
+  const cost = parseFloat(cfg.costPerUnit) || 0;
+  const waste = parseFloat(cfg.wastePct) || 0;
+  const m = (parseFloat(metricValue) || 0) * (1 + waste / 100);
+  if (cov <= 0 || m <= 0) return { units: 0, cost: 0 };
+  let units = m / cov;
+  if (cfg.roundUp) units = Math.ceil(units - 1e-9);
+  units = Math.max(0, parseFloat(units.toFixed(cfg.roundUp ? 0 : 2)));
+  return { units, cost: parseFloat((units * cost).toFixed(2)) };
+}
+// Seam length = the total cut length where two turf pieces meet. Between two vertically-adjacent
+// strips the seam runs along their shared edge, over the x-range where BOTH have turf — so its
+// length is the overlap of the two strips' turf extents. Summed across the primary + install
+// layers. Empty strips break the chain (no seam across a gap). Pure.
+function seamLengthOfStrips(strips) {
+  if (!Array.isArray(strips)) return 0;
+  let total = 0;
+  for (let i = 0; i < strips.length - 1; i++) {
+    const a = strips[i], b = strips[i + 1];
+    if (!a || !b) continue;
+    if (!(a.clippedArea > 1e-9) || !(b.clippedArea > 1e-9)) continue; // a gap → no shared seam
+    const aS = parseFloat(a.sMinX) || 0, aE = aS + (parseFloat(a.neededLength) || 0);
+    const bS = parseFloat(b.sMinX) || 0, bE = bS + (parseFloat(b.neededLength) || 0);
+    total += Math.max(0, Math.min(aE, bE) - Math.max(aS, bS));
+  }
+  return total;
+}
+function estimateSeamLength(layout) {
+  if (!layout) return 0;
+  let total = seamLengthOfStrips(layout.strips);
+  (layout._installLayers || []).forEach(il => { if (il && il.layout) total += seamLengthOfStrips(il.layout.strips); });
+  return parseFloat(total.toFixed(2));
+}
+// The seam length used for consumables: the user's manual override if set, else the estimate
+// from the current roll layout.
+function getSeamLength(proj) {
+  const ov = proj && proj.seamLengthOverride;
+  if (ov !== '' && ov != null && !isNaN(parseFloat(ov))) return parseFloat(ov);
+  return estimateSeamLength(window._wtCurrentRollLayout);
+}
+function setSeamLengthOverride(val) {
+  const proj = getCurrentProject(); if (!proj) return;
+  proj.seamLengthOverride = val; // '' → fall back to the estimate
+  save();
+  refreshSeamLengthField();
+  calcQuote();
+}
+function refreshSeamLengthField() {
+  const input = document.getElementById('seamLengthInput');
+  const hint = document.getElementById('seamLengthHint');
+  if (!input) return;
+  const proj = getCurrentProject();
+  const est = estimateSeamLength(window._wtCurrentRollLayout);
+  input.placeholder = est ? est.toFixed(1) : '—';
+  const overridden = proj && proj.seamLengthOverride !== '' && proj.seamLengthOverride != null;
+  input.value = overridden ? proj.seamLengthOverride : '';
+  if (hint) {
+    hint.textContent = overridden
+      ? `Manual override. Estimated ${est.toFixed(1)} ft from the roll plan — clear the box to use it.`
+      : (est ? `Estimated ${est.toFixed(1)} ft (cut length between pieces) from the roll plan. Type a value to override.`
+             : 'Import a layout to estimate seam length, or type a value.');
+  }
+}
+const CONSUMABLE_DEFS = [
+  { id: 'seamTape',    label: 'Seam Tape',    metric: 'seam',      metricLabel: 'seam length' },
+  { id: 'glue',        label: 'Glue',         metric: 'seam',      metricLabel: 'seam length' },
+  { id: 'nails',       label: 'Nails',        metric: 'perimeter', metricLabel: 'total perimeter' },
+  { id: 'weedBarrier', label: 'Weed Barrier', metric: 'area',      metricLabel: 'turf area' },
+];
+const DEFAULT_CONSUMABLES = {
+  seamTape:    { enabled: false, name: '', unitLabel: 'roll',       costPerUnit: '', coveragePerUnit: '', wastePct: '10', roundUp: true,  metric: 'seam' },
+  glue:        { enabled: false, name: '', unitLabel: 'gallon',     costPerUnit: '', coveragePerUnit: '60',   wastePct: '0',  roundUp: true,  metric: 'seam' },
+  nails:       { enabled: false, name: '', unitLabel: 'box (50 lb)',costPerUnit: '', coveragePerUnit: '200',  wastePct: '0',  roundUp: true,  metric: 'perimeter' },
+  weedBarrier: { enabled: false, name: '', unitLabel: 'roll',       costPerUnit: '', coveragePerUnit: '1500', wastePct: '15', roundUp: true,  metric: 'area' },
+};
+
+// Coverage-field label per consumable (what "one unit covers").
+function consumableCoverageLabel(id) {
+  return id === 'seamTape' ? 'LF of tape per roll (blank if bought by the LF)'
+       : id === 'glue'     ? 'LF of seam per unit (e.g. 60)'
+       : id === 'nails'    ? 'LF of perimeter per unit (e.g. 200)'
+       : 'SF per roll (e.g. 1500)';
+}
+function renderConsumablesConfig() {
+  const el = document.getElementById('consumablesConfig');
+  if (!el) return;
+  const cons = getConsumables();
+  el.innerHTML = CONSUMABLE_DEFS.map(def => {
+    const c = cons[def.id];
+    const inp = "box-sizing:border-box;width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-size:13px;";
+    return `<div style="border:1px solid var(--border);border-radius:9px;padding:12px 14px;margin-bottom:10px;background:${c.enabled?'var(--surface)':'var(--surface2)'};">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;cursor:pointer;margin:0 0 8px;">
+        <input type="checkbox" ${c.enabled?'checked':''} onchange="updateConsumable('${def.id}','enabled',this.checked)" style="width:auto;margin:0;">
+        ${def.label} <span style="font-weight:400;font-size:11px;color:var(--text-light);">— from ${def.metricLabel}${def.id==='seamTape'?' + waste %':''}</span>
+      </label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;${c.enabled?'':'opacity:0.55;pointer-events:none;'}">
+        <div><label style="font-size:11px;color:var(--text-light);">Product / type</label>
+          <input type="text" value="${(c.name||'').replace(/"/g,'&quot;')}" placeholder="e.g. ${def.id==='seamTape'?'SewLong seam tape':def.id==='glue'?'SewLong glue':def.id==='nails'?'6in landscape nails':'3oz weed barrier'}" style="${inp}" onchange="updateConsumable('${def.id}','name',this.value)"></div>
+        <div><label style="font-size:11px;color:var(--text-light);">Unit label</label>
+          <input type="text" value="${(c.unitLabel||'').replace(/"/g,'&quot;')}" placeholder="roll / gallon / box…" style="${inp}" onchange="updateConsumable('${def.id}','unitLabel',this.value)"></div>
+        <div><label style="font-size:11px;color:var(--text-light);">Cost per unit ($)</label>
+          <input type="number" step="0.01" value="${c.costPerUnit}" placeholder="0.00" style="${inp}" onchange="updateConsumable('${def.id}','costPerUnit',this.value)"></div>
+        <div><label style="font-size:11px;color:var(--text-light);">${consumableCoverageLabel(def.id)}</label>
+          <input type="number" step="0.1" value="${c.coveragePerUnit}" placeholder="${def.id==='seamTape'?'blank = by LF':''}" style="${inp}" onchange="updateConsumable('${def.id}','coveragePerUnit',this.value)"></div>
+        <div><label style="font-size:11px;color:var(--text-light);">Waste / extra %</label>
+          <input type="number" step="1" value="${c.wastePct}" placeholder="0" style="${inp}" onchange="updateConsumable('${def.id}','wastePct',this.value)"></div>
+        <div style="display:flex;align-items:flex-end;"><label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-mid);cursor:pointer;margin:0;">
+          <input type="checkbox" ${c.roundUp?'checked':''} onchange="updateConsumable('${def.id}','roundUp',this.checked)" style="width:auto;margin:0;">Round up to whole units</label></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function updateConsumable(id, field, val) {
+  const cons = getConsumables();
+  if (!cons[id]) return;
+  cons[id][field] = val;
+  saveConsumables(cons);
+  renderConsumablesConfig();
+  if (getCurrentProject()) calcQuote();
+}
+
 function calcEdging() {
   const proj = getCurrentProject(); if(!proj) return;
   const rates = getRates();
@@ -5300,6 +5454,25 @@ function calcQuote() {
   // the current base turf area live, so re-sync before pricing.
   if (getRockInQuote()) syncAreaModeRockSqFt(proj);
   const rockCost = getRockInQuote() ? parseFloat(sumRockCost(proj.rock, cat).toFixed(2)) : 0;
+  // Installation consumables (seam tape, glue, nails, weed barrier) — auto-calculated from
+  // seam length / perimeter / turf area. Per-project totals (like rock/shipping).
+  const _cons = getConsumables();
+  const _seamLF = getSeamLength(proj);
+  const _perimLF = totalLayerPerimeter(proj);
+  const _turfSF = (proj.turf || []).filter(r => (r.role||'base')==='base' || r.role==='putting-green').reduce((s,r)=>s+(parseFloat(r.installedSqFt)||0),0);
+  const _consMetric = m => m === 'seam' ? _seamLF : m === 'perimeter' ? _perimLF : _turfSF;
+  const consumableLines = [];
+  let consumablesCost = 0;
+  CONSUMABLE_DEFS.forEach(def => {
+    const cfg = _cons[def.id];
+    const res = consumableUnitsAndCost(cfg, _consMetric(def.metric));
+    if (res.cost > 0) {
+      consumablesCost += res.cost;
+      const unit = (cfg.unitLabel || 'unit') + (res.units === 1 ? '' : 's');
+      consumableLines.push({ label: `${cfg.name || def.label} (${res.units} ${unit})`, cost: res.cost });
+    }
+  });
+  consumablesCost = parseFloat(consumablesCost.toFixed(2));
   function infillCostForTier(tier) {
     return (proj.infill||[])
       .filter(r => (r.tier||'standard') === tier && parseFloat(r.bags) > 0)
@@ -5488,7 +5661,7 @@ function calcQuote() {
         const scenarioInfillCost = tierInfillCost + (pgSqFt > 0 ? pgInfillCost : 0);
         const scenarioMiscCost = baseMiscCost + (pgSqFt > 0 ? pgMiscCost : 0);
         const scenarioFringeCost = pgSqFt > 0 ? fringeCost : 0;
-        const cogs = laborStd + laborPg + edgeCost + dailyMinAdj + turfMatCost + pgTurfMatCost + scenarioInfillCost + scenarioMiscCost + scenarioFringeCost + rockCost + shippingCost;
+        const cogs = laborStd + laborPg + edgeCost + dailyMinAdj + turfMatCost + pgTurfMatCost + scenarioInfillCost + scenarioMiscCost + scenarioFringeCost + rockCost + consumablesCost + shippingCost;
         const sellPrice = applyMargin(cogs, marginPct);
 
         const cardLabel = letters[cardIdx % 26];
@@ -5513,6 +5686,7 @@ function calcQuote() {
         baseMiscItems.forEach(r => { breakdown += miscLineHtml(r); });
         if (pgSqFt > 0) pgMiscItems.forEach(r => { breakdown += miscLineHtml(r); });
         if (rockCost) breakdown += `<div class="opt-line"><span>Rock / base</span><span>${fmt(rockCost)}</span></div>`;
+        consumableLines.forEach(cl => { breakdown += `<div class="opt-line"><span>${cl.label.replace(/</g,'&lt;')}</span><span>${fmt(cl.cost)}</span></div>`; });
         if (shippingCost) breakdown += `<div class="opt-line"><span>Shipping / freight</span><span>${fmt(shippingCost)}</span></div>`;
 
         const marginAmt = sellPrice - cogs;
@@ -5968,6 +6142,7 @@ function renderSettingsTables() {
   renderSettingsInfillTable(cat.infill);
   renderSettingsRockTable(cat.rock || []);
   renderSettingsEdgingTable(cat.edging || []);
+  renderConsumablesConfig();
   renderCrewTabs();
   renderLaborRatesTable();
   renderMiscItemsTable();
@@ -10081,6 +10256,7 @@ function renderRollLayout() {
   sizeLayoutCanvas();
   drawRollLayoutCanvas(layout);
   renderManualCutsList(layout, proj);
+  if (typeof refreshSeamLengthField === 'function') refreshSeamLengthField();
   renderNestedPiecesList(layout, proj);
   renderPieceList(layout, proj);
   // Installed SqFt = total installed turf. Single layer → primary's exclusion-

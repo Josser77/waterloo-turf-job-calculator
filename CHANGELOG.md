@@ -5,6 +5,45 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 95) — Measured seam length + editable override
+
+Made seam length a real, measured quantity and overridable:
+- Seam length is now the actual cut length where pieces meet — for adjacent strips, the x-overlap
+  of their turf extents (not a min-length approximation), summed across layers, with empty strips
+  breaking the chain so gaps don't create phantom seams.
+- New editable "Seam length (ft)" field on the Layout → Results panel: shows the estimate from
+  the roll plan as the placeholder, type a value to override, clear to go back to the estimate.
+  Seam tape & glue use this override-aware value (getSeamLength).
+
+Tests **1899 → 1905** (README **1905**): rectangle/irregular/gap seam math, override precedence,
+and the field/quote wiring. Verified end-to-end (estimate 160 ft → glue 3 gal; override 240 ft →
+4 gal; clear → estimate). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 94) — Installation consumables (seam tape / glue / nails / weed barrier)
+
+New "Installation Consumables" card in Settings, and each priced into the quote from job metrics:
+- **Seam tape** & **glue** from estimated seam length, **nails** from total perimeter, **weed
+  barrier** from turf area (base + green).
+- Each is configurable: enable, product/type, unit label, cost per unit, coverage-per-unit
+  (LF/roll, LF/gallon, LF/box, SF/roll), waste/extra %, and round-up. One general formula:
+  metric × (1+waste%) ÷ coverage, optionally ceil'd, × cost. Matches the requested examples
+  (seams+10%, 1 gal/60 LF, 1 box/200 LF, area×1.15/1500 SF-per-roll).
+
+Enabled consumables add to COGS and each prints its own quote breakdown line (e.g. "6in Nails
+(1 box) 5.00"). Off by default → no change to existing quotes. Seam length is estimated from
+the roll layout's strips (adjacent strips share a seam ≈ the shorter run). New pure helpers
+consumableUnitsAndCost / seamLengthOfStrips / estimateSeamLength; stored in the catalog
+(cat.consumables, defaults auto-added).
+
+Tests **1886 → 1899** (README **1899**): all four formulas against the requested examples,
+guards (disabled/no-coverage/zero), seam estimate, and the COGS/breakdown wiring. Verified
+end-to-end (nails 1 box/5, weed barrier 2 rolls/0 on a real job). Green under UTC and
+America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 93) — Edging: click segments on the drawing
 
 Added click-a-segment on the layout drawing. A "✏ Click edges on the drawing" toggle in the
