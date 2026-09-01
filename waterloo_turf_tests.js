@@ -7909,6 +7909,12 @@ section('154. Installation consumables (seam tape / glue / nails / weed barrier)
   const gap = [{clippedArea:1,sMinX:0,neededLength:30},{clippedArea:0,sMinX:0,neededLength:0},{clippedArea:1,sMinX:0,neededLength:30}];
   assert(ctx.seamLengthOfStrips(gap) === 0, 'an empty strip breaks the chain — no seam across a gap');
   assert(ctx.estimateSeamLength({strips:rect}) === 60 && ctx.estimateSeamLength(null) === 0, 'estimateSeamLength sums the layout; null → 0');
+  // Regression: _installLayers already includes the primary layer, so a layout must NOT also add
+  // layout.strips (that double-counted the primary — 180 instead of 90 on a plain rectangle).
+  const dup = { strips: rect, _installLayers: [ { id:'primary', layout:{ strips: rect } } ] };
+  assert(ctx.estimateSeamLength(dup) === 60, 'layout.strips is not added on top of the primary install layer (no double-count)');
+  const withLayer = { strips: rect, _installLayers: [ { id:'primary', layout:{ strips: rect } }, { id:1, layout:{ strips: irr } } ] };
+  assert(ctx.estimateSeamLength(withLayer) === 90, 'seam sums the primary (60) + a real install layer (30) once each');
   // Manual override wins over the estimate; blank → estimate.
   assert(ctx.getSeamLength({seamLengthOverride:'240'}) === 240, 'a manual seam-length override is used as-is');
   assert(ctx.getSeamLength({seamLengthOverride:''}) === 0, 'blank override falls back to the estimate');

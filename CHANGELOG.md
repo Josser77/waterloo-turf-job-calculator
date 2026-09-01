@@ -5,6 +5,32 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 97) — Fix: seam length was double-counting the primary layer
+
+Seam length came out ~2× too high on normal jobs. Cause: the roll layout's _installLayers list
+already includes the primary layer (id 'primary'), and estimateSeamLength was summing
+layout.strips AND every _installLayers entry — counting the primary twice. Now it sums
+_installLayers only (primary + any install layers, once each), falling back to layout.strips just
+when there are no layers. A plain 45×30 rectangle now reports 90 ft of seam (two 45 ft joins),
+not 180; a shape that fits one roll width reports 0.
+
+Tests **1905 → 1907** (README **1907**): regression that the primary isn't added on top of the
+primary install layer, and that a real install layer adds once. Verified end-to-end on real
+computed layouts (45×30 → 90, single-strip → 0). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-07-22 (cont'd 96) — Update Misc Items examples (consumables moved out)
+
+Now that seam tape / glue / nails / weed barrier are auto-calculated under Installation
+Consumables, refreshed the Miscellaneous Items example wording (Settings card, per-project card,
+Help guide, empty state) to one-off extras like putting cups, pavers, bark dust, river rock,
+with a pointer to the Installation Consumables section. Copy-only.
+
+Tests **1905** (unchanged). Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 95) — Measured seam length + editable override
 
 Made seam length a real, measured quantity and overridable:

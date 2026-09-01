@@ -1451,7 +1451,7 @@
             <div class="card-title">Miscellaneous Items</div>
             <button class="btn btn-ghost btn-sm" onclick="openQuoteMiscPicker()">＋ Add Item</button>
           </div>
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">Seam tape, adhesive, nails, etc. Costs are included in Quote Totals.</p>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">One-off extras like putting cups, pavers, bark dust, river rock, etc. Costs are included in Quote Totals.</p>
           <div id="quoteMiscRows"></div>
         </div>
 
@@ -1983,7 +1983,7 @@
             <div class="card-title">Miscellaneous Items</div>
             <button class="btn btn-primary btn-sm" onclick="openMiscModal()">＋ Add Item</button>
           </div>
-          <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">Seam tape, adhesive, nails, staples, etc. These appear as selectable items when building a project.</p>
+          <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">One-off extras like putting cups, pavers, bark dust, river rock, etc. (Seam tape, glue, nails, and weed barrier are auto-calculated under Installation Consumables below.) These appear as selectable items when building a project.</p>
           <div id="miscItemsTable"></div>
         </div>
 
@@ -2536,7 +2536,7 @@
         <div class="docs-h3">Rock / Base Materials</div>
         <p>Add your base materials (e.g. 1/4" x 3/4" Clean Crush at 4" depth, 1/4" Minus at 1" depth). Set the <strong>Default Depth</strong> — this is locked to what you define here and cannot be changed per-project. Set <strong>Cost per Cubic Yard</strong> to price rock. By default rock cost does <em>not</em> appear in customer quotes (most crews build rock into their per-sqft labor rate). If yours doesn't, turn on <strong>Show rock/base cost on quotes</strong> and each material's cost/yd × its cubic yards (area × the specified depth, or the yards you enter on the Rock / Base card) is added to the quote as a "Rock / base" line. <strong>Price per SqFt @ 1"</strong> stays a reference-only figure.</p>
         <div class="docs-h3">Miscellaneous Items</div>
-        <p>Add any other materials you regularly include (seam tape, adhesive, nails, staples, etc.). Set the name, unit, and price. These can be added to individual quotes later.</p>
+        <p>Add any other materials you regularly include (putting cups, pavers, bark dust, river rock, etc.). Set the name, unit, and price. These can be added to individual quotes later. (Seam tape, glue, nails, and weed barrier are auto-calculated under Installation Consumables.)</p>
         <div class="docs-h3">Labor Rates & Price Sheet</div>
         <p>Define your crew rate sets. You can have multiple crews with different rates. Each project can be assigned a specific crew using the <strong>Crew</strong> dropdown in the topbar. All rates start blank — nothing is pre-filled, so set each one for your business before relying on quote totals. Key rates that drive quote totals:</p>
         <ul class="docs-list">
@@ -5135,8 +5135,16 @@ function seamLengthOfStrips(strips) {
 }
 function estimateSeamLength(layout) {
   if (!layout) return 0;
-  let total = seamLengthOfStrips(layout.strips);
-  (layout._installLayers || []).forEach(il => { if (il && il.layout) total += seamLengthOfStrips(il.layout.strips); });
+  // _installLayers already includes the primary layer (id 'primary') plus any install layers,
+  // so sum those — summing layout.strips AS WELL would double-count the primary. Fall back to
+  // layout.strips only when there are no layers (older/simple layouts).
+  const layers = layout._installLayers;
+  let total = 0;
+  if (Array.isArray(layers) && layers.length) {
+    layers.forEach(il => { if (il && il.layout) total += seamLengthOfStrips(il.layout.strips); });
+  } else {
+    total = seamLengthOfStrips(layout.strips);
+  }
   return parseFloat(total.toFixed(2));
 }
 // The seam length used for consumables: the user's manual override if set, else the estimate
@@ -6999,7 +7007,7 @@ function renderMiscItemsTable() {
   const el = document.getElementById('miscItemsTable');
   if (!el) return;
   if (!items.length) {
-    el.innerHTML = '<div class="empty" style="padding:24px"><div class="empty-msg">No items yet. Add seam tape, adhesive, nails, etc.</div></div>';
+    el.innerHTML = '<div class="empty" style="padding:24px"><div class="empty-msg">No items yet. Add putting cups, pavers, bark dust, river rock, etc.</div></div>';
     return;
   }
   el.innerHTML = `
