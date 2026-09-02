@@ -5097,6 +5097,7 @@ function onEdgingHoverMove(evt) {
 // A click (not a drag) toggles the nearest segment.
 function endEdgingClick(evt) {
   if (!window._wtEdgingClickMode) return;
+  const down = window._wtEdgingDownPos; window._wtEdgingDownPos = null;
   const pos = canvasEventToData(evt); if (!pos) return;
   if (down && Math.hypot(pos.canvasX - down.canvasX, pos.canvasY - down.canvasY) >= 8) return; // drag, not a click
   const key = nearestEdgingEdge(pos.canvasX, pos.canvasY);
@@ -12915,10 +12916,17 @@ function buildCutList(layout) {
         // Width to cut off the roll = footprint + S-seam trim (trimmed on site),
         // capped at the roll width. Prefer this layer's own trim/width; fall back
         // to the parent layout, then derive the trim from effW as a last resort.
-        let sideTrimIn = (L.sideTrim != null ? L.sideTrim : (layout.sideTrim != null ? layout.sideTrim : null));
         const pieceRollW = L.rollWidth || rollWidth;
-        if (sideTrimIn == null && L.effW && pieceRollW) sideTrimIn = Math.max(0, (pieceRollW - L.effW) * 12);
-        const cutW = seamCutWidth(footW, sideTrimIn || 0, pieceRollW);
+        // S-seam trim for the on-site cut note, in INCHES. effW already bakes in the trim
+        // (effW = rollWidth − trimFeet), so (rollWidth − effW)×12 is the exact trim in inches.
+        // Deriving from L.sideTrim directly is wrong here: computeRollLayout stores sideTrim in
+        // FEET, but seamCutWidth expects inches — reading it raw made the allowance ~12× too small.
+        let sideTrimIn;
+        if (L.effW != null && pieceRollW) sideTrimIn = Math.max(0, (pieceRollW - L.effW) * 12);
+        else if (L.sideTrim != null) sideTrimIn = L.sideTrim * 12;       // stored feet → inches
+        else if (layout.sideTrim != null) sideTrimIn = layout.sideTrim * 12;
+        else sideTrimIn = 0;
+        const cutW = seamCutWidth(footW, sideTrimIn, pieceRollW);
         pieces.push({
           roll: lab.roll || 1, piece: lab.piece || 1,
           label: lab.roll ? ('Roll ' + lab.roll + ', Piece ' + lab.piece) : 'Piece',

@@ -5,6 +5,24 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 106) — Fix: cut-list S-seam trim (12x too small) + edging click regression
+
+Two fixes:
+- **Cut list ignored the S-Seam Side Trim setting.** buildCutList derived the seam allowance from
+  the stored layout.sideTrim, but computeRollLayout stores that in FEET while seamCutWidth expects
+  INCHES — so the allowance was applied as trim/144 instead of trim/12 (~12x too small; a 10 in
+  trim became ~0.8 in). Now derived from effW as (rollWidth − effW)×12, exact in inches. Narrow
+  pieces again get the full on-site seam allowance.
+- **Regression: couldn't click to select edging.** A dropped line left endEdgingClick referencing
+  an undefined , throwing on every click and silently killing selection. Restored the
+  down-position read.
+
+Tests **1943 → 1947** (README **1947**): seamCutWidth inch handling + cap, the effW-based cut-list
+derivation, and the endEdgingClick guard. Verified on the customer's project (10 in allowance on
+narrow pieces; clicking selects again). Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 105) — Edging perimeter guide (the real fix for moved/nested layers)
 
 Diagnosis (via the debug overlay + the customer's project): the edging highlight was NOT in the

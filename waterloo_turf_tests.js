@@ -8016,6 +8016,21 @@ section('159. Edging debug overlay');
   assert(/while picking edges, faintly outline every shape/.test(src) && /function drawGuide|const drawGuide/.test(src), 'a perimeter guide is drawn while in edging click mode');
 }
 
+section('160. Cut-list S-seam allowance + edging click regression');
+{
+  // seamCutWidth takes the trim in INCHES: a narrow piece is cut at footprint + trim/12 (capped
+  // at roll width). A 9 ft piece with a 10 in trim → cut 9.83 ft, not ~9.07 ft.
+  assert(Math.abs(ctx.seamCutWidth(9, 10, 15) - 9.8333) < 0.01, 'seamCutWidth adds trim in inches (9 + 10in = 9.83 ft)');
+  assert(ctx.seamCutWidth(14.5, 10, 15) === 15, 'a near-full piece is capped at the roll width');
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // The cut list derives the trim in INCHES from effW (rollWidth-effW)*12, not by reading the
+  // stored feet value as inches (which was ~12x too small).
+  assert(/L\.effW != null && pieceRollW\) sideTrimIn = Math\.max\(0, \(pieceRollW - L\.effW\) \* 12\)/.test(src), 'cut list derives S-seam trim (inches) from effW so it honors the setting');
+  // Regression: endEdgingClick must read the down position (a dropped line made `down` undefined,
+  // which threw on every click and silently killed selection).
+  assert(/const down = window\._wtEdgingDownPos; window\._wtEdgingDownPos = null;[\s\S]{0,200}nearestEdgingEdge/.test(src), 'endEdgingClick reads the down position (click selection works)');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
