@@ -7862,7 +7862,7 @@ section('152. Edging sides (contiguous runs between corners)');
   assert(/function nearestEdgingEdge/.test(src2) && /addShape\('main', layout\.basePoints\)/.test(src2), 'the hit-test uses the drawn rotated arrays, so clicks map to the right segment at any rotation');
   assert(/window\._wtEdgingClickMode\) \{ endEdgingClick/.test(src2), 'a click toggles the nearest segment');
   assert(/window\._wtEdgingClickMode\) \{ onEdgingHoverMove/.test(src2), 'hover outlines the segment under the cursor');
-  assert(/_wtEdgingHover[\s\S]{0,600}setLineDash/.test(src2), 'the hovered segment is drawn dashed');
+  assert(/_wtEdgingClickMode && window\._wtEdgingHover/.test(src2) && /setLineDash\(\[6, 4\]\)/.test(src2), 'the hovered segment is drawn dashed');
 }
 
 section('153. Edging selection: checklist + auto-fill wiring');
@@ -7879,7 +7879,7 @@ section('153. Edging selection: checklist + auto-fill wiring');
   // are drawn from, so the highlight lines up at any rotation.
   assert(/edging highlight skipped/.test(src), 'the draw function has an edging-highlight pass');
   assert(/strokeEdge\(layout\.basePoints, i\)/.test(src), 'main-outline runs highlight off basePoints (the drawn, rotated geometry)');
-  assert(/strokeEdge\(sh\.displayPoints \|\| sh\.points, i\)/.test(src), 'secondary-shape runs highlight off displayPoints (what is actually drawn)');
+  assert(/il\.layout && Array\.isArray\(il\.layout\.basePoints\)/.test(src) && /sh\.displayPoints \|\| sh\.points/.test(src), 'secondary/install-layer runs highlight off the DRAWN geometry (install-layer basePoints, else displayPoints) so they follow a moved layer');
   assert(/layout\.layerVisibility && layout\.layerVisibility\[n\] === false/.test(src), 'hidden layers are not highlighted');
 }
 
@@ -7999,6 +7999,11 @@ section('158. Edge selection survives moving shapes; modes stay exclusive');
   // The click hit-test + highlight read the MOVED geometry (displayPoints), so clicks/highlights
   // follow a moved shape.
   assert(/s\.displayPoints \|\| s\.points/.test(src), 'hit-test + highlight use the moved displayPoints');
+  // An added Install layer is drawn from its OWN roll-plan geometry (id === secondary index);
+  // the highlight + hit-test now use il.layout.basePoints so they land on the drawn (moved/rotated)
+  // shape instead of the un-transformed secondary displayPoints.
+  assert(/_installLayers \|\| \[\]\)\.find\(e => e && e\.id === n\)/.test(src), 'install-layer shapes are matched by id === secondary index');
+  assert(/il && il\.layout && Array\.isArray\(il\.layout\.basePoints\)\) \? il\.layout\.basePoints/.test(src), 'edging uses the install-layer basePoints (drawn geometry) for install layers');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

@@ -5,6 +5,22 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 103) — Fix: edging highlight drew at the old spot for moved Install layers
+
+An added Install layer (from ＋ Add CSV) is drawn from its OWN roll-plan geometry
+(_installLayers[id].layout.basePoints, rotated/positioned for that layer), but the edging
+highlight + click hit-test were reading the secondary shape's displayPoints — a different frame —
+so once such a layer was moved/rotated, its selected edges highlighted at the original location
+instead of on the drawn shape. Now the highlight, hover, and hit-test resolve an install layer by
+id (=== secondary-shape index) and use its basePoints, falling back to displayPoints for plain
+secondary shapes. Edges now sit on the moved shape and are clickable there.
+
+Tests **1938 → 1940** (README **1940**): the id-match + install-basePoints source for highlight and
+hit-test; updated two tests that asserted the old displayPoints-only source. Verified that edging
+resolves to the install layer's drawn geometry. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 102) — Edge selection survives moving shapes
 
 Edging edge selection now behaves correctly around Move Layers (and the other canvas modes):

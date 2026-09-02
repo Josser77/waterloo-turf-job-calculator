@@ -5046,7 +5046,9 @@ function _edgingEdgeCanvasPts() {
   addShape('main', layout.basePoints);
   (layout.secondaryShapes || []).forEach((s, n) => {
     if (layout.layerVisibility && layout.layerVisibility[n] === false) return;
-    addShape('s' + n, s.displayPoints || s.points);
+    const il = (layout._installLayers || []).find(e => e && e.id === n);
+    const pts = (il && il.layout && Array.isArray(il.layout.basePoints)) ? il.layout.basePoints : (s.displayPoints || s.points);
+    addShape('s' + n, pts);
   });
   return out;
 }
@@ -11651,6 +11653,15 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
         [ca, cb].forEach(c => { ctx.beginPath(); ctx.arc(c.x, c.y, 3.5, 0, 2 * Math.PI); ctx.fill(); });
         ctx.restore();
       };
+      const edgingShapePts = (n) => {
+        // An install layer (added base / putting green) is drawn from its OWN roll-plan geometry
+        // (rotated/positioned), keyed by id === secondary-shape index. Use that so the highlight
+        // lands on the drawn shape; otherwise use the secondary shape's displayPoints.
+        const il = (layout._installLayers || []).find(e => e && e.id === n);
+        if (il && il.layout && Array.isArray(il.layout.basePoints)) return il.layout.basePoints;
+        const sh = (layout.secondaryShapes || [])[n];
+        return sh ? (sh.displayPoints || sh.points) : null;
+      };
       selArr.forEach(key => {
         const parts = String(key).split(':');
         const shapeKey = parts[0], i = parseInt(parts[1], 10);
@@ -11659,10 +11670,8 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
           strokeEdge(layout.basePoints, i);
         } else if (/^s\d+$/.test(shapeKey)) {
           const n = parseInt(shapeKey.slice(1), 10);
-          const sh = (layout.secondaryShapes || [])[n];
-          if (sh && !(layout.layerVisibility && layout.layerVisibility[n] === false)) {
-            strokeEdge(sh.displayPoints || sh.points, i);
-          }
+          if (layout.layerVisibility && layout.layerVisibility[n] === false) return;
+          strokeEdge(edgingShapePts(n), i);
         }
       });
     }
@@ -11672,7 +11681,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       const shapeKey = parts[0], i = parseInt(parts[1], 10);
       let pts = null;
       if (shapeKey === 'main') pts = layout.basePoints;
-      else if (/^s\d+$/.test(shapeKey)) { const sh = (layout.secondaryShapes || [])[parseInt(shapeKey.slice(1), 10)]; pts = sh && (sh.displayPoints || sh.points); }
+      else if (/^s\d+$/.test(shapeKey)) { const n = parseInt(shapeKey.slice(1), 10); pts = (function(n){ const il=(layout._installLayers||[]).find(e=>e&&e.id===n); if(il&&il.layout&&Array.isArray(il.layout.basePoints)) return il.layout.basePoints; const sh=(layout.secondaryShapes||[])[n]; return sh&&(sh.displayPoints||sh.points); })(n); }
       if (pts && pts.length >= 2 && !isNaN(i)) {
         const a = pts[i], bpt = pts[(i + 1) % pts.length];
         if (a && bpt) {
