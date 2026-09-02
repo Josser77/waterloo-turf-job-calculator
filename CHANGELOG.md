@@ -5,7 +5,7 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-07-22 (cont'd 106) — Fix: cut-list S-seam trim (12x too small) + edging click regression
+## 2026-09-01 (cont'd 106) — Fix: cut-list S-seam trim (12x too small) + edging click regression
 
 Two fixes:
 - **Cut list ignored the S-Seam Side Trim setting.** buildCutList derived the seam allowance from
@@ -23,7 +23,7 @@ narrow pieces; clicking selects again). Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-07-22 (cont'd 105) — Edging perimeter guide (the real fix for moved/nested layers)
+## 2026-09-01 (cont'd 105) — Edging perimeter guide (the real fix for moved/nested layers)
 
 Diagnosis (via the debug overlay + the customer's project): the edging highlight was NOT in the
 wrong place — basePoints === displayPoints byte-for-byte and shares the drawn shape's exact
@@ -43,7 +43,7 @@ customer's actual project. Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-07-22 (cont'd 104) — Edging debug overlay (diagnostic for the moved-layer highlight)
+## 2026-09-01 (cont'd 104) — Edging debug overlay (diagnostic for the moved-layer highlight)
 
 Added a "🐞 Debug: outline the geometry edging uses" checkbox in the Layout → Edging panel. When
 on, it draws — in magenta, with vertex dots and a per-shape label — the EXACT point geometry the
@@ -57,7 +57,7 @@ America/Los_Angeles.
 
 ---
 
-## 2026-07-22 (cont'd 103) — Fix: edging highlight drew at the old spot for moved Install layers
+## 2026-09-01 (cont'd 103) — Fix: edging highlight drew at the old spot for moved Install layers
 
 An added Install layer (from ＋ Add CSV) is drawn from its OWN roll-plan geometry
 (_installLayers[id].layout.basePoints, rotated/positioned for that layer), but the edging
