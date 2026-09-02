@@ -8011,6 +8011,9 @@ section('159. Edging debug overlay');
   const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
   assert(/function toggleEdgingDebug/.test(src) && /id="edgingDebugChk"/.test(src), 'a debug toggle exists in the Edging panel');
   assert(/_wtEdgingDebug/.test(src) && /drawGeom\(layout\.basePoints, 'main'\)/.test(src), 'debug draws the exact geometry edging uses (magenta) for the main + each shape');
+  // In click mode, a faint dashed perimeter guide outlines each shape's TRUE edging perimeter so
+  // it's visible/clickable even when the shape's turf pieces are nested into another roll's waste.
+  assert(/while picking edges, faintly outline every shape/.test(src) && /function drawGuide|const drawGuide/.test(src), 'a perimeter guide is drawn while in edging click mode');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

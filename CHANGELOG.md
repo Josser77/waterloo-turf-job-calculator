@@ -5,6 +5,26 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 105) — Edging perimeter guide (the real fix for moved/nested layers)
+
+Diagnosis (via the debug overlay + the customer's project): the edging highlight was NOT in the
+wrong place — basePoints === displayPoints byte-for-byte and shares the drawn shape's exact
+bounding box. The confusion came from the job itself: the Sheila back yard is a concave L/C shape
+(295 ft² in a 1298 ft² box — 23% fill), and two of its turf pieces are NESTED into the Front
+Yard's roll waste. Edging correctly follows the yard's LOGICAL perimeter (where benderboard goes
+on the ground), but the turf for those runs is drawn relocated, so the highlight looked like it
+floated into blank space and the logical edge wasn't clickable where the piece appeared.
+
+Fix: while in edging click mode, draw each shape's true edging perimeter as a faint dashed guide
+(basePoints / install-layer geometry). Now the real perimeter is always visible and clickable,
+independent of where pieces were nested for cutting. The debug overlay from cont'd 104 stays as a
+diagnostic. Nesting is a cutting/ordering concern and correctly does not move the edging perimeter.
+
+Tests **1942 → 1943** (README **1943**): the guide is drawn in click mode. Verified against the
+customer's actual project. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 104) — Edging debug overlay (diagnostic for the moved-layer highlight)
 
 Added a "🐞 Debug: outline the geometry edging uses" checkbox in the Layout → Edging panel. When

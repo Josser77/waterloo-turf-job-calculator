@@ -11682,6 +11682,31 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
         }
       });
     }
+    // Perimeter guide: while picking edges, faintly outline every shape's TRUE edging perimeter,
+    // so you can see and click it even when its turf pieces are nested/relocated into another
+    // roll's waste (where the drawn pieces no longer match the logical outline).
+    if (window._wtEdgingClickMode) {
+      const guidePts = (n) => {
+        const il = (layout._installLayers || []).find(e => e && e.id === n);
+        if (il && il.layout && Array.isArray(il.layout.basePoints)) return il.layout.basePoints;
+        const sh = (layout.secondaryShapes || [])[n];
+        return sh ? (sh.displayPoints || sh.points) : null;
+      };
+      const drawGuide = (pts) => {
+        if (!pts || pts.length < 2) return;
+        ctx.save();
+        ctx.setLineDash([2, 4]); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,106,0,0.5)';
+        ctx.beginPath();
+        pts.forEach((pt, k) => { const c = toCanvas(pt); k === 0 ? ctx.moveTo(c.x, c.y) : ctx.lineTo(c.x, c.y); });
+        ctx.closePath(); ctx.stroke();
+        ctx.restore();
+      };
+      drawGuide(layout.basePoints);
+      (layout.secondaryShapes || []).forEach((s, n) => {
+        if (layout.layerVisibility && layout.layerVisibility[n] === false) return;
+        drawGuide(guidePts(n));
+      });
+    }
     // Hover feedback while in click mode: dashed outline on the segment under the cursor.
     if (window._wtEdgingClickMode && window._wtEdgingHover) {
       const parts = String(window._wtEdgingHover).split(':');
