@@ -7984,6 +7984,23 @@ section('157. Per-project consumables (product catalog + selection)');
   assert(/const cfg = resolveProjectConsumable\(proj, def\.id\)/.test(src), 'the quote resolves each project\'s chosen consumable product');
 }
 
+section('158. Edge selection survives moving shapes; modes stay exclusive');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Entering any other canvas mode turns OFF edging click mode (so a drag isn't captured by the
+  // edging hover/click), and vice-versa — leaving the selection intact.
+  assert(/window\._wtMoveLayersMode && window\._wtEdgingClickMode\) toggleEdgingClickMode/.test(src), 'Move Layers disables edging click mode');
+  assert(/window\._wtCutMode && window\._wtEdgingClickMode\) toggleEdgingClickMode/.test(src), 'Cut mode disables edging click mode');
+  assert(/window\._wtEditMode && window\._wtEdgingClickMode\) toggleEdgingClickMode/.test(src), 'Edit Shape disables edging click mode');
+  assert(/window\._wtDrawMode && window\._wtEdgingClickMode\) toggleEdgingClickMode/.test(src), 'Draw disables edging click mode');
+  // A layer move never touches the selection (stored on proj.layout.edgingSelection), and the
+  // checklist is refreshed after a move so it stays in sync with the redrawn highlight.
+  assert(/renderRollLayout\(\);\s*if \(typeof renderEdgingSelection === 'function'\) renderEdgingSelection/.test(src), 'the edging checklist refreshes after a layer move');
+  // The click hit-test + highlight read the MOVED geometry (displayPoints), so clicks/highlights
+  // follow a moved shape.
+  assert(/s\.displayPoints \|\| s\.points/.test(src), 'hit-test + highlight use the moved displayPoints');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

@@ -5,6 +5,25 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 102) — Edge selection survives moving shapes
+
+Edging edge selection now behaves correctly around Move Layers (and the other canvas modes):
+- The other canvas modes (Move Layers, Cut, Edit Shape, Draw) now turn OFF edging click mode
+  when activated — previously edging mode could stay on and its mousemove hover captured the
+  drag, so moving felt broken. Edging mode already disabled the others; now it's bidirectional.
+- The selection is stored on the layout and untouched by a move; the highlight and click hit-test
+  read the moved displayPoints, so they follow a moved shape. The edging checklist now refreshes
+  after a move so it stays in sync with the redrawn highlight.
+
+Net: select edges, move a shape, and the selection stays put and follows the shape; you can also
+select more edges on the moved shape.
+
+Tests **1932 → 1938** (README **1938**): bidirectional mode exclusivity + checklist refresh wiring.
+Verified end-to-end (select → move → re-select all work; selection kept throughout). Green under
+UTC and America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 101) — Consumables are now a per-project product catalog
 
 Reworked installation consumables from a single global config per type into a per-category

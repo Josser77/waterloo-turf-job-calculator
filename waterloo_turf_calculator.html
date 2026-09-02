@@ -11730,6 +11730,7 @@ function undoLayoutEdit() {
 function toggleEditMode() {
   if (window._wtLayoutLocked) return;
   window._wtEditMode = !window._wtEditMode;
+  if (window._wtEditMode && window._wtEdgingClickMode) toggleEdgingClickMode();
   window._wtDragVertexIndex = null;
   window._wtEditLayerId = null;
   window._wtFreezeTransform = false;
@@ -11821,6 +11822,7 @@ function editAddPointAtData(pos) {
 function toggleMoveLayersMode() {
   if (window._wtLayoutLocked) return;
   window._wtMoveLayersMode = !window._wtMoveLayersMode;
+  if (window._wtMoveLayersMode && window._wtEdgingClickMode) toggleEdgingClickMode();
   window._wtDragLayerId = null;
   window._wtFreezeTransform = false;
   const btn = document.getElementById('moveLayersBtn');
@@ -11856,6 +11858,7 @@ function toggleMoveLayersMode() {
 function toggleCutMode() {
   if (window._wtLayoutLocked) return;
   window._wtCutMode = !window._wtCutMode;
+  if (window._wtCutMode && window._wtEdgingClickMode) toggleEdgingClickMode();
   const btn = document.getElementById('cutModeBtn');
   const hint = document.getElementById('cutModeHint');
   const canvas = document.getElementById('rollLayoutCanvas');
@@ -11910,6 +11913,7 @@ function annotationHasSize(a) {
 function toggleDrawMode() {
   if (window._wtLayoutLocked) return;
   window._wtDrawMode = !window._wtDrawMode;
+  if (window._wtDrawMode && window._wtEdgingClickMode) toggleEdgingClickMode();
   const btn = document.getElementById('drawModeBtn');
   const bar = document.getElementById('drawToolbar');
   const canvas = document.getElementById('rollLayoutCanvas');
@@ -13368,6 +13372,7 @@ function endDragLayer(evt) {
   if (!window._wtMoveLayersMode) window._wtFreezeTransform = false;
   save();
   renderRollLayout();
+  if (typeof renderEdgingSelection === 'function') renderEdgingSelection(getCurrentProject());
   // ...but a frozen view can't grow, so dragging a shape past the edge silently cut
   // it off. If anything now sits outside the viewport, re-fit ONCE, here on release
   // — never mid-drag, where rescaling under the cursor is what the freeze prevents.
