@@ -5,6 +5,20 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-07-22 (cont'd 104) — Edging debug overlay (diagnostic for the moved-layer highlight)
+
+Added a "🐞 Debug: outline the geometry edging uses" checkbox in the Layout → Edging panel. When
+on, it draws — in magenta, with vertex dots and a per-shape label — the EXACT point geometry the
+edging highlight + click hit-test use for the main outline and each secondary/install layer. If a
+magenta outline floats off its drawn shape, that shape's edging geometry is in the wrong frame,
+which pinpoints the moved-2nd-layer bug that can't be reproduced headlessly. Diagnostic only —
+no effect on quotes or the roll plan.
+
+Tests **1940 → 1942** (README **1942**): the toggle + overlay wiring. Green under UTC and
+America/Los_Angeles.
+
+---
+
 ## 2026-07-22 (cont'd 103) — Fix: edging highlight drew at the old spot for moved Install layers
 
 An added Install layer (from ＋ Add CSV) is drawn from its OWN roll-plan geometry

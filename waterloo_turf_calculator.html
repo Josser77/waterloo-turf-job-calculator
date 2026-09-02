@@ -1721,6 +1721,10 @@
                     <label>Edging runs</label>
                     <p class="hint">Pick the perimeter runs that need benderboard. The total auto-fills <strong>Linear Feet of Edging</strong> on the Quote Builder. Turn on <strong>click mode</strong> and click a segment on the drawing, or tick sides below.</p>
                     <button type="button" id="edgingClickBtn" class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:8px;" onclick="toggleEdgingClickMode()">✏ Click edges on the drawing</button>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-light);margin-bottom:8px;cursor:pointer;">
+                      <input type="checkbox" id="edgingDebugChk" onchange="toggleEdgingDebug(this.checked)" style="width:auto;margin:0;">
+                      🐞 Debug: outline the geometry edging uses (magenta = what edging sees; should sit on each shape)
+                    </label>
                     <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
                       <button type="button" class="btn btn-ghost btn-sm" onclick="selectAllEdging()">Whole perimeter</button>
                       <button type="button" class="btn btn-ghost btn-sm" onclick="clearEdgingSelection()">Clear</button>
@@ -5023,6 +5027,10 @@ function toggleEdgingExpand(sideKey) {
   window._wtEdgingExpanded[sideKey] = !window._wtEdgingExpanded[sideKey];
   renderEdgingSelection(getCurrentProject());
 }
+function toggleEdgingDebug(on) {
+  window._wtEdgingDebug = !!on;
+  if (typeof renderRollLayout === 'function') renderRollLayout();
+}
 
 // ── Click-a-segment on the drawing ──────────────────────────────────────────
 function _edgePointToSegDist(px, py, ax, ay, bx, by) {
@@ -5089,7 +5097,6 @@ function onEdgingHoverMove(evt) {
 // A click (not a drag) toggles the nearest segment.
 function endEdgingClick(evt) {
   if (!window._wtEdgingClickMode) return;
-  const down = window._wtEdgingDownPos; window._wtEdgingDownPos = null;
   const pos = canvasEventToData(evt); if (!pos) return;
   if (down && Math.hypot(pos.canvasX - down.canvasX, pos.canvasY - down.canvasY) >= 8) return; // drag, not a click
   const key = nearestEdgingEdge(pos.canvasX, pos.canvasY);
@@ -11694,6 +11701,33 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       }
     }
   } catch (err) { console.warn('edging highlight skipped:', err); }
+
+  // Debug overlay: draw the EXACT geometry the edging code uses for each shape, in magenta, with
+  // vertex dots. If a magenta outline floats off its shape, that shape's edging geometry is in the
+  // wrong frame — which is exactly what we're hunting.
+  try {
+    if (window._wtEdgingDebug) {
+      const drawGeom = (pts, label) => {
+        if (!pts || pts.length < 2) return;
+        ctx.save();
+        ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5; ctx.strokeStyle = '#d500f9';
+        ctx.beginPath();
+        pts.forEach((pt, k) => { const c = toCanvas(pt); k === 0 ? ctx.moveTo(c.x, c.y) : ctx.lineTo(c.x, c.y); });
+        ctx.closePath(); ctx.stroke();
+        ctx.setLineDash([]); ctx.fillStyle = '#d500f9';
+        pts.forEach(pt => { const c = toCanvas(pt); ctx.beginPath(); ctx.arc(c.x, c.y, 2, 0, 2 * Math.PI); ctx.fill(); });
+        if (label && pts[0]) { const c = toCanvas(pts[0]); ctx.font = 'bold 11px sans-serif'; ctx.fillText(label, c.x + 4, c.y - 4); }
+        ctx.restore();
+      };
+      drawGeom(layout.basePoints, 'main');
+      (layout.secondaryShapes || []).forEach((s, n) => {
+        if (layout.layerVisibility && layout.layerVisibility[n] === false) return;
+        const il = (layout._installLayers || []).find(e => e && e.id === n);
+        const pts = (il && il.layout && Array.isArray(il.layout.basePoints)) ? il.layout.basePoints : (s.displayPoints || s.points);
+        drawGeom(pts, 's' + n + (il ? ' (install)' : ''));
+      });
+    }
+  } catch (err) { console.warn('edging debug skipped:', err); }
 }
 
 // ───────────────────────────────────────────────────────

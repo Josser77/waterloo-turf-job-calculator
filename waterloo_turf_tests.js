@@ -8006,6 +8006,13 @@ section('158. Edge selection survives moving shapes; modes stay exclusive');
   assert(/il && il\.layout && Array\.isArray\(il\.layout\.basePoints\)\) \? il\.layout\.basePoints/.test(src), 'edging uses the install-layer basePoints (drawn geometry) for install layers');
 }
 
+section('159. Edging debug overlay');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/function toggleEdgingDebug/.test(src) && /id="edgingDebugChk"/.test(src), 'a debug toggle exists in the Edging panel');
+  assert(/_wtEdgingDebug/.test(src) && /drawGeom\(layout\.basePoints, 'main'\)/.test(src), 'debug draws the exact geometry edging uses (magenta) for the main + each shape');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
