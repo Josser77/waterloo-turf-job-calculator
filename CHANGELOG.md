@@ -5,6 +5,36 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-02 — Fix: nested pieces now snap into the clear waste instead of sitting on turf
+
+Dragging a cut piece onto a roll's waste kept landing it on existing turf (red "overlaps turf") and
+it wouldn't move to the clear spot. Cause: the placement's clear-spot search was passed an EMPTY
+turf outline, so it only dodged other nested pieces — never the turf. It now uses the target roll's
+actual turf footprint, so a dropped piece snaps to the nearest turf-free spot along that roll. Drop
+on a spot that's already clear and it stays put; only a piece genuinely too big for any clear spot in
+that roll's waste stays overlapping and flagged red.
+
+Tests **2005 -> 2006** (README **2006**): a piece dropped on turf snaps past it to the clear waste
+(not flagged), a piece in clear leftover stays, and a piece too big for the waste is still flagged
+red. Verified — a piece dropped deep in turf (x=150) snaps to x≈504 (the waste edge). Green under
+UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-02 — Fix: "Make this the main yard" no longer drags sub-layers' roll direction
+
+After a swap, the other layers had no roll-direction override, so they "matched primary" — and
+adjusting the new main yard's roll direction dragged all of them with it. The swap now pins every
+remaining layer to the roll direction it had before the swap (as an explicit override), so the
+shapes stay independent. Any layer you *do* want to follow the primary can still be re-linked with
+its "↺ Match primary" button.
+
+Tests **2004 -> 2005** (README **2005**): remaining layers get an explicit override after the swap.
+Verified end-to-end — setting the new primary to 90° leaves a sub-layer at its own direction instead
+of following. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-02 — "Make this the main yard" swap (Increment 2 of 3)
 
 Added a **⬆ Make this the main yard** button to every secondary layer. It swaps that shape in as the

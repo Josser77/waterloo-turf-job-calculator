@@ -3908,15 +3908,19 @@ section('49. Nesting: honor-the-drop placement + turf-overlap flag');
     const c = intCtx();
     // Target rect [0,1000]x[0,15] with turf filling [0,500] along the roll.
     const target = { key:'T', rfX0:0, rfX1:1000, rfY0:0, rfY1:15, clipped:r(0,0,500,15), nestedInto:null };
-    // Dropped on turf (centroid at 200): overlaps → flagged.
+    // Dropped on turf (centroid at 200): now SNAPS to the nearest clear waste (>=500), not flagged.
     const onTurf = { key:'A', rfX0:0, rfX1:100, rfY0:0, rfY1:15, clipped:r(0,0,100,15), nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:200, rfY:7.5} };
     c.assignNestPlacements({ strips:[{ pieces:[target, onTurf] }] });
-    assert(onTurf._nestX != null, 'piece dropped on turf is still placed where dropped (not refused)');
-    assert(onTurf._nestOverlapsTurf === true, 'a piece dropped onto turf is flagged (red outline)');
-    // Dropped in the clear leftover (centroid at 750): no overlap → not flagged.
+    assert(onTurf._nestX != null && onTurf._nestX >= 500 - 1e-6, 'a piece dropped on turf snaps to the clear waste (past the turf)');
+    assert(onTurf._nestOverlapsTurf === false, 'after snapping to clear waste, the piece is not flagged');
+    // Dropped in the clear leftover (centroid at 750): stays, not flagged.
     const clear = { key:'B', rfX0:0, rfX1:100, rfY0:0, rfY1:15, clipped:r(0,0,100,15), nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:750, rfY:7.5} };
     c.assignNestPlacements({ strips:[{ pieces:[target, clear] }] });
     assert(clear._nestOverlapsTurf === false, 'a piece dropped in clear leftover is NOT flagged');
+    // A piece too big for the waste (600 wide, only 500 of clear waste) can't snap clear → still flagged red.
+    const tooBig = { key:'C', rfX0:0, rfX1:600, rfY0:0, rfY1:15, clipped:r(0,0,600,15), nestedInto:0, nestedIntoKey:'T', nestPos:{rfX:700, rfY:7.5} };
+    c.assignNestPlacements({ strips:[{ pieces:[target, tooBig] }] });
+    assert(tooBig._nestOverlapsTurf === true, 'a piece too big for the available waste is still flagged red (no clear spot exists)');
   }
 
   // ── INTEGRATION: real computeRollLayout geometry, honor-drop placement ──
@@ -8173,6 +8177,8 @@ section('169. Make this the main yard (swap)');
   assert(proj.layout.secondaryShapes[0].name === 'Green' && proj.layout.secondaryShapeModes[0] === 'ignore', 'old primary demoted to Reference only');
   assert(proj.layout.secondaryShapes[1].name === 'Bed' && proj.layout.secondaryShapeModes[1] === 'exclude', 'other layers untouched');
   assert(!proj.layout.layerRoll[0], 'the swapped slot roll override is cleared');
+  // The swap pins other layers' roll direction so adjusting the new primary doesn't drag them.
+  assert(proj.layout.layerRoll[1] && proj.layout.layerRoll[1].rotation != null, 'remaining layers get an explicit roll-direction override after the swap');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
