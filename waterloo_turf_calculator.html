@@ -1553,7 +1553,7 @@
               <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:normal;margin:0;" title="Line thickness (in pixels) for a drawn Line, Rectangle, Circle, or Freehand shape. This is NOT the retaining-wall thickness — that's the 'Wall in' box, set in real inches.">Width
                 <input type="number" id="drawWidthInput" min="1" max="12" step="1" value="2" onchange="setDrawWidth(this.value)" style="width:52px;">
               </label>
-              <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:normal;margin:0;cursor:pointer;" title="Fill the inside of a drawn Rectangle or Circle with a translucent version of the color. No effect on Line/Freehand or landscape elements.">
+              <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:normal;margin:0;cursor:pointer;" title="Fill the inside of a drawn Rectangle or Circle with its color (the layout still shows faintly through). No effect on Line/Freehand or landscape elements.">
                 <input type="checkbox" id="drawFillInput" onchange="window._wtDrawFill=this.checked" style="width:auto;margin:0;">Fill
               </label>
               <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:normal;margin:0;cursor:pointer;" title="Snap shape points to the grid spacing set on the Display tab">
@@ -1953,7 +1953,7 @@
           <label style="display:flex;align-items:flex-start;gap:8px;margin-top:14px;max-width:880px;cursor:pointer;">
             <input type="checkbox" id="allowButtSeamsInput" style="width:auto;margin:2px 0 0;" onchange="onRollSettingEdit('allowJoinSeams', this)">
             <span style="font-size:12px;color:var(--text);"><strong>Allow butt seams across roll joins</strong>
-              <span style="display:block;font-size:11px;color:var(--text-light);line-height:1.4;margin-top:2px;">Off (default): a run that doesn't fit the rest of a roll starts a fresh roll, so every run is seamless — costs more rolls. On: fill the roll and continue the run on the next roll with a butt seam — fewer rolls, but an extra seam in the lawn. Only changes the <strong>roll count</strong>; ordered linear feet is the same either way.</span>
+              <span style="display:block;font-size:11px;color:var(--text-light);line-height:1.4;margin-top:2px;">Off (default): a run that doesn't fit the rest of a roll starts a fresh roll, so every run is seamless — costs more rolls.<br>On: fill the roll and continue the run on the next roll with a butt seam — fewer rolls, but an extra seam in the lawn.<br>Only changes the <strong>roll count</strong>; ordered linear feet is the same either way.</span>
             </span>
           </label>
         </div>
@@ -2382,7 +2382,7 @@
     style="display:none;pointer-events:auto;cursor:pointer;background:var(--green);color:#fff;
            border-radius:22px;padding:10px 16px;font-size:13px;font-weight:700;font-family:'Nunito Sans',sans-serif;
            box-shadow:0 6px 24px rgba(0,0,0,0.28);white-space:nowrap;">
-    ▸ Getting Started<span style="opacity:0.85;font-weight:500;"> · <span id="wizardPillStep">Step 1 of 6</span></span>
+    ▸ Getting Started<span style="opacity:0.85;font-weight:500;"> · <span id="wizardPillStep">Step 1 of 7</span></span>
   </div>
 </div>
 
@@ -2656,9 +2656,10 @@
         <p>Every layer — including the primary one — has a checkbox. Uncheck it to hide that layer on the canvas; this is purely visual and doesn't affect any calculations. This is useful for decluttering the view when a file has several overlapping shapes, or for focusing on one layer while editing.</p>
         <p>Each layer has a dropdown that controls how it's treated:</p>
         <ul class="docs-list">
-          <li><strong>Measure only — doesn't change totals</strong> — the <strong>default</strong> for every secondary shape. The layer is drawn and labeled on the canvas but does <strong>not</strong> change Installed SqFt or the quote (use it for sub-areas of the same yard, reference outlines, or elevation sub-regions). You opt a layer into counting by choosing one of the modes below.</li>
-          <li><strong>Install — separate turf area, its own rolls</strong> — the layer is its own turf area: it's rolled independently and its area, Ordered SqFt, Linear Ft, rolls, and waste are <strong>added to the combined totals</strong>. Use this only when a shape is a genuinely separate piece (e.g. a detached side yard) — <strong>not</strong> for a sub-region that overlaps the main yard, which would double-count. A per-layer breakdown is listed under the totals (with each layer's roll direction), and "Apply" sends the combined Ordered SqFt to the chosen turf row. Each install layer's <strong>roll plan is drawn on the canvas at its position</strong> (its installed strips, plus purchased rectangles + waste hatch when "Show purchased roll rectangles" is on), labeled with the layer name and its area. Position each layer with "✋ Move Layers" and the per-layer Rotate slider. <strong>Each install layer also has its own Roll direction + Seam offset</strong> in the Layers list (with Horizontal / Vertical / Auto buttons); until you change them, a layer "matches primary," and "↺ Match primary" clears an override. <strong>Nesting and manual cuts work within each install layer, and a piece can now be nested across layers</strong> (dropped onto a different layer's roll waste). <strong>Rename any layer</strong> by typing in its name field at the top of its card; the name shows on the canvas, the breakdown, and the Nested Pieces list. <strong>Installed SqFt and Perimeter</strong> sum the primary plus every Install layer. <strong>Roll grouping (multiple layers ≠ multiple rolls):</strong> when there's more than one install layer, each gets a "Rolls" selector — <em>Share rolls with other layers</em> (default) pools that layer's linear footage so they're cut from the same physical rolls, while <em>Roll on its own</em> counts the layer's rolls independently. Grouping only changes the <strong>roll count</strong> — Ordered SqFt and Linear Ft are identical either way.</li>
-          <li><strong>Free fill — installed, not ordered (from scrap)</strong> — the shape <strong>counts toward Installed SqFt</strong> (it's real turf going down) but adds <strong>nothing</strong> to the order — no extra rolls, no Ordered SqFt — because it's assumed to be cut from leftover scrap. It is <strong>not rolled or placed</strong>: it's a quick "I trust there's enough scrap" estimate, not a specific piece in a specific roll's waste. To actually place a piece into a particular roll's waste (with a real fit check and exact position), use <strong>Install</strong> for that layer and drag its piece onto the target roll's waste — that's the precise version of this. Free-fill shapes are drawn in violet with a dotted outline and labeled "(free fill)". <strong>Whenever a Free-fill layer is in use, a warning shows under Installed SqFt</strong> spelling out that the area is added to Installed but not ordered (assumed cut from scrap); it turns <strong>red</strong> if the free-fill area is larger than the roll waste actually available — beyond that point it isn't entirely free and you'd need extra turf.</li>
+          <li><strong>Reference only — no turf, no cost</strong> — the <strong>default</strong> for every secondary shape. The layer is drawn and labeled on the canvas but does <strong>not</strong> change Installed SqFt or the quote (use it for sub-areas of the same yard, reference outlines, or elevation sub-regions). You opt a layer into counting by choosing one of the modes below.</li>
+          <li><strong>Separate turf area — its own rolls</strong> — the layer is its own turf area: it's rolled independently and its area, Ordered SqFt, Linear Ft, rolls, and waste are <strong>added to the combined totals</strong>. Use this only when a shape is a genuinely separate piece (e.g. a detached side yard) — <strong>not</strong> for a sub-region that overlaps the main yard, which would double-count. A per-layer breakdown is listed under the totals (with each layer's roll direction), and "Apply" sends the combined Ordered SqFt to the chosen turf row. Each install layer's <strong>roll plan is drawn on the canvas at its position</strong> (its installed strips, plus purchased rectangles + waste hatch when "Show purchased roll rectangles" is on), labeled with the layer name and its area. Position each layer with "✋ Move Layers" and the per-layer Rotate slider. <strong>Each install layer also has its own Roll direction + Seam offset</strong> in the Layers list (with Horizontal / Vertical / Auto buttons); until you change them, a layer "matches primary," and "↺ Match primary" clears an override. <strong>Nesting and manual cuts work within each install layer, and a piece can now be nested across layers</strong> (dropped onto a different layer's roll waste). <strong>Rename any layer</strong> by typing in its name field at the top of its card; the name shows on the canvas, the breakdown, and the Nested Pieces list. <strong>Installed SqFt and Perimeter</strong> sum the primary plus every Install layer. <strong>Roll grouping (multiple layers ≠ multiple rolls):</strong> when there's more than one install layer, each gets a "Rolls" selector — <em>Share rolls with other layers</em> (default) pools that layer's linear footage so they're cut from the same physical rolls, while <em>Roll on its own</em> counts the layer's rolls independently. Grouping only changes the <strong>roll count</strong> — Ordered SqFt and Linear Ft are identical either way.</li>
+          <li><strong>⬆ Make this the main yard</strong> — on any secondary layer, swaps that shape in as the primary (main yard). The old main yard becomes a layer set to <strong>Reference only</strong>, so you can then mark it Putting green, Cutout, or Separate turf area. Use this when a <strong>putting green or driveway was measured before the yard</strong> — promote the yard, then set the other shape's mode. Roll direction, seam offset, and any manual cuts/nesting on the two swapped shapes reset; all other layers are untouched.</li>
+          <li><strong>Fill from scrap</strong> <em>(retired)</em> — this mode used to mark a whole shape as "installed but cut from scrap, not ordered." It's been removed, because a whole shape is rarely all-scrap: usually some pieces nest into leftover and others need their own roll. The honest way to do this is now per piece — set the layer to <strong>Separate turf area</strong> and <strong>drag its individual cut pieces</strong> into another roll's waste to nest them from scrap where they actually fit. Any old layer set to Fill from scrap is automatically converted to Separate turf area (so its turf is properly ordered).</li>
           <li><strong>Exclude from Installed Area (hole/cutout)</strong> — subtracts that shape's area from the primary's Installed Area, and draws it as a hatched red region — turf doesn't go there.</li>
           <li><strong>Ignore (informational only)</strong> — no effect on any total. Drawn as a dashed blue outline for reference.</li>
           <li><strong>Putting Green (used for fringe calculation)</strong> — subtracts that shape's area from the primary's Installed Area like Exclude, AND marks it as the putting green outline for the Fringe feature (see below). Drawn as a solid green shape. Only one layer can be the putting green at a time — selecting it on a different layer demotes the previous one back to Install.</li>
@@ -2678,7 +2679,7 @@
         <p>When shapes overlap, clicking grabs the <strong>topmost</strong> one (the shape you see under the cursor), and a brief <strong>"Moving: &lt;layer&gt;"</strong> note confirms which layer you picked up — so with several stacked shapes you always move the one you meant.</p>
         <p>Each additional (non-primary) layer also has a <strong>Rotate</strong> slider (0-359°) in the Layers list. This rotates that shape in place about its own center — useful when Moasure captured a shape (e.g. a putting green outline) at the wrong orientation and you need to spin it to match how it actually sits in the yard. Combine with dragging to both rotate and position the shape correctly. Rotation, like position, is purely visual and doesn't affect Installed Area, scrap, or roll calculations.</p>
         <p>A layer that's been moved and/or rotated shows a "↺ Reset position" button in the Layers list to snap it back to its original (imported) position and orientation.</p>
-        <p>Each additional layer has a <strong>✕</strong> button to <strong>delete it permanently</strong>. Deleting removes the shape along with everything attached to it — its mode, position/rotation, roll direction, visibility, and any manual cuts or nesting on it. If the layer was set to anything other than "Measure only", the confirmation says so, because removing it changes Installed/Ordered SqFt and the quote. This can't be undone: re-import the CSV to get the shape back. (To take a layer out of the totals <em>without</em> losing it, set its mode to "Measure only" instead, or untick it to just hide it on the canvas.)</p>
+        <p>Each additional layer has a <strong>✕</strong> button to <strong>delete it permanently</strong>. Deleting removes the shape along with everything attached to it — its mode, position/rotation, roll direction, visibility, and any manual cuts or nesting on it. If the layer was set to anything other than "Reference only", the confirmation says so, because removing it changes Installed/Ordered SqFt and the quote. This can't be undone: re-import the CSV to get the shape back. (To take a layer out of the totals <em>without</em> losing it, set its mode to "Reference only" instead, or untick it to just hide it on the canvas.)</p>
 
         <div class="docs-h3">Cut List</div>
         <p>Click <strong>"📋 Cut List"</strong> in the toolbar to open a dialog showing <strong>every turf piece to cut</strong>, grouped by layer. Each piece gets a <strong>CAD-style drawing</strong> of its actual trimmed shape, dimensioned in feet and inches, plus a <strong>text line</strong> and <strong>turf area</strong> below it. Irregular pieces (that don't fill their rectangle) are tagged <em>trim to shape</em> and drawn in amber; pieces tucked into another roll's waste are tagged <em>nested</em>. Each layer shows a subtotal (piece count, total cut length, area) and multi-layer jobs get a grand total. <strong>The subtotal is the sum of the lengths printed above it</strong> — the trimmed footprints you actually cut — shown in feet and inches. It is deliberately <strong>not</strong> an order quantity: ordered length adds the cutting margin and rounds each piece up to the whole foot, and a piece tagged <em>nested</em> is cut from another roll's waste so it costs no roll length at all. Order against <strong>"ft to order"</strong> in <strong>Rolls to order</strong>. The drawings read from the same strips drawn on the canvas, so they always match. This is a <em>cut</em> list — the roll and area <em>order</em> quantities live on the layout panel and the Rock / Base card. Available even when the layout is locked.</p>
@@ -2720,7 +2721,7 @@
         <p>Rotates the drawing to match how you're viewing the yard on-site. Purely cosmetic — does not affect area, roll counts, or any calculations.</p>
 
         <div class="docs-h3">Roll Settings &amp; the Layout key metrics</div>
-        <p>The four roll <strong>dimensions</strong> live under the <strong>⚙ Settings</strong> tab → <em>Roll Settings</em>. They're a <strong>global default</strong> shared by every project. With a project open, changing any value pops a quick dialog — <strong>Every project (global default)</strong> or <strong>Only this project</strong> — so you decide the scope of each change; <em>Cancel</em> reverts it. A per-project override is field-granular (overriding one field still tracks the global for the others), and a status line shows whether the open job is on the global or overriding, with <em>Reset this job to the global default</em> to drop it. With no project open, editing just sets the global default. Standard rolls are 15 ft × 100 ft. The <strong>live layout totals</strong> — <strong>Installed SqFt</strong> (the total installed turf across <em>all</em> Install layers, primary plus every secondary marked Install, plus any Free-fill layers, minus any cutouts), <strong>Ordered SqFt</strong>, <strong>Ordered Linear Ft</strong>, <strong>Perimeter</strong>, and <strong>Scrap</strong> — sit in the always-visible <strong>totals bar just above the tabs</strong>, so they stay visible on every tab. The rest of the controls are split into <strong>sub-tabs</strong> at the top of the right pane — <em>Layers</em> (the per-layer list — the day-to-day controls, shown first), <em>Results</em>, <em>Apply</em>, <em>Display</em>, and (only when a putting green exists) <em>Fringe</em> — so each section is one click away with no long scroll. <strong>Roll direction &amp; seam offset are set per layer:</strong> the <em>primary shape</em> has its own <strong>Roll dir / Seam off</strong> sliders (plus Horizontal / Vertical / Auto) in its card at the top of the <em>Layers</em> list, and each install layer has the same in its own card (until changed, a secondary layer "matches primary"). While you drag a roll-direction, seam, or rotate slider, the canvas holds its current size so nothing jumps — it re-fits to the shape when you release. Each layer's name is shown on the diagram. The roll dimensions themselves:</p>
+        <p>The four roll <strong>dimensions</strong> live under the <strong>⚙ Settings</strong> tab → <em>Roll Settings</em>. They're a <strong>global default</strong> shared by every project. With a project open, changing any value pops a quick dialog — <strong>Every project (global default)</strong> or <strong>Only this project</strong> — so you decide the scope of each change; <em>Cancel</em> reverts it. A per-project override is field-granular (overriding one field still tracks the global for the others), and a status line shows whether the open job is on the global or overriding, with <em>Reset this job to the global default</em> to drop it. With no project open, editing just sets the global default. Standard rolls are 15 ft × 100 ft. The <strong>live layout totals</strong> — <strong>Installed SqFt</strong> (the total installed turf across <em>all</em> Install layers, primary plus every secondary marked Separate turf area, minus any cutouts), <strong>Ordered SqFt</strong>, <strong>Ordered Linear Ft</strong>, <strong>Perimeter</strong>, and <strong>Scrap</strong> — sit in the always-visible <strong>totals bar just above the tabs</strong>, so they stay visible on every tab. The rest of the controls are split into <strong>sub-tabs</strong> at the top of the right pane — <em>Layers</em> (the per-layer list — the day-to-day controls, shown first), <em>Results</em>, <em>Apply</em>, <em>Display</em>, and (only when a putting green exists) <em>Fringe</em> — so each section is one click away with no long scroll. <strong>Roll direction &amp; seam offset are set per layer:</strong> the <em>primary shape</em> has its own <strong>Roll dir / Seam off</strong> sliders (plus Horizontal / Vertical / Auto) in its card at the top of the <em>Layers</em> list, and each install layer has the same in its own card (until changed, a secondary layer "matches primary"). While you drag a roll-direction, seam, or rotate slider, the canvas holds its current size so nothing jumps — it re-fits to the shape when you release. Each layer's name is shown on the diagram. The roll dimensions themselves:</p>
         <ul class="docs-list">
           <li><strong>Roll Width</strong> — width of the turf roll as purchased.</li>
           <li><strong>Roll Length</strong> — maximum length of a single piece; longer runs are split, each adding a Cutting Margin.</li>
@@ -4379,10 +4380,22 @@ function createProject() {
   loadProject(proj.id);
 }
 
+// Free fill ('overlay') was retired — a whole shape marked "cut from scrap" was a
+// fiction when some of its pieces nest and others need their own roll. Any layer still
+// on that mode becomes a real Separate turf area (install), so its turf is actually
+// ordered rather than silently assumed free. Idempotent. Nesting individual pieces into
+// roll waste is the honest, per-piece replacement.
+function migrateFreeFillModes(proj) {
+  const m = proj && proj.layout && proj.layout.secondaryShapeModes;
+  if (!m) return;
+  Object.keys(m).forEach(k => { if (m[k] === 'overlay') m[k] = 'install'; });
+}
+
 function loadProject(id) {
   currentId = id;
   const proj = projects.find(p=>p.id===id);
   if (!proj) return;
+  migrateFreeFillModes(proj);
   if (window.innerWidth <= 860) {
     document.querySelector('.sidebar').classList.remove('open');
     document.querySelector('.sidebar-backdrop').classList.remove('open');
@@ -8108,6 +8121,7 @@ function renderLayersList(proj) {
         <span style="font-size:11px;color:var(--text-light);white-space:nowrap;">${primaryArea.toLocaleString(undefined,{maximumFractionDigits:1})} ft²</span>
         ${resetBtn('primary')}
       </div>
+      <div style="font-size:10px;color:#2e7d32;margin-top:3px;">✓ Main turf area — always counts as turf (no mode to set).</div>
       <div style="border-top:1px dashed var(--border);margin-top:5px;padding-top:5px;">
         <div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:3px;">
           <span style="color:var(--text-light);white-space:nowrap;">Roll dir</span>
@@ -8186,19 +8200,19 @@ function renderLayersList(proj) {
           <button class="btn btn-ghost btn-sm" data-lockok="0" style="font-size:11px;padding:2px 6px;line-height:1;color:var(--red,#c62828);border-color:var(--border);${hasOffset(i)?'':'margin-left:auto;'}" onclick="deleteLayer(${i})" title="Delete this layer permanently">✕</button>
         </div>
         <select style="width:100%;font-size:11px;padding:3px 4px;margin-bottom:4px;" onchange="setSecondaryShapeMode(${i}, this.value)">
-          <option value="ignore" ${mode==='ignore'?'selected':''}>Measure only — doesn't change totals (default)</option>
-          <option value="install" ${mode==='install'?'selected':''}>Install — separate turf area, its own rolls</option>
-          <option value="overlay" ${mode==='overlay'?'selected':''}>Free fill — installed, not ordered (from scrap)</option>
-          <option value="exclude" ${mode==='exclude'?'selected':''}>Cutout — subtract as a hole</option>
-          <option value="putting-green" ${mode==='putting-green'?'selected':''}>Putting green — for fringe calculation</option>
+          <option value="ignore" ${mode==='ignore'?'selected':''}>Reference only — no turf, no cost (default)</option>
+          <option value="install" ${mode==='install'?'selected':''}>Separate turf area — its own rolls</option>
+          <option value="exclude" ${mode==='exclude'?'selected':''}>Cutout — a hole, no turf</option>
+          <option value="putting-green" ${mode==='putting-green'?'selected':''}>Putting green — for fringe</option>
         </select>
         <div style="font-size:10px;color:var(--text-light);line-height:1.35;margin-bottom:5px;">${({
-          ignore: 'Drawn for reference only — no effect on any totals.',
-          install: 'A separate turf area, rolled on its own — adds to Ordered SqFt, rolls, and waste. Drag its pieces into another roll\'s waste to cut them from leftover.',
-          overlay: 'Counts as installed turf but isn\'t ordered (assumed cut from leftover scrap). It isn\'t rolled or placed — to actually place a piece into a specific roll\'s waste, use <strong>Install</strong> and drag it there.',
-          exclude: 'Subtracted from the main shape as a hole / cutout.',
-          'putting-green': 'Marks a putting green so the fringe calculation can use it.',
+          ignore: 'The default. A shape you measured but that isn\'t part of the turf job — shown for reference only, counts toward nothing (no area, rolls, or cost). Change it to what the shape actually is. E.g. a driveway or house footprint measured for context.',
+          install: 'Turf goes here as its own area — adds to Installed &amp; Ordered SqFt and gets its own roll(s) (and its own waste). Use for a genuinely separate piece, like a detached side or back yard. You can drag its cut pieces into another roll\'s leftover to nest them from scrap where they fit.',
+          exclude: 'No turf here — subtracted from the main shape as a hole. E.g. a tree well, flower bed, or paver island inside the yard.',
+          'putting-green': 'Marks a putting green so the Fringe tab can measure its border for the fringe calculation.',
         })[mode] || ''}</div>
+        ${mode === 'ignore' ? `<div style="font-size:10px;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;border-radius:5px;padding:5px 7px;margin-bottom:5px;line-height:1.35;">⚠ Not counted yet — this shape doesn't affect any total. Pick what it is above (turf area, cutout, etc.).</div>` : ''}
+        <button class="btn btn-ghost btn-sm" data-lockok="0" style="width:100%;font-size:10px;padding:3px 6px;margin-bottom:5px;" onclick="makePrimary(${i})" title="Swap this shape in as the main yard. The current main yard becomes a layer set to Reference only, so you can then mark it Putting green, Cutout, etc. Use when a putting green or driveway was measured before the yard.">⬆ Make this the main yard</button>
         <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
           <span style="color:var(--text-light);white-space:nowrap;">Rotate</span>
           <input type="range" min="0" max="359" step="1" value="${rot}" style="flex:1;"
@@ -8759,14 +8773,32 @@ const LANDSCAPE_ICONS = {
   },
   tree: {
     label: 'Tree', emoji: '🌲',
-    // Trunk + round canopy.
+    // Layered conifer: tapered trunk + three foliage tiers (bottom widest → top
+    // narrowest) with a light-to-dark shade per tier for depth.
     draw: (ctx, U) => {
-      const t0 = U(0.44, 0.6), t1 = U(0.56, 1.0);
+      // Tapered trunk.
+      const bl = U(0.455, 1.0), br = U(0.545, 1.0), tl = U(0.475, 0.80), tr = U(0.525, 0.80);
       ctx.fillStyle = '#7a5230';
-      ctx.fillRect(Math.min(t0.x,t1.x), Math.min(t0.y,t1.y), Math.abs(t1.x-t0.x), Math.abs(t1.y-t0.y));
-      const c = U(0.5, 0.4), edge = U(0.5 + 0.34, 0.4);
-      ctx.fillStyle = 'rgba(60,120,66,0.9)'; ctx.strokeStyle = '#245127'; ctx.lineWidth = 1.4;
-      ctx.beginPath(); ctx.arc(c.x, c.y, Math.abs(edge.x - c.x), 0, 2*Math.PI); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(bl.x, bl.y); ctx.lineTo(br.x, br.y); ctx.lineTo(tr.x, tr.y); ctx.lineTo(tl.x, tl.y);
+      ctx.closePath(); ctx.fill();
+      // Three tiers, back (bottom) to front (top).
+      const tiers = [
+        { a: [0.13, 0.86], b: [0.87, 0.86], c: [0.5, 0.52], fill: 'rgba(42,101,46,0.95)' },
+        { a: [0.19, 0.63], b: [0.81, 0.63], c: [0.5, 0.31], fill: 'rgba(54,120,58,0.95)' },
+        { a: [0.27, 0.42], b: [0.73, 0.42], c: [0.5, 0.10], fill: 'rgba(68,142,72,0.95)' },
+      ];
+      ctx.strokeStyle = '#1f4a22'; ctx.lineWidth = 1.3; ctx.lineJoin = 'round';
+      tiers.forEach(t => {
+        const A = U(t.a[0], t.a[1]), B = U(t.b[0], t.b[1]), C = U(t.c[0], t.c[1]);
+        ctx.beginPath();
+        ctx.moveTo(A.x, A.y); ctx.lineTo(C.x, C.y); ctx.lineTo(B.x, B.y);
+        // Slightly concave base so tiers read as branches, not flat triangles.
+        const mid = U(0.5, t.a[1] + 0.03);
+        ctx.quadraticCurveTo(mid.x, mid.y, A.x, A.y);
+        ctx.closePath();
+        ctx.fillStyle = t.fill; ctx.fill(); ctx.stroke();
+      });
     },
   },
   pavers: {
@@ -11542,7 +11574,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       ctx.beginPath();
       a.points.forEach((p, i) => { const c = toCanvas(p); if (i === 0) ctx.moveTo(c.x, c.y); else ctx.lineTo(c.x, c.y); });
       if (a.closed) ctx.closePath();
-      if (a.fill && a.closed) { ctx.globalAlpha = 0.22; ctx.fillStyle = a.color || '#c0392b'; ctx.fill(); ctx.globalAlpha = 1; }
+      if (a.fill && a.closed) { ctx.globalAlpha = 0.6; ctx.fillStyle = a.color || '#c0392b'; ctx.fill(); ctx.globalAlpha = 1; }
       ctx.stroke();
       ctx.restore();
     });
@@ -13629,6 +13661,80 @@ function deleteSecondaryLayer(proj, idx) {
   return true;
 }
 
+// Which layer a strip key belongs to: 'primary' for un-prefixed keys, else the
+// numeric layer index for L{n}_ keys.
+function stripKeyLayerOf(key) {
+  if (typeof key !== 'string') return null;
+  const m = /^L(\d+)_/.exec(key);
+  return m ? parseInt(m[1], 10) : 'primary';
+}
+// Drop manual-cut / nesting state for the given layers (their geometry is about to
+// change), leaving every other layer's state intact. `layers` is a Set of layer ids
+// ('primary' and/or numeric indices).
+function dropLayerStripState(L, layers) {
+  const keep = (k) => !layers.has(stripKeyLayerOf(k));
+  ['manualCuts', 'nestPos', 'nestRot'].forEach(m => {
+    if (!L[m]) return;
+    const out = {}; Object.keys(L[m]).forEach(k => { if (keep(k)) out[k] = L[m][k]; }); L[m] = out;
+  });
+  if (L.nesting) {
+    const out = {};
+    Object.keys(L.nesting).forEach(k => {
+      if (keep(k) && !layers.has(stripKeyLayerOf(L.nesting[k]))) out[k] = L.nesting[k];
+    });
+    L.nesting = out;
+  }
+}
+
+// Promote secondary shape `i` to be the main yard (primary), demoting the current
+// primary into slot `i` set to Reference only. Reuses the fully-tested primary/
+// secondary paths instead of teaching the primary new modes. Positions reset (the
+// new primary uses the main sliders fresh) and the two swapped layers' manual cuts /
+// nesting are cleared, since their geometry changes. All OTHER layers are untouched.
+function makePrimary(i) {
+  const proj = getCurrentProject();
+  if (!proj || !proj.layout) return;
+  const L = proj.layout;
+  const secondary = L.secondaryShapes || [];
+  const idx = parseInt(i, 10);
+  const promoted = secondary[idx];
+  if (!promoted) return;
+  const promotedName = promoted.name || 'Main shape';
+  const oldName = L.primaryLayerName || 'Main shape';
+  if (!confirm(`Make "${promotedName}" the main yard?\n\n`
+    + `"${oldName}" becomes a layer set to Reference only — you can then mark it Putting green, Cutout, or Separate turf area.\n\n`
+    + `Roll direction, seam offset, and any manual cuts or nesting on these two shapes reset. Other layers are unchanged.`)) return;
+
+  const clone = pts => (pts || []).map(p => ({ x: p.x, y: p.y }));
+  const oldPrimaryPts = clone(L.points);
+  const newPrimaryPts = clone(promoted.points || promoted.displayPoints);
+
+  // Promote: secondary i's shape becomes the primary.
+  L.points = newPrimaryPts;
+  L.primaryLayerName = promotedName;
+  L.rotation = 0;
+  L.translation = 0;
+  delete L.area;         // recomputed from points
+  delete L.basePoints;   // recomputed by the roll layout
+
+  // Demote: old primary drops into slot i as a Reference-only layer.
+  secondary[idx] = { name: oldName, points: oldPrimaryPts };
+  if (!L.secondaryShapeModes) L.secondaryShapeModes = {};
+  L.secondaryShapeModes[idx] = 'ignore';
+
+  // Reset the two swapped layers' per-layer settings (they're different shapes now).
+  ['layerRoll', 'layerRollGroup', 'layerOffsets'].forEach(m => {
+    if (L[m]) { delete L[m][idx]; delete L[m]['primary']; }
+  });
+  if (L.layerVisibility) { delete L.layerVisibility[idx]; delete L.layerVisibility['primary']; }
+  dropLayerStripState(L, new Set(['primary', idx]));
+
+  save();
+  renderLayoutTab();
+  calcQuote();
+  showLayoutToast('Main yard is now: ' + promotedName);
+}
+
 function deleteLayer(idx) {
   const proj = getCurrentProject();
   if (!proj || !proj.layout) return;
@@ -15277,6 +15383,15 @@ const WIZARD_STEPS = [
     `<p>Open the <strong>Layout</strong> tab — this is where you'll <strong>spend most of your time</strong>. Adjust <strong>roll rotation</strong> and <strong>seam offsets</strong>, manage <strong>layers</strong>, and let <strong>✨ Minimize waste</strong> find the lowest-waste roll direction.</p>
      <p style="margin-top:8px;color:var(--text-light);">Your order figures — <strong>Installed</strong>, <strong>Ordered</strong>, <strong>Turf LF</strong>, and <strong>Scrap</strong> — sit in the bar just <strong>above the tabs</strong>, and stay visible on every tab, so they're an easy running reference as you adjust the layout. The Layout tab also builds the installer cut list.</p>`,
     actionLabel: '📐 Go to the Layout tab', actionFn: 'wizardGoLayout' },
+  { title: 'Tell the app what each shape is', body:
+    `<p>If your Moasure file has <strong>more than one shape</strong> (say the yard plus a flower bed), each extra shape shows up as a <strong>layer</strong> in the Layout → <strong>Layers</strong> list with a mode dropdown. The app can't know what a shape is, so it starts every extra layer at <strong>Reference only</strong> — counting toward nothing — until you tell it:</p>
+     <ul style="margin:10px 0 0 18px;padding:0;">
+       <li style="margin-bottom:6px;"><strong>Separate turf area</strong> — turf goes here as its own piece (a detached side/back yard). Adds turf and its own rolls.</li>
+       <li style="margin-bottom:6px;"><strong>Cutout</strong> — a hole with no turf (a tree well or bed inside the yard).</li>
+       <li style="margin-bottom:6px;"><strong>Fill from scrap</strong> — turf you'll patch from offcuts; counts as installed but isn't ordered.</li>
+       <li style="margin-bottom:6px;"><strong>Putting green</strong> — marks a green for the fringe calc.</li>
+     </ul>
+     <p style="margin-top:10px;color:var(--text-light);">The <strong>main yard</strong> (the first/primary layer) is always turf — no mode to set. Any layer left on <strong>Reference only</strong> shows a reminder so it's never silently left out of the numbers.</p>` },
   { title: 'Pricing (optional)', body:
     `<p>Want a quick price? The <strong>Quote Builder</strong> shows priced options (with and without a putting green, alternate turf, and so on) from your installed square footage.</p>
      <p style="margin-top:10px;">It's a handy reference — your customer quotes are built in <strong>Jobber</strong>.</p>` },

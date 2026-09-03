@@ -5,6 +5,116 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-02 — "Make this the main yard" swap (Increment 2 of 3)
+
+Added a **⬆ Make this the main yard** button to every secondary layer. It swaps that shape in as the
+primary (main yard) and demotes the old main yard into a layer set to **Reference only** — which you
+then mark Putting green, Cutout, or Separate turf area. This is the safe way to handle a **putting
+green or driveway measured before the yard**: promote the yard, set the other shape's mode, and the
+existing (fully-tested) putting-green / cutout / reference paths do the rest — no rewrite of the
+pricing or fringe engine, and no new modes on the primary.
+
+The swap resets the two swapped shapes' roll direction, seam offset, and any manual cuts / nesting
+(their geometry changes), and leaves every other layer's mode, name, position, and settings intact.
+
+Tests **1994 -> 2004** (README **2004**): the swap promotes/demotes correctly, resets the new
+primary's roll settings, drops the demoted shape to Reference only, and leaves other layers
+untouched. Verified end-to-end — a PG-measured-first job ends with base 1075 / green 100 after
+promoting the yard and marking the green. Green under UTC and America/Los_Angeles.
+
+(Increment 3 — optional primary Reference-only / Separate-turf-area modes — is likely unnecessary
+now that the swap handles the same workflows; will confirm before building.)
+
+---
+
+## 2026-09-02 — Retire "Fill from scrap" layer mode (Increment 1 of 3)
+
+First of three planned layer-mode changes. Removed the **Fill from scrap** (free fill) mode: a whole
+shape marked "installed but cut from scrap, not ordered" is a fiction when some of its pieces nest
+into leftover and others need their own roll. The honest, per-piece replacement already exists —
+set the layer to **Separate turf area** and drag individual cut pieces into another roll's waste to
+nest them from scrap where they fit.
+
+Migration: any layer currently set to Fill from scrap is automatically converted to **Separate turf
+area** on load, so its turf is now properly ordered (previously it was assumed free — this can raise
+the order for those layers, which is the correct number). Idempotent. Docs updated.
+
+Still to come (as separate, isolated money-path changes): primary-layer modes (Reference only /
+Separate turf area), and a "⬆ Make this the main yard" action to promote a shape (the safe way to
+handle a putting green or driveway measured first).
+
+Tests **1993 -> 1994** (README **1994**): option removed, overlay→install migration, docs note the
+retirement. Verified the migration converts an overlay layer. Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-02 — Layer modes: primary clarity, "not counted yet" nudge, wizard step
+
+Made the safe default (extra layers start at Reference only) non-silent, rather than defaulting
+new layers to turf (which would silently turn flower beds into billable turf and double-count
+overlapping shapes):
+- The **primary layer card** now says "✓ Main turf area — always counts as turf (no mode to set)",
+  so it's clear why the main yard has no mode dropdown.
+- Any secondary layer left on **Reference only** shows a "⚠ Not counted yet — pick what it is"
+  reminder, so a measured shape is never silently left out of the totals.
+- Added a **walkthrough step** ("Tell the app what each shape is") explaining the modes on a
+  multi-shape import (7 steps total now).
+
+Design note: kept Reference only as the default for extra layers (the app can't know if a shape is
+turf, a bed, or a sub-region of the yard), and did not add a mode dropdown to the primary (it's the
+yard — a selector would allow nonsensical states). No mode values or pricing logic changed.
+
+Tests **1988 -> 1993** (README **1993**): primary indicator, mode-gated nudge, 7-step walkthrough with
+the layer-modes step. Verified end-to-end (nudge appears on Reference only, clears when assigned).
+Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-02 — Clearer layer-mode labels (Measure only / Install / Free fill)
+
+Relabeled the per-layer mode dropdown so each option says what the shape becomes in the job
+instead of using internal jargon. "Measure only" → **Reference only — no turf, no cost**; "Install"
+→ **Separate turf area — its own rolls**; "Free fill" → **Fill from scrap — installed, not
+ordered**; plus tighter Cutout / Putting green labels. Rewrote the description under each with real
+examples (driveway, detached yard, scrap filler, tree well). The Install/Free-fill difference — do
+you order turf for it or not — is now in the label itself. Internal mode values are unchanged;
+in-app docs updated to match.
+
+Tests **1982 -> 1988** (README **1988**): new labels present, old jargon gone, mode values intact,
+docs consistent. Verified the rendered dropdown. Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-02 — Draw: Fill now actually fills (was a faint tint)
+
+The Fill option on a drawn Rectangle/Circle was rendering at 0.22 opacity, which read as a light
+shade rather than a fill. Bumped it to 0.6 so the shape is clearly filled with its color while the
+layout still shows faintly through (it's markup over a plan). Tooltip updated to match.
+
+Tests **1980 -> 1982** (README **1982**): fill opacity is 0.6, old 0.22 tint gone. Verified with a
+rendered filled shape. Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-02 — Nicer tree graphic for the Draw tool
+
+Replaced the 🌲 Tree landscape stamp's lollipop look (trunk + one flat circle) with a layered
+conifer: a tapered trunk and three foliage tiers shaded light-to-dark for depth. Reads clearly as
+a tree on a customer plan and is now distinct from the round Bush stamp. Still visual-only markup —
+never affects any measurement or price.
+
+Tests **1977 -> 1980** (README **1980**): the tree draws three tiers + a tapered trunk, and both
+landscape stamps remain. Verified with a standalone render. Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-02 — Butt-seam setting: line-break the Off/On explanation
+
+Small readability fix — the Allow-butt-seams help text now breaks "Off (default): ...", "On: ...",
+and the roll-count note onto their own lines instead of running together. Copy-only.
+
+---
+
 ## 2026-09-02 — Layout: roll/piece labels no longer overlap each other
 
 The "Roll N / Piece M" labels are drawn last (on top), so they weren't in the label collision

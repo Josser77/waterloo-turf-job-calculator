@@ -8097,6 +8097,84 @@ section('164. Layout label visibility toggles');
   assert(/if \(!placed\) \{ lblForce\(lx-3, ly0-12, tw\+6, 16\); ly = ly0; \}/.test(src), 'a roll/piece label is drawn even if no free spot is found (never dropped)');
 }
 
+section('165. Tree stamp graphic (layered conifer)');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // The tree icon draws multiple foliage tiers (not a single lollipop circle).
+  const treeBlock = src.slice(src.indexOf('tree: {'), src.indexOf('tree: {') + 900);
+  assert(/const tiers = \[/.test(treeBlock) && (treeBlock.match(/fill:/g) || []).length >= 3, 'the tree stamp draws three layered foliage tiers');
+  assert(/Tapered trunk\./.test(treeBlock), 'the tree has a tapered trunk');
+  // It stays a visual-only stamp (bush + tree both present, no pricing impact).
+  assert(/bush: \{[\s\S]*?label: 'Bush'/.test(src) && /tree: \{[\s\S]*?label: 'Tree'/.test(src), 'bush and tree remain landscape stamps');
+}
+
+section('166. Drawn-shape fill is a real fill, not a faint tint');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/if \(a\.fill && a\.closed\) \{ ctx\.globalAlpha = 0\.6;/.test(src), 'a filled Rectangle/Circle draws at 0.6 opacity (was 0.22)');
+  assert(!/if \(a\.fill && a\.closed\) \{ ctx\.globalAlpha = 0\.22;/.test(src), 'the old 0.22 tint is gone');
+}
+
+section('167. Clearer layer-mode labels');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Plain-language labels replace the jargon ones (values unchanged).
+  assert(/value="ignore"[^>]*>Reference only — no turf, no cost/.test(src), 'ignore = Reference only');
+  assert(/value="install"[^>]*>Separate turf area — its own rolls/.test(src), 'install = Separate turf area');
+  assert(!/value="overlay"/.test(src), 'Free fill (overlay) option removed from the dropdown');
+  assert(/function migrateFreeFillModes/.test(src) && /if \(m\[k\] === 'overlay'\) m\[k\] = 'install'/.test(src), 'existing Free-fill layers migrate to Separate turf area');
+  assert(!/>Measure only —/.test(src) && !/>Free fill —/.test(src), 'old jargon labels are gone from the dropdown');
+  // Mode VALUES are untouched (logic still keyed on ignore/install/overlay/exclude/putting-green).
+  assert(/setSecondaryShapeMode/.test(src) && /mode === 'overlay'/.test(src) && /mode === 'install'/.test(src), 'internal mode values unchanged');
+  // Docs updated to match.
+  assert(/<strong>Separate turf area — its own rolls<\/strong>/.test(src) && /<strong>Fill from scrap<\/strong> <em>\(retired\)<\/em>/.test(src), 'in-app docs use the new mode names and note Fill from scrap is retired');
+}
+
+section('168. Layer-mode clarity: primary indicator, nudge, wizard step');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Primary card states it is always turf (no mode dropdown, by design).
+  assert(/Main turf area — always counts as turf \(no mode to set\)/.test(src), 'primary card shows the Main turf area indicator');
+  // Reference-only secondary layers get a not-counted-yet nudge; it is mode-gated.
+  assert(/mode === 'ignore' \? `<div[^`]*Not counted yet/.test(src), 'Reference-only layers show a not-counted-yet nudge');
+  // Wizard gained a layer-modes step (7 steps now).
+  const wiz = src.match(/const WIZARD_STEPS = \[[\s\S]*?\n\];/)[0];
+  assert((wiz.match(/\{ title:/g) || []).length === 7, 'the walkthrough now has 7 steps');
+  assert(/Tell the app what each shape is/.test(wiz), 'a walkthrough step explains layer modes');
+  assert(/Step 1 of 7/.test(src), 'the wizard pill placeholder matches the step count');
+}
+
+section('169. Make this the main yard (swap)');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/function makePrimary\(i\)/.test(src), 'makePrimary swap exists');
+  assert(/onclick="makePrimary\(\$\{i\}\)"/.test(src), 'each secondary layer has a Make-main-yard button');
+  assert(/L\.secondaryShapeModes\[idx\] = 'ignore'/.test(src), 'the demoted primary drops to Reference only');
+  assert(/function stripKeyLayerOf/.test(src) && /function dropLayerStripState/.test(src), 'helpers clear the swapped layers\' cut/nesting state');
+  // Behavioral: the swap moves the shapes and demotes correctly, leaving other layers intact.
+  const proj = { layout: {
+    points: [{x:0,y:0},{x:10,y:0},{x:10,y:10},{x:0,y:10}], primaryLayerName: 'Green', rotation: 5, translation: 3,
+    secondaryShapes: [
+      { name: 'Yard', points: [{x:20,y:0},{x:60,y:0},{x:60,y:30},{x:20,y:30}] },
+      { name: 'Bed', points: [{x:25,y:5},{x:30,y:5},{x:30,y:10},{x:25,y:10}] },
+    ],
+    secondaryShapeModes: { 0: 'ignore', 1: 'exclude' },
+    layerRoll: { 0: { rotation: 45 } }, layerVisibility: { 1: true },
+  }};
+  // Stub the globals makePrimary needs.
+  ctx.getCurrentProject = () => proj;
+  ctx.confirm = () => true;
+  ctx.save = () => {}; ctx.renderLayoutTab = () => {}; ctx.calcQuote = () => {}; ctx.showLayoutToast = () => {};
+  ctx.window = ctx;
+  ctx.makePrimary(0);
+  assert(proj.layout.primaryLayerName === 'Yard', 'primary is now the promoted shape');
+  assert(Math.round(ctx.polygonArea(proj.layout.points)) === 1200, 'primary area is the yard (1200)');
+  assert(proj.layout.rotation === 0 && proj.layout.translation === 0, 'new primary roll settings reset');
+  assert(proj.layout.secondaryShapes[0].name === 'Green' && proj.layout.secondaryShapeModes[0] === 'ignore', 'old primary demoted to Reference only');
+  assert(proj.layout.secondaryShapes[1].name === 'Bed' && proj.layout.secondaryShapeModes[1] === 'exclude', 'other layers untouched');
+  assert(!proj.layout.layerRoll[0], 'the swapped slot roll override is cleared');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
