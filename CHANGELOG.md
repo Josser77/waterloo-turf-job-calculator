@@ -5,6 +5,36 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-02 — Layout: toggles to hide shape labels and roll/piece labels
+
+Added two checkboxes above the layout canvas — <strong>Show shape labels (names &amp; areas)</strong>
+and <strong>Show roll / piece labels</strong> — both default ON. Turning them off strips the
+"Main Yard — 3068 ft²" names and the "Roll N / Piece M" tags off the drawing, which are the labels
+the collision registry can't fully de-clutter on a very busy multi-roll layout (roll/piece labels
+are drawn last and can overlap each other). Now you can dial the canvas down to just the shapes,
+just dimensions, or whatever combination reads best. Saved per project.
+
+Tests **1968 -> 1975** (README **1975**): both toggles present + default on, the draw reads and gates
+each label pass, and per-project persistence. Verified end-to-end (labels vanish when unchecked).
+Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-02 — Roll-group hint updates on switch; edging perimeter moved to Edging tab
+
+- The per-layer Rolls dropdown hint now reflects the CURRENT choice: "This job: N rolls · the
+  other option: M" (or "Same roll count either way (N rolls)" when it makes no difference), so it
+  visibly changes when you switch Share ↔ Roll on its own. Before, it showed both counts statically
+  and looked like it wasn't updating.
+- Moved the "Edging perimeter (per layer)" breakdown from the bottom of the Layout → Layers
+  sub-tab to the Layout → Edging sub-tab, where the rest of the edging controls live.
+
+Tests **1965 -> 1968** (README **1968**): the current-vs-alternative hint, and the perimeter block
+rendering on the Edging tab (and gone from the Layers list). Verified end-to-end (hint flips
+1↔2 rolls on switch; perimeter shows on the Edging tab). Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-02 — Roll grouping hint + butt-seam toggle
 
 Two roll-plan changes:

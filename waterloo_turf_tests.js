@@ -8066,10 +8066,31 @@ section('163. Butt-seam toggle + roll-group hint');
   assert(ctx.packPiecesIntoRolls([60,60,60],100,false).length === 3, 'seamless: three 60ft runs → 3 rolls');
   assert(ctx.packPiecesIntoRolls([60,60,60],100,true).length === 2, 'butt seams: three 60ft runs → 2 rolls');
   // Roll-group hint: the dropdown shows the roll count both ways.
-  assert(/function rollGroupRollCounts/.test(src) && /Share: \$\{counts\.share\}/.test(src), 'the Rolls dropdown shows Share vs Own roll counts for the job');
+  assert(/function rollGroupRollCounts/.test(src) && /This job: <strong>\$\{cur\}/.test(src), 'the Rolls dropdown shows the current selection\'s roll count vs the alternative (so it updates on switch)');
   assert(/showRollGroup = installCount > 1/.test(src), 'the Rolls dropdown is hidden on single-layer jobs');
   // rollGroupRollCounts returns null with fewer than 2 install layers.
   assert(ctx.rollGroupRollCounts({ _installLayers: [{ id:'primary', rollGroup:'shared', layout:{ strips:[] } }] }, 'primary') === null, 'no hint with a single install layer');
+  // The edging perimeter breakdown moved from the Layers sub-tab to the Edging sub-tab.
+  assert(/function renderEdgingPerimeter/.test(src) && /id="edgingPerimeterBreakdown"/.test(src), 'edging perimeter renders into the Edging sub-tab');
+  assert(/renderEdgingSelection\(proj\) \{\s*renderEdgingPerimeter\(proj\)/.test(src), 'the Edging sub-tab render includes the perimeter breakdown');
+  // It no longer builds the perimeter block into the Layers list.
+  const layersFn = src.slice(src.indexOf('function renderLayersList'), src.indexOf('function renderLayersList') + 8000);
+  assert(!/Edging perimeter \(per layer\)/.test(layersFn), 'the Layers list no longer contains the edging perimeter block');
+}
+
+section('164. Layout label visibility toggles');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Two new toggles, default ON (checked), to hide labels on a busy layout.
+  assert(/id="showShapeLabelsToggle"[^>]*checked/.test(src), 'Show shape labels toggle exists and defaults on');
+  assert(/id="showRollLabelsToggle"[^>]*checked/.test(src), 'Show roll/piece labels toggle exists and defaults on');
+  // The draw reads them, and gates the label passes.
+  assert(/window\._wtShowShapeLabels = d \? d\.checked : true/.test(src) && /window\._wtShowRollLabels = d \? d\.checked : true/.test(src), 'the draw reads both label flags');
+  assert(/window\._wtShowShapeLabels !== false && layout\.basePoints/.test(src), 'the primary shape name is gated on the shape-label toggle');
+  assert(/if \(window\._wtShowShapeLabels !== false\) \{/.test(src), 'secondary shape names are gated on the shape-label toggle');
+  assert(/if \(primaryVisible && window\._wtShowRollLabels !== false\)/.test(src), 'roll/piece labels are gated on the roll-label toggle');
+  // Persisted per project (default on when unset).
+  assert(/proj\.layout\.showShapeLabels = d\.checked/.test(src) && /d\.checked = proj\.layout\.showShapeLabels !== false/.test(src), 'shape-label toggle persists per project, defaulting on');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

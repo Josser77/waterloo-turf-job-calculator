@@ -1598,6 +1598,14 @@
                   <input type="checkbox" id="showPieceDimensionsToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
                   Show piece dimensions (each cut piece on the canvas)
                 </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:12px;margin-bottom:6px;" title="Show each shape's name and area on the canvas (Main Yard — 3068 ft², etc.). Turn off to reduce clutter on a busy layout.">
+                  <input type="checkbox" id="showShapeLabelsToggle" data-lockok="1" checked onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
+                  Show shape labels (names &amp; areas)
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:12px;margin-bottom:6px;" title="Show the Roll N / Piece M label on each cut piece. Turn off to reduce clutter on a busy layout.">
+                  <input type="checkbox" id="showRollLabelsToggle" data-lockok="1" checked onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
+                  Show roll / piece labels
+                </label>
                 <div id="layoutCanvasWrap" style="overflow:auto;max-height:86vh;overscroll-behavior:contain;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:default;">
                   <canvas id="rollLayoutCanvas" style="display:block;"></canvas>
                 </div>
@@ -1731,6 +1739,7 @@
                     <div id="edgingSelList"></div>
                     <div id="edgingSelTotal" style="margin-top:10px;font-weight:700;font-size:13px;"></div>
                   </div>
+                  <div id="edgingPerimeterBreakdown" style="margin-top:12px;"></div>
                 </div>
 
                 <div class="layout-subpanel" data-panel="results">
@@ -5130,7 +5139,33 @@ function applyEdgingSelection(proj) {
   renderEdgingSelection(proj);
   if (typeof renderRollLayout === 'function') renderRollLayout(); // redraw (highlight later)
 }
+// Edging perimeter: every layer's boundary length + a total, for ordering border/
+// edging material (the Perimeter metric up top counts only the turf outline; edging
+// usually wraps tree wells, beds, and paver borders too). Lives on the Edging sub-tab.
+function renderEdgingPerimeter(proj) {
+  const el = document.getElementById('edgingPerimeterBreakdown');
+  if (!el) return;
+  const perims = proj ? layerPerimeters(proj) : [];
+  if (!perims.length) { el.innerHTML = ''; return; }
+  const total = perims.reduce((a, p) => a + p.perimeter, 0);
+  const rowsHtml = perims.map(p =>
+    `<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0;">
+       <span style="color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escAttr(p.name)}</span>
+       <span style="color:var(--text-light);white-space:nowrap;">${p.perimeter.toFixed(1)} ft</span>
+     </div>`).join('');
+  el.innerHTML =
+    `<div style="border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--cream,#fffdf7);">
+       <div style="font-weight:600;font-size:12px;margin-bottom:6px;">Edging perimeter (per layer)</div>
+       <div style="font-size:11px;">${rowsHtml}</div>
+       <div style="display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--border);margin-top:6px;padding-top:6px;font-weight:600;font-size:12px;">
+         <span>Total — all edges</span><span>${total.toFixed(1)} ft</span>
+       </div>
+       <div style="font-size:10px;color:var(--text-light);margin-top:5px;line-height:1.4;">Boundary length of each measured shape (cutouts included). Use the total when ordering edging that wraps every edge; the <strong>Perimeter</strong> metric up top is the turf outline only.</div>
+     </div>`;
+}
+
 function renderEdgingSelection(proj) {
+  renderEdgingPerimeter(proj);
   const list = document.getElementById('edgingSelList');
   const totalEl = document.getElementById('edgingSelTotal');
   if (!list) return;
@@ -8027,13 +8062,16 @@ function renderLayersList(proj) {
   function rollGroupControl(layerId) {
     if (!showRollGroup) return '';
     const grp = getLayerRollGroup(proj, layerId);
-    // Show what this layer's setting actually does to the roll count for this job.
+    // Show what this layer's setting actually does to the roll count for this job —
+    // the CURRENT choice's count vs. the alternative, so it changes when you switch.
     let hint = '';
     const counts = rollGroupRollCounts(window._wtCurrentRollLayout, layerId);
     if (counts) {
-      hint = (counts.share === counts.own)
-        ? `<div style="font-size:10px;color:var(--text-light);margin-top:2px;">Same roll count either way for this job.</div>`
-        : `<div style="font-size:10px;color:var(--text-light);margin-top:2px;">Share: ${counts.share} roll${counts.share===1?'':'s'} · Own: ${counts.own} roll${counts.own===1?'':'s'}</div>`;
+      const cur = (grp === 'own') ? counts.own : counts.share;
+      const alt = (grp === 'own') ? counts.share : counts.own;
+      hint = (cur === alt)
+        ? `<div style="font-size:10px;color:var(--text-light);margin-top:2px;">Same roll count either way (${cur} roll${cur===1?'':'s'}).</div>`
+        : `<div style="font-size:10px;color:var(--text-light);margin-top:2px;">This job: <strong>${cur} roll${cur===1?'':'s'}</strong> · the other option: ${alt}.</div>`;
     }
     return `
         <div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-top:5px;">
@@ -8176,29 +8214,9 @@ function renderLayersList(proj) {
     rows.push(`<div style="grid-column:1/-1;font-size:11px;color:var(--text-light);margin-top:2px;">Multiple measured shapes. Set each layer's mode below; untick to hide.</div>`);
   }
 
-  // Edging perimeter: every layer's boundary length + a total, for ordering
-  // border/edging material (the Perimeter metric up top counts only the turf
-  // outline; edging usually wraps tree wells, beds, and paver borders too).
-  const perims = layerPerimeters(proj);
-  if (perims.length) {
-    const total = perims.reduce((a, p) => a + p.perimeter, 0);
-    const rowsHtml = perims.map(p =>
-      `<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0;">
-         <span style="color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escAttr(p.name)}</span>
-         <span style="color:var(--text-light);white-space:nowrap;">${p.perimeter.toFixed(1)} ft</span>
-       </div>`).join('');
-    rows.push(
-      `<div style="grid-column:1/-1;margin-top:8px;border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--cream,#fffdf7);">
-         <div style="font-weight:600;font-size:12px;margin-bottom:6px;">Edging perimeter (per layer)</div>
-         <div style="font-size:11px;">${rowsHtml}</div>
-         <div style="display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--border);margin-top:6px;padding-top:6px;font-weight:600;font-size:12px;">
-           <span>Total — all edges</span><span>${total.toFixed(1)} ft</span>
-         </div>
-         <div style="font-size:10px;color:var(--text-light);margin-top:5px;line-height:1.4;">Boundary length of each measured shape (cutouts included). Use the total when ordering edging that wraps every edge; the <strong>Perimeter</strong> metric up top is the turf outline only.</div>
-       </div>`);
-  }
-
   list.innerHTML = rows.join('');
+  // Edging perimeter breakdown now lives on the Edging sub-tab.
+  renderEdgingPerimeter(proj);
   // The Edging card's "Use layout perimeter" figure is derived from these shapes, so
   // keep it current as layers are added, edited, or removed.
   refreshUseLayoutPerimeterBtn();
@@ -8589,6 +8607,8 @@ function renderLayoutTab() {
   document.getElementById('showRectanglesToggle').checked = !!proj.layout.showRects;
   { const d = document.getElementById('showDimensionsToggle'); if (d) d.checked = !!proj.layout.showDimensions; }
   { const d = document.getElementById('showPieceDimensionsToggle'); if (d) d.checked = !!proj.layout.showPieceDimensions; }
+  { const d = document.getElementById('showShapeLabelsToggle'); if (d) d.checked = proj.layout.showShapeLabels !== false; }
+  { const d = document.getElementById('showRollLabelsToggle'); if (d) d.checked = proj.layout.showRollLabels !== false; }
   const gridCb = document.getElementById('layoutShowGrid');
   if (gridCb) gridCb.checked = !!proj.layout.gridShow;
   const gridSp = document.getElementById('layoutGridSpacing');
@@ -10297,6 +10317,8 @@ function renderRollLayout() {
   proj.layout.showRects = document.getElementById('showRectanglesToggle').checked;
   { const d = document.getElementById('showDimensionsToggle'); if (d) proj.layout.showDimensions = d.checked; }
   { const d = document.getElementById('showPieceDimensionsToggle'); if (d) proj.layout.showPieceDimensions = d.checked; }
+  { const d = document.getElementById('showShapeLabelsToggle'); if (d) proj.layout.showShapeLabels = d.checked; }
+  { const d = document.getElementById('showRollLabelsToggle'); if (d) proj.layout.showRollLabels = d.checked; }
   save();
 
   const basePointsRaw = getBaseLayoutPoints(proj);
@@ -10838,6 +10860,8 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   const showRects = document.getElementById('showRectanglesToggle') && document.getElementById('showRectanglesToggle').checked;
   window._wtShowDimensions = !!(document.getElementById('showDimensionsToggle') && document.getElementById('showDimensionsToggle').checked);
   window._wtShowPieceDimensions = !!(document.getElementById('showPieceDimensionsToggle') && document.getElementById('showPieceDimensionsToggle').checked);
+  { const d = document.getElementById('showShapeLabelsToggle'); window._wtShowShapeLabels = d ? d.checked : true; }
+  { const d = document.getElementById('showRollLabelsToggle'); window._wtShowRollLabels = d ? d.checked : true; }
   const primaryVisible = layout.layerVisibility.primary !== false;
 
   // Build a lookup of all units by key (across every install layer), needed to
@@ -10962,7 +10986,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     // Label the primary layer by name + area whenever it's visible — on a
     // single-shape yard this is the only name/area label, and gating it to
     // multi-shape files made it disappear on ordinary one-shape jobs.
-    if (layout.basePoints && layout.basePoints.length >= 3) {
+    if (window._wtShowShapeLabels !== false && layout.basePoints && layout.basePoints.length >= 3) {
       const pName = (layout._installLayers[0] && layout._installLayers[0].name) || 'Primary Shape';
       const pArea = Math.round(layout.adjustedShapeArea != null ? layout.adjustedShapeArea : layout.shapeArea);
       const pLabel = `${pName} — ${pArea} ft²`;
@@ -11135,7 +11159,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
 
     // Always label the layer by name + area + mode, so it stays identifiable no
     // matter which mode is selected (changing the dropdown no longer hides it).
-    {
+    if (window._wtShowShapeLabels !== false) {
       // Anchor the label to where the layer's pieces actually drew (so it
       // follows when an install layer's pieces are nested into roll waste);
       // fall back to the shape outline for non-install layers.
@@ -11341,7 +11365,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   // Strip labels (placed at the midpoint of each strip's/piece's boundary lines, clamped on-canvas)
   // Only label strips/pieces that actually overlap the shape — empty/edge
   // strips would otherwise collapse onto the same corner and look like missing labels.
-  if (primaryVisible) {
+  if (primaryVisible && window._wtShowRollLabels !== false) {
     ctx.font = '13px sans-serif';
     const rollPieceLabels = assignRollPieceLabels(layout);
     layout.strips.forEach((s, i) => {
