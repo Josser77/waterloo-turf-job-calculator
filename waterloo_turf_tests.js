@@ -8091,6 +8091,10 @@ section('164. Layout label visibility toggles');
   assert(/if \(primaryVisible && window\._wtShowRollLabels !== false\)/.test(src), 'roll/piece labels are gated on the roll-label toggle');
   // Persisted per project (default on when unset).
   assert(/proj\.layout\.showShapeLabels = d\.checked/.test(src) && /d\.checked = proj\.layout\.showShapeLabels !== false/.test(src), 'shape-label toggle persists per project, defaulting on');
+  // Roll/piece labels nudge to a free spot (through the collision registry) instead of
+  // stacking on each other; if nothing fits nearby they still draw (never dropped).
+  assert(/for \(const dy of \[0, -16, 16, -32, 32, -48, 48, -64, 64\]\)/.test(src), 'roll/piece labels try nudged vertical positions');
+  assert(/if \(!placed\) \{ lblForce\(lx-3, ly0-12, tw\+6, 16\); ly = ly0; \}/.test(src), 'a roll/piece label is drawn even if no free spot is found (never dropped)');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

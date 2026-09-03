@@ -11394,7 +11394,17 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
           : baseLabel;
         const tw = ctx.measureText(label).width;
         const lx = Math.min(Math.max(c.x - tw/2, pad+2), w - pad - tw - 2);
-        const ly = Math.min(Math.max(c.y, pad+12), h - pad - 4);
+        const ly0 = Math.min(Math.max(c.y, pad+12), h - pad - 4);
+
+        // Nudge the label vertically to a free spot so roll/piece labels don't stack
+        // on each other (or on shape names / dimensions already placed). If nothing
+        // fits nearby, draw it at the natural spot anyway — never drop a piece label.
+        let ly = ly0, placed = false;
+        for (const dy of [0, -16, 16, -32, 32, -48, 48, -64, 64]) {
+          const cand = Math.min(Math.max(ly0 + dy, pad+12), h - pad - 4);
+          if (lblTry(lx-3, cand-12, tw+6, 16)) { ly = cand; placed = true; break; }
+        }
+        if (!placed) { lblForce(lx-3, ly0-12, tw+6, 16); ly = ly0; }
 
         ctx.fillStyle = 'rgba(255,255,255,0.85)';
         ctx.fillRect(lx-3, ly-12, tw+6, 16);

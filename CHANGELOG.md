@@ -5,6 +5,21 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-02 — Layout: roll/piece labels no longer overlap each other
+
+The "Roll N / Piece M" labels are drawn last (on top), so they weren't in the label collision
+registry and piled onto each other on a busy multi-roll layout ("Roll 2 / Piece 1 3", stacked
+Roll 3/4 labels, etc.). They now go through the registry with a vertical nudge — each label hunts
+for a free spot (±16/32/48/64 px) so it clears the other roll/piece labels, shape names, and any
+drawn dimensions. If no nearby spot is free it still draws at its natural position (a piece label
+is never dropped — the crew needs it).
+
+Tests **1975 -> 1977** (README **1977**): the nudge search + never-drop fallback. Verified on a
+multi-roll layout (7 roll labels stack into a readable column instead of overlapping). Green under
+UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-02 — Layout: toggles to hide shape labels and roll/piece labels
 
 Added two checkboxes above the layout canvas — <strong>Show shape labels (names &amp; areas)</strong>
