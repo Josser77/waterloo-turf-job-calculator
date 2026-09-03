@@ -6054,7 +6054,7 @@ section('90. Butt seams are hard-wired OFF (no longer a setting)');
   // switch whose best case is "no change".
   assert(!/id="allowJoinSeamsInput"/.test(html), 'the butt-seam checkbox is gone from Roll Settings');
   assert(!/getElementById\('allowJoinSeamsInput'\)/.test(html), 'nothing reads a butt-seam control any more');
-  assert(/allowJoinSeams: false,/.test(html), 'getRollOpts hard-wires seams off');
+  assert(/allowJoinSeams: !!\(document\.getElementById\('allowButtSeamsInput'\)/.test(html), 'getRollOpts reads the butt-seam setting from the Roll Settings toggle');
 
   // But the packer keeps the argument and stays correct both ways, so a fixed-length
   // supply is a one-line revert rather than a rewrite.
@@ -6898,7 +6898,7 @@ section('115. Putting green: roll-direction controls + roll rectangle on canvas'
 
   // (1) The Layers list renders roll-direction / seam controls for a putting-green
   // layer, not just 'install' layers — so you can rotate the green's roll.
-  const rl = html.slice(html.indexOf('function renderLayersList'), html.indexOf('function renderLayersList') + 6000);
+  const rl = html.slice(html.indexOf('function renderLayersList'), html.indexOf('function renderLayersList') + 7200);
   assert(/mode === 'install' \|\| mode === 'putting-green'/.test(rl), 'roll-direction card shows for the putting-green layer');
 
   // (2) The canvas draws the green's roll pieces + purchased rectangle (showRects),
@@ -8029,6 +8029,47 @@ section('160. Cut-list S-seam allowance + edging click regression');
   // Regression: endEdgingClick must read the down position (a dropped line made `down` undefined,
   // which threw on every click and silently killed selection).
   assert(/const down = window\._wtEdgingDownPos; window\._wtEdgingDownPos = null;[\s\S]{0,200}nearestEdgingEdge/.test(src), 'endEdgingClick reads the down position (click selection works)');
+}
+
+section('161. Status filter: toggle buttons + parenthesized counts');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(!/data-status="all"/.test(src), 'the All filter button is removed');
+  assert(/data-status="pending"/.test(src) && /data-status="won"/.test(src) && /data-status="lost"/.test(src), 'Pending / Won / Lost buttons remain');
+  // Clicking the active filter again toggles back to "all" (show everything).
+  assert(/window\._wtStatusFilter === status\) \? 'all' :/.test(src), 'clicking the active status toggles the filter off (back to all)');
+  assert(/\$\{label\} \(\$\{counts\[st\]\}\)/.test(src), 'counts render in parentheses');
+  // filterByStatus still behaves (pending = not won/lost, incl. no status).
+  const list = [{status:'won'},{status:'lost'},{status:'pending'},{}];
+  assert(ctx.filterByStatus(list,'pending').length === 2, 'pending filter = not won/lost (includes no-status)');
+  assert(ctx.filterByStatus(list,'won').length === 1 && ctx.filterByStatus(list,'all').length === 4, 'won filters to won; all shows everything');
+}
+
+section('162. Layout label de-clutter (collision registry)');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/const lblForce = \(x, y, ww, hh\)/.test(src) && /const lblTry = \(x, y, ww, hh\)/.test(src), 'the draw sets up a label collision registry (lblForce / lblTry)');
+  // Priority labels reserve space; dimension labels are skipped when they collide.
+  assert(/lblForce\(lx - 3, ly - 12, tw \+ 6, 16\)/.test(src), 'the primary shape name reserves its space');
+  assert(/lblForce\(lx - 2, ly - 11, tw \+ 4, 14\)/.test(src), 'secondary shape names reserve their space');
+  assert((src.match(/if \(!lblTry\(/g) || []).length >= 2, 'edge + piece dimension labels are gated through lblTry and skipped on collision');
+}
+
+section('163. Butt-seam toggle + roll-group hint');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Butt-seam toggle: a Roll Settings checkbox that flows into packing.
+  assert(/id="allowButtSeamsInput"/.test(src) && /onRollSettingEdit\('allowJoinSeams', this\)/.test(src), 'Roll Settings has an Allow-butt-seams toggle wired to the roll-settings save flow');
+  assert(/allowJoinSeams: !!\(document\.getElementById\('allowButtSeamsInput'\)/.test(src), 'the setting feeds getRollOpts (no longer hard-wired off)');
+  assert(/ROLL_DEFAULTS_FALLBACK = \{[^}]*allowJoinSeams: false/.test(src), 'default is OFF (seamless)');
+  // packPiecesIntoRolls honors the flag: seamless costs more rolls than seamed.
+  assert(ctx.packPiecesIntoRolls([60,60,60],100,false).length === 3, 'seamless: three 60ft runs → 3 rolls');
+  assert(ctx.packPiecesIntoRolls([60,60,60],100,true).length === 2, 'butt seams: three 60ft runs → 2 rolls');
+  // Roll-group hint: the dropdown shows the roll count both ways.
+  assert(/function rollGroupRollCounts/.test(src) && /Share: \$\{counts\.share\}/.test(src), 'the Rolls dropdown shows Share vs Own roll counts for the job');
+  assert(/showRollGroup = installCount > 1/.test(src), 'the Rolls dropdown is hidden on single-layer jobs');
+  // rollGroupRollCounts returns null with fewer than 2 install layers.
+  assert(ctx.rollGroupRollCounts({ _installLayers: [{ id:'primary', rollGroup:'shared', layout:{ strips:[] } }] }, 'primary') === null, 'no hint with a single install layer');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

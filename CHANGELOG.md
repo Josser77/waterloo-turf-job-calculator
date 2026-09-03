@@ -5,7 +5,56 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
-## 2026-09-01 — Fix: cut-list S-seam trim (12x too small) + edging click regression
+## 2026-09-02 — Roll grouping hint + butt-seam toggle
+
+Two roll-plan changes:
+- The per-layer **Rolls** dropdown (Share vs. Roll on its own) now shows what it actually does —
+  "Share: N rolls · Own: M rolls" for the current job, or "Same roll count either way." It was
+  already hidden on single-layer jobs (nothing to share); this makes the effect visible when it
+  matters. Only the roll count ever changes — Ordered SqFt / Linear Ft are identical either way.
+- New **Allow butt seams across roll joins** toggle in Settings → Roll Settings, **default OFF**
+  (every run seamless — a run that doesn't fit starts a fresh roll, costing more rolls). On: fill
+  the roll and continue the run across a join with a butt seam, cutting the roll count. Flows
+  through the existing global/per-project roll-settings save. Butt-seam packing already existed in
+  packPiecesIntoRolls (and was tested both ways); this exposes it as a user choice again.
+
+Tests **1957 -> 1965** (README **1965**): toggle wiring + default-off, seamless-vs-seamed roll math
+(three 60ft runs = 3 rolls seamless / 2 seamed), and the Share/Own roll-count hint. Verified
+end-to-end (a 60x42 yard drops from 3 rolls to 2 with butt seams on). Green under UTC and
+America/Los_Angeles.
+
+---
+
+## 2026-09-02 — Layout labels: de-clutter overlapping text
+
+On a busy layout (edge dimensions + piece dimensions + shape names all on) the labels overlapped
+badly, including duplicate dimension labels stacked on the same edge. Added a shared label
+collision registry to the canvas: shape names, fringe, and roll-join labels reserve their space
+first, then the dense edge- and piece-dimension labels are skipped when they'd overlap something
+already placed. Priority labels stay readable and the duplicate/stacked dimensions are gone;
+where the layout is too dense to fit every dimension, the overlapping ones drop out rather than
+piling up (toggle dimensions off if you don't need them).
+
+Tests **1953 -> 1957** (README **1957**): registry present, shape names reserve space, dimension
+labels gated through the collision check. Verified on a real multi-shape layout. Green under UTC
+and America/Los_Angeles.
+
+---
+
+## 2026-09-02 — Sidebar filter buttons: toggles + tidier spacing
+
+Reworked the project status filter row. The search field and filter buttons no longer touch the
+sidebar edges (inset with consistent margins; search field is narrower). Removed the "All" button
+— Pending / Won / Lost are now toggles: click to filter, click the active one again to clear back
+to all, and only one can be active at a time. Each shows its count in parentheses, e.g.
+"Pending (35)".
+
+Tests **1947 -> 1953** (README **1953**): All button removed, three toggles present, toggle-off
+wiring, parenthesized counts, and filterByStatus behavior. Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-01 (cont'd 106) — Fix: cut-list S-seam trim (12x too small) + edging click regression
 
 Two fixes:
 - **Cut list ignored the S-Seam Side Trim setting.** buildCutList derived the seam allowance from
@@ -23,7 +72,7 @@ narrow pieces; clicking selects again). Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-09-01 — Edging perimeter guide (the real fix for moved/nested layers)
+## 2026-09-01 (cont'd 105) — Edging perimeter guide (the real fix for moved/nested layers)
 
 Diagnosis (via the debug overlay + the customer's project): the edging highlight was NOT in the
 wrong place — basePoints === displayPoints byte-for-byte and shares the drawn shape's exact
@@ -43,7 +92,7 @@ customer's actual project. Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-09-01 — Edging debug overlay (diagnostic for the moved-layer highlight)
+## 2026-09-01 (cont'd 104) — Edging debug overlay (diagnostic for the moved-layer highlight)
 
 Added a "🐞 Debug: outline the geometry edging uses" checkbox in the Layout → Edging panel. When
 on, it draws — in magenta, with vertex dots and a per-shape label — the EXACT point geometry the
@@ -57,7 +106,7 @@ America/Los_Angeles.
 
 ---
 
-## 2026-09-01 — Fix: edging highlight drew at the old spot for moved Install layers
+## 2026-09-01 (cont'd 103) — Fix: edging highlight drew at the old spot for moved Install layers
 
 An added Install layer (from ＋ Add CSV) is drawn from its OWN roll-plan geometry
 (_installLayers[id].layout.basePoints, rotated/positioned for that layer), but the edging
@@ -73,7 +122,7 @@ resolves to the install layer's drawn geometry. Green under UTC and America/Los_
 
 ---
 
-## 2026-09-01 — Edge selection survives moving shapes
+## 2026-07-22 (cont'd 102) — Edge selection survives moving shapes
 
 Edging edge selection now behaves correctly around Move Layers (and the other canvas modes):
 - The other canvas modes (Move Layers, Cut, Edit Shape, Draw) now turn OFF edging click mode
@@ -92,7 +141,7 @@ UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-31 — Consumables are now a per-project product catalog
+## 2026-07-22 (cont'd 101) — Consumables are now a per-project product catalog
 
 Reworked installation consumables from a single global config per type into a per-category
 PRODUCT CATALOG with per-project selection:
@@ -114,7 +163,7 @@ products; per-job switch gallon↔tube↔none drives the quote). Green under UTC
 
 ---
 
-## 2026-08-31 — Supplier order: fringe turf + rock (when quoted)
+## 2026-07-22 (cont'd 100) — Supplier order: fringe turf + rock (when quoted)
 
 Toward franchise flexibility, the supplier order now adapts to how each owner sources materials:
 - **Fringe turf** is listed (linear feet) whenever the job has a putting-green fringe.
@@ -132,7 +181,7 @@ data-model change.
 
 ---
 
-## 2026-08-31 — Supplier order now lists installation consumables
+## 2026-07-22 (cont'd 99) — Supplier order now lists installation consumables
 
 The Supplier Order (material order to email your supplier) now includes the enabled installation
 consumables — seam tape, glue, nails, weed barrier — with their per-job quantities (e.g. "6in
@@ -146,7 +195,7 @@ America/Los_Angeles.
 
 ---
 
-## 2026-08-31 — Fix: seam length overshot on irregular shapes (21'9" showed 22.6)
+## 2026-07-22 (cont'd 98) — Fix: seam length overshot on irregular shapes (21'9" showed 22.6)
 
 A single 21'9" seam was reporting 22.6 ft. Cause: seam length was measured as the overlap of the
 two strips' FULL run lengths, which overshoots when the shape is jagged/irregular — the real seam
@@ -161,7 +210,7 @@ overshoot on a pinched shape, clean-rectangle, and the fallback. Verified on rea
 
 ---
 
-## 2026-08-31 — Fix: seam length was double-counting the primary layer
+## 2026-07-22 (cont'd 97) — Fix: seam length was double-counting the primary layer
 
 Seam length came out ~2× too high on normal jobs. Cause: the roll layout's _installLayers list
 already includes the primary layer (id 'primary'), and estimateSeamLength was summing
@@ -176,7 +225,7 @@ computed layouts (45×30 → 90, single-strip → 0). Green under UTC and Americ
 
 ---
 
-## 2026-08-31 — Update Misc Items examples (consumables moved out)
+## 2026-07-22 (cont'd 96) — Update Misc Items examples (consumables moved out)
 
 Now that seam tape / glue / nails / weed barrier are auto-calculated under Installation
 Consumables, refreshed the Miscellaneous Items example wording (Settings card, per-project card,
@@ -187,7 +236,7 @@ Tests **1905** (unchanged). Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-31 — Measured seam length + editable override
+## 2026-07-22 (cont'd 95) — Measured seam length + editable override
 
 Made seam length a real, measured quantity and overridable:
 - Seam length is now the actual cut length where pieces meet — for adjacent strips, the x-overlap
@@ -203,7 +252,7 @@ and the field/quote wiring. Verified end-to-end (estimate 160 ft → glue 3 gal;
 
 ---
 
-## 2026-08-31 — Installation consumables (seam tape / glue / nails / weed barrier)
+## 2026-07-22 (cont'd 94) — Installation consumables (seam tape / glue / nails / weed barrier)
 
 New "Installation Consumables" card in Settings, and each priced into the quote from job metrics:
 - **Seam tape** & **glue** from estimated seam length, **nails** from total perimeter, **weed
@@ -226,7 +275,7 @@ America/Los_Angeles.
 
 ---
 
-## 2026-08-31 — Edging: click segments on the drawing
+## 2026-07-22 (cont'd 93) — Edging: click segments on the drawing
 
 Added click-a-segment on the layout drawing. A "✏ Click edges on the drawing" toggle in the
 Edging panel enters click mode (mutually exclusive with Cut/Draw/Edit/Move like the other canvas
@@ -243,7 +292,7 @@ and correct mapping after a 40° rotation). Green under UTC and America/Los_Ange
 
 ---
 
-## 2026-08-31 — Edging selection: granular per-segment picking (parent/child)
+## 2026-07-22 (cont'd 92) — Edging selection: granular per-segment picking (parent/child)
 
 Selecting a "side" was too coarse. Each multi-segment side (a merged straight run or a curve) is
 now a PARENT checkbox with an expandable list of per-segment CHILD checkboxes, so you can edge
@@ -260,7 +309,7 @@ America/Los_Angeles.
 
 ---
 
-## 2026-08-31 — Fix: edging checklist didn't refresh on project switch
+## 2026-07-22 (cont'd 91) — Fix: edging checklist didn't refresh on project switch
 
 Same class as the Profit Audit fix. renderEdgingSelection ran on sub-tab open and on toggle,
 but not in the layout render path, so switching projects while on the Edging sub-tab left the
@@ -272,7 +321,7 @@ count, checkboxes, and total). Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-31 — Edging runs highlight on the layout drawing
+## 2026-07-22 (cont'd 90) — Edging runs highlight on the layout drawing
 
 Selected edging runs now highlight boldly on the layout canvas — bright orange with a soft glow
 and endpoint dots, drawn last so it's unmistakable. Rendered from the SAME rotated point arrays
@@ -290,7 +339,7 @@ and America/Los_Angeles.
 
 ---
 
-## 2026-08-31 — Edging run selection: checklist + auto-fill (canvas click next)
+## 2026-07-22 (cont'd 89) — Edging run selection: checklist + auto-fill (canvas click next)
 
 New "Edging" sub-tab on the Layout page. It lists every shape's sides (contiguous runs between
 corners — a straight run or gentle curve is one clickable side, not many segments), each with a
@@ -310,7 +359,7 @@ America/Los_Angeles.
 
 ---
 
-## 2026-08-31 — Edging edge-selection: pure core (canvas UI to follow)
+## 2026-07-22 (cont'd 88) — Edging edge-selection: pure core (canvas UI to follow)
 
 Groundwork for "select which perimeter runs need benderboard": pure, tested helpers to
 enumerate a layout's edges with lengths (layoutEdges), list the selectable shapes with stable
@@ -324,7 +373,7 @@ Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-30 — Profit Audit: thousands commas + fix the double-click bug
+## 2026-07-22 (cont'd 87) — Profit Audit: thousands commas + fix the double-click bug
 
 Two Profit Audit fixes:
 - Money fields (Contract Price, Actual Revenue, Quoted, Actual) now format with thousands
@@ -342,7 +391,7 @@ under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-30 — Consistent "Back up now" naming everywhere
+## 2026-07-22 (cont'd 86) — Consistent "Back up now" naming everywhere
 
 Swept the remaining "Export Everything" / "↓ Backup" wording to "Back up now" across the
 Backup & Sync card text, the Auto-Backups dialog, the Vendor tab note, the Help guide, and the
@@ -355,7 +404,7 @@ Selected / Import / Auto-backups / Reset). Green under UTC and America/Los_Angel
 
 ---
 
-## 2026-08-30 — Align http banner wording with the "Back up now" button
+## 2026-07-22 (cont'd 85) — Align http banner wording with the "Back up now" button
 
 The http/wrong-address banner still said "Export Everything" and "Import → Replace" (it predated
 the Back up now button). Updated it to "Back up now" and "Import & Replace All" so it matches the
@@ -365,7 +414,7 @@ Tests **1844** (unchanged). Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-30 — Fix: switching projects didn't reload the Profit Audit tab
+## 2026-07-22 (cont'd 84) — Fix: switching projects didn't reload the Profit Audit tab
 
 loadProject re-renders whichever estimator tab is active (pavers/mulch/riverRock/dashboard) so
 it reflects the newly loaded project, but panel-profit was missing from that list — so with the
@@ -377,7 +426,7 @@ from one project to another). Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-30 — One-click "Back up now" + last-backup reminder
+## 2026-07-22 (cont'd 83) — One-click "Back up now" + last-backup reminder
 
 Web-first backup nudge (no Mac/Windows app work):
 - A prominent green **Back up now** button at the top of Settings -> Backup & Sync runs a full
@@ -396,7 +445,7 @@ clears after backup, Settings line updates). Green under UTC and America/Los_Ang
 
 ---
 
-## 2026-08-30 — Wrong-address banner (http → https migration safety)
+## 2026-07-22 (cont'd 82) — Wrong-address banner (http → https migration safety)
 
 Added a sticky red banner that appears only when the app is loaded over plain http at the real
 host (turf.brianyoss.com) — the case where a user's data is stranded in the http origin and the
@@ -414,7 +463,7 @@ persists). Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-30 — Filter the project list by status (All / Pending / Won / Lost)
+## 2026-07-22 (cont'd 81) — Filter the project list by status (All / Pending / Won / Lost)
 
 Added a status filter bar under the sidebar search: All / Pending / Won / Lost, each showing a
 live count (respecting the search box). Pending = anything not marked Won or Lost, so
@@ -427,7 +476,7 @@ filtered lists correct). Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-30 — Profit Audit: Contract Price starts blank
+## 2026-07-22 (cont'd 80) — Profit Audit: Contract Price starts blank
 
 Per request, a new Profit Audit no longer pre-fills Contract Price from the last quoted price —
 it starts blank for manual entry. Actual Revenue was already blank.
@@ -436,7 +485,7 @@ Tests **1813 → 1814** (README **1814**). Green under UTC and America/Los_Angel
 
 ---
 
-## 2026-08-30 — New per-project "Profit Audit" tab
+## 2026-07-22 (cont'd 79) — New per-project "Profit Audit" tab
 
 Added a Profit Audit tab (after Dashboard) to each project, mirroring the reference sheet:
 - Header: Job Name + Install Date (from the project), and editable Contract Price and Actual
@@ -458,7 +507,7 @@ wiring. Verified in-browser. Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-30 — Note in Auto-Backups dialog that vendor lists are export-only
+## 2026-07-22 (cont'd 78) — Note in Auto-Backups dialog that vendor lists are export-only
 
 Added a one-line note to the Auto-Backups dialog: auto-backups don't include vendor price
 lists — use Export Everything to move those between devices. Copy-only, no behavior change.
@@ -468,7 +517,7 @@ America/Los_Angeles.
 
 ---
 
-## 2026-08-30 — Vendor price lists now included in full backups
+## 2026-07-22 (cont'd 77) — Vendor price lists now included in full backups
 
 "Export Everything" now bundles vendor price lists — both the vendor metadata and the actual
 files (PDF/xlsx/CSV), base64-encoded inside the JSON — and a full "Replace" import restores
@@ -489,7 +538,7 @@ under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-28 — Rock/base area now includes the putting green
+## 2026-07-22 (cont'd 76) — Rock/base area now includes the putting green
 
 Per Brian: base goes under the putting green too. rockBaseSqFt now sums <strong>base-role +
 putting-green-role</strong> turf (the full outline), instead of base only. Alt-turf rows stay
@@ -504,7 +553,7 @@ green-only job still gets rock. Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-28 — Area-mode rock rows are now robustly live-linked to the turf area
+## 2026-07-22 (cont'd 75) — Area-mode rock rows are now robustly live-linked to the turf area
 
 Area-mode rock/base rows already re-pulled the base turf area on a turf edit, but three gaps
 made it unreliable: a total>0 guard skipped the sync when base area was 0 (leaving a stale
@@ -526,7 +575,7 @@ Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-28 — Show $/Cu. Yd column in the rock settings table
+## 2026-07-22 (cont'd 74) — Show $/Cu. Yd column in the rock settings table
 
 The Rock / Base Materials settings table now has a <strong>$/Cu. Yd</strong> column (before
 $/SqFt @ 1"), so the cost-per-yard that drives quote pricing is visible at a glance, not just
@@ -537,7 +586,7 @@ in-browser. Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-28 — Remove the rock "Unit" entry mode
+## 2026-07-22 (cont'd 73) — Remove the rock "Unit" entry mode
 
 Dropped the Unit entry mode from the Rock / Base card — it couldn't be priced by cost-per-yard
 and added confusion. Rows now have just <strong>Area (auto)</strong> and <strong>Cubic
@@ -550,7 +599,7 @@ check. Verified the row now offers only the two modes. Green under UTC and Ameri
 
 ---
 
-## 2026-08-28 — Rock/base: cost per cubic yard + optional priced line on the quote
+## 2026-07-22 (cont'd 72) — Rock/base: cost per cubic yard + optional priced line on the quote
 
 Follow-up to cont'd 71:
 - Rock catalog items now have a <strong>Cost per Cubic Yard</strong> field (Settings → Rock /
@@ -573,7 +622,7 @@ UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-28 — Rock/base: enter by cubic yard or by unit (not just auto-from-area)
+## 2026-07-22 (cont'd 71) — Rock/base: enter by cubic yard or by unit (not just auto-from-area)
 
 Each Rock / Base line now has an "Enter by" mode:
 - **Area (auto)** — the existing behavior: tons & cubic yards derived from the turf area ×
@@ -593,7 +642,7 @@ Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-27 — Remove the layout diagram from walkthrough step 4
+## 2026-07-22 (cont'd 70) — Remove the layout diagram from walkthrough step 4
 
 Dropped the small SVG app-layout diagram from the "Lay out the job" step; it now reads as plain
 text. Also removed the now-unused WIZARD_LAYOUT_SVG constant (no dead code left).
@@ -602,7 +651,7 @@ Tests **1766** (unchanged). Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-27 — Walkthrough card can minimize to a pill (stops covering Layout controls)
+## 2026-07-22 (cont'd 69) — Walkthrough card can minimize to a pill (stops covering Layout controls)
 
 The floating coach card sits bottom-right, which is exactly where the Layout tab's right-pane
 controls live. Added a minimize button (–) that collapses the card to a small "▸ Getting
@@ -617,7 +666,7 @@ America/Los_Angeles.
 
 ---
 
-## 2026-08-27 — Fix totals-strip location in walkthrough + docs (above the tabs)
+## 2026-07-22 (cont'd 68) — Fix totals-strip location in walkthrough + docs (above the tabs)
 
 The walkthrough's Layout step said the order figures sit "just right of ⚙ Settings" — wrong.
 The totals bar (#topMetrics) is its own row directly above the tab row. Corrected the
@@ -629,7 +678,7 @@ Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-27 — Walkthrough copy fixes: multi-file import + order figures
+## 2026-07-22 (cont'd 67) — Walkthrough copy fixes: multi-file import + order figures
 
 Two accuracy fixes in the walkthrough:
 - Create step no longer implies you can import several Moasure files in the new-project modal
@@ -645,7 +694,7 @@ America/Los_Angeles.
 
 ---
 
-## 2026-08-27 — Walkthrough Settings step: drop Vendor Pricing, add Roll Settings
+## 2026-07-22 (cont'd 66) — Walkthrough Settings step: drop Vendor Pricing, add Roll Settings
 
 The Settings step wrongly listed "Vendor pricing" — that's its own tab, not part of Settings.
 Removed it and added <strong>Roll Settings</strong> (roll width/length, S-seam side trim,
@@ -658,7 +707,7 @@ lists Vendor Pricing as a Settings item. Green under UTC and America/Los_Angeles
 
 ---
 
-## 2026-08-27 — Walkthrough is now a guided, non-blocking coach card with per-step actions
+## 2026-07-22 (cont'd 65) — Walkthrough is now a guided, non-blocking coach card with per-step actions
 
 Turned the Getting Started walkthrough from a blocking centered modal into a floating,
 non-blocking coach card (bottom-right, no backdrop, pointer-events:none on the overlay so the
@@ -678,7 +727,7 @@ the card). Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-27 — Walkthrough steps reordered to match the real workflow
+## 2026-07-22 (cont'd 64) — Walkthrough steps reordered to match the real workflow
 
 Reordered the Getting Started steps to follow the order owners actually work in:
 1. Welcome, 2. **Set up your Settings first** (turf products, infill, rock/base, edging, crew
@@ -693,7 +742,7 @@ America/Los_Angeles.
 
 ---
 
-## 2026-08-27 — Walkthrough shows every launch (opt-out) + Layout/Jobber framing
+## 2026-07-22 (cont'd 63) — Walkthrough shows every launch (opt-out) + Layout/Jobber framing
 
 Per rollout feedback:
 - The Getting Started walkthrough now opens on EVERY launch by default, with a "Don't show
@@ -711,7 +760,7 @@ ticked, Help still replays). Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-27 — Getting Started walkthrough (onboarding wizard)
+## 2026-07-22 (cont'd 62) — Getting Started walkthrough (onboarding wizard)
 
 Added a skippable, replayable 6-step Getting Started walkthrough for new users (franchise
 pilot rollout). Steps: welcome + "you can ignore most of the buttons", a small diagram of the
@@ -735,7 +784,7 @@ needed).
 
 ---
 
-## 2026-08-27 — Turf products can have multiple types + a Fringe role at project creation
+## 2026-07-22 (cont'd 61) — Turf products can have multiple types + a Fringe role at project creation
 
 Two related changes:
 - A turf product can now be MORE THAN ONE type. The Settings product Type is now checkboxes
@@ -759,7 +808,7 @@ Verified end-to-end in a browser. Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-27 — Don't hardcode K9 as fringe; type is a hint, not a lock
+## 2026-07-22 (cont'd 60) — Don't hardcode K9 as fringe; type is a hint, not a lock
 
 Follow-up to cont'd 59. Reverted the default catalog so K9 Cascade Pro ships as "standard"
 again — the app no longer presumes any product is the fringe. You designate your own fringe
@@ -776,7 +825,7 @@ option, and the product picker isn't type-filtered. Green under UTC and America/
 
 ---
 
-## 2026-08-27 — "Fringe" turf type (designate your fringe product)
+## 2026-07-22 (cont'd 59) — "Fringe" turf type (designate your fringe product)
 
 Added Fringe as a third turf type alongside Standard and Putting Green (Settings → Turf
 Products → Type). Parallels how a putting-green product is typed: mark your fringe turf (e.g.
@@ -796,7 +845,7 @@ Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-27 — Fix: putting-green fringe was ordered/priced as area, not roll linear feet
+## 2026-07-22 (cont'd 58) — Fix: putting-green fringe was ordered/priced as area, not roll linear feet
 
 The fringe was massively over-ordered and over-priced. It computed the fringe MATERIAL area
 (≈ perimeter × fringe width, e.g. 68 sqft for a 20×10 green with 1 ft fringe) and then
@@ -819,7 +868,7 @@ codified the old area pricing. Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-27 — Cut list PDF filename now "<project name> - Cut List"
+## 2026-07-22 (cont'd 57) — Cut list PDF filename now "<project name> - Cut List"
 
 When you Print / Save-as-PDF the installer cut list, the suggested filename is taken from the
 print document's <title>. Changed that title from "Turf Cut List — <name>" to
@@ -832,7 +881,7 @@ print doc's <title> uses it. Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-25 — Reorder crew chips too (shared with vendors)
+## 2026-07-22 (cont'd 56) — Reorder crew chips too (shared with vendors)
 
 Crew chips are now drag-to-reorder, same as vendors: each has a ⠿ grip, drop it on another
 chip to move it, order is saved. Reordering never changes which crew is active. Factored the
@@ -846,7 +895,7 @@ active crew preserved). Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-25 — Reorder vendor chips by drag-and-drop
+## 2026-07-22 (cont'd 55) — Reorder vendor chips by drag-and-drop
 
 Vendor chips can now be dragged to sort them however you like. Each chip gets a ⠿ grip and
 is draggable; drop it on another chip to move it there, and the new order is saved. Pure
@@ -860,7 +909,7 @@ changes and persists). Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-25 — New default Side Trim (10 in) and Cutting Margin (6 in)
+## 2026-07-22 (cont'd 54) — New default Side Trim (10 in) and Cutting Margin (6 in)
 
 Changed the default Roll Settings: S-Seam Side Trim 4 → 10 in (total, not per side) and
 Cutting Margin 4 → 6 in (per piece). Updated in both the input defaults and
@@ -875,7 +924,7 @@ trim/margin now 10/6. Tests **1687**, green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-25 — Clarify Side Trim & Cutting Margin help text (no math change)
+## 2026-07-22 (cont'd 53) — Clarify Side Trim & Cutting Margin help text (no math change)
 
 Reworded the Roll Settings help text (and the User Guide glossary) to remove a per-side
 ambiguity. The math was already correct and is unchanged:
@@ -889,7 +938,7 @@ No code or test change (1687). Verified parse + suite green.
 
 ---
 
-## 2026-08-25 — Vendor Pricing: remove an imported price list
+## 2026-07-22 (cont'd 52) — Vendor Pricing: remove an imported price list
 
 Added a "🗑 Remove price list" button on the Vendor Pricing tab (next to Import). It shows
 only when the active vendor has a file; clicking it confirms, then deletes the file bytes
@@ -905,7 +954,7 @@ Tests **1687** (README **1687**), green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-25 — Vendor UI consistency: crew-style chips + modal (no browser prompts)
+## 2026-07-22 (cont'd 51) — Vendor UI consistency: crew-style chips + modal (no browser prompts)
 
 Made vendor add/rename/select match the crew "pricing" UI exactly, per request:
 - The vendor dropdown is now a chip row identical to the crew tabs — each vendor is a
@@ -925,7 +974,7 @@ list. Tests **1687** (README **1687**), green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-25 — Vendor Pricing tab (import & view PDF / Excel / CSV per vendor)
+## 2026-07-22 (cont'd 50) — Vendor Pricing tab (import & view PDF / Excel / CSV per vendor)
 
 New Vendor Pricing tab. Keep each supplier's price list for quick reference, switch between
 vendors with a dropdown (like crews): + Add vendor, Rename, Delete, and ↑ Import price list.
@@ -949,7 +998,7 @@ Tests **1672 → 1687** (README **1687**). Green under UTC and America/Los_Angel
 
 ---
 
-## 2026-08-23 — Fix: Minimize waste reported a saving but nothing changed
+## 2026-07-22 (cont'd 49) — Fix: Minimize waste reported a saving but nothing changed
 
 The ✨ Minimize waste (all layers) button showed a "saved X ft²" toast but the layout,
 ordered footage, and roll direction never actually changed for the PRIMARY shape.
@@ -971,7 +1020,7 @@ a win, and the sweep still finds a real reduction. Green under UTC and America/L
 
 ---
 
-## 2026-08-21 — Top bar always visible; sidebar Actions menu (new/rename/duplicate/delete)
+## 2026-07-22 (cont'd 48) — Top bar always visible; sidebar Actions menu (new/rename/duplicate/delete)
 
 - The project top bar (project name / Crew / Status / legend / Help) now stays visible at
   all times. With no project selected it shows a disabled "Select a project" title and
@@ -989,7 +1038,7 @@ Green under UTC and America/Los_Angeles.
 
 ---
 
-## 2026-08-21 — Help button to the project top bar; Backup & Sync to the bottom of Settings
+## 2026-07-22 (cont'd 47) — Help button to the project top bar; Backup & Sync to the bottom of Settings
 
 - Moved the "? Help" button off the tab row and onto the project top bar (the row with the
   project name / Crew / Status), right-aligned next to the color legend. Note: that bar is
@@ -1005,7 +1054,7 @@ Tests **1659** (unchanged; README **1659**), green under UTC and America/Los_Ang
 
 ---
 
-## 2026-08-21 — Fix: Settings cards leaked onto every tab (Dashboard, etc.)
+## 2026-07-22 (cont'd 46) — Fix: Settings cards leaked onto every tab (Dashboard, etc.)
 
 Regression from cont'd 45: inserting the Backup & Sync card consumed the Roll Settings
 card's opening `<div class="card">` without re-adding one, so Roll Settings' closing tag
@@ -1023,7 +1072,7 @@ the Dashboard tab, and all of them show on the Settings tab.
 
 ---
 
-## 2026-08-21 — Layout declutter: totals bar, sidebar room, Help + Sync moved
+## 2026-07-22 (cont'd 45) — Layout declutter: totals bar, sidebar room, Help + Sync moved
 
 Several UI moves to give the project list more room and tidy the chrome:
 - The live totals bar (Installed / Ordered / Turf LF / Edging / Rock / Sand / Scrap) now
@@ -1044,7 +1093,7 @@ its own bar (not nested in the tab row) and now sits above the tabs.
 
 ---
 
-## 2026-08-21 — Auto-backup: on/off toggle + configurable interval
+## 2026-07-22 (cont'd 44) — Auto-backup: on/off toggle + configurable interval
 
 The Auto-Backups dialog (Sync menu → ↻ Auto-backups) now has a "back up while I work"
 toggle and an interval picker (1, 5, 10, 15, 30 min, or 1 hour). The interval was hardcoded
@@ -1062,7 +1111,7 @@ skips when disabled, and throttles within the interval.
 
 ---
 
-## 2026-08-21 — Project search
+## 2026-07-22 (cont'd 43) — Project search
 
 Added a search box at the top of the project sidebar. Type to filter the list live; matches
 (case-insensitive) on project name, job address, and status label (won / lost / pending
@@ -1080,7 +1129,7 @@ null/nameless input.
 
 ---
 
-## 2026-08-21 — Backed out Send to Jobber
+## 2026-07-22 (cont'd 42) — Backed out Send to Jobber
 
 Removed the Send-to-Jobber feature added in cont'd 41 — the real backend (OAuth broker,
 token refresh, GraphiQL field verification, ongoing hosting) is more than it's worth for
@@ -1095,7 +1144,7 @@ and America/Los_Angeles.
 
 ---
 
-## 2026-08-21 — Send to Jobber (finished lump-sum quote via a small backend)
+## 2026-07-22 (cont'd 41) — Send to Jobber (finished lump-sum quote via a small backend)
 
 New 🧾 Send to Jobber button (Quote Builder) + Settings → Send to Jobber card. Pushes the
 current quote into Jobber as a single lump-sum line ("Artificial Turf Installation") at
@@ -1122,7 +1171,7 @@ round-trips. (The fetch/OAuth paths live in the Worker and are verified on-devic
 
 ---
 
-## 2026-08-17 — Tiered pricing display: readable mini-table (was cramped/wrapping)
+## 2026-07-22 (cont'd 40) — Tiered pricing display: readable mini-table (was cramped/wrapping)
 
 The Settings labor-rates Rate column was capped at 120px, so a tiered rate's sqft ranges
 wrapped 2-3 lines each ("0-359" split, "901- 1,500 sqft" on three lines) — hard to scan.
@@ -1138,7 +1187,7 @@ bordered striped mini-table, and getTierRanges still yields correct explicit bra
 
 ---
 
-## 2026-08-17 — Dashboard honesty: quotes vs won jobs (status + close rate)
+## 2026-07-22 (cont'd 39) — Dashboard honesty: quotes vs won jobs (status + close rate)
 
 The Dashboard treated every saved project as a completed job, so "revenue" counted quotes
 that were never landed — misleading. Added a per-project Status (Quote/pending · Won ·
@@ -1161,7 +1210,7 @@ getProjectStatus normalizes junk to pending.
 
 ---
 
-## 2026-08-17 — Fix: estimator tabs didn't refresh on project switch (paver settings LOOKED global)
+## 2026-07-22 (cont'd 38) — Fix: estimator tabs didn't refresh on project switch (paver settings LOOKED global)
 
 Paver settings were already stored per project (`proj.pavers`), and mulch/river rock too
 (`proj.mulch` / `proj.riverRock`) — the data was never global. But `loadProject` only
@@ -1179,7 +1228,7 @@ per-project, and loadProject re-renders the active estimator tab.
 
 ---
 
-## 2026-08-17 — Layout totals moved to their own header bar (below the tabs)
+## 2026-07-22 (cont'd 37) — Layout totals moved to their own header bar (below the tabs)
 
 The live totals (Installed, Ordered, Turf LF, Edging, Rock, Sand, Scrap) used to sit on the
 SAME row as the page tabs, anchored to the right of Settings — so on anything but a very
@@ -1194,7 +1243,7 @@ Tests **1615 → 1616** (README **1616**): the metrics bar is now a sibling AFTE
 
 ---
 
-## 2026-08-17 — River Rock: pick a size to auto-fill supplier coverage
+## 2026-07-22 (cont'd 36) — River Rock: pick a size to auto-fill supplier coverage
 
 The River Rock tab now has a Rock size dropdown. Picking a size fills the Coverage field
 with that size's coverage, so you don't retype it per job. Sizes are a small catalog you
@@ -1214,7 +1263,7 @@ size, unknown/empty → null, and a lower-coverage size needs more cubic yards.
 
 ---
 
-## 2026-08-17 — Removed the Proposal & Share Link features (Jobber handles customer-facing docs)
+## 2026-07-22 (cont'd 35) — Removed the Proposal & Share Link features (Jobber handles customer-facing docs)
 
 Removed both customer-facing features and all their code, per how the business actually
 works (Jobber is used for proposals/quotes to customers):
@@ -1238,7 +1287,7 @@ still pass on the preserved quotedPrice path.
 
 ---
 
-## 2026-08-17 — Fix: Dashboard mis-filed month-boundary jobs west of UTC (timezone bug)
+## 2026-07-22 (cont'd 34) — Fix: Dashboard mis-filed month-boundary jobs west of UTC (timezone bug)
 
 `computeJobStats` bucketed the monthly timeline by `new Date(installDate)` then read
 `.getMonth()` in local time. An install date is a date-only string ('YYYY-MM-DD') that
@@ -1256,7 +1305,7 @@ suite passes under UTC, America/Los_Angeles, Asia/Tokyo, and Australia/Sydney.
 
 ---
 
-## 2026-08-17 — Fix: test suite could fail Sync & Push on a newer Node (async codec test)
+## 2026-07-22 (cont'd 33) — Fix: test suite could fail Sync & Push on a newer Node (async codec test)
 
 The share-codec test added in cont'd 30 ran an un-awaited `(async () => { ... })()` block.
 On Node builds where `CompressionStream`/`Response` are ambient globals, the sandbox could
@@ -1275,7 +1324,7 @@ Tests **1632 → 1635** (README **1635**): the 3 codec-roundtrip asserts are now
 
 ---
 
-## 2026-08-17 — One-click global waste minimizer — list item #4
+## 2026-07-22 (cont'd 32) — One-click global waste minimizer — list item #4
 
 New ✨ Minimize waste (all layers) button on the Layout toolbar. It runs the roll-direction
 sweep (all 180° × 8 seam offsets) on the primary shape AND every install layer at once,
@@ -1297,7 +1346,7 @@ turn, handles <3 points / null → null, and a square is no worse than axis-alig
 
 ---
 
-## 2026-08-17 — Job History Dashboard — list item #3
+## 2026-07-22 (cont'd 31) — Job History Dashboard — list item #3
 
 New Dashboard tab that mines the projects already in localStorage — no new data entry.
 Shows total jobs, total turf sold (with average/median/largest/smallest job size), a
@@ -1319,7 +1368,7 @@ definitions, and re-added.
 
 ---
 
-## 2026-08-17 — Shareable no-backend proposal link — list item #2
+## 2026-07-22 (cont'd 30) — Shareable no-backend proposal link — list item #2
 
 New 🔗 Share Link button (Quote Builder). It serializes a CUSTOMER-SAFE slice of the job
 into the URL hash and copies the link: anyone can open it in a browser — no login, no
@@ -1343,7 +1392,7 @@ the codec path runs headlessly.)
 
 ---
 
-## 2026-08-17 — Proposal polish: clean site diagram + pick which scenario to quote
+## 2026-07-22 (cont'd 29) — Proposal polish: clean site diagram + pick which scenario to quote
 
 Two follow-ups on the proposal.
 
@@ -1366,7 +1415,7 @@ the updatable total.
 
 ---
 
-## 2026-08-17 — Branded customer Proposal (print / Save-as-PDF) — list item #1
+## 2026-07-22 (cont'd 28) — Branded customer Proposal (print / Save-as-PDF) — list item #1
 
 A one-click customer-facing proposal (Quote Builder → 📄 Proposal). Opens a clean, branded
 one-pager in a new window with your business header, the job/site/date, the SITE DIAGRAM
@@ -1388,7 +1437,7 @@ info defaults + round-trip; role labels.
 
 ---
 
-## 2026-08-17 — New Bark/Mulch & River Rock tabs (ground-cover estimators)
+## 2026-07-22 (cont'd 27) — New Bark/Mulch & River Rock tabs (ground-cover estimators)
 
 Two new standalone tabs, same shell as Pavers, sharing one pure `computeGroundCoverPlan`.
 Each takes the Moasure area (or manual), a depth in inches, a Type (a name plus a coverage
@@ -1409,7 +1458,7 @@ not ok; per-material default depths; and Moasure vs manual area.
 
 ---
 
-## 2026-08-14 — New Pavers tab: how many pavers to order
+## 2026-07-22 (cont'd 26) — New Pavers tab: how many pavers to order
 
 Added a standalone Pavers tab. It estimates how many pavers to order for an area: it uses
 the imported Moasure area by default (toggle off to enter an area by hand), plus paver
@@ -1430,7 +1479,7 @@ area source.
 
 ---
 
-## 2026-08-14 — Fix: over-length strip still shown as ONE row in the piece list (rendering half of the last fix)
+## 2026-07-22 (cont'd 25) — Fix: over-length strip still shown as ONE row in the piece list (rendering half of the last fix)
 
 The previous fix corrected the roll LABELS (an over-length strip is split across rolls in
 the label map), but the piece-list RENDERER still drew the strip as a single row using its
@@ -1449,7 +1498,7 @@ Tests **1549 → 1553** (README **1553**): the 102 ft strip produces ≥2 rows, 
 
 ---
 
-## 2026-08-13 — Fix: piece list showed a single piece longer than the roll (over-length rolls)
+## 2026-07-22 (cont'd 24) — Fix: piece list showed a single piece longer than the roll (over-length rolls)
 
 The Piece List could show a roll whose pieces summed to more than the Max Roll Length —
 e.g. a 120 ft piece on a 100 ft roll. Cause: `assignRollPieceLabels` (which numbers the
@@ -1469,7 +1518,7 @@ two rolls.
 
 ---
 
-## 2026-08-13 — Fringe pieces drawn at full width (they honored the width, but LOOKED short at corners)
+## 2026-07-22 (cont'd 23) — Fringe pieces drawn at full width (they honored the width, but LOOKED short at corners)
 
 Follow-up to the fringe split. Every fringe piece already honored the fringe width in
 the CUT data — each is ordered as length × fringe-width, and the ordered length uses the
@@ -1489,7 +1538,7 @@ Tests **1531 → 1544** (README **1544**).
 
 ---
 
-## 2026-08-12 — Fringe: blades face the green, pieces capped at the roll width
+## 2026-07-22 (cont'd 22) — Fringe: blades face the green, pieces capped at the roll width
 
 Two fringe-cutting rules. All fringe blades must face IN toward the green, so the grain
 runs radially (across the fringe depth). Because of that orientation, each piece's length
@@ -1513,7 +1562,7 @@ preserves total sqft, and a narrower roll splits more.
 
 ---
 
-## 2026-08-12 — Disabled buttons now look disabled (⬒ Make Layer wasn't visibly greyed)
+## 2026-07-22 (cont'd 21) — Disabled buttons now look disabled (⬒ Make Layer wasn't visibly greyed)
 
 There was no CSS for the disabled button state, so buttons that get set `disabled` —
 notably ⬒ Make Layer, which is disabled until a closed shape is selected — still looked
@@ -1528,7 +1577,7 @@ button, and Make Layer ships disabled by default.
 
 ---
 
-## 2026-08-12 — Crew daily-minimum labor floor (small-job pay minimum)
+## 2026-07-22 (cont'd 20) — Crew daily-minimum labor floor (small-job pay minimum)
 
 Some crews must be paid a minimum for the day even when a small job's per-sqft labor
 comes out below it. Added a **Daily Minimum (labor floor)** rate item per crew: when the
@@ -1553,7 +1602,7 @@ item and is idempotent.
 
 ---
 
-## 2026-08-06 — Putting green: its own roll-direction controls + roll rectangle on canvas
+## 2026-07-22 (cont'd 19) — Putting green: its own roll-direction controls + roll rectangle on canvas
 
 Now that the green rolls as its own layer, two pieces of the roll UI still treated it as
 a non-rolled cutout:
@@ -1576,7 +1625,7 @@ its order/waste; and the green layer honors its own roll direction via `layerRol
 
 ---
 
-## 2026-08-06 — Fix: the wall thickness handle was invisible on freehand-drawn walls
+## 2026-07-22 (cont'd 18) — Fix: the wall thickness handle was invisible on freehand-drawn walls
 
 The tooltip promised a draggable thickness handle on a selected wall, but it usually
 didn't appear. Cause: `wallThicknessHandle` anchored to the wall's FIRST segment — and a
@@ -1596,7 +1645,7 @@ returns a handle (previously null).
 
 ---
 
-## 2026-08-06 — Draw toolbar: label Color/Width/Fill as "Shape style" (they read as landscape controls)
+## 2026-07-22 (cont'd 17) — Draw toolbar: label Color/Width/Fill as "Shape style" (they read as landscape controls)
 
 The Color, Width, and Fill controls sit right after the Landscape buttons, so they
 looked like they configured the landscape elements — but they apply to the basic shapes
@@ -1611,7 +1660,7 @@ landscape elements ignore it, and the Width control disambiguates from wall thic
 
 ---
 
-## 2026-08-06 — Top bar breaks out base vs putting green; "Linear ft" → "Turf LF"
+## 2026-07-22 (cont'd 16) — Top bar breaks out base vs putting green; "Linear ft" → "Turf LF"
 
 On a base + putting green job the top bar now shows both numbers for Installed, Ordered,
 and Turf LF as "base · green" (e.g. Installed 82 · 92 ft², Ordered 285 · 150 ft², Turf
@@ -1628,7 +1677,7 @@ cell formatter; and the "Turf LF" label rename.
 
 ---
 
-## 2026-08-06 — ROOT CAUSE: new projects never designated the green SHAPE — now set at creation
+## 2026-07-22 (cont'd 15) — ROOT CAUSE: new projects never designated the green SHAPE — now set at creation
 
 The reason base-minus-green kept coming out wrong across a fresh import: `createProject`
 attached the CSV's secondary shapes but set **no `secondaryShapeModes`** — so every
@@ -1650,7 +1699,7 @@ control exist; and once designated, base = outline − green (82.37) and green =
 
 ---
 
-## 2026-08-06 — Designating the green now updates the base row immediately; live link syncs base + PG rows
+## 2026-07-22 (cont'd 14) — Designating the green now updates the base row immediately; live link syncs base + PG rows
 
 Matches the real workflow: import → create → designate which shape is the putting green.
 Two gaps were leaving the base row stale after that last step.
@@ -1677,7 +1726,7 @@ a guard that setSecondaryShapeMode re-syncs the rows.
 
 ---
 
-## 2026-08-06 — Fix: green-as-layer inflated the base row's Installed back to the full outline
+## 2026-07-22 (cont'd 13) — Fix: green-as-layer inflated the base row's Installed back to the full outline
 
 Regression from step 1. Once the green rolled as its own install layer, `_combined.area`
 included it — and the base row's Installed formula (`combo.area − shapeArea + adj`) added
@@ -1700,7 +1749,7 @@ adjusted primary + side yard, green excluded.
 
 ---
 
-## 2026-08-06 — Base scrap measured against the rolled outline (base/PG split, step 3)
+## 2026-07-22 (cont'd 12) — Base scrap measured against the rolled outline (base/PG split, step 3)
 
 Final step of the base/PG roll split. The single-layer scrap line computed
 `scrap = totalOrdered − adjustedArea`, where adjustedArea is the base outline MINUS the
@@ -1725,7 +1774,7 @@ scrap equals ordered − total rolled area.
 
 ---
 
-## 2026-08-06 — Each turf row draws its order from its own roll plan (base/PG split, step 2)
+## 2026-07-22 (cont'd 11) — Each turf row draws its order from its own roll plan (base/PG split, step 2)
 
 Step 2 of the base/PG roll split. With the green now rolled as its own layer (step 1),
 the order routing was still applying one combined figure to one selected row — which is
@@ -1761,7 +1810,7 @@ routes every PG row.
 
 ---
 
-## 2026-08-06 — Putting green now rolls as its own layer (base/PG roll split, step 1)
+## 2026-07-22 (cont'd 10) — Putting green now rolls as its own layer (base/PG roll split, step 1)
 
 First step of giving a base + green job two independent roll plans. The green was a
 cutout — subtracted from the base but never rolled, so Results showed one combined plan
@@ -1789,7 +1838,7 @@ Installed metric nets to ~174 rather than double-counting to 266.
 
 ---
 
-## 2026-08-06 — Apply Area is role-aware: the PG row gets the green's area, not the base's
+## 2026-07-22 (cont'd 9) — Apply Area is role-aware: the PG row gets the green's area, not the base's
 
 The Putting Green turf row was showing ~82.4 ft² (the base yard's outline-minus-green
 figure) instead of the green's own 91.52 — its Installed SqFt and infill were both
@@ -1814,7 +1863,7 @@ the green, (c) base SqFt to Order. Tracked for a dedicated session.
 
 ---
 
-## 2026-08-05 — Infill now follows the corrected base install (was left stale)
+## 2026-07-22 (cont'd 8) — Infill now follows the corrected base install (was left stale)
 
 Follow-on to cont'd 7. The base row's Installed SqFt was being set correctly to the
 outline-minus-green figure, but the **infill rows weren't re-derived from it** — so in
@@ -1836,7 +1885,7 @@ autoPopulateInfill; base infill area = base install (82.37); PG infill = green (
 
 ---
 
-## 2026-08-05 — Base turf installs on outline MINUS the green (money-path model corrected)
+## 2026-07-22 (cont'd 7) — Base turf installs on outline MINUS the green (money-path model corrected)
 
 Corrects how a base + putting-green job accounts for turf, infill, and labor. The green
 gets its own PG turf; **no base turf is laid under it.** So:
@@ -1871,7 +1920,7 @@ COGS assertions.
 
 ---
 
-## 2026-08-05 — Deselecting a layer now removes it from ALL accounting (not just the canvas)
+## 2026-07-22 (cont'd 6) — Deselecting a layer now removes it from ALL accounting (not just the canvas)
 
 Reported via a real CSV (Back_putting_green.csv): a stray Moasure measurement the user
 had *deselected* was still changing the quote. Root cause — visibility and accounting
@@ -1902,7 +1951,7 @@ exclude layer no longer subtracts; a visible one still does; deselected PG contr
 
 ---
 
-## 2026-08-05 — Fences, mulch & rock beds, and a drag handle for wall thickness
+## 2026-07-22 (cont'd 5) — Fences, mulch & rock beds, and a drag handle for wall thickness
 
 More landscape elements plus a nicer way to set wall thickness:
 
@@ -1932,7 +1981,7 @@ returning no handle; and fences staying out of the money path.
 
 ---
 
-## 2026-08-05 — Landscape: pavers (area) and retaining wall (thick curved line)
+## 2026-07-22 (cont'd 4) — Landscape: pavers (area) and retaining wall (thick curved line)
 
 Two more landscape elements, each in the shape category it actually belongs to:
 
@@ -1962,7 +2011,7 @@ line (proving thickness widened the grab zone); and walls staying out of the mon
 
 ---
 
-## 2026-08-05 — Landscape stamps: decorative vector icons in Draw mode (foundation)
+## 2026-07-22 (cont'd 3) — Landscape stamps: decorative vector icons in Draw mode (foundation)
 
 First slice of landscape design elements. Draw mode gains a **Landscape** group with
 **🌳 Bush** and **🌲 Tree** tools: click to drop one at a default ~3 ft size, or drag to
@@ -2001,7 +2050,7 @@ annotations or stamps.
 
 ---
 
-## 2026-08-05 — Top bar scrolls instead of clipping at medium window widths
+## 2026-07-22 (cont'd 2) — Top bar scrolls instead of clipping at medium window widths
 
 With seven cells, the top bar could push its last cell (Scrap) off the right edge on a
 non-maximized laptop window (~860px to full width) — above the 860px breakpoint where
@@ -2023,7 +2072,7 @@ testable — verified on-device.)
 
 ---
 
-## 2026-08-05 — Top bar shows order totals: edging, rock, sand (replacing Perimeter)
+## 2026-07-22 (cont'd) — Top bar shows order totals: edging, rock, sand (replacing Perimeter)
 
 The Layout top bar's **Perimeter** cell is replaced with three job-wide order totals
 pulled from the project, so the numbers you actually order sit next to the live layout
@@ -2085,7 +2134,7 @@ other.
 
 ---
 
-## 2026-07-22 — Misc catalog items can be flagged "always include on new projects"
+## 2026-07-15 (cont'd 20) — Misc catalog items can be flagged "always include on new projects"
 
 The Settings misc catalog was already global (shared by every project), but nothing
 from it carried onto a new job — `miscItems: []` — while `rock` auto-populated from
@@ -2114,7 +2163,7 @@ input all seed nothing without throwing.
 
 ---
 
-## 2026-07-22 — Fix: "Fit" ignored hidden layers on a multi-CSV job
+## 2026-07-15 (cont'd 19) — Fix: "Fit" ignored hidden layers on a multi-CSV job
 
 Reported: with several CSVs imported, unticking a secondary shape and pressing **Fit**
 left the view sized as if the layer were still there — it didn't shrink to the primary.
@@ -2147,7 +2196,7 @@ the default.
 
 ---
 
-## 2026-07-20 — Layout toolbar buttons are all the same height
+## 2026-07-15 (cont'd 18) — Layout toolbar buttons are all the same height
 
 The Layout toolbar's controls didn't line up: Import CSV and Add CSV sat a couple of
 pixels shorter than Edit Shape, Move Layers, Cut Mode, Draw, etc. Cause — those two
@@ -2168,7 +2217,7 @@ label-button (Import CSV) with real buttons — the exact case the rule equalize
 
 ---
 
-## 2026-07-20 — Piece dimensions toggle; dimension labels no longer spam on curves
+## 2026-07-15 (cont'd 17) — Piece dimensions toggle; dimension labels no longer spam on curves
 
 Two fixes prompted by "why doesn't the nested piece show dimensions?"
 
@@ -2198,7 +2247,7 @@ nested pieces.
 
 ---
 
-## 2026-07-20 — The guide links were invisible — reworked as "?" badges on section titles
+## 2026-07-15 (cont'd 16) — The guide links were invisible — reworked as "?" badges on section titles
 
 The per-tab guide links added in cont'd 14 shipped as faint ghost buttons (transparent
 background, grey text, 11px) tucked in the top-right corner — technically present,
@@ -2219,7 +2268,7 @@ version also passed).
 
 ---
 
-## 2026-07-20 — Layout tab: trimmed the text stacked above the canvas
+## 2026-07-15 (cont'd 15) — Layout tab: trimmed the text stacked above the canvas
 
 The Layout tab had a block of always-on text pushing the shapes down. Two causes:
 
@@ -2240,7 +2289,7 @@ three mode hints still ship hidden.
 
 ---
 
-## 2026-07-20 — Less inline text; a "? Guide" button per tab
+## 2026-07-15 (cont'd 14) — Less inline text; a "? Guide" button per tab
 
 The app carried too much inline explanatory text. First pass at trimming it:
 
@@ -2268,7 +2317,7 @@ pattern.
 
 ---
 
-## 2026-07-20 — "Show dimensions" toggle: edge lengths on every shape
+## 2026-07-15 (cont'd 13) — "Show dimensions" toggle: edge lengths on every shape
 
 New checkbox above the layout canvas, **"Show dimensions (edge lengths on every
 shape)"**. When on, every edge of every visible shape — the primary yard and each
@@ -2291,7 +2340,7 @@ draw itself isn't reachable by the Node harness — verified on-device.
 
 ---
 
-## 2026-07-19 — Cut List: "full width" note no longer lies on narrow pieces
+## 2026-07-15 (cont'd 12) — Cut List: "full width" note no longer lies on narrow pieces
 
 The Turf Cut List tagged pieces **"Cut full width, trim S-seam on site"** whenever the
 cut added the S-seam allowance — which is *any* piece that isn't cut exactly at its
@@ -2316,7 +2365,7 @@ still caps to 'full', and a sub-tolerance difference gets no note.
 
 ---
 
-## 2026-07-19 — Infill lines show total weight (50 lb bags)
+## 2026-07-15 (cont'd 11) — Infill lines show total weight (50 lb bags)
 
 Each infill line in the quote card and the Supplier Order now shows its **total
 weight** next to the bag count — e.g. "GD Medium Sand: 15 bags · 750 lbs". Weight is
@@ -2336,7 +2385,7 @@ separators; and the realistic 500 sqft × 1.5 lbs/sqft = 15 bags = 750 lbs path.
 
 ---
 
-## 2026-07-16 — Removed the butt-seam setting: it could only ever make a job worse
+## 2026-07-15 (cont'd 10) — Removed the butt-seam setting: it could only ever make a job worse
 
 The supplier cuts rolls to length, which makes butt seams across a roll join a switch
 with no upside. Demonstrated across every combination on a job of primary 60+30 and
@@ -2382,7 +2431,7 @@ setting pointless.
 
 ---
 
-## 2026-07-16 — Delete a layer
+## 2026-07-15 (cont'd 9) — Delete a layer
 
 Each additional layer now has a **✕** button in the Layers list. Until now a layer
 imported by mistake could only be hidden or set to "Measure only" — never removed.
@@ -2420,7 +2469,7 @@ only layer leaving no orphaned settings.
 
 ---
 
-## 2026-07-15 — "Use CSV perimeter" on the New Project dialog too
+## 2026-07-15 (cont'd 8) — "Use CSV perimeter" on the New Project dialog too
 
 The cont'd 6 button went on the **Quote Builder's** Edging card — which you only reach
 *after* the project exists. The New Project dialog has its own separate CSV import
@@ -2447,7 +2496,7 @@ all-shapes total, hides again on clear, and offers the same 60 ft that
 
 ---
 
-## 2026-07-15 — Live link ships ON; README test count corrected (the "+43 offset" was just wrong)
+## 2026-07-15 (cont'd 7) — Live link ships ON; README test count corrected (the "+43 offset" was just wrong)
 
 **Auto-apply already existed and was already the default** — `isLiveLinkOn()` returns
 `liveLink !== false`, `scheduleLinkedSync()` runs at the end of every
@@ -2483,7 +2532,7 @@ auto-applied figures are layer-aware (Ordered 825 not 422, Installed 566.9 not 4
 
 ---
 
-## 2026-07-15 — "Use layout perimeter" for edging; Apply Area now counts every layer
+## 2026-07-15 (cont'd 6) — "Use layout perimeter" for edging; Apply Area now counts every layer
 
 **New: one-click edging from the layout.** A *"↧ Use layout perimeter (X ft)"* button
 under **Linear Feet of Edging** fills the field with the layout's total boundary
@@ -2520,7 +2569,7 @@ quietly bundled into this fix.
 
 ---
 
-## 2026-07-15 — Multi-layer: the Piece List and Rolls to order now see every layer
+## 2026-07-15 (cont'd 5) — Multi-layer: the Piece List and Rolls to order now see every layer
 
 Reported from a live 2-layer job: the top bar read **Linear Ft 55**, the panel showed
 **Primary Shape 42 lf + Shed yard 13 lf**, but the Piece List listed only the
@@ -2557,7 +2606,7 @@ single-layer jobs unchanged.
 
 ---
 
-## 2026-07-15 — A layer drag no longer dies at the edge of the canvas
+## 2026-07-15 (cont'd 4) — A layer drag no longer dies at the edge of the canvas
 
 A shape couldn't be dragged past a point well short of the visible panel — most
 obvious when zoomed out, where the drawing stopped around 64% of the way across an
@@ -2586,7 +2635,7 @@ Node harness; verified on-device.
 
 ---
 
-## 2026-07-15 — Move Layers: the view now grows when a shape is dropped out of frame
+## 2026-07-15 (cont'd 3) — Move Layers: the view now grows when a shape is dropped out of frame
 
 Dragging a layer past the edge of the canvas cut it off, and the view never expanded
 to show it. Reported straight after (cont'd 2) unblocked moving a second CSV — the
@@ -2619,7 +2668,7 @@ reason.
 
 ---
 
-## 2026-07-15 — Revert: install layers are movable again (multi-CSV jobs were unlayoutable)
+## 2026-07-15 (cont'd 2) — Revert: install layers are movable again (multi-CSV jobs were unlayoutable)
 
 **Reverts the ban added in (cont'd 12).** Reported from a live job: importing a
 primary Moasure CSV and then a second one ("Shed yard — Base Layer") gave two shapes
@@ -2651,7 +2700,7 @@ because the ban is gone.
 
 ---
 
-## 2026-07-15 — Fix: the Cut List subtotal contradicted the pieces it listed
+## 2026-07-15 (cont'd) — Fix: the Cut List subtotal contradicted the pieces it listed
 
 Reported from a live job: the Cut List printed **Piece 1 = 7'1"** and **Piece 2 =
 23'8"** — 30'9" between them — under a subtotal reading **"33.0 ft total cut"**.
@@ -2714,7 +2763,7 @@ against the previous build (it reported "33.0 ft total linear footage").
 
 ---
 
-## 2026-07-15 — Butt seams now default OFF: they save nothing on a cut-to-length supply
+## 2026-07-14 (cont'd 20) — Butt seams now default OFF: they save nothing on a cut-to-length supply
 
 Confirmed the supplier **cuts rolls to length**. That collapses the trade-off the
 (cont'd 16) setting was built around: **butt seams save no material.** Total footage
@@ -2747,7 +2796,7 @@ called out in (cont'd 16).
 
 ---
 
-## 2026-07-15 — "Rolls to order": the length each roll actually needs to be
+## 2026-07-14 (cont'd 19) — "Rolls to order": the length each roll actually needs to be
 
 The Piece List gave total linear footage and a roll count, but never the figure you
 order against: **how long each individual roll needs to be**. That gap costs money
@@ -2774,7 +2823,7 @@ empty/degenerate layouts safe; plus the summary actually rendering in the piece 
 
 ---
 
-## 2026-07-15 — Fix: the butt-seam checkbox didn't do anything
+## 2026-07-14 (cont'd 18) — Fix: the butt-seam checkbox didn't do anything
 
 Unticking "Allow butt seams across roll joins" had no effect — the layout still drew
 seams, and returning to Settings showed the box ticked again. The setting shipped
@@ -2804,7 +2853,7 @@ the previous build.
 
 ---
 
-## 2026-07-15 — Roll-join butt seams are drawn on the diagram
+## 2026-07-14 (cont'd 17) — Roll-join butt seams are drawn on the diagram
 
 The seam forced by a roll join was in the numbers and the Piece List but not on the
 CAD drawing — no use to a crew working off the diagram. Each forced seam is now
@@ -2829,7 +2878,7 @@ on-device.
 
 ---
 
-## 2026-07-15 — Butt seams across roll joins are now a setting, not an assumption
+## 2026-07-14 (cont'd 16) — Butt seams across roll joins are now a setting, not an assumption
 
 **Correction to (cont'd 15).** That entry claimed `ceil(totalLinearFt ÷ rollLength)`
 *under-orders*. It doesn't — it's correct **if** you butt-seam across the roll join
@@ -2866,7 +2915,7 @@ exercising the opposite of the shipped default.
 
 ---
 
-## 2026-07-15 — Rolls are packed, not divided: pieces can no longer span a roll join
+## 2026-07-14 (cont'd 15) — Rolls are packed, not divided: pieces can no longer span a roll join
 
 **Material bug.** Reported from a live job: Roll 1 was labelled with pieces of 18 +
 10 + 42 + 43 ft = **113 ft on a 100 ft roll**. A piece is cut in one continuous run
@@ -2905,7 +2954,7 @@ the correction, not a regression. Ordered SqFt (manual) is unchanged.
 
 ---
 
-## 2026-07-14 — Edit Shape shows the shape: nested pieces draw at home while editing
+## 2026-07-14 (cont'd 14) — Edit Shape shows the shape: nested pieces draw at home while editing
 
 Editing a layer whose pieces were nested elsewhere split it into two disjoint things
 on screen: the body over in some roll's waste, and the outline with its edit dots
@@ -2929,7 +2978,7 @@ Node harness; verified on-device.
 
 ---
 
-## 2026-07-14 — Edit dots now always sit on a visible outline
+## 2026-07-14 (cont'd 13) — Edit dots now always sit on a visible outline
 
 The edit dots for an added (install) layer appeared to float in empty white space
 instead of on the shape. They weren't misplaced — they were on the layer's real
@@ -2954,7 +3003,7 @@ Node harness; verified on-device.
 
 ---
 
-## 2026-07-14 — Install-layer outlines no longer wander away from their pieces
+## 2026-07-14 (cont'd 12) — Install-layer outlines no longer wander away from their pieces
 
 Root cause of the long-running "moved layer edits in the wrong place" bug — and it
 was never a coordinate problem. **An install (added) layer's visible body is its cut
@@ -2990,7 +3039,7 @@ correct for the layer types that *can* move.
 
 ---
 
-## 2026-07-14 — Moved shapes are now edited in place, not back at the origin
+## 2026-07-14 (cont'd 11) — Moved shapes are now edited in place, not back at the origin
 
 After moving a layer with Move Layers, entering Edit Shape mode dropped you back at
 the shape's pre-move origin to drag its points — the move was saved (it lived as a
@@ -3019,7 +3068,7 @@ wiring itself (canvas) is verified on-device.
 
 ---
 
-## 2026-07-14 — Zoom now works while in Move Layers mode
+## 2026-07-14 (cont'd 10) — Zoom now works while in Move Layers mode
 
 Zoom was a no-op the entire time Move Layers mode was on — you couldn't enlarge
 the canvas to place shapes precisely. Cause: Move Layers holds
@@ -3041,7 +3090,7 @@ canvas, shapes still drop where aimed, and other shapes don't jump.
 
 ---
 
-## 2026-07-13 — Top-bar metrics no longer clip at the right edge
+## 2026-07-14 (cont'd 9) — Top-bar metrics no longer clip at the right edge
 
 The always-visible layout totals (Installed / Ordered / Linear ft / Perimeter /
 Scrap) were pinned to the far right of the tab bar (`margin-left: auto`), so on a
@@ -3057,7 +3106,7 @@ CSS-only change — tests unchanged at **1005** (README **1048**). Verified in-b
 
 ---
 
-## 2026-07-13 — Quiet the benign "ResizeObserver loop" console error
+## 2026-07-14 (cont'd 8) — Quiet the benign "ResizeObserver loop" console error
 
 The layout canvas's `ResizeObserver` called `sizeLayoutCanvas()` synchronously,
 which resizes the canvas *inside* the observed wrapper — re-entering the observer
@@ -3073,7 +3122,7 @@ Node harness, so this is verified in-browser.
 
 ---
 
-## 2026-07-13 — Removed the duplicate Roll Direction / Seam Offset block from Layers
+## 2026-07-14 (cont'd 7) — Removed the duplicate Roll Direction / Seam Offset block from Layers
 
 The Roll Direction + Seam Offset sliders that (cont'd 5) placed at the top of the
 Layers tab duplicated the per-layer controls: the primary shape already has its own
@@ -3091,7 +3140,7 @@ and element IDs are unchanged.
 
 ---
 
-## 2026-07-13 — Fix: first-launch crash after moving totals to the top bar
+## 2026-07-14 (cont'd 6) — Fix: first-launch crash after moving totals to the top bar
 
 Moving the totals strip into the `.tabs` bar (cont'd 5) made it the last child of
 that bar, so `.tab:last-child` — used on first launch to route to the Settings
@@ -3108,7 +3157,7 @@ verified by removing the null source and guarding the consumer.
 
 ---
 
-## 2026-07-13 — Layout: totals moved to the top bar; Roll & Seam folded into Layers
+## 2026-07-14 (cont'd 5) — Layout: totals moved to the top bar; Roll & Seam folded into Layers
 
 Moved the five live layout totals — **Installed SqFt, Ordered SqFt, Ordered
 Linear Ft, Perimeter, Scrap** — out of the right pane and into the **top toolbar**,
@@ -3128,7 +3177,7 @@ the visual layout is verified on-device.
 
 ---
 
-## 2026-07-13 — Move Layers: grab the shape you clicked (topmost) + "Moving:" confirmation
+## 2026-07-14 (cont'd 4) — Move Layers: grab the shape you clicked (topmost) + "Moving:" confirmation
 
 With several shapes arranged into one yard, dragging a layer could grab a
 *different* shape sitting underneath the one you clicked. The hit-test scanned
@@ -3148,7 +3197,7 @@ shape.
 
 ---
 
-## 2026-07-13 — Move Layers: view stays put so shapes stay where you drop them
+## 2026-07-14 (cont'd 3) — Move Layers: view stays put so shapes stay where you drop them
 
 Dragging a layer in Move Layers mode dropped it, then the canvas immediately
 **re-fit to frame everything** — rescaling and recentering the whole view, so the
@@ -3169,7 +3218,7 @@ on-device — the freeze/re-fit timing isn't headlessly testable.
 
 ---
 
-## 2026-07-13 — Fix: Print / PDF still printed nothing (iframe wasn't laid out)
+## 2026-07-14 (cont'd 2) — Fix: Print / PDF still printed nothing (iframe wasn't laid out)
 
 The previous fix moved printing into a hidden `<iframe>`, but styled it
 `visibility:hidden; width:0; height:0`. Chromium/Electron don't lay out or paint
@@ -3185,7 +3234,7 @@ headlessly verifiable — confirmed by printing a real job on-device.
 
 ---
 
-## 2026-07-13 — Fix: Cut List "Print / PDF" printed a blank page
+## 2026-07-14 (cont'd) — Fix: Cut List "Print / PDF" printed a blank page
 
 The first cut of the Print/PDF button used an `@media print` stylesheet that hid
 every element except an off-screen print node — but that node lived **inside the
@@ -3207,7 +3256,7 @@ and has valid defaults with no args.
 
 ---
 
-## 2026-07-13 — Cut List: S-seam cut width + Print / PDF for installers
+## 2026-07-14 — Cut List: S-seam cut width + Print / PDF for installers
 
 **Cut width now accounts for the S-Seam Side Trim.** The Cut List's per-piece
 "× wide" figure was showing the *trimmed footprint* width (e.g. 14'8" = the 15'
@@ -3239,7 +3288,7 @@ note. In-app Cut List docs updated for both the cut-width behavior and Print/PDF
 
 ---
 
-## 2026-07-13 — Fix: cut list showed roll width (15.0) instead of the real cut size
+## 2026-06-21 (cont'd, 81) — Fix: cut list showed roll width (15.0) instead of the real cut size
 
 The per-piece cut text read "Cut 15.0 × 13.0 ft off the roll" — the **15.0 was the full roll width**,
 printed for every piece even though each trimmed piece is narrower, and it didn't say which number was
@@ -4464,7 +4513,7 @@ roll's leftover, order less roll):
 
 ---
 
-## 2026-06-21 — Nesting eligibility is now a genuine 2D fit (no more phantom savings / turf-jamming)
+## 2026-06-21 (cont'd, 31) — Nesting eligibility is now a genuine 2D fit (no more phantom savings / turf-jamming)
 
 Replaces the old **area-only** nesting test (`pieceArea ≤ rollWaste`) with a real
 2D fit. The area test over-reported badly on irregular yards: a roll's "waste area"
@@ -4518,7 +4567,7 @@ drop it, and that secondary-layer nesting is unaffected.
 
 ---
 
-## 2026-06-20 — Per-layer nesting works end-to-end (Phase 3b inc 2)
+## 2026-06-20 (cont'd, 30) — Per-layer nesting works end-to-end (Phase 3b inc 2)
 
 Fixes the off-target nesting drop on multi-install-layer jobs: a piece dragged
 within a **secondary** install layer now nests into another roll's waste **in that
@@ -4648,7 +4697,7 @@ input updates the canvas only; the list rebuilds on drag end).
 
 ---
 
-## 2026-06-20 — Fix: per-layer Roll dir / Seam off sliders now drag
+## 2026-06-17 (cont'd, 27) — Fix: per-layer Roll dir / Seam off sliders now drag
 
 The per-layer **Roll dir** and **Seam off** sliders in the Layers list could only
 be clicked, not dragged. Cause: their `oninput` handlers called
@@ -4668,7 +4717,7 @@ deferred to `onchange` (drag end), running once.
 
 ---
 
-## 2026-06-20 — Refactor: single source of truth for effective roll width
+## 2026-06-17 (cont'd, 26) — Refactor: single source of truth for effective roll width
 
 No behavior change. The usable-roll-width-after-trim formula
 (`Math.max(0.01, rollWidth − sideTrim)`) was copy-pasted at five sites. Extracted
@@ -4683,7 +4732,7 @@ lives in one place and can't drift.
 
 ---
 
-## 2026-06-20 — Phase 3b (increment 1): per-layer cut/nest key namespacing
+## 2026-06-17 (cont'd, 25) — Phase 3b (increment 1): per-layer cut/nest key namespacing
 
 Foundation for per-layer manual cuts and nesting, plus a fix for a latent
 cross-layer bleed.
@@ -4714,7 +4763,7 @@ paused drop-placement bug lives; (3) per-layer labels in the cut/nest UI lists.
 
 ---
 
-## 2026-06-20 — Alt Turf option no longer gated on a field it ignores
+## 2026-06-17 (cont'd, 24) — Alt Turf option no longer gated on a field it ignores
 
 An Alt Turf option is priced on the **base yard** area (`sqFt: baseSqFt`), so the
 alt row's own Installed SqFt was ignored for labor — yet it silently gated whether
@@ -4746,7 +4795,7 @@ labor area).
 
 ---
 
-## 2026-06-20 — "Apply Area" is role-aware (base/alt include the green)
+## 2026-06-17 (cont'd, 23) — "Apply Area" is role-aware (base/alt include the green)
 
 Closes a latent inverse of the PG-material question. The Layout tab subtracts a
 putting-green layer from the primary's Installed Area (like an Exclude hole), and
@@ -4776,7 +4825,7 @@ manually from the Moasure whole-yard total, behavior is unchanged.
 
 ---
 
-## 2026-06-18 — End-to-end quote regression suite
+## 2026-06-17 (cont'd, 22) — End-to-end quote regression suite
 
 Adds section 53: a reusable harness (`qEnv`) that renders real quote cards through
 `loadProject` → `calcQuote` and asserts the dollar figures, line items, and card
@@ -4804,7 +4853,7 @@ produces no PG card, N6 negative margin treated as no margin.
 
 ---
 
-## 2026-06-18 — PG infill auto-tier, misc items broken out, "install" wording
+## 2026-06-17 (cont'd, 21) — PG infill auto-tier, misc items broken out, "install" wording
 
 ### "Refresh from SqFt" now works for putting green infill
 Root cause: a putting-green infill product added with the default Standard tier
@@ -4835,7 +4884,7 @@ Tier dropdown (which now re-derives sqft on change).
 
 ---
 
-## 2026-06-17 — Putting green quote cards: turf material, label, no empty standard line
+## 2026-06-17 (cont'd, 20) — Putting green quote cards: turf material, label, no empty standard line
 
 Fixes three issues on putting-green quote cards (seen on a PG-only job):
 
@@ -4857,7 +4906,7 @@ Fixes three issues on putting-green quote cards (seen on a PG-only job):
 
 ---
 
-## 2026-06-17 — Quote cards: roomier layout, margin $ line, no empty PG-only card
+## 2026-06-17 (cont'd, 19) — Quote cards: roomier layout, margin $ line, no empty PG-only card
 
 ### Margin dollar amount
 Each quote card with a profit margin now shows three figures — **Cost (COGS)**,
@@ -4881,7 +4930,7 @@ more room and don't cramp when several options show.
 
 ---
 
-## 2026-06-17 — Fix: putting green infill not affecting quote pricing
+## 2026-06-17 (cont'd, 18) — Fix: putting green infill not affecting quote pricing
 
 ### Bug
 Setting an infill row's Tier to **Putting Green** didn't re-derive that row's sqft.
@@ -4906,7 +4955,7 @@ quote pricing.
 
 ---
 
-## 2026-06-17 — Fix: editing/renaming a labor line wiped its tiered pricing
+## 2026-06-17 (cont'd, 17) — Fix: editing/renaming a labor line wiped its tiered pricing
 
 ### Bug
 `saveRateItem` rebuilt the labor item from only `{id, name, desc, unit, rate, key}`,
@@ -4925,7 +4974,7 @@ New items (no existing) still start clean. `saveRateItem` now uses it.
 
 ---
 
-## 2026-06-17 — Tier editor: clearer range entry, pre-filled tiers
+## 2026-06-17 (cont'd, 16) — Tier editor: clearer range entry, pre-filled tiers
 
 Fixes the confusion where adding a tier showed a "From 0" that couldn't be edited
 and new tiers appeared blank/0. The lower bound was always an auto-derived value
@@ -4953,7 +5002,7 @@ and new tiers appeared blank/0. The lower bound was always an auto-derived value
 
 ---
 
-## 2026-06-17 — Tiered pricing: non-overlapping whole-sqft ranges
+## 2026-06-17 (cont'd, 15) — Tiered pricing: non-overlapping whole-sqft ranges
 
 ### Brackets now read as clean integer ranges
 Tier brackets are displayed as non-overlapping whole-sqft ranges: the lower bound is
@@ -4978,7 +5027,7 @@ out alongside the standard tiers.
 
 ---
 
-## 2026-06-17 — Phase 3a: per-layer roll direction & seam offset
+## 2026-06-17 (cont'd, 14) — Phase 3a: per-layer roll direction & seam offset
 
 Multi-layer install layers can now each roll in their **own direction** instead of
 sharing one global roll direction — so a yard measured as several sections can roll
@@ -5018,7 +5067,7 @@ each section the way that minimizes its own waste.
 
 ---
 
-## 2026-06-17 — User Guide TOC, sticky layout toolbar, Basic/Advanced sidebar, tiered-pricing ranges
+## 2026-06-17 (cont'd, 13) — User Guide TOC, sticky layout toolbar, Basic/Advanced sidebar, tiered-pricing ranges
 
 ### User Guide: table of contents
 A clickable contents list at the top of the User Guide jumps to any of the nine
@@ -5062,7 +5111,7 @@ auto-opens Advanced so the cut/nest tools are visible. All field ids unchanged.
 
 ---
 
-## 2026-06-17 — Move Layers no longer jitters; Edit Shape works on any layer
+## 2026-06-17 (cont'd, 12) — Move Layers no longer jitters; Edit Shape works on any layer
 
 ### Fix: moving one layer made the others jump around
 In Move Layers mode, each drag step called `renderRollLayout`, which recomputed the auto-fit
@@ -5096,7 +5145,7 @@ visible layers** and edits whichever one you grab:
 
 ---
 
-## 2026-06-17 — Multi-layer install Phase 2: each layer's roll plan drawn on the canvas
+## 2026-06-17 (cont'd, 11) — Multi-layer install Phase 2: each layer's roll plan drawn on the canvas
 
 ### Per-layer roll plans now render in place
 Building on Phase 1 (math + summed totals), each install layer's roll plan is now drawn on the
@@ -5125,7 +5174,7 @@ include every install layer's roll rects so nothing is clipped. The primary's re
 
 ---
 
-## 2026-06-17 — Multi-layer install: each layer its own rolls, summed (Phase 1)
+## 2026-06-17 (cont'd, 10) — Multi-layer install: each layer its own rolls, summed (Phase 1)
 
 ### New "Install" layer mode (now the default)
 Multi-layer Moasure files often capture a yard as several separate pieces, not one outline
@@ -5169,7 +5218,7 @@ actually a cutout, set it to Exclude in the Layers list.
 
 ---
 
-## 2026-06-16 — Nested piece stays exactly where you drop it (centroid match)
+## 2026-06-17 (cont'd, 9) — Nested piece stays exactly where you drop it (centroid match)
 
 ### The piece jumped off the cursor onto the turf
 While dragging, the ghost centers the piece's **centroid** under the cursor, but the drop code
@@ -5195,7 +5244,7 @@ anti-stacking nudge is unchanged. Net effect: the piece stays right where you dr
 
 ---
 
-## 2026-06-16 — Nesting: area decides, piece goes where you drop it
+## 2026-06-17 (cont'd, 8) — Nesting: area decides, piece goes where you drop it
 
 ### Corrected the fit test (it was measuring the wrong thing)
 The previous build refused to relocate a nested piece unless a clear *full-roll-width* column
@@ -5224,7 +5273,7 @@ and the rejection toast were removed.
 
 ---
 
-## 2026-06-16 — Nested pieces never overlap turf (geometry-aware) + layout integration tests
+## 2026-06-17 (cont'd, 7) — Nested pieces never overlap turf (geometry-aware) + layout integration tests
 
 ### Root cause found: full-width pieces vs partial-width waste
 A nested piece is always the full roll width, but a roll's leftover waste is usually
@@ -5259,7 +5308,7 @@ and the `_nestNoFit` flag.
 
 ---
 
-## 2026-06-16 — Nested pieces never overlap turf or each other
+## 2026-06-17 (cont'd, 6) — Nested pieces never overlap turf or each other
 
 ### Fix: pieces nested in the same roll no longer overlap
 Placement previously avoided the target roll's installed turf but not other pieces already
@@ -5288,7 +5337,7 @@ overlaps — not turf, not other nested pieces.
 
 ---
 
-## 2026-06-16 — Nested piece honors the drop AND stays off the turf
+## 2026-06-17 (cont'd, 5) — Nested piece honors the drop AND stays off the turf
 
 ### Follow-up to the drop-point placement fix
 The previous change made a dropped piece land where you dropped it, but it removed all
@@ -5319,7 +5368,7 @@ clear waste is kept exactly where dropped.
 
 ---
 
-## 2026-06-16 — Nested pieces land where you drop them
+## 2026-06-17 (cont'd, 4) — Nested pieces land where you drop them
 
 ### Fix: moving a cut piece to a waste area now honors the drop point
 Previously, dropping a piece into a roll's waste area only recorded *which* roll it went
@@ -5353,7 +5402,7 @@ nested before this change (with no stored position) still auto-place as before.
 
 ---
 
-## 2026-06-16 — Per-crew tiered (sqft-based) labor pricing
+## 2026-06-17 (cont'd, 3) — Per-crew tiered (sqft-based) labor pricing
 
 ### New feature: tiered pricing for standard & putting-green install rates
 A crew's per-sqft **Standard Turf Install** and **Putting Green Install** rates can now
@@ -5390,7 +5439,7 @@ green rate tiers off the putting green area.
 
 ---
 
-## 2026-06-16 — Cut/move/reset clarity; per-piece Put back tests
+## 2026-06-17 (cont'd, 2) — Cut/move/reset clarity; per-piece Put back tests
 
 ### UX clarity: distinguishing cuts from moved (nested) pieces
 Users were conflating two separate things — *clearing a cut* vs *putting a moved piece
@@ -5420,7 +5469,7 @@ complete (multiple cuts, multiple independent moves, and per-piece reset via the
 
 ---
 
-## 2026-06-16 — Cut Mode drag-to-nest fix; dead test section removed; test gate
+## 2026-06-17 (cont'd) — Cut Mode drag-to-nest fix; dead test section removed; test gate
 
 ### Bug fix: can't move a piece to a waste area while in Cut Mode
 The earlier "cut disappears" fixes (touch-coordinate fallback, click-in-place guard in
@@ -5462,7 +5511,7 @@ area without switching modes. In-app docs updated to match.
 
 ---
 
-## 2026-06-15 — Nesting/cut persistence fix; multi-CSV reverted
+## 2026-06-17 — Nesting/cut persistence fix; multi-CSV reverted
 
 ### Bug fix: cut disappears when moving a piece to a waste area
 Two bugs caused the cut to vanish immediately after dropping a piece into a waste area:
@@ -5483,7 +5532,7 @@ The multi-CSV feature (additive imports, "Base Turf Area" secondary shape mode, 
 
 ---
 
-## 2026-06-15 — Multi-CSV import + Base Turf Area mode (reverted)
+## 2026-06-16 (cont'd, 2) — Multi-CSV import + Base Turf Area mode (reverted)
 
 ### Bug fix: cut disappears / nesting clears immediately after dropping a piece
 Two separate bugs caused this:
@@ -5502,7 +5551,7 @@ No new test sections (the bugs were in canvas event handling, which requires a r
 
 ---
 
-## 2026-06-15 — Multi-CSV import + Base Turf Area mode
+## 2026-06-16 (cont'd, 2) — Multi-CSV import + Base Turf Area mode
 
 ### New feature: import multiple separate Moasure CSVs into one project
 - "Import CSV" no longer replaces the whole layout on a second import — the first import still sets the primary shape as before, but every CSV imported after that appends its shape(s) as additional layers, for jobs where the yard was measured in more than one Moasure session
@@ -5520,7 +5569,7 @@ No new test sections (the bugs were in canvas event handling, which requires a r
 
 ---
 
-## 2026-06-15 — Stray line fix, round 2
+## 2026-06-16 (cont'd) — Stray line fix, round 2
 
 ### Bug fix: stray line still appeared with "Show purchased roll rectangles" on
 - The previous fix (same day) suppressed a degenerate strip's clipped polygon and ordered length, but missed that its purchased-rectangle outline (`displayRect`) still had 4 points even though they collapsed to zero area — and the canvas drawing code only checks `.length` (truthy with 4 points) before drawing that rectangle's hatching and outline
@@ -5534,7 +5583,7 @@ No new test sections (the bugs were in canvas event handling, which requires a r
 
 ---
 
-## 2026-06-15 — Stray line fix (round 1), cutting margin prominence
+## 2026-06-16 — Stray line fix (round 1), cutting margin prominence
 
 ### Bug fix: stray line at extreme seam offset
 - Fixed a rendering bug where, at certain Seam Offset slider positions (especially the extremes), a thin "ghost" strip could appear as a stray horizontal line extending well past the actual yard shape
@@ -5591,7 +5640,7 @@ No new test sections (the bugs were in canvas event handling, which requires a r
 
 ---
 
-## 2026-06-15 — Fringe cuts optimization, piece list, piece visibility toggle
+## 2026-06-14 — Fringe cuts optimization, piece list, piece visibility toggle
 
 ### Putting Green Fringe — edge merging for fewer seams
 - Added `mergeCollinearEdges(pgPoints, maxDeviation, maxRunLength)` — greedily merges consecutive near-straight edges into single chord pieces where all intermediate vertices stay within `width/2` of the chord, capped at `rollLength - width` per piece
@@ -5616,7 +5665,7 @@ No new test sections (the bugs were in canvas event handling, which requires a r
 
 ---
 
-## 2026-06-15 — Putting Green Fringe (initial implementation)
+## 2026-06-13 — Putting Green Fringe (initial implementation)
 
 ### New feature: Putting Green Fringe
 - New layer mode `'putting-green'` for secondary Moasure shapes (alongside existing `'exclude'` and `'ignore'`)
@@ -5638,7 +5687,7 @@ No new test sections (the bugs were in canvas event handling, which requires a r
 
 ---
 
-## 2026-06-15 — Piece List, docs sweep, fringe groundwork
+## 2026-06-12 — Piece List, docs sweep, fringe groundwork
 
 ### Layout tab
 - Roll Results section restructured: Manual Cuts list and Piece List added below the roll diagram
@@ -5663,7 +5712,7 @@ No new test sections (the bugs were in canvas event handling, which requires a r
 
 ---
 
-## 2026-06-15 — Global Roll/Piece labeling, profit margin, sort persistence
+## 2026-06-11 — Global Roll/Piece labeling, profit margin, sort persistence
 
 ### Roll/Piece labeling
 - `assignRollPieceLabels(layout)` — walks all strips/pieces in array order, tracks cumulative ordered length, starts new roll when crossing a multiple of `rollLength`
@@ -5689,7 +5738,7 @@ No new test sections (the bugs were in canvas event handling, which requires a r
 
 ---
 
-## 2026-06-15 — New Project modal, role selection, rock catalog
+## 2026-06-10 — New Project modal, role selection, rock catalog
 
 ### New Project modal
 - Supports both "installed sqft" and "sqft to order" fields per turf product
@@ -5708,7 +5757,7 @@ No new test sections (the bugs were in canvas event handling, which requires a r
 
 ---
 
-## 2026-06-15 — Initial build
+## 2026-06-09 — Initial build
 
 ### Core architecture
 - Single self-contained HTML/CSS/JS file (`waterloo_turf_calculator.html`)

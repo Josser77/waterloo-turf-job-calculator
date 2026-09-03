@@ -1220,15 +1220,14 @@
         All
       </label>
     </div>
-    <div style="position:relative;margin:0 0 8px;">
+    <div style="position:relative;margin:0 10px 8px;">
       <input type="text" id="projectSearch" placeholder="Search projects…" autocomplete="off"
         oninput="onProjectSearch(this.value)"
         style="width:100%;box-sizing:border-box;padding:6px 26px 6px 10px;font-size:13px;border:1px solid rgba(255,255,255,0.18);border-radius:7px;background:rgba(255,255,255,0.08);color:#fff;">
       <span id="projectSearchClear" onclick="clearProjectSearch()" title="Clear search"
         style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;color:rgba(255,255,255,0.6);font-size:14px;line-height:1;">✕</span>
     </div>
-    <div class="status-filter-bar" id="statusFilterBar" style="display:flex;gap:4px;margin:0 0 8px;">
-      <button class="status-filter-btn" data-status="all" onclick="setStatusFilter('all',this)">All</button>
+    <div class="status-filter-bar" id="statusFilterBar" style="display:flex;gap:4px;margin:0 10px 8px;">
       <button class="status-filter-btn" data-status="pending" onclick="setStatusFilter('pending',this)">Pending</button>
       <button class="status-filter-btn" data-status="won" onclick="setStatusFilter('won',this)">Won</button>
       <button class="status-filter-btn" data-status="lost" onclick="setStatusFilter('lost',this)">Lost</button>
@@ -1942,6 +1941,12 @@
             <div style="align-self:start;font-size:11px;color:var(--text-light);line-height:1.4;">Total width trimmed off the roll for the S-seam — enter both edges <strong>combined</strong>, not per side (usable width = roll width − trim). E.g. 4 in means 4 in total.</div>
             <div style="align-self:start;font-size:11px;color:var(--text-light);line-height:1.4;">Added once to <strong>each cut piece</strong> (a single allowance, not per end) before rounding up to the next whole foot.</div>
           </div>
+          <label style="display:flex;align-items:flex-start;gap:8px;margin-top:14px;max-width:880px;cursor:pointer;">
+            <input type="checkbox" id="allowButtSeamsInput" style="width:auto;margin:2px 0 0;" onchange="onRollSettingEdit('allowJoinSeams', this)">
+            <span style="font-size:12px;color:var(--text);"><strong>Allow butt seams across roll joins</strong>
+              <span style="display:block;font-size:11px;color:var(--text-light);line-height:1.4;margin-top:2px;">Off (default): a run that doesn't fit the rest of a roll starts a fresh roll, so every run is seamless — costs more rolls. On: fill the roll and continue the run on the next roll with a butt seam — fewer rolls, but an extra seam in the lawn. Only changes the <strong>roll count</strong>; ordered linear feet is the same either way.</span>
+            </span>
+          </label>
         </div>
 
         <!-- TURF CATALOG -->
@@ -3866,7 +3871,7 @@ function renderSidebar() {
     const st = b.dataset.status;
     b.classList.toggle('active', st === statusFilter);
     const label = st.charAt(0).toUpperCase() + st.slice(1);
-    b.textContent = `${label} ${counts[st]}`;
+    b.textContent = `${label} (${counts[st]})`;
   });
 
   if (sortMode === 'name') sorted.sort((a,b)=>a.name.localeCompare(b.name));
@@ -3930,7 +3935,7 @@ function filterProjects(projects, query) {
 // Filter projects by status. 'all' → everything; 'won'/'lost' match exactly; 'pending' means
 // anything not won or lost (the default state). Non-mutating. Pure/testable.
 function setStatusFilter(status, el) {
-  window._wtStatusFilter = status || 'all';
+  window._wtStatusFilter = (window._wtStatusFilter === status) ? 'all' : (status || 'all');
   renderSidebar();
 }
 function filterByStatus(projects, status) {
@@ -8022,6 +8027,14 @@ function renderLayersList(proj) {
   function rollGroupControl(layerId) {
     if (!showRollGroup) return '';
     const grp = getLayerRollGroup(proj, layerId);
+    // Show what this layer's setting actually does to the roll count for this job.
+    let hint = '';
+    const counts = rollGroupRollCounts(window._wtCurrentRollLayout, layerId);
+    if (counts) {
+      hint = (counts.share === counts.own)
+        ? `<div style="font-size:10px;color:var(--text-light);margin-top:2px;">Same roll count either way for this job.</div>`
+        : `<div style="font-size:10px;color:var(--text-light);margin-top:2px;">Share: ${counts.share} roll${counts.share===1?'':'s'} · Own: ${counts.own} roll${counts.own===1?'':'s'}</div>`;
+    }
     return `
         <div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-top:5px;">
           <span style="color:var(--text-light);white-space:nowrap;">Rolls</span>
@@ -8029,7 +8042,7 @@ function renderLayersList(proj) {
             <option value="shared" ${grp==='shared'?'selected':''}>Share rolls with other layers</option>
             <option value="own" ${grp==='own'?'selected':''}>Roll on its own</option>
           </select>
-        </div>`;
+        </div>${hint}`;
   }
 
   function hasOffset(layerId) {
@@ -9683,16 +9696,10 @@ function getRollOpts(proj) {
     rollLength: document.getElementById('rollLengthInput').value,
     sideTrim: document.getElementById('sideTrimInput').value,
     cuttingMargin: document.getElementById('cuttingMarginInput').value,
-    // Butt seams across roll joins: a real trade-off (fewest rolls vs seamless
-    // runs), so it flows through to packing the same way the dimensions do.
-    // Butt seams across roll joins: hard-wired OFF. The supplier cuts rolls to
-    // length, so seaming a run across a join saves ZERO material — total footage is
-    // identical either way (three 60ft runs = 180ft as 2 seamed rolls or 3 seamless
-    // ones); it only redistributes footage between rolls. Its only possible effect is
-    // an extra seam in a lawn, so it's no longer a setting. packPiecesIntoRolls still
-    // takes the flag (and is tested both ways) — flip this to true if a fixed-length
-    // supply ever makes filling a roll worth a seam.
-    allowJoinSeams: false,
+    // Butt seams across roll joins — user setting (Settings → Roll Settings), default OFF
+    // (seamless runs; a run that doesn't fit starts a fresh roll). On: fill the roll and
+    // continue across a join with a butt seam (fewer rolls). Only changes the roll count.
+    allowJoinSeams: !!(document.getElementById('allowButtSeamsInput') && document.getElementById('allowButtSeamsInput').checked),
     nesting: (proj && proj.layout && proj.layout.nesting) || {},
     nestPos: (proj && proj.layout && proj.layout.nestPos) || {},
     nestRot: (proj && proj.layout && proj.layout.nestRot) || {},
@@ -9741,14 +9748,7 @@ function rollDefaultsFromInputs() {
     rollLength: num('rollLengthInput', 100),
     sideTrim: num('sideTrimInput', 0),
     cuttingMargin: num('cuttingMarginInput', 0),
-    // Butt seams across roll joins: hard-wired OFF. The supplier cuts rolls to
-    // length, so seaming a run across a join saves ZERO material — total footage is
-    // identical either way (three 60ft runs = 180ft as 2 seamed rolls or 3 seamless
-    // ones); it only redistributes footage between rolls. Its only possible effect is
-    // an extra seam in a lawn, so it's no longer a setting. packPiecesIntoRolls still
-    // takes the flag (and is tested both ways) — flip this to true if a fixed-length
-    // supply ever makes filling a roll worth a seam.
-    allowJoinSeams: false,
+    allowJoinSeams: !!(document.getElementById('allowButtSeamsInput') && document.getElementById('allowButtSeamsInput').checked),
   };
 }
 function loadRollDefaultsToInputs() {
@@ -9758,6 +9758,7 @@ function loadRollDefaultsToInputs() {
   set('rollLengthInput', d.rollLength);
   set('sideTrimInput', d.sideTrim);
   set('cuttingMarginInput', d.cuttingMargin);
+  setRollElValue(document.getElementById('allowButtSeamsInput'), d.allowJoinSeams === true);
   updateRollOverrideUI();
 }
 // Reflect override state in the status line + reset link.
@@ -9835,7 +9836,7 @@ function onRollSettingEdit(field, el) {
   openRollScopeDialog(field, newVal, prevVal, el);
 }
 
-const ROLL_FIELD_LABELS = { rollWidth:'Roll Width', rollLength:'Roll Length', sideTrim:'S-seam Side Trim', cuttingMargin:'Cutting Margin' };
+const ROLL_FIELD_LABELS = { rollWidth:'Roll Width', rollLength:'Roll Length', sideTrim:'S-seam Side Trim', cuttingMargin:'Cutting Margin', allowJoinSeams:'Allow Butt Seams' };
 
 function openRollScopeDialog(field, newVal, prevVal, el) {
   const modal = document.getElementById('rollScopeModal');
@@ -10154,6 +10155,30 @@ function computeInstallLayerLayouts(proj, primaryLayout, secondaryShapes, rotati
 // on its own physical roll(s). Lets a multi-layer job order one roll instead of one
 // per layer when the pieces all fit. Only affects the ROLL COUNT, never Ordered SqFt
 // or Linear Ft (you still order the same total footage either way).
+// Total physical rolls for the job with a given layer forced to 'shared' vs 'own',
+// so the Rolls dropdown can show what the choice actually does. Returns {share, own}
+// or null when there aren't multiple install layers. Pure (given the layout).
+function rollGroupRollCounts(layout, layerId) {
+  const entries = layout && layout._installLayers;
+  if (!Array.isArray(entries) || entries.length < 2) return null;
+  const rl = (layout && layout.rollLength) || 100;
+  const seams = !!(layout && layout.allowJoinSeams);
+  const totalFor = (grp) => {
+    const shared = [], own = [];
+    entries.forEach(e => {
+      const L = e && e.layout; if (!L || !Array.isArray(L.strips)) return;
+      const lens = layoutUnitLengths(L); if (!lens.length) return;
+      const g = (e.id === layerId) ? grp : e.rollGroup;
+      if (g === 'own') own.push(lens); else shared.push(...lens);
+    });
+    let n = 0;
+    if (shared.length) n += packPiecesIntoRolls(shared, rl, seams).length;
+    own.forEach(lens => { n += packPiecesIntoRolls(lens, rl, seams).length; });
+    return n;
+  };
+  return { share: totalFor('shared'), own: totalFor('own') };
+}
+
 function getLayerRollGroup(proj, id) {
   const m = (proj && proj.layout && proj.layout.layerRollGroup) || {};
   return m[id] === 'own' ? 'own' : 'shared';
@@ -10699,6 +10724,21 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   const w = canvas.width, h = canvas.height;
   ctx.clearRect(0,0,w,h);
 
+  // ── Label de-clutter registry ───────────────────────────────────────────────
+  // Shared across all label passes. Priority labels (shape names, fringe, roll/piece)
+  // reserve their space with lblForce; the dense dimension labels use lblTry and are
+  // skipped when they'd overlap an already-placed label — which also removes the
+  // duplicate/stacked dimension labels on a busy layout.
+  const _lblRects = [];
+  const _lblOverlap = (a, b) => !(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y);
+  const lblForce = (x, y, ww, hh) => { _lblRects.push({ x, y, w: ww, h: hh }); };
+  const lblTry = (x, y, ww, hh) => {
+    const r = { x, y, w: ww, h: hh };
+    for (const o of _lblRects) if (_lblOverlap(r, o)) return false;
+    _lblRects.push(r);
+    return true;
+  };
+
   // Nothing to draw without a computed layout (e.g. no CSV imported yet). Bail
   // after clearing so every caller — grid toggle, draw-mode exit, annotation
   // edits — is safe to call before a layout exists.
@@ -10938,6 +10978,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       ctx.fillRect(lx - 3, ly - 12, tw + 6, 16);
       ctx.fillStyle = '#1b5e20';
       ctx.fillText(pLabel, lx, ly);
+      lblForce(lx - 3, ly - 12, tw + 6, 16);
       ctx.font = '11px sans-serif';
     }
   }
@@ -11063,6 +11104,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
               ctx.fillRect(c.x-tw/2-2, c.y-11, tw+4, 14);
               ctx.fillStyle = '#946200';
               ctx.fillText(label, c.x-tw/2, c.y);
+              lblForce(c.x-tw/2-2, c.y-11, tw+4, 14);
             });
           } else {
             // Outline only: a smooth offset of the green's actual outline
@@ -11120,6 +11162,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       ctx.fillRect(lx - 2, ly - 11, tw + 4, 14);
       ctx.fillStyle = color;
       ctx.fillText(label, lx, ly);
+      lblForce(lx - 2, ly - 11, tw + 4, 14);
     }
   });
 
@@ -11218,6 +11261,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
         const ly = c.y - e.ny * off;
         const txt = ftIn(e.len);
         const tw = ctx.measureText(txt).width;
+        if (!lblTry(lx - tw/2 - 2, ly - 7, tw + 4, 14)) return; // skip if it collides with a placed label
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
         ctx.fillRect(lx - tw/2 - 2, ly - 7, tw + 4, 14);
         ctx.fillStyle = '#333';
@@ -11264,6 +11308,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
           const lx = c.x + e.nx * off, ly = c.y - e.ny * off;
           const txt = ftIn(e.len);
           const tw = ctx.measureText(txt).width;
+          if (!lblTry(lx - tw/2 - 2, ly - 6, tw + 4, 12)) return; // skip if it collides with a placed label
           ctx.fillStyle = 'rgba(255,255,255,0.82)';
           ctx.fillRect(lx - tw/2 - 2, ly - 6, tw + 4, 12);
           ctx.fillStyle = '#7a4a00';
