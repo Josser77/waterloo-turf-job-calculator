@@ -1368,7 +1368,7 @@
           <div class="card-header">
             <div class="card-title">Infill</div>
             <div style="display:flex;gap:8px;align-items:center;">
-              <button class="btn btn-ghost btn-sm" onclick="autoPopulateInfill()">↻ Refresh from SqFt</button>
+              <button class="btn btn-ghost btn-sm" onclick="autoPopulateInfill(true)">↻ Refresh from SqFt</button>
               <button class="btn btn-ghost btn-sm" onclick="openCatalogPicker('infill')">＋ Add Product</button>
             </div>
           </div>
@@ -4640,20 +4640,28 @@ function infillAreaForTier(proj, tier) {
   return (tier === 'putting-green') ? pgSqFt : baseSqFt;
 }
 
-function autoPopulateInfill() {
-  const proj = getCurrentProject(); if(!proj) return;
+function autoPopulateInfill(force) {
+  const proj = getCurrentProject(); if(!proj) return false;
 
   const baseSqFt = infillAreaForTier(proj, 'standard');
   const pgSqFt = infillAreaForTier(proj, 'putting-green');
 
-  if (!baseSqFt && !pgSqFt) return;
+  if (!baseSqFt && !pgSqFt) return false;
 
+  let changed = false;
   (proj.infill||[]).forEach((row, i) => {
+    // Respect a hand-typed sqft — the live-link only fills rows the user hasn't
+    // overridden. The "↻ Refresh from SqFt" button passes force=true to re-sync all.
+    if (row.sqFtManual && !force) return;
+    if (force) row.sqFtManual = false;
     const tier = row.tier || 'standard';
-    proj.infill[i].sqFt = (tier === 'putting-green') ? (pgSqFt || '') : (baseSqFt || '');
+    const next = (tier === 'putting-green') ? (pgSqFt || '') : (baseSqFt || '');
+    if (proj.infill[i].sqFt !== next) changed = true;
+    proj.infill[i].sqFt = next;
     calcInfillRow(i);
   });
   renderInfillRows(proj);
+  return changed;
 }
 
 function autoPopulateRock() {
@@ -4812,6 +4820,7 @@ function updateInfillField(i, field, val) {
   // (or empty) sqft, so it computes 0 bags and adds $0 to the quote.
   if (field === 'tier') {
     proj.infill[i].sqFt = infillAreaForTier(proj, val) || '';
+    proj.infill[i].sqFtManual = false; // changing tier re-syncs the area from the layout
     calcInfillRow(i);            // recompute bags + line cost, save, refresh quote
     renderInfillRows(proj);      // reflect the new sqft in the row's input
     return;
@@ -4822,6 +4831,7 @@ function updateInfillField(i, field, val) {
 function updateInfillSqFt(i, input) {
   const proj = getCurrentProject(); if(!proj) return;
   proj.infill[i].sqFt = parseFloat(input.value)||0;
+  proj.infill[i].sqFtManual = true; // don't let the auto-sync clobber a hand-typed value
   calcInfillRow(i);
 }
 
@@ -4910,6 +4920,7 @@ function setInfillFromInstalled() {
   if (!total) { alert('Enter installed sq ft for your turf products first.'); return; }
   (proj.infill||[]).forEach((row, i) => {
     proj.infill[i].sqFt = total;
+    proj.infill[i].sqFtManual = false; // explicit re-sync from installed
     calcInfillRow(i);
   });
   renderInfillRows(proj);
@@ -4938,10 +4949,13 @@ function layoutEdges(points) {
 // key so a chosen edge can be referenced as "<shapeKey>:<edgeIndex>". Pure/testable.
 function layoutShapesForEdging(layout) {
   const shapes = [];
-  if (layout && Array.isArray(layout.points) && layout.points.length >= 2) {
+  const vis = (layout && layout.layerVisibility) || {};
+  const shown = id => vis[id] !== false; // default visible when unset
+  if (layout && Array.isArray(layout.points) && layout.points.length >= 2 && shown('primary')) {
     shapes.push({ key: 'main', name: 'Main outline', points: layout.points });
   }
   ((layout && layout.secondaryShapes) || []).forEach((sh, idx) => {
+    if (!shown(idx)) return; // a hidden layer contributes no edging runs
     if (sh && Array.isArray(sh.points) && sh.points.length >= 2) {
       shapes.push({ key: 's' + idx, name: sh.name || ('Shape ' + (idx + 1)), points: sh.points });
     }
@@ -7860,6 +7874,16 @@ function setLayerVisible(layerId, visible) {
   proj.layout.layerVisibility[layerId] = visible;
   save();
   renderRollLayout();
+  // A hidden layer drops out of the edging perimeter and its runs. If edging runs are
+  // selected, re-apply so the Linear Feet field and edging cost follow; otherwise just
+  // refresh the perimeter breakdown and the "use layout perimeter" figure.
+  const selArr = (typeof getEdgingSelectionArr === 'function') ? getEdgingSelectionArr(proj) : [];
+  if (selArr && selArr.length) {
+    applyEdgingSelection(proj);
+  } else {
+    renderEdgingSelection(proj);
+    refreshUseLayoutPerimeterBtn();
+  }
 }
 
 // Rotation for secondary (non-primary) layers only — rotates that shape about
@@ -8679,10 +8703,11 @@ function layerPerimeters(proj) {
   if (!proj || !proj.layout) return [];
   const out = [];
   const pPts = proj.layout.points || [];
-  if (pPts.length >= 2) {
+  if (pPts.length >= 2 && isLayerVisible(proj, 'primary')) {
     out.push({ id: 'primary', name: (proj.layout.primaryLayerName || 'Main shape'), perimeter: polygonPerimeter(pPts) });
   }
   (proj.layout.secondaryShapes || []).forEach((s, i) => {
+    if (!isLayerVisible(proj, i)) return; // a hidden layer is excluded from edging, like every other total
     const pts = s.points || s.displayPoints || [];
     if (pts.length >= 2) out.push({ id: i, name: s.name || ('Layer ' + (i + 2)), perimeter: polygonPerimeter(pts) });
   });
@@ -14741,13 +14766,13 @@ function applyRollLayoutToTurf() {
   if (inst.ok) row.installedSqFt = inst.area;
   save();
   calcTurfRow(i);
-  autoPopulateInfill(); // installed changed → infill area follows (base = outline − green)
+  const infillChanged = autoPopulateInfill(); // installed changed → infill follows, unless hand-overridden
   renderTurfRows(proj);
   const totalRolls = combined ? combined.rolls : countRollsAndPieces(layout).totalRolls;
   const totalPieces = combined ? combined.pieces : countRollsAndPieces(layout).totalPieces;
   const pieceNote = totalPieces !== totalRolls ? `, ${totalPieces} piece(s)` : '';
   const layerNote = combined ? ` across ${layout._installLayers.length} layers` : '';
-  const instNote = inst.ok ? ` and set Installed SqFt to ${inst.area.toLocaleString(undefined,{maximumFractionDigits:0})} ft² (infill updated)` : '';
+  const instNote = inst.ok ? ` and set Installed SqFt to ${inst.area.toLocaleString(undefined,{maximumFractionDigits:0})} ft²${infillChanged ? ' (infill updated)' : ''}` : '';
   alert(`Applied ${orderedTotal.toLocaleString(undefined,{maximumFractionDigits:0})} ft² (${totalRolls} roll(s)${pieceNote}, ${linearTotal.toFixed(1)} linear ft)${layerNote} to ${row.product || 'turf row '+(i+1)}${instNote}.`);
 }
 

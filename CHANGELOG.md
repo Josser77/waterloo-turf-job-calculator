@@ -5,6 +5,49 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-02 — Apply dialog only says "infill updated" when it actually did
+
+Follow-up to the manual-infill fix: the Layout → Apply confirmation always claimed "(infill updated)",
+even when infill was a hand-typed override that Apply correctly left alone. autoPopulateInfill now
+returns whether it changed any row, and the Apply note only adds "(infill updated)" when it did.
+
+Tests **2019 -> 2021** (README **2021**): the return flag is false when nothing changed / a manual row
+is skipped, true when a row is updated; the Apply note is gated on it. Green under UTC and
+America/Los_Angeles.
+
+---
+
+## 2026-09-02 — Fix: a hand-typed infill sqft no longer resets on tab switch
+
+Manually editing an infill row's sq ft, then leaving and returning to the Quote Builder, reset the
+value. The infill→installed-area live-link (autoPopulateInfill, which runs on many recomputes via
+calcTurfRow) was overwriting the field every time. It now marks a hand-typed sqft as a manual
+override and leaves those rows alone; the live-link still fills any row you haven't touched. The
+"↻ Refresh from SqFt" button (and "Set infill from installed") force a re-sync and clear the
+override; changing a row's tier also re-syncs, since the area depends on the tier.
+
+Tests **2014 -> 2019** (README **2019**): editing marks the row manual, the live-link skips manual
+rows, Refresh forces a re-sync and clears the flag, tier change re-syncs. Verified end-to-end — a
+manual 750 survives a recompute and a tab switch, and Refresh re-syncs it to the installed 1000.
+Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-02 — Fix: disabling a layer now updates the edging
+
+Unchecking a layer's visibility excludes it from every total — but the edging perimeter and the
+edging runs still counted it. Two pure functions (layerPerimeters, layoutShapesForEdging) ignored
+layerVisibility, and the visibility toggle didn't refresh the edging. Now a hidden layer drops out
+of the "Edging perimeter (per layer)" breakdown, the "use layout perimeter" figure, and the edging
+runs — and toggling visibility re-applies the edging selection so the Linear Feet field and edging
+cost follow immediately.
+
+Tests **2006 -> 2014** (README **2014**): hiding a layer removes it from the perimeter total and the
+edging runs; hiding the primary drops it too; the toggle re-applies the selection. Verified — a
+bed layer's 20 ft drops the total from 60 to 40 when hidden. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-02 — Fix: nested pieces now snap into the clear waste instead of sitting on turf
 
 Dragging a cut piece onto a roll's waste kept landing it on existing turf (red "overlaps turf") and

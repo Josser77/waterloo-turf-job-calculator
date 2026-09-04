@@ -8181,6 +8181,46 @@ section('169. Make this the main yard (swap)');
   assert(proj.layout.layerRoll[1] && proj.layout.layerRoll[1].rotation != null, 'remaining layers get an explicit roll-direction override after the swap');
 }
 
+section('170. Hidden layers are excluded from edging (perimeter + runs)');
+{
+  const proj = { layout: {
+    points: [{x:0,y:0},{x:10,y:0},{x:10,y:10},{x:0,y:10}], primaryLayerName: 'Main',
+    secondaryShapes: [{ name:'Bed', points:[{x:0,y:0},{x:5,y:0},{x:5,y:5},{x:0,y:5}] }],
+    layerVisibility: {},
+  }};
+  // Both visible: main perimeter 40 + bed 20 = 60.
+  assert(ctx.layerPerimeters(proj).length === 2, 'both layers present when visible');
+  assert(Math.round(ctx.totalLayerPerimeter(proj)) === 60, 'total edging perimeter counts both (60)');
+  assert(ctx.layoutShapesForEdging(proj.layout).length === 2, 'both shapes offer edging runs when visible');
+  // Hide the bed → excluded from edging perimeter and runs.
+  proj.layout.layerVisibility[0] = false;
+  assert(ctx.layerPerimeters(proj).length === 1, 'a hidden layer drops out of the perimeter list');
+  assert(Math.round(ctx.totalLayerPerimeter(proj)) === 40, 'total edging perimeter drops to 40 (bed excluded)');
+  assert(ctx.layoutShapesForEdging(proj.layout).map(x=>x.key).join(',') === 'main', 'a hidden layer contributes no edging runs');
+  // Hiding the primary drops it too.
+  proj.layout.layerVisibility.primary = false;
+  assert(ctx.layerPerimeters(proj).length === 0, 'hiding the primary removes it from edging perimeter');
+  // The visibility toggle re-applies the edging selection so the cost follows.
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/if \(selArr && selArr\.length\) \{\s*applyEdgingSelection\(proj\);/.test(src), 'toggling visibility re-applies the edging selection');
+}
+
+section('171. Manual infill sqft is not clobbered by the live-link');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Editing the field marks it manual; auto-populate skips manual rows unless forced.
+  assert(/proj\.infill\[i\]\.sqFtManual = true; \/\/ don't let the auto-sync/.test(src), 'editing infill sqft marks the row manual');
+  assert(/if \(row\.sqFtManual && !force\) return;/.test(src), 'autoPopulateInfill skips manual rows unless forced');
+  // The Refresh button forces a re-sync and clears the manual flag.
+  assert(/onclick="autoPopulateInfill\(true\)"/.test(src), 'the Refresh from SqFt button forces a re-sync');
+  assert(/if \(force\) row\.sqFtManual = false;/.test(src), 'a forced re-sync clears the manual flag');
+  // Changing tier re-syncs (clears manual), since the area depends on the tier.
+  assert(/proj\.infill\[i\]\.sqFtManual = false; \/\/ changing tier re-syncs/.test(src), 'changing tier clears the manual flag');
+  // autoPopulateInfill reports whether it actually changed a row, so Apply's note is accurate.
+  assert(/let changed = false;/.test(src) && /if \(proj\.infill\[i\]\.sqFt !== next\) changed = true;/.test(src) && /return changed;/.test(src), 'autoPopulateInfill returns whether it changed anything');
+  assert(/\$\{infillChanged \? ' \(infill updated\)' : ''\}/.test(src), 'Apply only says "infill updated" when infill actually changed');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
