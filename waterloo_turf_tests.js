@@ -3068,7 +3068,7 @@ section('40. Fringe "Show pieces" toggle: individual pieces vs single outline');
     // loadProject triggers drawRollLayoutCanvas twice (6 pieces x 2 draws = 12 labels)
     assert(drawCalls.fillTextLabels.length === 12, `"Fringe N" labels drawn for all 6 pieces, each draw pass (got ${drawCalls.fillTextLabels.length})`);
     assert(drawCalls.fillTextLabels.includes('Fringe 1'), 'labels include "Fringe 1"');
-    assert(drawCalls.strokeStyles.includes('#C77800'), 'fringe pieces stroked in orange (#C77800)');
+    assert(drawCalls.strokeStyles.includes('#123E17'), 'fringe pieces stroked in dark green (#123E17)');
   }
 
   // ── piecesVisible: false -> no per-piece labels, single outline drawn ──
@@ -3077,7 +3077,7 @@ section('40. Fringe "Show pieces" toggle: individual pieces vs single outline');
     assert(inputs.fringePiecesVisible.checked === false, 'checkbox reflects piecesVisible=false');
     assert(drawCalls.fillTextLabels.length === 0, `no "Fringe N" labels drawn when pieces are hidden (got ${drawCalls.fillTextLabels.length})`);
     // The outline is still drawn in the same fringe color
-    assert(drawCalls.strokeStyles.includes('#C77800'), 'fringe outline still stroked in orange (#C77800) even with pieces hidden');
+    assert(drawCalls.strokeStyles.includes('#123E17'), 'fringe outline stroked in dark green (#123E17) even with pieces hidden');
   }
 
   // ── Default (piecesVisible undefined) behaves as visible ──
@@ -8017,7 +8017,8 @@ section('159. Edging debug overlay');
   assert(/_wtEdgingDebug/.test(src) && /drawGeom\(layout\.basePoints, 'main'\)/.test(src), 'debug draws the exact geometry edging uses (magenta) for the main + each shape');
   // In click mode, a faint dashed perimeter guide outlines each shape's TRUE edging perimeter so
   // it's visible/clickable even when the shape's turf pieces are nested into another roll's waste.
-  assert(/while picking edges, faintly outline every shape/.test(src) && /function drawGuide|const drawGuide/.test(src), 'a perimeter guide is drawn while in edging click mode');
+  assert(/faintly outline every shape's TRUE edging perimeter/.test(src) && /function drawGuide|const drawGuide/.test(src), 'a perimeter guide outlines each shape while working on edging');
+  assert(/if \(window\._wtEdgingClickMode \|\| window\._wtLayoutSubtab === 'edging'\)/.test(src), 'the guide shows on the Edging sub-tab (not only in click mode), so nested-away shapes stay selectable');
 }
 
 section('160. Cut-list S-seam allowance + edging click regression');
@@ -8219,6 +8220,46 @@ section('171. Manual infill sqft is not clobbered by the live-link');
   // autoPopulateInfill reports whether it actually changed a row, so Apply's note is accurate.
   assert(/let changed = false;/.test(src) && /if \(proj\.infill\[i\]\.sqFt !== next\) changed = true;/.test(src) && /return changed;/.test(src), 'autoPopulateInfill returns whether it changed anything');
   assert(/\$\{infillChanged \? ' \(infill updated\)' : ''\}/.test(src), 'Apply only says "infill updated" when infill actually changed');
+}
+
+section('172. Lock covers the edging selection');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // The dynamically-rendered edging checklist re-applies the lock so its controls disable.
+  assert(/if \(window\._wtLayoutLocked\) applyLayoutLockState\(\);\s*\}/.test(src), 'renderEdgingSelection re-applies the lock to its freshly rendered controls');
+  // Every edging mutator no-ops when the layout is locked (defense in depth).
+  assert(/function toggleEdgingSide\(sideKey\) \{\s*if \(window\._wtLayoutLocked\) return;/.test(src), 'toggleEdgingSide is lock-guarded');
+  assert(/function toggleEdgingEdge\(edgeKey\) \{\s*if \(window\._wtLayoutLocked\) return;/.test(src), 'toggleEdgingEdge is lock-guarded');
+  assert(/function clearEdgingSelection\(\) \{\s*if \(window\._wtLayoutLocked\) return;/.test(src), 'clearEdgingSelection is lock-guarded');
+  assert(/function selectAllEdging\(\) \{\s*if \(window\._wtLayoutLocked\) return;/.test(src), 'selectAllEdging is lock-guarded');
+  assert(/function toggleEdgingClickMode\(\) \{\s*if \(window\._wtLayoutLocked\) return;/.test(src), 'edging click mode stays lock-guarded');
+}
+
+section('173. Turf pieces are green (not the old multi-color palette)');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  const m = src.match(/const STRIP_COLORS = \[([^\]]*)\]/);
+  assert(m, 'STRIP_COLORS palette exists');
+  const tuples = [...m[1].matchAll(/rgba\((\d+),\s*(\d+),\s*(\d+)/g)];
+  assert(tuples.length >= 4, 'palette has several colors');
+  // Every strip color is green: g is the dominant channel (g > r and g > b).
+  const allGreen = tuples.every(t => { const r=+t[1], g=+t[2], bl=+t[3]; return g > r && g > bl; });
+  assert(allGreen, 'every turf strip color is a shade of green');
+  // No blue/orange/purple/red anchors from the old palette remain.
+  assert(!/33,150,243|255,152,0|156,39,176|244,67,54|0,188,212/.test(m[1]), 'old blue/orange/purple/red/cyan palette entries are gone');
+  // Three-tier green gradient: putting green (lightest) > main turf (medium) > fringe (darkest),
+  // compared on the green channel.
+  const src2 = src;
+  const pgM = src2.match(/const pgFill = 'rgba\((\d+),\s*(\d+),\s*(\d+)/);
+  const frM = src2.match(/drawPoly\(poly, 'rgba\((\d+),\s*(\d+),\s*(\d+)[^)]*\)', '#123E17'\)/);
+  assert(pgM && frM, 'putting-green and fringe fills are found');
+  const pgG = +pgM[2], frG = +frM[2];
+  const mainAvgG = Math.round(tuples.reduce((a,t)=>a+ +t[2],0)/tuples.length);
+  assert(pgG > mainAvgG, 'putting green is lighter than main turf');
+  assert(mainAvgG > frG, 'main turf is lighter than fringe (fringe is darkest)');
+}
+section('173b. (fringe/pg gradient covered above)');
+{
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

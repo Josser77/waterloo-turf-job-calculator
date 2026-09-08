@@ -5045,6 +5045,7 @@ function setEdgingSelectionArr(proj, arr) {
 }
 // Toggle one whole side (all its edges) on/off, then re-apply.
 function toggleEdgingSide(sideKey) {
+  if (window._wtLayoutLocked) return; // locked layout: no edging changes
   const proj = getCurrentProject(); if (!proj || !proj.layout) return;
   const side = layoutSidesForShapes(proj.layout).find(s => s.key === sideKey);
   if (!side) return;
@@ -5056,6 +5057,7 @@ function toggleEdgingSide(sideKey) {
 }
 // Toggle a single segment (child edge) — the granular pick.
 function toggleEdgingEdge(edgeKey) {
+  if (window._wtLayoutLocked) return; // locked layout: no edging changes
   const proj = getCurrentProject(); if (!proj || !proj.layout) return;
   const sel = new Set(getEdgingSelectionArr(proj));
   sel.has(edgeKey) ? sel.delete(edgeKey) : sel.add(edgeKey);
@@ -5145,6 +5147,7 @@ function endEdgingClick(evt) {
   if (key) toggleEdgingEdge(key);
 }
 function selectAllEdging() {
+  if (window._wtLayoutLocked) return; // locked layout: no edging changes
   const proj = getCurrentProject(); if (!proj || !proj.layout) return;
   const sel = new Set();
   layoutSidesForShapes(proj.layout).forEach(s => s.edgeKeys.forEach(k => sel.add(k)));
@@ -5152,6 +5155,7 @@ function selectAllEdging() {
   applyEdgingSelection(proj);
 }
 function clearEdgingSelection() {
+  if (window._wtLayoutLocked) return; // locked layout: no edging changes
   const proj = getCurrentProject(); if (!proj || !proj.layout) return;
   setEdgingSelectionArr(proj, []);
   applyEdgingSelection(proj);
@@ -5248,6 +5252,9 @@ function renderEdgingSelection(proj) {
   if (totalEl) totalEl.textContent = total > 0
     ? `Selected: ${total.toFixed(1)} lin ft · ${edgingBoardsForLength(total)} board(s)`
     : 'No runs selected — pick the sides that need edging.';
+  // Freshly rendered controls default to enabled — re-apply the lock so a locked
+  // layout stays fully locked (edging runs included).
+  if (window._wtLayoutLocked) applyLayoutLockState();
 }
 
 // ── Installation consumables (seam tape, glue, nails, weed barrier) ──────────────────────────
@@ -8316,6 +8323,9 @@ function switchLayoutSubtab(name) {
     b.classList.toggle('active', b.getAttribute('data-tab') === name);
   });
   if (name === 'edging') renderEdgingSelection(getCurrentProject());
+  // Redraw so the edging perimeter guide (logical shape outlines) shows on the Edging
+  // sub-tab and clears when you leave it.
+  if (typeof renderRollLayoutStableCanvas === 'function') renderRollLayoutStableCanvas();
 }
 
 function renderFringeSection(proj) {
@@ -10740,7 +10750,11 @@ function autoRotateRollLayout() {
   renderRollLayout();
 }
 
-const STRIP_COLORS = ['rgba(76,175,80,0.25)','rgba(33,150,243,0.22)','rgba(255,152,0,0.22)','rgba(156,39,176,0.2)','rgba(0,188,212,0.22)','rgba(244,67,54,0.18)'];
+// Turf reads as turf: three shades of green by role — putting green lightest, fringe
+// darkest, and the main turf in between. These are the MAIN-turf strips: medium greens,
+// with subtle light/dark variation so adjacent cut pieces stay distinguishable while
+// sitting clearly between the (lighter) putting green and the (darker) fringe.
+const STRIP_COLORS = ['rgba(76,175,80,0.32)','rgba(96,186,100,0.28)','rgba(64,160,68,0.32)','rgba(88,180,92,0.28)','rgba(72,170,76,0.30)','rgba(100,188,104,0.28)'];
 
 // The set of points the canvas fit/scale is computed from — shared by
 // sizeLayoutCanvas (sets canvas dimensions) and drawRollLayoutCanvas (sets the
@@ -11133,7 +11147,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       // green fill + fringe are drawn on top so it still reads as the green.
       const il = (layout._installLayers || []).find(e => e.id === i && e.isPuttingGreen);
       if (il && il.layout && il.layout.strips && il.layout.strips.length) {
-        const pgFill = 'rgba(85,183,99,0.30)';
+        const pgFill = 'rgba(168,222,168,0.34)'; // putting green — lightest green
         il.layout.strips.forEach(st => {
           const us = st.pieces || [st];
           us.forEach(u => {
@@ -11141,7 +11155,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
               drawHatched(u.displayRect, 'rgba(244,67,54,0.18)');
               drawPoly(u.displayRect, null, 'rgba(0,0,0,0.18)');
             }
-            if (u.displayClipped) drawPoly(u.displayClipped, pgFill, '#2B7653');
+            if (u.displayClipped) drawPoly(u.displayClipped, pgFill, '#5FA463');
           });
         });
       } else {
@@ -11176,7 +11190,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
               const r2 = { x: p.p1.x + nx * fringe.width, y: p.p1.y + ny * fringe.width };
               const r3 = { x: p.p0.x + nx * fringe.width, y: p.p0.y + ny * fringe.width };
               const poly = [r0, r1, r2, r3];
-              drawPoly(poly, 'rgba(244,168,34,0.30)', '#C77800');
+              drawPoly(poly, 'rgba(27,94,32,0.40)', '#123E17'); // fringe — darkest green
               // Label each fringe piece at its centroid
               const cx = poly.reduce((s,pt)=>s+pt.x,0)/4, cy = poly.reduce((s,pt)=>s+pt.y,0)/4;
               const c = toCanvas({x:cx, y:cy});
@@ -11185,7 +11199,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
               const tw = ctx.measureText(label).width;
               ctx.fillStyle = 'rgba(255,255,255,0.85)';
               ctx.fillRect(c.x-tw/2-2, c.y-11, tw+4, 14);
-              ctx.fillStyle = '#946200';
+              ctx.fillStyle = '#1b5e20';
               ctx.fillText(label, c.x-tw/2, c.y);
               lblForce(c.x-tw/2-2, c.y-11, tw+4, 14);
             });
@@ -11195,7 +11209,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
             // merged/mitered piece corners — this matches how the fringe
             // would actually look once installed, hugging curves closely.
             const outline = computeFringeOutline(s.displayPoints, fringe.width);
-            if (outline) drawPoly(outline, null, '#C77800');
+            if (outline) drawPoly(outline, null, '#123E17');
           }
         }
       }
@@ -11821,10 +11835,12 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
         }
       });
     }
-    // Perimeter guide: while picking edges, faintly outline every shape's TRUE edging perimeter,
-    // so you can see and click it even when its turf pieces are nested/relocated into another
-    // roll's waste (where the drawn pieces no longer match the logical outline).
-    if (window._wtEdgingClickMode) {
+    // Perimeter guide: while working on edging (the Edging sub-tab is open, or you're
+    // picking edges on the drawing), faintly outline every shape's TRUE edging perimeter
+    // at its home position — so you can see and select it even when its turf pieces are
+    // nested/relocated into another roll's waste (where the drawn pieces no longer match
+    // the logical outline).
+    if (window._wtEdgingClickMode || window._wtLayoutSubtab === 'edging') {
       const guidePts = (n) => {
         const il = (layout._installLayers || []).find(e => e && e.id === n);
         if (il && il.layout && Array.isArray(il.layout.basePoints)) return il.layout.basePoints;

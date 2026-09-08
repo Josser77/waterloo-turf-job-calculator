@@ -5,6 +5,60 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-07 — Turf greens by role: putting green lightest, fringe darkest, main in between
+
+Building on the all-green turf change, the three turf roles now read as distinct shades of green:
+**putting green is the lightest** (rgba 168,222,168), **fringe is the darkest** (rgba 27,94,32,
+previously orange), and **main turf sits in between** (medium greens, ~175 green channel, still with
+subtle strip-to-strip variation so cut pieces stay distinguishable). Fringe outline, stroke, and
+label updated to dark green to match.
+
+Tests **2032 -> 2035** (README **2035**): green-channel ordering (putting green > main > fringe), and
+fringe now strokes dark green. Verified on a green-with-fringe layout. Green under UTC and
+America/Los_Angeles.
+
+---
+
+## 2026-09-07 — Turf pieces now draw green instead of the multi-color palette
+
+Changed the roll-piece fill palette (STRIP_COLORS) from the old blue/pink/orange/purple/cyan/red mix
+to six shades of green, so the turf on the layout actually reads as turf. Adjacent strips still
+alternate light/dark green, so individual cut pieces stay distinguishable — the layout is just green
+overall now instead of rainbow.
+
+Tests **2028 -> 2032** (README **2032**): every STRIP_COLORS entry is a green (green channel dominant)
+and none of the old non-green palette colors remain. Verified on a multi-shape layout. Green under
+UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-07 — Edging: shape outlines stay visible on the Edging tab after nesting a piece
+
+When a layer's turf piece is dragged into another roll's waste, the layer's pieces draw at the
+relocated spot and its logical outline was no longer visible — so you couldn't see where to select
+its edging. The faint perimeter guide (each shape's true edging outline at its home position) now
+shows whenever the <strong>Edging sub-tab</strong> is open, not only while in "click edges on the
+drawing" mode. Switching sub-tabs redraws the canvas so the guide appears/clears immediately.
+
+Tests **2027 -> 2028** (README **2028**): the guide condition includes the Edging sub-tab. Verified
+the guide renders on the Edging tab. Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-02 — Fix: Lock now covers the edging selection
+
+The Lock button froze the layout by disabling controls in a one-time DOM scan, but the edging run
+checklist is rendered dynamically — so its checkboxes came back enabled after any re-render and you
+could still change the selection on a locked layout. Now renderEdgingSelection re-applies the lock to
+its freshly rendered controls, and every edging mutator (toggle side/edge, whole perimeter, clear)
+no-ops when locked — matching the edging click mode, which was already guarded.
+
+Tests **2021 -> 2027** (README **2027**): the checklist re-applies the lock and each mutator is
+lock-guarded. Verified end-to-end — on a locked layout the edging checkboxes are all disabled and
+selectAllEdging is a no-op. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-02 — Apply dialog only says "infill updated" when it actually did
 
 Follow-up to the manual-infill fix: the Layout → Apply confirmation always claimed "(infill updated)",
