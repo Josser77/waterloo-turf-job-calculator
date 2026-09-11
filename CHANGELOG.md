@@ -5,6 +5,19 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-11 — Blade arrows: one row down each roll strip (no more missed strips)
+
+The blind grid (even in the roll frame) didn't line up with the actual roll strips, so some strips
+got an arrow and others fell in a gap. Reworked it to tie arrows to the strips: each roll strip now
+gets a row of arrows down its centerline, centered across its width and spaced along the run. Every
+strip is covered; nothing is missed. A strip too short for the spacing gets a single centered arrow.
+
+Tests **2098 -> 2099** (README **2099**): arrows run the strip centerline, every strip/piece is
+covered. Verified on an L-shape with vertical rolls (every strip has evenly-spaced centered arrows).
+Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-11 — Fix: blade-arrow grid uneven on tilted shapes (gaps, off-center)
 
 The grid of blade arrows was aligned to the canvas axes, so on a tilted/diagonal shape most grid

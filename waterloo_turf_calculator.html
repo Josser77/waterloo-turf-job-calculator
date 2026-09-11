@@ -11011,46 +11011,52 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   // layer's roll direction), so the grain reads as "this whole area runs this way"
   // rather than one arrow per cut piece. Handles concave shapes; a shape too small for
   // the grid gets a single centered arrow.
-  function queueBladeGrid(outlineData, dataDir) {
-    if (!window._wtShowBlades || !outlineData || outlineData.length < 3 || !dataDir) return;
-    const cpoly = outlineData.map(toCanvas);
-    // Canvas-space roll direction (ax,ay) and its perpendicular (px,py).
-    const dc = outlineData.reduce((a, p) => ({ x: a.x + p.x, y: a.y + p.y }), { x: 0, y: 0 });
-    dc.x /= outlineData.length; dc.y /= outlineData.length;
+  // Place blade arrows down the CENTER of one roll strip's installed turf, spaced along
+  // the run. Tying arrows to each strip (rather than a blind grid over the whole shape)
+  // guarantees every strip gets arrows, centered across its width — even on tilted or
+  // irregular shapes where a fixed grid left strips empty.
+  function queueBladeArrowsInStrip(clipData, dataDir) {
+    if (!window._wtShowBlades || !clipData || clipData.length < 3 || !dataDir) return;
+    const cpoly = clipData.map(toCanvas);
+    const dc = clipData.reduce((a, p) => ({ x: a.x + p.x, y: a.y + p.y }), { x: 0, y: 0 });
+    dc.x /= clipData.length; dc.y /= clipData.length;
     const q0 = toCanvas(dc), q1 = toCanvas({ x: dc.x + dataDir.x, y: dc.y + dataDir.y });
     let ax = q1.x - q0.x, ay = q1.y - q0.y; const m = Math.hypot(ax, ay) || 1; ax /= m; ay /= m;
     const px = -ay, py = ax;
-    // Grid in the ROLL frame (u = along the roll, v = across it) so the arrows fill the
-    // shape evenly and stay centered even when the shape is tilted/diagonal — an
-    // axis-aligned canvas grid leaves gaps and clusters on tilted shapes.
+    // Roll-frame extent of this strip (u along the run, v across the width).
     let uMin = Infinity, uMax = -Infinity, vMin = Infinity, vMax = -Infinity;
     cpoly.forEach(p => {
       const u = p.x * ax + p.y * ay, v = p.x * px + p.y * py;
       uMin = Math.min(uMin, u); uMax = Math.max(uMax, u);
       vMin = Math.min(vMin, v); vMax = Math.max(vMax, v);
     });
-    const step = 64, len = 15;
+    const vC = (vMin + vMax) / 2;            // centered across the strip's width
+    const step = 70, len = 15;
     let placed = 0;
-    for (let v = vMin + step / 2; v < vMax; v += step)
-      for (let u = uMin + step / 2; u < uMax; u += step) {
-        const cx = u * ax + v * px, cy = u * ay + v * py; // roll frame → canvas
-        if (pointInPoly({ x: cx, y: cy }, cpoly)) { _bladeQueue.push({ cx, cy, ax, ay, len }); placed++; }
-      }
+    for (let u = uMin + step / 2; u < uMax; u += step) {
+      const cx = u * ax + vC * px, cy = u * ay + vC * py;
+      if (pointInPoly({ x: cx, y: cy }, cpoly)) { _bladeQueue.push({ cx, cy, ax, ay, len }); placed++; }
+    }
+    // Strip too short for the spacing: one arrow at its centroid if that's inside.
     if (!placed && pointInPoly(q0, cpoly)) _bladeQueue.push({ cx: q0.x, cy: q0.y, ax, ay, len });
   }
-  // Queue grid arrows for every base/install layer (putting green skipped; fringe uses
-  // its own inward per-piece arrows).
+  // Queue blade arrows for every base/install layer, strip by strip (putting green
+  // skipped; fringe uses its own inward per-piece arrows).
   function queueBladeArrowsForLayers(layout) {
     if (!window._wtShowBlades) return;
     const vis = (layout && layout.layerVisibility) || {};
     (layout._installLayers || []).forEach(entry => {
       if (!entry || entry.isPuttingGreen) return;
       if (vis[entry.id] === false) return;
-      const outline = entry.layout && entry.layout.basePoints;
-      if (!outline || outline.length < 3) return;
       let dir = rectRunAxisData(layerRepRect(layout, entry.id));
       if (window._wtBladeFlip && window._wtBladeFlip[entry.id]) dir = { x: -dir.x, y: -dir.y };
-      queueBladeGrid(outline, dir);
+      const strips = (entry.layout && entry.layout.strips) || [];
+      strips.forEach(s => {
+        const units = (s.pieces && s.pieces.length) ? s.pieces : [s];
+        units.forEach(u => {
+          if (u && u.displayClipped && u.displayClipped.length >= 3) queueBladeArrowsInStrip(u.displayClipped, dir);
+        });
+      });
     });
   }
 

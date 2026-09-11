@@ -8266,11 +8266,12 @@ section('174. Blade direction — per layer, along the roll, flippable');
 {
   const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
   // Arrows fill each layer's SHAPE in a grid (not one per cut piece), all along the roll axis.
-  assert(/function queueBladeGrid\(outlineData, dataDir\)/.test(src), 'grid helper fills a layer shape with arrows');
+  assert(/function queueBladeArrowsInStrip\(clipData, dataDir\)/.test(src), 'arrows run down each strip\'s centerline');
   assert(/function queueBladeArrowsForLayers\(layout\)/.test(src), 'a per-layer pass queues grid arrows');
   assert(/pointInPoly\(\{ x: cx, y: cy \}, cpoly\)/.test(src), 'grid arrows are placed only inside the shape (handles concave)');
   // Grid runs in the ROLL frame (u along roll, v across) so tilted shapes fill evenly.
-  assert(/const cx = u \* ax \+ v \* px, cy = u \* ay \+ v \* py;/.test(src), 'the grid is built in the roll frame, not canvas axes (tilted shapes fill evenly)');
+  assert(/const vC = \(vMin \+ vMax\) \/ 2;/.test(src) && /const cx = u \* ax \+ vC \* px, cy = u \* ay \+ vC \* py;/.test(src), 'arrows run along the strip centerline (v = strip center), spaced along the run');
+  assert(/units\.forEach\(u => \{[\s\S]*?queueBladeArrowsInStrip\(u\.displayClipped, dir\)/.test(src), 'every strip/piece of a layer gets arrows, so none are missed');
   assert(/if \(window\._wtBladeFlip && window\._wtBladeFlip\[entry\.id\]\) dir = \{ x: -dir\.x, y: -dir\.y \}/.test(src), 'a per-layer flip reverses the grid arrows');
   assert(/if \(!entry \|\| entry\.isPuttingGreen\) return;/.test(src), 'putting green is skipped in the grid pass');
   assert(/let long = rectRunAxisData\(axisSrc\)/.test(src) || /rectRunAxisData\(layerRepRect/.test(src), 'roll-axis direction comes from the strip run edge');
