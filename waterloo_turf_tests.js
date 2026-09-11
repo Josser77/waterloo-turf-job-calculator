@@ -8348,6 +8348,10 @@ section('178. Draw on a blank canvas (no Moasure import)');
   assert(/if \(!window\._wtDrawMode && typeof toggleDrawMode === 'function'\) toggleDrawMode\(\)/.test(src), 'it drops into Draw mode');
   // The canvas has a default coordinate space when blank, so Draw tools work.
   assert(/Blank canvas \(no Moasure import yet\)/.test(src) && /\{ x: 40, y: 0 \}, \{ x: 40, y: 30 \}/.test(src), 'a blank layout gets a default ~40x30 ft drawing area (expanded to fit anything drawn)');
+  // The CANVAS SIZING also uses the default area when blank, or its height collapses to 0
+  // (empty fit points -> NaN span) and there's nothing to draw on.
+  assert(/Blank canvas \(no import\) — size to a default/.test(src), 'canvas height sizing falls back to the default area when blank');
+  assert((src.match(/\{ x: 40, y: 0 \}, \{ x: 40, y: 30 \}/g) || []).length >= 2, 'both the draw and the canvas-sizing paths use the same default area');
 }
 
 section('179. Draw a shape, set real dimensions, get a measured turf layer');
@@ -8363,6 +8367,16 @@ section('179. Draw a shape, set real dimensions, get a measured turf layer');
   assert(/const s = D \/ Math\.max\(bw, bh\); sx = s; sy = s;/.test(src), 'circle scales uniformly to the entered diameter');
   // The finalized layer is an install layer (roll plan + order), same as before.
   assert(/proj\.layout\.secondaryShapeModes\[idx\] = 'install';/.test(src), 'the created shape is an install turf layer');
+}
+
+section('180. Draw-mode help collapsed into a twisty');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // The long help paragraph now lives inside a <details> summary, not always-on text.
+  assert(/<summary[^>]*>ⓘ How drawing works/.test(src), 'draw help is behind a collapsible summary');
+  assert(/<details[^>]*>\s*<summary[^>]*>ⓘ How drawing works[\s\S]*?Pick a shape and drag on the canvas/.test(src), 'the full help text is inside the twisty');
+  // The help mentions the Make Layer -> dimensions flow.
+  assert(/⬒ Make Layer<\/strong>, then enter its real dimensions/.test(src), 'help notes turning a shape into a measured turf layer');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

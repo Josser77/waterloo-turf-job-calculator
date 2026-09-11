@@ -5,6 +5,32 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-10 — Draw mode: collapse the help wall-of-text into a twisty
+
+Entering Draw mode showed a large paragraph of help under the toolbar. Tucked it into a collapsed
+**ⓘ How drawing works** twisty so the tools stay clean and scannable; the full guidance is one tap
+away. Also added a line to the help covering the Make-Layer → real-dimensions flow.
+
+Tests **2089 -> 2092** (README **2092**): help is behind a details/summary and includes the
+Make-Layer note. Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-10 — Fix: blank canvas had zero height, so you couldn't draw on it
+
+Starting a blank drawing showed the toolbar but nothing could be drawn — the canvas height computed
+to 0. Cause: with no imported shape, the fit-points list was empty, so the height math (span of no
+points) produced NaN and collapsed the canvas. The canvas-sizing path now uses the same default
+~40x30 ft drawing area the draw itself uses when the layout is blank, so the canvas gets a real
+height and the Draw tools work. (The draw pipeline already had this fallback; the sizing path
+didn't — now both match.)
+
+Tests **2087 -> 2089** (README **2089**): the sizing path falls back to the default area; both paths
+share it. Verified end-to-end (blank canvas → drag → shape drawn). Green under UTC and
+America/Los_Angeles.
+
+---
+
 ## 2026-09-10 — Draw a shape, enter real dimensions → measured turf layer
 
 Building on blank-canvas drawing: **Make Layer** on a drawn rectangle or circle now asks for the

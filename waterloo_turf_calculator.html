@@ -1568,7 +1568,10 @@
               <button type="button" class="btn btn-ghost btn-sm" onclick="clearDrawAnnotations()" title="Remove all drawn shapes">✕ Clear</button>
               <button type="button" class="btn btn-primary btn-sm" onclick="toggleDrawMode()">✓ Done</button>
             </div>
-            <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Pick a shape and drag on the canvas, or use <strong>↖ Select</strong> to grab a shape — drag its body to move, a corner to resize, or the top handle to rotate. <strong>Copy/Paste</strong> duplicates a selected shape; <strong>Color</strong>, <strong>Width</strong>, and <strong>Fill</strong> (under "Shape style") apply to the basic shapes — Line, Rectangle, Circle, Freehand; landscape elements have their own built-in look and ignore them (a wall's thickness is the separate "Wall in" box, in real inches). <strong>Snap to grid</strong> locks points to the grid spacing. Drawn shapes are <strong>markup only</strong> — they don't change turf, rolls, or the quote. <strong>Landscape</strong> tools add decorative elements: <strong>🌳 Bush</strong> and <strong>🌲 Tree</strong> (click to drop or drag to size); area beds <strong>▦ Pavers</strong>, <strong>🟫 Mulch</strong>, and <strong>⚪ Rock bed</strong> (drag a rectangle); and linear elements <strong>🧱 Wall</strong> and <strong>⊟ Fence</strong> (drag a curved line — the wall gets real thickness, the fence gets posts). Use <strong>↖ Select</strong> to move, resize, or rotate any of them. A selected <strong>wall</strong> shows an orange <strong>thickness handle</strong> you can drag to set its thickness directly (or type inches in the toolbar). All landscape elements are markup only — they never affect any measurement or price. These are for a nicer plan to show the customer and, like all markup, never affect any measurement or price.</div>
+            <details style="margin-top:6px;">
+              <summary style="cursor:pointer;font-size:11px;color:var(--text-light);list-style:none;user-select:none;">ⓘ How drawing works <span style="opacity:0.7;">(tap for help)</span></summary>
+              <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Pick a shape and drag on the canvas, or use <strong>↖ Select</strong> to grab a shape — drag its body to move, a corner to resize, or the top handle to rotate. <strong>Copy/Paste</strong> duplicates a selected shape; <strong>Color</strong>, <strong>Width</strong>, and <strong>Fill</strong> (under "Shape style") apply to the basic shapes — Line, Rectangle, Circle, Freehand; landscape elements have their own built-in look and ignore them (a wall's thickness is the separate "Wall in" box, in real inches). <strong>Snap to grid</strong> locks points to the grid spacing. Drawn shapes are <strong>markup only</strong> — they don't change turf, rolls, or the quote. <strong>Landscape</strong> tools add decorative elements: <strong>🌳 Bush</strong> and <strong>🌲 Tree</strong> (click to drop or drag to size); area beds <strong>▦ Pavers</strong>, <strong>🟫 Mulch</strong>, and <strong>⚪ Rock bed</strong> (drag a rectangle); and linear elements <strong>🧱 Wall</strong> and <strong>⊟ Fence</strong> (drag a curved line — the wall gets real thickness, the fence gets posts). Use <strong>↖ Select</strong> to move, resize, or rotate any of them. A selected <strong>wall</strong> shows an orange <strong>thickness handle</strong> you can drag to set its thickness directly (or type inches in the toolbar). All landscape elements are markup only — they never affect any measurement or price. To turn a drawn Rectangle or Circle into a real turf area, select it and use <strong>⬒ Make Layer</strong>, then enter its real dimensions.</div>
+            </details>
           </div>
           <p id="layoutIntro" style="font-size:12px;color:var(--text-light);margin-bottom:10px;">
             Import a Moasure CSV to overlay the roll plan, then apply it to a turf row. <a onclick="openGuideAt('doc-layout')" style="cursor:pointer;text-decoration:underline;">Guide</a>
@@ -15340,7 +15343,15 @@ function sizeLayoutCanvas() {
   if (layout) {
     // Same fit points the draw uses, so the canvas aspect matches the draw scale.
     const showRects = document.getElementById('showRectanglesToggle') && document.getElementById('showRectanglesToggle').checked;
-    const allPts = layoutFitPoints(layout, showRects);
+    let allPts = layoutFitPoints(layout, showRects);
+    if (!allPts.length) {
+      // Blank canvas (no import) — size to a default ~40x30 ft area (expanded to fit
+      // anything drawn) so the canvas has a real height and Draw mode works. Mirrors
+      // the default area used by the draw itself.
+      const annPts = [];
+      (layout.annotations || []).forEach(a => (a.points || []).forEach(p => annPts.push(p)));
+      allPts = [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 30 }, { x: 0, y: 30 }, ...annPts];
+    }
     const xs = allPts.map(p=>p.x), ys = allPts.map(p=>p.y);
     const spanX = (Math.max(...xs) - Math.min(...xs)) || 1;
     const spanY = (Math.max(...ys) - Math.min(...ys)) || 1;
