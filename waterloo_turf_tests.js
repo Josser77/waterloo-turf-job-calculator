@@ -8415,6 +8415,12 @@ section('182. Drawn layers named by type; lines are markup-only');
   assert(/Math\.abs\(polygonArea\(a\.points\)\) < 0\.25/.test(src), 'Make Layer requires real area (not just >=3 points)');
 }
 
+section('183. Build stamp present');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/id="appBuildStamp"[^>]*>build \d{4}-\d{2}-\d{2}/.test(src), 'a build-date stamp is shown so the deployed version is identifiable');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

@@ -5,6 +5,16 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-11 — Add a visible build stamp
+
+Added a small "build YYYY-MM-DD" stamp under the Job Calculator heading in the sidebar, so it's
+obvious at a glance which version is deployed on a given site. Bump this date whenever you cut a
+release — it makes "is the fix live?" answerable instantly.
+
+Tests **2104** (README **2104**): the build stamp is present. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-11 — Only real-area shapes become turf layers (no turf card for lines)
 
 Hardened the draw-to-turf guard: a shape must have real area to become a turf layer, not just 3+
