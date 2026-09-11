@@ -5,6 +5,20 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-11 — Fix: blade-arrow grid uneven on tilted shapes (gaps, off-center)
+
+The grid of blade arrows was aligned to the canvas axes, so on a tilted/diagonal shape most grid
+points fell outside the polygon — arrows clustered on one side and whole regions (e.g. a wider
+lobe) got none. Reworked the grid to run in the **roll frame** (one axis along the roll, one
+across), so arrows march evenly across the entire shape and stay centered regardless of how the
+shape is tilted. Every part of the turf now gets arrows.
+
+Tests **2097 -> 2098** (README **2098**): grid built in the roll frame, placed only inside the shape.
+Verified on a tilted, irregular shape (arrows fill it evenly, no empty pieces). Green under UTC and
+America/Los_Angeles.
+
+---
+
 ## 2026-09-10 — Make the "draw → set size → turf" step obvious
 
 The feature worked but the path was hidden: nothing told you that turning a drawing into turf means

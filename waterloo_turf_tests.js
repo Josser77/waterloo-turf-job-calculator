@@ -8268,7 +8268,9 @@ section('174. Blade direction — per layer, along the roll, flippable');
   // Arrows fill each layer's SHAPE in a grid (not one per cut piece), all along the roll axis.
   assert(/function queueBladeGrid\(outlineData, dataDir\)/.test(src), 'grid helper fills a layer shape with arrows');
   assert(/function queueBladeArrowsForLayers\(layout\)/.test(src), 'a per-layer pass queues grid arrows');
-  assert(/pointInPoly\(\{ x: gx, y: gy \}, cpoly\)/.test(src), 'grid arrows are placed only inside the shape (handles concave)');
+  assert(/pointInPoly\(\{ x: cx, y: cy \}, cpoly\)/.test(src), 'grid arrows are placed only inside the shape (handles concave)');
+  // Grid runs in the ROLL frame (u along roll, v across) so tilted shapes fill evenly.
+  assert(/const cx = u \* ax \+ v \* px, cy = u \* ay \+ v \* py;/.test(src), 'the grid is built in the roll frame, not canvas axes (tilted shapes fill evenly)');
   assert(/if \(window\._wtBladeFlip && window\._wtBladeFlip\[entry\.id\]\) dir = \{ x: -dir\.x, y: -dir\.y \}/.test(src), 'a per-layer flip reverses the grid arrows');
   assert(/if \(!entry \|\| entry\.isPuttingGreen\) return;/.test(src), 'putting green is skipped in the grid pass');
   assert(/let long = rectRunAxisData\(axisSrc\)/.test(src) || /rectRunAxisData\(layerRepRect/.test(src), 'roll-axis direction comes from the strip run edge');

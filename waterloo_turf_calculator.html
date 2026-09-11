@@ -11014,18 +11014,28 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   function queueBladeGrid(outlineData, dataDir) {
     if (!window._wtShowBlades || !outlineData || outlineData.length < 3 || !dataDir) return;
     const cpoly = outlineData.map(toCanvas);
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    cpoly.forEach(p => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
-    // Canvas-space arrow direction (uniform across the shape).
+    // Canvas-space roll direction (ax,ay) and its perpendicular (px,py).
     const dc = outlineData.reduce((a, p) => ({ x: a.x + p.x, y: a.y + p.y }), { x: 0, y: 0 });
     dc.x /= outlineData.length; dc.y /= outlineData.length;
     const q0 = toCanvas(dc), q1 = toCanvas({ x: dc.x + dataDir.x, y: dc.y + dataDir.y });
     let ax = q1.x - q0.x, ay = q1.y - q0.y; const m = Math.hypot(ax, ay) || 1; ax /= m; ay /= m;
-    const step = 78, len = 15;
+    const px = -ay, py = ax;
+    // Grid in the ROLL frame (u = along the roll, v = across it) so the arrows fill the
+    // shape evenly and stay centered even when the shape is tilted/diagonal — an
+    // axis-aligned canvas grid leaves gaps and clusters on tilted shapes.
+    let uMin = Infinity, uMax = -Infinity, vMin = Infinity, vMax = -Infinity;
+    cpoly.forEach(p => {
+      const u = p.x * ax + p.y * ay, v = p.x * px + p.y * py;
+      uMin = Math.min(uMin, u); uMax = Math.max(uMax, u);
+      vMin = Math.min(vMin, v); vMax = Math.max(vMax, v);
+    });
+    const step = 64, len = 15;
     let placed = 0;
-    for (let gy = minY + step / 2; gy < maxY; gy += step)
-      for (let gx = minX + step / 2; gx < maxX; gx += step)
-        if (pointInPoly({ x: gx, y: gy }, cpoly)) { _bladeQueue.push({ cx: gx, cy: gy, ax, ay, len }); placed++; }
+    for (let v = vMin + step / 2; v < vMax; v += step)
+      for (let u = uMin + step / 2; u < uMax; u += step) {
+        const cx = u * ax + v * px, cy = u * ay + v * py; // roll frame → canvas
+        if (pointInPoly({ x: cx, y: cy }, cpoly)) { _bladeQueue.push({ cx, cy, ax, ay, len }); placed++; }
+      }
     if (!placed && pointInPoly(q0, cpoly)) _bladeQueue.push({ cx: q0.x, cy: q0.y, ax, ay, len });
   }
   // Queue grid arrows for every base/install layer (putting green skipped; fringe uses
