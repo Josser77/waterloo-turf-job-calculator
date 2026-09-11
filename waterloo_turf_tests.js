@@ -6902,7 +6902,7 @@ section('115. Putting green: roll-direction controls + roll rectangle on canvas'
 
   // (1) The Layers list renders roll-direction / seam controls for a putting-green
   // layer, not just 'install' layers — so you can rotate the green's roll.
-  const rl = html.slice(html.indexOf('function renderLayersList'), html.indexOf('function renderLayersList') + 7200);
+  const rl = html.slice(html.indexOf('function renderLayersList'), html.indexOf('function renderLayersList') + 8600);
   assert(/mode === 'install' \|\| mode === 'putting-green'/.test(rl), 'roll-direction card shows for the putting-green layer');
 
   // (2) The canvas draws the green's roll pieces + purchased rectangle (showRects),
@@ -8260,6 +8260,53 @@ section('173. Turf pieces are green (not the old multi-color palette)');
 }
 section('173b. (fringe/pg gradient covered above)');
 {
+}
+
+section('174. Blade direction — per layer, along the roll, flippable');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Arrow follows each piece's roll rectangle (long edge) and a per-layer flip.
+  assert(/function drawBladeArrowInPoly\(clipPoly, rect, layerId\)/.test(src), 'arrow helper takes the piece rect + layer id');
+  assert(/if \(!window\._wtShowBlades \|\| !clipPoly/.test(src), 'arrows only draw when Show blade direction is on');
+  assert(/let long = rectLongAxisData\(axisSrc\)/.test(src) && /function drawBladeArrowAt/.test(src), 'roll-axis arrow follows the roll rectangle long edge; fringe/PG handled separately');
+  assert(/if \(window\._wtBladeFlip && window\._wtBladeFlip\[layerId\]\)/.test(src), 'a per-layer flip reverses which end the blades face');
+  assert((src.match(/drawBladeArrowInPoly\([^;]*displayRect/g) || []).length >= 4, 'arrows drawn on primary, install, and PG pieces with their rect');
+  // Pure helpers behave.
+  assert(typeof ctx.rectLongAxisData === 'function', 'rectLongAxisData exists');
+  const horiz = ctx.rectLongAxisData([{x:0,y:0},{x:10,y:0},{x:10,y:2},{x:0,y:2}]);
+  assert(Math.abs(horiz.x) > Math.abs(horiz.y), 'long axis of a wide rect is horizontal');
+  // Compass from a rect that runs east-west, and a flip reverses it.
+  const east = ctx.layerBladeArrow({ strips:[{ displayRect:[{x:0,y:0},{x:10,y:0},{x:10,y:2},{x:0,y:2}] }] }, 'primary', false);
+  const west = ctx.layerBladeArrow({ strips:[{ displayRect:[{x:0,y:0},{x:10,y:0},{x:10,y:2},{x:0,y:2}] }] }, 'primary', true);
+  assert(east.compass === 'E' || east.compass === 'W', 'east-west rect yields an E/W blade direction');
+  assert(east.compass !== west.compass, 'flipping reverses the blade compass');
+  // Per-project flip storage + lock guard.
+  assert(/function toggleBladeFlip\(layerId\) \{\s*if \(window\._wtLayoutLocked\) return;/.test(src), 'toggleBladeFlip is lock-guarded');
+  assert(/proj\.layout\.bladeFlip\[layerId\] = !proj\.layout\.bladeFlip\[layerId\]/.test(src), 'flip stored per layer on the project');
+  // Controls: global show toggle + per-layer flip buttons; cut list carries per-layer direction.
+  assert(/id="showBladesToggle"/.test(src), 'Show blade direction toggle present');
+  assert(/onclick="toggleBladeFlip\('primary'\)"/.test(src) && /onclick="toggleBladeFlip\(\$\{i\}\)"/.test(src), 'per-layer flip buttons on primary + secondary cards');
+  assert(/bladeArrow: blade\.arrow, bladeCompass: blade\.compass/.test(src), 'the cut list carries each layer\'s blade direction');
+  // Putting green is skipped (pile too low); fringe gets an inward arrow (blades face the green).
+  assert(/if \(u\.displayClipped\) \{ drawPoly\(u\.displayClipped, pgFill, '#5FA463'\); \}/.test(src), 'putting green pieces draw no blade arrow');
+  assert(/Fringe blades face IN toward the green[\s\S]*?drawBladeArrowAt\(poly, \{ x: -nx, y: -ny \}\)/.test(src), 'fringe pieces draw an inward blade arrow (toward the green)');
+  assert(/isPuttingGreen \? \{ arrow: '', compass: '' \}/.test(src), 'the cut list omits blade direction for a putting green');
+  assert(/mode === 'install'\) \? `<button[^`]*toggleBladeFlip/.test(src), 'the blade flip button shows only on install layers, not putting greens');
+}
+
+section('175. Configurable backup-staleness warning (default 2 days)');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/const BACKUP_STALE_DAYS = 2;/.test(src), 'default staleness threshold is 2 days');
+  assert(/function getBackupThreshold\(\)/.test(src) && /function setBackupThreshold\(val\)/.test(src), 'threshold getter/setter exist');
+  assert(/id="backupStaleDaysInput"/.test(src) && /oninput="setBackupThreshold\(this\.value\)"/.test(src), 'Settings has a days input wired to the setter');
+  assert(/backupStatus\(getLastBackupAt\(\), Date\.now\(\), getBackupThreshold\(\)\)/.test(src), 'the status render uses the configured threshold');
+  // Behavior: staleness respects the threshold.
+  const now = Date.now(), day = 86400000;
+  assert(ctx.backupStatus(now - 2*day, now, 2).stale === true, 'a 2-day-old backup is stale at threshold 2');
+  assert(ctx.backupStatus(now - 1*day, now, 2).stale === false, 'a 1-day-old backup is not stale at threshold 2');
+  assert(ctx.backupStatus(now - 3*day, now, 7).stale === false, 'a 3-day-old backup is not stale at threshold 7');
+  assert(ctx.backupStatus(null, now, 2).stale === true, 'never-backed-up is always stale');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

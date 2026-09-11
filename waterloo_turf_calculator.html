@@ -1606,6 +1606,10 @@
                   <input type="checkbox" id="showRollLabelsToggle" data-lockok="1" checked onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
                   Show roll / piece labels
                 </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:12px;margin-bottom:6px;" title="Turf blades face one direction. Show an arrow on each piece indicating which way the blades should lean. Set the direction on the Display sub-tab.">
+                  <input type="checkbox" id="showBladesToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
+                  Show blade direction (arrows)
+                </label>
                 <div id="layoutCanvasWrap" style="overflow:auto;max-height:86vh;overscroll-behavior:contain;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:default;">
                   <canvas id="rollLayoutCanvas" style="display:block;"></canvas>
                 </div>
@@ -1693,6 +1697,10 @@
                       <div style="font-size:11px;color:var(--text-light);">
                         <span id="viewRotationValue">0°</span> — rotates the drawing only, to match how you're viewing the yard. Doesn't affect area or roll calculations.
                       </div>
+                    </div>
+                    <div class="field-group">
+                      <label>Blade direction</label>
+                      <div style="font-size:11px;color:var(--text-light);line-height:1.4;">Turf blades run along the roll. Turn on <strong>Show blade direction (arrows)</strong> above to see the grain on each piece. Each layer's direction follows its roll, and you flip which way it faces with the <strong>⇄ Blades</strong> button on that layer (Layers tab). It's also noted on the Cut List.</div>
                     </div>
                   </div>
                 </div>
@@ -2065,6 +2073,11 @@
             <div style="flex:1;min-width:180px;font-size:12px;" id="backupStatusLine">Last backup: —</div>
           </div>
           <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;"><strong>Back up now</strong> saves a complete backup file (projects, settings, and vendor price lists) — keep copies somewhere safe, like email or Google Drive, and import it back below. To back up only certain jobs, tick them in the sidebar list first and use Export Selected.</p>
+          <div class="field-group" style="max-width:340px;margin-bottom:10px;">
+            <label>Warn me if I haven't backed up in (days)</label>
+            <input type="number" id="backupStaleDaysInput" min="1" step="1" oninput="setBackupThreshold(this.value)" style="max-width:110px;">
+            <div style="font-size:11px;color:var(--text-light);margin-top:3px;">A red reminder appears in the sidebar once your last backup is this many days old. Default: 2.</div>
+          </div>
           <div id="syncMenuSelectedCount" style="font-size:12px;color:var(--text-mid);margin-bottom:10px;"></div>
           <div style="display:flex;flex-wrap:wrap;gap:8px;">
             <button class="btn btn-sm" onclick="exportBackup('selected')">↓ Export Selected</button>
@@ -8153,6 +8166,7 @@ function renderLayersList(proj) {
         ${resetBtn('primary')}
       </div>
       <div style="font-size:10px;color:#2e7d32;margin-top:3px;">✓ Main turf area — always counts as turf (no mode to set).</div>
+      <button class="btn btn-ghost btn-sm" data-lockok="1" style="font-size:10px;padding:2px 6px;margin-top:4px;" onclick="toggleBladeFlip('primary')" title="Flip which way the turf blades face on this layer (blades run along the roll). Turn on 'Show blade direction' to see the arrows.">⇄ Blades ${layerBladeArrow(window._wtCurrentRollLayout, 'primary', bladeFlipFor(proj, 'primary')).arrow}</button>
       <div style="border-top:1px dashed var(--border);margin-top:5px;padding-top:5px;">
         <div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:3px;">
           <span style="color:var(--text-light);white-space:nowrap;">Roll dir</span>
@@ -8244,6 +8258,7 @@ function renderLayersList(proj) {
         })[mode] || ''}</div>
         ${mode === 'ignore' ? `<div style="font-size:10px;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;border-radius:5px;padding:5px 7px;margin-bottom:5px;line-height:1.35;">⚠ Not counted yet — this shape doesn't affect any total. Pick what it is above (turf area, cutout, etc.).</div>` : ''}
         <button class="btn btn-ghost btn-sm" data-lockok="0" style="width:100%;font-size:10px;padding:3px 6px;margin-bottom:5px;" onclick="makePrimary(${i})" title="Swap this shape in as the main yard. The current main yard becomes a layer set to Reference only, so you can then mark it Putting green, Cutout, etc. Use when a putting green or driveway was measured before the yard.">⬆ Make this the main yard</button>
+        ${(mode === 'install') ? `<button class="btn btn-ghost btn-sm" data-lockok="1" style="width:100%;font-size:10px;padding:3px 6px;margin-bottom:5px;" onclick="toggleBladeFlip(${i})" title="Flip which way the turf blades face on this layer (blades run along the roll). Turn on 'Show blade direction' to see the arrows.">⇄ Blades ${layerBladeArrow(window._wtCurrentRollLayout, i, bladeFlipFor(proj, i)).arrow}</button>` : ''}
         <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
           <span style="color:var(--text-light);white-space:nowrap;">Rotate</span>
           <input type="range" min="0" max="359" step="1" value="${rot}" style="flex:1;"
@@ -8657,6 +8672,7 @@ function renderLayoutTab() {
   { const d = document.getElementById('showPieceDimensionsToggle'); if (d) d.checked = !!proj.layout.showPieceDimensions; }
   { const d = document.getElementById('showShapeLabelsToggle'); if (d) d.checked = proj.layout.showShapeLabels !== false; }
   { const d = document.getElementById('showRollLabelsToggle'); if (d) d.checked = proj.layout.showRollLabels !== false; }
+  { const d = document.getElementById('showBladesToggle'); if (d) d.checked = !!proj.layout.showBlades; }
   const gridCb = document.getElementById('layoutShowGrid');
   if (gridCb) gridCb.checked = !!proj.layout.gridShow;
   const gridSp = document.getElementById('layoutGridSpacing');
@@ -10388,6 +10404,7 @@ function renderRollLayout() {
   { const d = document.getElementById('showPieceDimensionsToggle'); if (d) proj.layout.showPieceDimensions = d.checked; }
   { const d = document.getElementById('showShapeLabelsToggle'); if (d) proj.layout.showShapeLabels = d.checked; }
   { const d = document.getElementById('showRollLabelsToggle'); if (d) proj.layout.showRollLabels = d.checked; }
+  { const d = document.getElementById('showBladesToggle'); if (d) proj.layout.showBlades = d.checked; }
   save();
 
   const basePointsRaw = getBaseLayoutPoints(proj);
@@ -10693,6 +10710,56 @@ function toggleLayoutGrade() {
 
 // Reference grid: a to-scale graph-paper overlay behind the layout, spacing set
 // in inches. Drawn in drawRollLayoutCanvas; state persists per project.
+// Blade direction (turf grain). Blades run ALONG the roll, so direction is derived from
+// each layer's roll axis; the only choice is which of the two ends the blades face,
+// stored per layer as a flip. 0 deg = up/N clockwise (for compass labels).
+const BLADE_ARROWS = { 0:'\u2191', 45:'\u2197', 90:'\u2192', 135:'\u2198', 180:'\u2193', 225:'\u2199', 270:'\u2190', 315:'\u2196' };
+const BLADE_COMPASS = { 0:'N', 45:'NE', 90:'E', 135:'SE', 180:'S', 225:'SW', 270:'W', 315:'NW' };
+// Long edge (data space) of a 4-corner rectangle — the roll's run direction. Pure.
+function rectLongAxisData(rect) {
+  if (!rect || rect.length < 3) return { x: 0, y: -1 };
+  const e1 = { x: rect[1].x - rect[0].x, y: rect[1].y - rect[0].y };
+  const e2 = { x: rect[2].x - rect[1].x, y: rect[2].y - rect[1].y };
+  return (Math.hypot(e1.x, e1.y) >= Math.hypot(e2.x, e2.y)) ? e1 : e2;
+}
+// A representative strip rectangle for a layer, to read its roll axis. Pure.
+function layerRepRect(layout, layerId) {
+  const stripsOf = (L) => (L && L.strips) ? L.strips : [];
+  let strips = [];
+  if (layerId === 'primary') strips = stripsOf(layout);
+  else {
+    const il = (layout && layout._installLayers || []).find(e => e.id === layerId);
+    strips = il ? stripsOf(il.layout) : [];
+  }
+  for (const s of strips) { const u = (s.pieces && s.pieces[0]) || s; if (u.displayRect && u.displayRect.length >= 4) return u.displayRect; }
+  return null;
+}
+// Blade arrow + compass for a layer, from its roll axis (data space) + flip. Pure.
+function layerBladeArrow(layout, layerId, flip) {
+  const rect = layerRepRect(layout, layerId);
+  const long = rectLongAxisData(rect || [{x:0,y:0},{x:0,y:-1},{x:1,y:-1}]);
+  let deg = Math.atan2(long.x, -long.y) * 180 / Math.PI; // data +x = E, -y = N
+  if (flip) deg += 180;
+  const d = ((Math.round(deg / 45) * 45) % 360 + 360) % 360;
+  return { arrow: BLADE_ARROWS[d] || '\u2191', compass: BLADE_COMPASS[d] || 'N', deg: d };
+}
+function bladeFlipFor(proj, layerId) {
+  const f = proj && proj.layout && proj.layout.bladeFlip;
+  return !!(f && f[layerId]);
+}
+function toggleBladeFlip(layerId) {
+  if (window._wtLayoutLocked) return;
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  if (!proj.layout.bladeFlip) proj.layout.bladeFlip = {};
+  proj.layout.bladeFlip[layerId] = !proj.layout.bladeFlip[layerId];
+  // Choosing a direction implies you want to see it.
+  const t = document.getElementById('showBladesToggle');
+  if (t && !t.checked) { t.checked = true; proj.layout.showBlades = true; window._wtShowBlades = true; }
+  save();
+  renderLayersList(proj);
+  renderRollLayoutStableCanvas();
+}
+
 function toggleLayoutGrid() {
   const proj = getCurrentProject(); if (!proj || !proj.layout) return;
   const cb = document.getElementById('layoutShowGrid');
@@ -10834,6 +10901,46 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     return true;
   };
 
+  // Blade-direction arrow: turf blades lean along one direction, and every piece in a
+  // job should face the same way. When enabled, draw a small arrow centered in each
+  // turf piece pointing the chosen blade direction (0° = up, clockwise, screen frame).
+  // Draw a blade arrow centered in a piece, pointing in a given DATA-space direction
+  // (transformed to canvas). Gated on the Show-blade-direction toggle.
+  function drawBladeArrowAt(clipPoly, dataDir) {
+    if (!window._wtShowBlades || !clipPoly || clipPoly.length < 3 || !dataDir) return;
+    const cpts = clipPoly.map(toCanvas);
+    let cx = 0, cy = 0, minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    cpts.forEach(p => { cx += p.x; cy += p.y; minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
+    cx /= cpts.length; cy /= cpts.length;
+    const dcx = clipPoly.reduce((s, p) => s + p.x, 0) / clipPoly.length, dcy = clipPoly.reduce((s, p) => s + p.y, 0) / clipPoly.length;
+    const p0 = toCanvas({ x: dcx, y: dcy }), p1 = toCanvas({ x: dcx + dataDir.x, y: dcy + dataDir.y });
+    let ax = p1.x - p0.x, ay = p1.y - p0.y;
+    const m = Math.hypot(ax, ay) || 1; ax /= m; ay /= m;
+    const short = Math.min(maxX - minX, maxY - minY);
+    const len = Math.max(9, Math.min(32, short * 0.7));
+    if (short < 6) return; // piece too small on screen to show an arrow legibly
+    const x0 = cx - ax * len / 2, y0 = cy - ay * len / 2, x1 = cx + ax * len / 2, y1 = cy + ay * len / 2;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(18,62,23,0.9)'; ctx.fillStyle = 'rgba(18,62,23,0.9)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    const a = Math.atan2(ay, ax), ah = Math.max(6, len * 0.3);
+    ctx.beginPath(); ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - ah * Math.cos(a - 0.42), y1 - ah * Math.sin(a - 0.42));
+    ctx.lineTo(x1 - ah * Math.cos(a + 0.42), y1 - ah * Math.sin(a + 0.42));
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  // Roll-axis blade arrow for base/install turf: follows the piece's roll rectangle
+  // (long edge = roll run), with a per-layer flip for which end. Putting green is
+  // skipped by the caller (pile too low for grain to matter); fringe uses an inward
+  // arrow instead (blades face in toward the green).
+  function drawBladeArrowInPoly(clipPoly, rect, layerId) {
+    const axisSrc = (rect && rect.length >= 4) ? rect : clipPoly;
+    let long = rectLongAxisData(axisSrc);
+    if (window._wtBladeFlip && window._wtBladeFlip[layerId]) long = { x: -long.x, y: -long.y };
+    drawBladeArrowAt(clipPoly, long);
+  }
+
   // Nothing to draw without a computed layout (e.g. no CSV imported yet). Bail
   // after clearing so every caller — grid toggle, draw-mode exit, annotation
   // edits — is safe to call before a layout exists.
@@ -10935,6 +11042,8 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   window._wtShowPieceDimensions = !!(document.getElementById('showPieceDimensionsToggle') && document.getElementById('showPieceDimensionsToggle').checked);
   { const d = document.getElementById('showShapeLabelsToggle'); window._wtShowShapeLabels = d ? d.checked : true; }
   { const d = document.getElementById('showRollLabelsToggle'); window._wtShowRollLabels = d ? d.checked : true; }
+  { const d = document.getElementById('showBladesToggle'); window._wtShowBlades = d ? d.checked : false; }
+  { const pj = getCurrentProject(); window._wtBladeFlip = (pj && pj.layout && pj.layout.bladeFlip) || {}; }
   const primaryVisible = layout.layerVisibility.primary !== false;
 
   // Build a lookup of all units by key (across every install layer), needed to
@@ -11041,12 +11150,15 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
           drawPoly(movedClipped, color, 'rgba(0,0,0,0.25)');
           drawPoly(movedClipped, null, u._nestOverlapsTurf ? '#e53935' : '#f4a822');
           u._displayClippedMoved = movedClipped; // stash for label placement below
+          drawBladeArrowInPoly(movedClipped, u.displayRect, 'primary');
         } else if (showRects && u.displayRect && u.displayRect.length) {
           drawHatched(u.displayRect, 'rgba(244,67,54,0.35)');       // waste hatching across the whole rectangle
           drawPoly(u.displayClipped, color, 'rgba(0,0,0,0.25)');     // installed portion solid on top
           drawPoly(u.displayRect, null, 'rgba(0,0,0,0.4)');          // rectangle outline
+          drawBladeArrowInPoly(u.displayClipped, u.displayRect, 'primary');
         } else {
           drawPoly(u.displayClipped, color, 'rgba(0,0,0,0.25)');
+          drawBladeArrowInPoly(u.displayClipped, u.displayRect, 'primary');
         }
       });
     });
@@ -11126,7 +11238,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
                 drawHatched(u.displayRect, 'rgba(244,67,54,0.18)');
                 drawPoly(u.displayRect, null, 'rgba(0,0,0,0.18)');
               }
-              if (u.displayClipped) { drawPoly(u.displayClipped, fill, stroke); installDrawnPts.push(...u.displayClipped); }
+              if (u.displayClipped) { drawPoly(u.displayClipped, fill, stroke); installDrawnPts.push(...u.displayClipped); drawBladeArrowInPoly(u.displayClipped, u.displayRect, i); }
             }
           });
         });
@@ -11155,7 +11267,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
               drawHatched(u.displayRect, 'rgba(244,67,54,0.18)');
               drawPoly(u.displayRect, null, 'rgba(0,0,0,0.18)');
             }
-            if (u.displayClipped) drawPoly(u.displayClipped, pgFill, '#5FA463');
+            if (u.displayClipped) { drawPoly(u.displayClipped, pgFill, '#5FA463'); }
           });
         });
       } else {
@@ -11191,17 +11303,23 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
               const r3 = { x: p.p0.x + nx * fringe.width, y: p.p0.y + ny * fringe.width };
               const poly = [r0, r1, r2, r3];
               drawPoly(poly, 'rgba(27,94,32,0.40)', '#123E17'); // fringe — darkest green
-              // Label each fringe piece at its centroid
+              // Label each fringe piece at its centroid — hidden while the blade
+              // arrows are on (they'd crowd the thin fringe pieces), shown otherwise.
               const cx = poly.reduce((s,pt)=>s+pt.x,0)/4, cy = poly.reduce((s,pt)=>s+pt.y,0)/4;
-              const c = toCanvas({x:cx, y:cy});
-              const label = `Fringe ${pi+1}`;
-              ctx.font = '11px sans-serif';
-              const tw = ctx.measureText(label).width;
-              ctx.fillStyle = 'rgba(255,255,255,0.85)';
-              ctx.fillRect(c.x-tw/2-2, c.y-11, tw+4, 14);
-              ctx.fillStyle = '#1b5e20';
-              ctx.fillText(label, c.x-tw/2, c.y);
-              lblForce(c.x-tw/2-2, c.y-11, tw+4, 14);
+              if (!window._wtShowBlades) {
+                const c = toCanvas({x:cx, y:cy});
+                const label = `Fringe ${pi+1}`;
+                ctx.font = '11px sans-serif';
+                const tw = ctx.measureText(label).width;
+                ctx.fillStyle = 'rgba(255,255,255,0.85)';
+                ctx.fillRect(c.x-tw/2-2, c.y-11, tw+4, 14);
+                ctx.fillStyle = '#1b5e20';
+                ctx.fillText(label, c.x-tw/2, c.y);
+                lblForce(c.x-tw/2-2, c.y-11, tw+4, 14);
+              }
+              // Fringe blades face IN toward the green (inward = opposite the outward
+              // normal) — drawn last so it sits on top of the piece label.
+              drawBladeArrowAt(poly, { x: -nx, y: -ny });
             });
           } else {
             // Outline only: a smooth offset of the green's actual outline
@@ -13037,9 +13155,12 @@ function buildCutList(layout) {
     : [{ id: 'primary', name: layout.primaryLayerName || 'Turf', layout }];
   const layers = [];
   let gP = 0, gL = 0, gA = 0;
-  entries.forEach(({ name, layout: L }) => {
+  const _proj = (typeof getCurrentProject === 'function') ? getCurrentProject() : null;
+  entries.forEach(({ id, name, layout: L, isPuttingGreen }) => {
     if (!L || !Array.isArray(L.strips)) return;
     const labels = assignRollPieceLabels(L);
+    // Putting green pile is too low for grain to matter — no blade direction shown.
+    const blade = isPuttingGreen ? { arrow: '', compass: '' } : layerBladeArrow(layout, id, bladeFlipFor(_proj, id));
     const pieces = [];
     let sP = 0, sL = 0, sA = 0;
     L.strips.forEach(s => {
@@ -13095,7 +13216,7 @@ function buildCutList(layout) {
       });
     });
     if (!pieces.length) return;
-    layers.push({ name: name || 'Turf', pieces, subtotal: { pieces: sP, linearFt: sL, area: sA } });
+    layers.push({ name: name || 'Turf', bladeArrow: blade.arrow, bladeCompass: blade.compass, pieces, subtotal: { pieces: sP, linearFt: sL, area: sA } });
     gP += sP; gL += sL; gA += sA;
   });
   return { layers, totals: { pieces: gP, linearFt: gL, area: gA } };
@@ -13109,7 +13230,8 @@ function renderCutListHtml(data) {
   const multi = data.layers.length > 1;
   let html = '';
   data.layers.forEach(layer => {
-    if (multi) html += '<div style="font-weight:700;margin:16px 0 8px;color:var(--green);">' + escAttr(layer.name) + '</div>';
+    const bladeTag = layer.bladeArrow ? ' <span style="font-weight:600;color:#123e17;">' + layer.bladeArrow + ' blades ' + escAttr(layer.bladeCompass) + '</span>' : '';
+    html += '<div style="font-weight:700;margin:16px 0 8px;color:var(--green);">' + (multi ? escAttr(layer.name) : 'Blade direction') + bladeTag + '</div>';
     html += '<div style="display:flex;flex-wrap:wrap;gap:12px;">';
     layer.pieces.forEach(p => {
       const cutW = (p.cutW != null ? p.cutW : p.footW);
@@ -15143,7 +15265,16 @@ function factoryResetApp() {
 
 // ── Backup freshness reminder ───────────────────────────────────────────────
 const LAST_BACKUP_KEY = 'wt_last_backup_at';
-const BACKUP_STALE_DAYS = 7;
+const BACKUP_STALE_DAYS = 2;                    // default: warn after 2 days
+const BACKUP_STALE_KEY = 'wt_backup_stale_days';
+function getBackupThreshold() {
+  try { const v = parseInt(localStorage.getItem(BACKUP_STALE_KEY), 10); return (isNaN(v) || v < 1) ? BACKUP_STALE_DAYS : v; } catch(e){ return BACKUP_STALE_DAYS; }
+}
+function setBackupThreshold(val) {
+  const v = parseInt(val, 10);
+  try { if (!isNaN(v) && v >= 1) localStorage.setItem(BACKUP_STALE_KEY, String(v)); } catch(e){}
+  renderBackupStatus();
+}
 function getLastBackupAt() {
   try { const v = parseInt(localStorage.getItem(LAST_BACKUP_KEY), 10); return isNaN(v) ? null : v; } catch(e){ return null; }
 }
@@ -15164,7 +15295,9 @@ function backupStatus(lastAt, now, thresholdDays) {
 function doBackupNow() { exportBackup('all'); }
 // Update the Settings status line and the sidebar nudge from the stored timestamp.
 function renderBackupStatus() {
-  const s = backupStatus(getLastBackupAt(), Date.now());
+  const s = backupStatus(getLastBackupAt(), Date.now(), getBackupThreshold());
+  const inp = document.getElementById('backupStaleDaysInput');
+  if (inp && document.activeElement !== inp) inp.value = getBackupThreshold();
   const line = document.getElementById('backupStatusLine');
   if (line) {
     line.textContent = s.label + (s.stale ? ' — back up to keep a safe copy.' : '');

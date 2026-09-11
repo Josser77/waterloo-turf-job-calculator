@@ -5,6 +5,69 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-07 — Backup staleness warning is now configurable (default 2 days)
+
+The "haven't backed up in a while" reminder used a fixed 7-day threshold. Added a **Warn me if I
+haven't backed up in (days)** setting under Settings → Backup & Sync, defaulting to **2 days**. The
+sidebar red reminder and the Settings status line now trigger at whatever you set. Stored in
+localStorage; the status render reads it live.
+
+Tests **2053 -> 2061** (README **2061**): default threshold is 2, getter/setter + input wired, status
+render uses the configured value, and staleness respects the threshold (2-day-old backup is stale at
+2, not at 7). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-07 — Blade arrows: skip putting green, add inward arrows on fringe
+
+Putting-green pile is too low for grain to matter, so PG pieces no longer draw blade arrows (and the
+Cut List omits a blade direction for a green; the ⇄ Blades flip button no longer appears on PG
+layers). Fringe is the opposite — it's directional and the convention is blades face IN toward the
+green, so fringe pieces now draw an inward arrow (opposite the fringe's outward normal), sized to fit
+the thin fringe strips. Fringe piece labels ("Fringe N") hide while blade arrows are on so the arrows
+read clearly, and show again when arrows are off.
+
+Tests **2049 -> 2053** (README **2053**): PG draws no arrow + omitted from cut-list blade, fringe
+draws the inward arrow, flip button install-only. Verified on-canvas (green blank, fringe arrows
+point inward, base turf keeps roll-axis arrows). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-07 — Blade direction is now per layer, tied to each layer's roll
+
+Reworked blade direction to match physical reality: turf blades run ALONG the roll, so the arrow now
+follows each piece's roll rectangle (its long edge = the roll run) rather than a free-set angle. Each
+layer has its own direction with a **⇄ Blades** flip button on its layer card to choose which of the
+two ends the blades face — so the front yard, a side yard, and the back yard can each face
+differently (e.g., if their rolls run different ways). The **Show blade direction (arrows)** toggle
+still shows/hides all arrows. The Cut List now prints each layer's blade direction (e.g.,
+"→ blades E"). Replaces the earlier single per-project direction picker.
+
+Tests **2046 -> 2049** (README **2049**): arrow follows the roll rectangle + per-layer flip, pure
+axis/compass helpers, per-layer flip storage + lock guard, flip buttons on primary + secondary
+cards, cut-list per-layer direction. Verified on-canvas (two layers with perpendicular rolls show
+blades along their own axes; flipping one doesn't affect the other). Green under UTC and
+America/Los_Angeles.
+
+---
+
+## 2026-09-07 — Blade direction: set the turf grain, show it as arrows + on the cut list
+
+Turf is directional — the blades lean one way, and every piece should be laid facing the same
+direction. New **Blade direction** control (Layout -> Display sub-tab): pick one of 8 directions
+(N/NE/E/... , shown as arrows), and a **Show blade direction (arrows)** toggle above the canvas draws
+a small arrow centered in every turf piece pointing that way (primary, install layers, and putting
+green). The direction is also printed on the **Cut List** header ("Blade direction: -> E") so the
+crew lays every piece the same way. Saved per project; picking a direction auto-enables the arrows;
+respects the layout lock.
+
+Tests **2035 -> 2046** (README **2046**): arrow helper (canvas-space via toCanvas, gated on the
+toggle, drawn on all piece types), 8-way compass model, per-project persistence, cut-list line, lock
+guard. Verified on-canvas (arrows center in each piece pointing the set direction). Green under UTC
+and America/Los_Angeles.
+
+---
+
 ## 2026-09-07 — Turf greens by role: putting green lightest, fringe darkest, main in between
 
 Building on the all-green turf change, the three turf roles now read as distinct shades of green:
