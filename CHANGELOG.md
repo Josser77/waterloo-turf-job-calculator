@@ -5,6 +5,37 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-10 — Draw a shape, enter real dimensions → measured turf layer
+
+Building on blank-canvas drawing: **Make Layer** on a drawn rectangle or circle now asks for the
+real measured size and scales the shape to it, so a hand-drawn shape becomes a genuine measured turf
+layer (perimeter, installed & ordered sqft, roll plan) — you can draw a yard without Moasure and get
+an accurate order. Rectangle takes width x length (each axis scales to match); circle takes diameter
+(scales uniformly to stay round). Freehand areas still convert at their drawn scale; a line has no
+area so it stays markup. Dimensions come from your measurements (Option A), so the numbers are
+accurate rather than guessed from a freehand drawing.
+
+Tests **2081 -> 2087** (README **2087**): modal routing for rect/circle, per-axis rect scaling,
+uniform circle scaling, install-layer creation. Verified end-to-end (drawn rect set to 20x15 →
+300 ft² layer; circle dia 10 → ~78 ft²). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-10 — Draw on a blank canvas without a Moasure import
+
+The Layout tab required a Moasure CSV import before you could do anything. Added a **✏️ Start a blank
+drawing** button to the empty state: it creates an empty layout and drops straight into Draw mode, so
+you can sketch the yard and markup by hand with the existing Draw/landscape tools — no import needed.
+A blank layout gets a default ~40x30 ft drawing area (auto-expanding to frame anything you draw) so
+the canvas has a working coordinate space. You can still Import CSV later to overlay a measured roll
+plan.
+
+Tests **2076 -> 2081** (README **2081**): the empty-state button, startBlankCanvas creating the layout
++ entering Draw mode, and the default drawing area. Verified end-to-end (no-layout project → button →
+blank canvas in Draw mode). Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-10 — Blade arrows fill the turf shape in a grid (centered, not per-piece)
 
 The arrows were centered on each cut PIECE, so they scattered across the roll strips and read

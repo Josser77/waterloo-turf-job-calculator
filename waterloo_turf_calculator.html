@@ -1574,7 +1574,10 @@
             Import a Moasure CSV to overlay the roll plan, then apply it to a turf row. <a onclick="openGuideAt('doc-layout')" style="cursor:pointer;text-decoration:underline;">Guide</a>
           </p>
           <div id="layoutEmpty" class="empty" style="padding:30px;text-align:center;color:var(--text-light);">
-            No layout imported yet for this project. Click "↑ Import CSV" to add one.
+            <div style="margin-bottom:14px;">No layout imported yet for this project. Click "↑ Import CSV" to add one —</div>
+            <div style="font-size:13px;margin-bottom:10px;">or start from scratch:</div>
+            <button class="btn btn-primary" onclick="startBlankCanvas()" title="Open a blank canvas and start drawing the yard and markup by hand, without a Moasure import.">✏️ Start a blank drawing</button>
+            <div style="font-size:11px;color:var(--text-light);margin-top:8px;">You can still Import CSV later to overlay a measured roll plan.</div>
           </div>
           <div id="layoutContent" style="display:none;">
             <div id="layoutGrid" style="display:grid;gap:20px;align-items:start;">
@@ -2366,6 +2369,28 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeNameModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveNameModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- SET REAL DIMENSIONS (turn a drawn shape into a measured turf layer) -->
+<div class="modal-overlay" id="shapeDimModal">
+  <div class="modal" style="width:420px;">
+    <div class="modal-title">Set real dimensions</div>
+    <p style="font-size:13px;color:var(--text-light);margin:0 0 14px;">Enter the actual measured size. Your drawing scales to these numbers and becomes a real turf layer with a roll plan and order.</p>
+    <div id="shapeDimRect" style="display:none;">
+      <div style="display:flex;gap:12px;">
+        <div class="field-group" style="flex:1;"><label>Width (ft)</label><input type="number" id="shapeDimW" min="0.1" step="0.5"></div>
+        <div class="field-group" style="flex:1;"><label>Length (ft)</label><input type="number" id="shapeDimL" min="0.1" step="0.5"></div>
+      </div>
+    </div>
+    <div id="shapeDimCircle" style="display:none;">
+      <div class="field-group"><label>Diameter (ft)</label><input type="number" id="shapeDimD" min="0.1" step="0.5"></div>
+    </div>
+    <div id="shapeDimArea" style="font-size:13px;color:var(--green-dark,#1b5e20);font-weight:600;margin-top:4px;min-height:18px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeShapeDimModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmShapeDim()">Create turf layer</button>
     </div>
   </div>
 </div>
@@ -8632,6 +8657,20 @@ function setRollDirection(deg) {
   renderRollLayout();
 }
 
+// Start a blank drawing canvas for a project with no Moasure import — creates an empty
+// layout (no turf shapes) so the canvas and Draw tools become available, then drops
+// straight into Draw mode.
+function startBlankCanvas() {
+  const proj = getCurrentProject(); if (!proj) return;
+  if (!proj.layout) proj.layout = { points: [], secondaryShapes: [], secondaryShapeModes: {} };
+  if (!Array.isArray(proj.layout.annotations)) proj.layout.annotations = [];
+  proj.layout.blankCanvas = true; // hand-started, not imported
+  save();
+  renderLayoutTab();
+  if (typeof renderRollLayout === 'function') renderRollLayout();
+  if (!window._wtDrawMode && typeof toggleDrawMode === 'function') toggleDrawMode();
+}
+
 function renderLayoutTab() {
   const proj = getCurrentProject();
   const empty = document.getElementById('layoutEmpty');
@@ -11013,8 +11052,14 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   // Frame on the shared fit points so the canvas dimensions (sizeLayoutCanvas)
   // and the draw scale agree exactly — the shape fills the canvas with no
   // letterboxing, and rectangles are only framed in when they're being shown.
-  const allPts = layoutFitPoints(layout, showRectsFit);
-  if (!allPts || !allPts.length) return;
+  let allPts = layoutFitPoints(layout, showRectsFit);
+  if (!allPts || !allPts.length) {
+    // Blank canvas (no Moasure import yet) — give a default ~40x30 ft drawing area so
+    // the Draw tools have a coordinate space, expanded to include anything already drawn.
+    const annPts = [];
+    (layout.annotations || []).forEach(a => (a.points || []).forEach(p => annPts.push(p)));
+    allPts = [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 30 }, { x: 0, y: 30 }, ...annPts];
+  }
   let minX, minY, scale, pad = 16;
   const _frozen = window._wtFreezeTransform && window._wtCanvasTransform;
   if (_frozen) {
@@ -12727,6 +12772,67 @@ function makeLayerFromSelectedAnnotation() {
     showLayoutToast('Select a closed shape (rectangle, circle, or freehand area) first — a line has no area, so it can\'t become a layer.');
     return;
   }
+  // Rectangles and circles get a real-dimensions prompt so the layer is measured, not
+  // sized by the arbitrary drawing. Freehand areas convert at their drawn scale.
+  if (a.type === 'rect' || a.type === 'circle') { openShapeDimModal(i, a); return; }
+  finalizeLayerFromAnnotation(i, a);
+}
+
+// Scale a drawn shape's points so its bounding box becomes the entered real size,
+// then hand off to create the layer.
+function openShapeDimModal(annoIdx, a) {
+  window._wtDimAnno = annoIdx;
+  const isCircle = a.type === 'circle';
+  document.getElementById('shapeDimRect').style.display = isCircle ? 'none' : 'block';
+  document.getElementById('shapeDimCircle').style.display = isCircle ? 'block' : 'none';
+  document.getElementById('shapeDimArea').textContent = '';
+  const w = document.getElementById('shapeDimW'), l = document.getElementById('shapeDimL'), d = document.getElementById('shapeDimD');
+  if (w) w.value = ''; if (l) l.value = ''; if (d) d.value = '';
+  const upd = () => {
+    let area = 0;
+    if (isCircle) { const dv = parseFloat(d.value) || 0; area = Math.PI * (dv / 2) * (dv / 2); }
+    else { area = (parseFloat(w.value) || 0) * (parseFloat(l.value) || 0); }
+    document.getElementById('shapeDimArea').textContent = area > 0 ? ('Area: ' + area.toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' ft²') : '';
+  };
+  [w, l, d].forEach(el => { if (el) el.oninput = upd; });
+  document.getElementById('shapeDimModal').classList.add('open');
+  setTimeout(() => { (isCircle ? d : w).focus(); }, 30);
+}
+function closeShapeDimModal() {
+  document.getElementById('shapeDimModal').classList.remove('open');
+  window._wtDimAnno = null;
+}
+function confirmShapeDim() {
+  const proj = getCurrentProject(); if (!proj || !proj.layout) return;
+  const i = window._wtDimAnno;
+  const a = (proj.layout.annotations || [])[i];
+  if (!a) { closeShapeDimModal(); return; }
+  const isCircle = a.type === 'circle';
+  // Current bounding box of the drawn shape.
+  const xs = a.points.map(p => p.x), ys = a.points.map(p => p.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const bw = (maxX - minX) || 1, bh = (maxY - minY) || 1;
+  let sx, sy;
+  if (isCircle) {
+    const D = parseFloat(document.getElementById('shapeDimD').value) || 0;
+    if (D <= 0) { showLayoutToast('Enter a diameter greater than 0.'); return; }
+    const s = D / Math.max(bw, bh); sx = s; sy = s;      // uniform → keeps it round
+  } else {
+    const W = parseFloat(document.getElementById('shapeDimW').value) || 0;
+    const L = parseFloat(document.getElementById('shapeDimL').value) || 0;
+    if (W <= 0 || L <= 0) { showLayoutToast('Enter a width and length greater than 0.'); return; }
+    sx = W / bw; sy = L / bh;
+  }
+  // Scale points about the shape's min corner so the bbox becomes the real size.
+  a.points = a.points.map(p => ({ x: minX + (p.x - minX) * sx, y: minY + (p.y - minY) * sy }));
+  closeShapeDimModal();
+  finalizeLayerFromAnnotation(i, a);
+}
+
+function finalizeLayerFromAnnotation(i, a) {
+  const proj = getCurrentProject();
+  if (!proj || !proj.layout) return;
+  const annos = proj.layout.annotations || [];
   const viewRotation = proj.layout.viewRotation || 0;
   const centroid = viewRotation ? getViewCentroid(proj) : { cx: 0, cy: 0 };
   const pts = annotationToLayerPoints(a.points, viewRotation, centroid);

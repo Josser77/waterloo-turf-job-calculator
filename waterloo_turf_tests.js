@@ -8337,6 +8337,34 @@ section('177. Blade arrows draw last, smaller, with a halo');
   assert(/rgba\(255,255,255,0\.95\)/.test(src), 'arrows get a white halo so they stand out');
 }
 
+section('178. Draw on a blank canvas (no Moasure import)');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Empty state offers a blank-drawing entry point.
+  assert(/onclick="startBlankCanvas\(\)"/.test(src) && /Start a blank drawing/.test(src), 'empty state has a Start-a-blank-drawing button');
+  // startBlankCanvas creates an empty layout + enters draw mode.
+  assert(/function startBlankCanvas\(\)/.test(src), 'startBlankCanvas exists');
+  assert(/proj\.layout = \{ points: \[\], secondaryShapes: \[\], secondaryShapeModes: \{\} \}/.test(src), 'it creates an empty layout when none exists');
+  assert(/if \(!window\._wtDrawMode && typeof toggleDrawMode === 'function'\) toggleDrawMode\(\)/.test(src), 'it drops into Draw mode');
+  // The canvas has a default coordinate space when blank, so Draw tools work.
+  assert(/Blank canvas \(no Moasure import yet\)/.test(src) && /\{ x: 40, y: 0 \}, \{ x: 40, y: 30 \}/.test(src), 'a blank layout gets a default ~40x30 ft drawing area (expanded to fit anything drawn)');
+}
+
+section('179. Draw a shape, set real dimensions, get a measured turf layer');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Rect/circle route through the dimensions modal; the shape scales to entered size.
+  assert(/if \(a\.type === 'rect' \|\| a\.type === 'circle'\) \{ openShapeDimModal/.test(src), 'rect/circle Make-Layer opens the dimensions modal');
+  assert(/function openShapeDimModal\(annoIdx, a\)/.test(src) && /function confirmShapeDim\(\)/.test(src) && /function finalizeLayerFromAnnotation/.test(src), 'dimension modal + finalize functions exist');
+  assert(/id="shapeDimW"/.test(src) && /id="shapeDimL"/.test(src) && /id="shapeDimD"/.test(src), 'modal has width/length (rect) and diameter (circle) inputs');
+  // Rectangle scales x by W/bw, y by L/bh (bbox becomes the real size).
+  assert(/sx = W \/ bw; sy = L \/ bh;/.test(src), 'rectangle scales each axis to the entered width/length');
+  // Circle scales uniformly to keep it round.
+  assert(/const s = D \/ Math\.max\(bw, bh\); sx = s; sy = s;/.test(src), 'circle scales uniformly to the entered diameter');
+  // The finalized layer is an install layer (roll plan + order), same as before.
+  assert(/proj\.layout\.secondaryShapeModes\[idx\] = 'install';/.test(src), 'the created shape is an install turf layer');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
