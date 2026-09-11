@@ -11011,52 +11011,55 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   // layer's roll direction), so the grain reads as "this whole area runs this way"
   // rather than one arrow per cut piece. Handles concave shapes; a shape too small for
   // the grid gets a single centered arrow.
-  // Place blade arrows down the CENTER of one roll strip's installed turf, spaced along
-  // the run. Tying arrows to each strip (rather than a blind grid over the whole shape)
-  // guarantees every strip gets arrows, centered across its width — even on tilted or
-  // irregular shapes where a fixed grid left strips empty.
-  function queueBladeArrowsInStrip(clipData, dataDir) {
-    if (!window._wtShowBlades || !clipData || clipData.length < 3 || !dataDir) return;
-    const cpoly = clipData.map(toCanvas);
-    const dc = clipData.reduce((a, p) => ({ x: a.x + p.x, y: a.y + p.y }), { x: 0, y: 0 });
-    dc.x /= clipData.length; dc.y /= clipData.length;
-    const q0 = toCanvas(dc), q1 = toCanvas({ x: dc.x + dataDir.x, y: dc.y + dataDir.y });
-    let ax = q1.x - q0.x, ay = q1.y - q0.y; const m = Math.hypot(ax, ay) || 1; ax /= m; ay /= m;
-    const px = -ay, py = ax;
-    // Roll-frame extent of this strip (u along the run, v across the width).
-    let uMin = Infinity, uMax = -Infinity, vMin = Infinity, vMax = -Infinity;
-    cpoly.forEach(p => {
-      const u = p.x * ax + p.y * ay, v = p.x * px + p.y * py;
-      uMin = Math.min(uMin, u); uMax = Math.max(uMax, u);
-      vMin = Math.min(vMin, v); vMax = Math.max(vMax, v);
-    });
-    const vC = (vMin + vMax) / 2;            // centered across the strip's width
-    const step = 70, len = 15;
-    let placed = 0;
-    for (let u = uMin + step / 2; u < uMax; u += step) {
-      const cx = u * ax + vC * px, cy = u * ay + vC * py;
-      if (pointInPoly({ x: cx, y: cy }, cpoly)) { _bladeQueue.push({ cx, cy, ax, ay, len }); placed++; }
+  // Most-interior point of a canvas polygon: the inside sample farthest from any edge
+  // (approx. pole of inaccessibility). Guarantees the point is inside and looks centered
+  // even for L-shapes/crescents where a raw centroid falls outside. Returns null if the
+  // polygon has no interior sample.
+  function bestInteriorPoint(cpoly) {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    cpoly.forEach(p => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
+    const distToSeg = (px, py, a, b) => {
+      const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy;
+      let t = L2 ? ((px - a.x) * dx + (py - a.y) * dy) / L2 : 0; t = Math.max(0, Math.min(1, t));
+      const qx = a.x + t * dx, qy = a.y + t * dy;
+      return Math.hypot(px - qx, py - qy);
+    };
+    const N = 14; let best = null, bestD = -1;
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+      const x = minX + (i + 0.5) / N * (maxX - minX), y = minY + (j + 0.5) / N * (maxY - minY);
+      if (!pointInPoly({ x, y }, cpoly)) continue;
+      let d = Infinity;
+      for (let k = 0; k < cpoly.length; k++) d = Math.min(d, distToSeg(x, y, cpoly[k], cpoly[(k + 1) % cpoly.length]));
+      if (d > bestD) { bestD = d; best = { x, y }; }
     }
-    // Strip too short for the spacing: one arrow at its centroid if that's inside.
-    if (!placed && pointInPoly(q0, cpoly)) _bladeQueue.push({ cx: q0.x, cy: q0.y, ax, ay, len });
+    return best;
   }
-  // Queue blade arrows for every base/install layer, strip by strip (putting green
-  // skipped; fringe uses its own inward per-piece arrows).
+  // One clear blade arrow per turf layer, centered in the shape and pointing the layer's
+  // roll direction. Robust on any shape (tilted, curvy, L-shaped) — a single arrow can't
+  // look scattered the way a field of them does. Putting green is skipped; fringe keeps
+  // its own inward per-piece arrows.
   function queueBladeArrowsForLayers(layout) {
     if (!window._wtShowBlades) return;
     const vis = (layout && layout.layerVisibility) || {};
     (layout._installLayers || []).forEach(entry => {
       if (!entry || entry.isPuttingGreen) return;
       if (vis[entry.id] === false) return;
+      const outline = entry.layout && entry.layout.basePoints;
+      if (!outline || outline.length < 3) return;
+      const cpoly = outline.map(toCanvas);
+      const center = bestInteriorPoint(cpoly);
+      if (!center) return;
       let dir = rectRunAxisData(layerRepRect(layout, entry.id));
       if (window._wtBladeFlip && window._wtBladeFlip[entry.id]) dir = { x: -dir.x, y: -dir.y };
-      const strips = (entry.layout && entry.layout.strips) || [];
-      strips.forEach(s => {
-        const units = (s.pieces && s.pieces.length) ? s.pieces : [s];
-        units.forEach(u => {
-          if (u && u.displayClipped && u.displayClipped.length >= 3) queueBladeArrowsInStrip(u.displayClipped, dir);
-        });
-      });
+      const dc = outline.reduce((a, p) => ({ x: a.x + p.x, y: a.y + p.y }), { x: 0, y: 0 });
+      dc.x /= outline.length; dc.y /= outline.length;
+      const q0 = toCanvas(dc), q1 = toCanvas({ x: dc.x + dir.x, y: dc.y + dir.y });
+      let ax = q1.x - q0.x, ay = q1.y - q0.y; const m = Math.hypot(ax, ay) || 1; ax /= m; ay /= m;
+      // Size the arrow to the shape: bigger on big yards, still fits small ones.
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      cpoly.forEach(p => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
+      const len = Math.max(20, Math.min(60, Math.min(maxX - minX, maxY - minY) * 0.4));
+      _bladeQueue.push({ cx: center.x, cy: center.y, ax, ay, len });
     });
   }
 

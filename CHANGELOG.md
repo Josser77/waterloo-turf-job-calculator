@@ -5,6 +5,22 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-11 — Blade direction: one clear arrow per layer (robust on any shape)
+
+Settled the blade-arrow approach: instead of a field of arrows (which kept coming out scattered or
+uneven on real curvy/tilted/L-shaped Moasure geometry), each turf layer now shows **one clear arrow**
+pointing its roll direction. The arrow is placed at the layer's **most-interior point** (the inside
+sample farthest from any edge), so it stays nicely centered and never lands in a notch or outside
+the shape — front yard, side yard, back yard each get one unmistakable grain arrow. Sized to the
+shape (bigger on big yards). Putting green still skipped; fringe keeps its inward per-piece arrows;
+the per-layer ⇄ Blades flip still sets which way it points.
+
+Tests **2099 -> 2099** (README **2099**): most-interior-point helper (stays inside an L-shape), one
+arrow per layer, old strip/grid code removed. Verified on a 3-shape layout (L-yard, curvy side yard,
+small front) — each has one centered arrow. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-11 — Blade arrows: one row down each roll strip (no more missed strips)
 
 The blind grid (even in the roll frame) didn't line up with the actual roll strips, so some strips

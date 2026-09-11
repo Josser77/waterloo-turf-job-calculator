@@ -8266,12 +8266,19 @@ section('174. Blade direction — per layer, along the roll, flippable');
 {
   const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
   // Arrows fill each layer's SHAPE in a grid (not one per cut piece), all along the roll axis.
-  assert(/function queueBladeArrowsInStrip\(clipData, dataDir\)/.test(src), 'arrows run down each strip\'s centerline');
+  // One clear arrow per turf layer, placed at the most-interior point (never outside on L-shapes).
+  assert(/function bestInteriorPoint\(cpoly\)/.test(src), 'a most-interior-point helper exists');
+  assert(/const center = bestInteriorPoint\(cpoly\)/.test(src), 'the arrow is placed at the shape\'s most-interior point');
+  assert(/_bladeQueue\.push\(\{ cx: center\.x, cy: center\.y, ax, ay, len \}\)/.test(src), 'exactly one arrow queued per layer');
+  assert(!/function queueBladeArrowsInStrip/.test(src) && !/function queueBladeGrid/.test(src), 'the per-strip / grid approaches are gone (one arrow per layer now)');
+  // Interior point stays inside an L-shape (where a centroid would fall in the notch).
+  {
+    const Lc = [{x:0,y:0},{x:100,y:0},{x:100,y:40},{x:40,y:40},{x:40,y:100},{x:0,y:100}];
+    const pt = ctx.bestInteriorPoint ? ctx.bestInteriorPoint(Lc) : null;
+    if (pt) assert(ctx.pointInPoly(pt, Lc), 'the interior point lands inside an L-shape');
+  }
   assert(/function queueBladeArrowsForLayers\(layout\)/.test(src), 'a per-layer pass queues grid arrows');
-  assert(/pointInPoly\(\{ x: cx, y: cy \}, cpoly\)/.test(src), 'grid arrows are placed only inside the shape (handles concave)');
   // Grid runs in the ROLL frame (u along roll, v across) so tilted shapes fill evenly.
-  assert(/const vC = \(vMin \+ vMax\) \/ 2;/.test(src) && /const cx = u \* ax \+ vC \* px, cy = u \* ay \+ vC \* py;/.test(src), 'arrows run along the strip centerline (v = strip center), spaced along the run');
-  assert(/units\.forEach\(u => \{[\s\S]*?queueBladeArrowsInStrip\(u\.displayClipped, dir\)/.test(src), 'every strip/piece of a layer gets arrows, so none are missed');
   assert(/if \(window\._wtBladeFlip && window\._wtBladeFlip\[entry\.id\]\) dir = \{ x: -dir\.x, y: -dir\.y \}/.test(src), 'a per-layer flip reverses the grid arrows');
   assert(/if \(!entry \|\| entry\.isPuttingGreen\) return;/.test(src), 'putting green is skipped in the grid pass');
   assert(/let long = rectRunAxisData\(axisSrc\)/.test(src) || /rectRunAxisData\(layerRepRect/.test(src), 'roll-axis direction comes from the strip run edge');
