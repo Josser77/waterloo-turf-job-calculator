@@ -8265,12 +8265,13 @@ section('173b. (fringe/pg gradient covered above)');
 section('174. Blade direction — per layer, along the roll, flippable');
 {
   const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
-  // Arrow follows each piece's roll rectangle (long edge) and a per-layer flip.
-  assert(/function drawBladeArrowInPoly\(clipPoly, rect, layerId\)/.test(src), 'arrow helper takes the piece rect + layer id');
-  assert(/if \(!window\._wtShowBlades \|\| !clipPoly/.test(src), 'arrows only draw when Show blade direction is on');
-  assert(/let long = rectRunAxisData\(axisSrc\)/.test(src) && /function drawBladeArrowAt/.test(src), 'roll-axis arrow follows the strip run edge; fringe/PG handled separately');
-  assert(/if \(window\._wtBladeFlip && window\._wtBladeFlip\[layerId\]\)/.test(src), 'a per-layer flip reverses which end the blades face');
-  assert((src.match(/drawBladeArrowInPoly\([^;]*displayRect/g) || []).length >= 4, 'arrows drawn on primary, install, and PG pieces with their rect');
+  // Arrows fill each layer's SHAPE in a grid (not one per cut piece), all along the roll axis.
+  assert(/function queueBladeGrid\(outlineData, dataDir\)/.test(src), 'grid helper fills a layer shape with arrows');
+  assert(/function queueBladeArrowsForLayers\(layout\)/.test(src), 'a per-layer pass queues grid arrows');
+  assert(/pointInPoly\(\{ x: gx, y: gy \}, cpoly\)/.test(src), 'grid arrows are placed only inside the shape (handles concave)');
+  assert(/if \(window\._wtBladeFlip && window\._wtBladeFlip\[entry\.id\]\) dir = \{ x: -dir\.x, y: -dir\.y \}/.test(src), 'a per-layer flip reverses the grid arrows');
+  assert(/if \(!entry \|\| entry\.isPuttingGreen\) return;/.test(src), 'putting green is skipped in the grid pass');
+  assert(/let long = rectRunAxisData\(axisSrc\)/.test(src) || /rectRunAxisData\(layerRepRect/.test(src), 'roll-axis direction comes from the strip run edge');
   // Pure helpers behave.
   assert(typeof ctx.rectRunAxisData === 'function', 'rectRunAxisData exists');
   // Run axis = first edge, i.e. the roll length — even when the run is SHORTER than the roll width.

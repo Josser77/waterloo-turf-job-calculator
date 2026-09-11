@@ -10963,15 +10963,41 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     });
     ctx.restore();
   }
-  // Roll-axis blade arrow for base/install turf: follows the piece's roll rectangle
-  // (long edge = roll run), with a per-layer flip for which end. Putting green is
-  // skipped by the caller (pile too low for grain to matter); fringe uses an inward
-  // arrow instead (blades face in toward the green).
-  function drawBladeArrowInPoly(clipPoly, rect, layerId) {
-    const axisSrc = (rect && rect.length >= 4) ? rect : clipPoly;
-    let long = rectRunAxisData(axisSrc);
-    if (window._wtBladeFlip && window._wtBladeFlip[layerId]) long = { x: -long.x, y: -long.y };
-    drawBladeArrowAt(clipPoly, long);
+  // Fill a layer's turf SHAPE with a grid of small blade arrows (all pointing the
+  // layer's roll direction), so the grain reads as "this whole area runs this way"
+  // rather than one arrow per cut piece. Handles concave shapes; a shape too small for
+  // the grid gets a single centered arrow.
+  function queueBladeGrid(outlineData, dataDir) {
+    if (!window._wtShowBlades || !outlineData || outlineData.length < 3 || !dataDir) return;
+    const cpoly = outlineData.map(toCanvas);
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    cpoly.forEach(p => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
+    // Canvas-space arrow direction (uniform across the shape).
+    const dc = outlineData.reduce((a, p) => ({ x: a.x + p.x, y: a.y + p.y }), { x: 0, y: 0 });
+    dc.x /= outlineData.length; dc.y /= outlineData.length;
+    const q0 = toCanvas(dc), q1 = toCanvas({ x: dc.x + dataDir.x, y: dc.y + dataDir.y });
+    let ax = q1.x - q0.x, ay = q1.y - q0.y; const m = Math.hypot(ax, ay) || 1; ax /= m; ay /= m;
+    const step = 78, len = 15;
+    let placed = 0;
+    for (let gy = minY + step / 2; gy < maxY; gy += step)
+      for (let gx = minX + step / 2; gx < maxX; gx += step)
+        if (pointInPoly({ x: gx, y: gy }, cpoly)) { _bladeQueue.push({ cx: gx, cy: gy, ax, ay, len }); placed++; }
+    if (!placed && pointInPoly(q0, cpoly)) _bladeQueue.push({ cx: q0.x, cy: q0.y, ax, ay, len });
+  }
+  // Queue grid arrows for every base/install layer (putting green skipped; fringe uses
+  // its own inward per-piece arrows).
+  function queueBladeArrowsForLayers(layout) {
+    if (!window._wtShowBlades) return;
+    const vis = (layout && layout.layerVisibility) || {};
+    (layout._installLayers || []).forEach(entry => {
+      if (!entry || entry.isPuttingGreen) return;
+      if (vis[entry.id] === false) return;
+      const outline = entry.layout && entry.layout.basePoints;
+      if (!outline || outline.length < 3) return;
+      let dir = rectRunAxisData(layerRepRect(layout, entry.id));
+      if (window._wtBladeFlip && window._wtBladeFlip[entry.id]) dir = { x: -dir.x, y: -dir.y };
+      queueBladeGrid(outline, dir);
+    });
   }
 
   // Nothing to draw without a computed layout (e.g. no CSV imported yet). Bail
@@ -11184,15 +11210,12 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
           drawPoly(movedClipped, color, 'rgba(0,0,0,0.25)');
           drawPoly(movedClipped, null, u._nestOverlapsTurf ? '#e53935' : '#f4a822');
           u._displayClippedMoved = movedClipped; // stash for label placement below
-          drawBladeArrowInPoly(movedClipped, u.displayRect, 'primary');
         } else if (showRects && u.displayRect && u.displayRect.length) {
           drawHatched(u.displayRect, 'rgba(244,67,54,0.35)');       // waste hatching across the whole rectangle
           drawPoly(u.displayClipped, color, 'rgba(0,0,0,0.25)');     // installed portion solid on top
           drawPoly(u.displayRect, null, 'rgba(0,0,0,0.4)');          // rectangle outline
-          drawBladeArrowInPoly(u.displayClipped, u.displayRect, 'primary');
         } else {
           drawPoly(u.displayClipped, color, 'rgba(0,0,0,0.25)');
-          drawBladeArrowInPoly(u.displayClipped, u.displayRect, 'primary');
         }
       });
     });
@@ -11272,7 +11295,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
                 drawHatched(u.displayRect, 'rgba(244,67,54,0.18)');
                 drawPoly(u.displayRect, null, 'rgba(0,0,0,0.18)');
               }
-              if (u.displayClipped) { drawPoly(u.displayClipped, fill, stroke); installDrawnPts.push(...u.displayClipped); drawBladeArrowInPoly(u.displayClipped, u.displayRect, i); }
+              if (u.displayClipped) { drawPoly(u.displayClipped, fill, stroke); installDrawnPts.push(...u.displayClipped); }
             }
           });
         });
@@ -12062,6 +12085,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   } catch (err) { console.warn('edging debug skipped:', err); }
 
   // Final pass: blade arrows on top of everything so labels never cover them.
+  queueBladeArrowsForLayers(layout);
   flushBladeArrows();
 }
 

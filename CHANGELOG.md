@@ -5,6 +5,21 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-10 — Blade arrows fill the turf shape in a grid (centered, not per-piece)
+
+The arrows were centered on each cut PIECE, so they scattered across the roll strips and read
+oddly. Now base/install layers get a **grid of small arrows filling the actual turf shape**, all
+pointing that layer's roll direction — so the grain reads as "this whole area runs this way,"
+centered in the turf area. Uses point-in-shape testing so it handles concave layers (an L-shaped
+back yard) and a shape too small for the grid gets one centered arrow. Putting green still skipped;
+fringe keeps its per-piece inward arrows. Arrows still draw last, small, with a white halo.
+
+Tests **2075 -> 2076** (README **2076**): grid + per-layer pass, in-shape placement, per-layer flip,
+PG skipped. Verified on-canvas (concave + skinny shapes filled evenly with roll-direction arrows).
+Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-10 — Blade arrows show better: on top, smaller, with a halo
 
 The roll-direction arrows were getting buried under piece/shape labels and were cramped on small
