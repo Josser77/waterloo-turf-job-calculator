@@ -5,6 +5,26 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-10 — Fix skinny-layer blade arrows; collapse display toggles to reclaim canvas
+
+Two layout fixes:
+- **Blade arrows on skinny layers pointed the wrong way.** The arrow took a strip rectangle's
+  geometric long edge as the roll run — wrong when a piece's run is shorter than the 15ft roll width
+  (e.g., a narrow side yard with horizontal rolls), where the long edge is the roll *width*. Now it
+  uses the rectangle's first edge, which is always built along the roll run, so arrows follow the
+  actual roll direction regardless of piece proportions.
+- **The six display checkboxes ate canvas space.** Moved them into a collapsible **⚙ Display
+  options** twisty (collapsed by default, with a "N on" count) laid out as an auto-fit multi-column
+  grid with short labels (full descriptions in tooltips). The layout canvas now starts much higher,
+  and there's room to add more toggles without pushing the canvas down.
+
+Tests **2061 -> 2071** (README **2071**): run-axis uses the first edge (skinny piece stays
+horizontal), twisty + multi-column grid, all six toggle ids intact, summary count. Verified
+on-canvas (side-yard arrow now horizontal; collapsed toggles reclaim space). Green under UTC and
+America/Los_Angeles.
+
+---
+
 ## 2026-09-07 — Backup staleness warning is now configurable (default 2 days)
 
 The "haven't backed up in a while" reminder used a fixed 7-day threshold. Added a **Warn me if I

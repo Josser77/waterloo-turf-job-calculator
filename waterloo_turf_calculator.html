@@ -1586,30 +1586,35 @@
                   <span id="layoutZoomLevel" style="font-size:11px;color:var(--text-light);">100%</span>
                   <button class="btn btn-sm" data-lockok="1" onclick="onClickOptimizeAll()" title="Try every roll direction on the primary shape and every install layer, and apply the lowest-waste option to each" style="margin-left:8px;">✨ Minimize waste (all layers)</button>
                 </div>
-                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:12px;margin-bottom:6px;" title="Off = real installed shape per roll. On = the full rectangle you'd order, with the unused portion hatched. Turn this ON to see each roll's waste and drag pieces to nest them.">
-                  <input type="checkbox" id="showRectanglesToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
-                  Show purchased roll rectangles (waste) — needed to drag/nest pieces
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:12px;margin-bottom:6px;" title="Label each edge of every shape with its length in feet & inches, so you can read the yard's dimensions off the layout.">
-                  <input type="checkbox" id="showDimensionsToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
-                  Show dimensions (edge lengths on every shape)
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:12px;margin-bottom:6px;" title="Label each cut/roll piece with its dimensions on the canvas. The Cut List already lists these; use this to see them in place on the layout.">
-                  <input type="checkbox" id="showPieceDimensionsToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
-                  Show piece dimensions (each cut piece on the canvas)
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:12px;margin-bottom:6px;" title="Show each shape's name and area on the canvas (Main Yard — 3068 ft², etc.). Turn off to reduce clutter on a busy layout.">
-                  <input type="checkbox" id="showShapeLabelsToggle" data-lockok="1" checked onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
-                  Show shape labels (names &amp; areas)
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:12px;margin-bottom:6px;" title="Show the Roll N / Piece M label on each cut piece. Turn off to reduce clutter on a busy layout.">
-                  <input type="checkbox" id="showRollLabelsToggle" data-lockok="1" checked onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
-                  Show roll / piece labels
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:12px;margin-bottom:6px;" title="Turf blades face one direction. Show an arrow on each piece indicating which way the blades should lean. Set the direction on the Display sub-tab.">
-                  <input type="checkbox" id="showBladesToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
-                  Show blade direction (arrows)
-                </label>
+                <details id="displayOptsTwisty" style="margin-bottom:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface2,#f7f7f4);">
+                  <summary style="cursor:pointer;padding:7px 12px;font-size:12px;font-weight:600;color:var(--text-mid);list-style:none;user-select:none;">⚙ Display options <span id="displayOptsCount" style="font-weight:400;color:var(--text-light);"></span></summary>
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:4px 16px;padding:4px 12px 12px;">
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;" title="Off = real installed shape per roll. On = the full rectangle you'd order, with the unused portion hatched. Turn this ON to see each roll's waste and drag pieces to nest them.">
+                      <input type="checkbox" id="showRectanglesToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
+                      Roll rectangles (waste)
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;" title="Label each edge of every shape with its length in feet & inches, so you can read the yard's dimensions off the layout.">
+                      <input type="checkbox" id="showDimensionsToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
+                      Shape dimensions
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;" title="Label each cut/roll piece with its dimensions on the canvas. The Cut List already lists these; use this to see them in place on the layout.">
+                      <input type="checkbox" id="showPieceDimensionsToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
+                      Piece dimensions
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;" title="Show each shape's name and area on the canvas (Main Yard — 3068 ft², etc.). Turn off to reduce clutter on a busy layout.">
+                      <input type="checkbox" id="showShapeLabelsToggle" data-lockok="1" checked onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
+                      Shape labels
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;" title="Show the Roll N / Piece M label on each cut piece. Turn off to reduce clutter on a busy layout.">
+                      <input type="checkbox" id="showRollLabelsToggle" data-lockok="1" checked onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
+                      Roll / piece labels
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;" title="Turf blades face one direction. Show an arrow on each piece indicating which way the blades should lean. Base/install layers flip direction with the ⇄ Blades button on the layer; putting green is skipped; fringe points inward toward the green.">
+                      <input type="checkbox" id="showBladesToggle" data-lockok="1" onchange="renderRollLayoutStableCanvas()" style="width:auto;margin:0;">
+                      Blade direction
+                    </label>
+                  </div>
+                </details>
                 <div id="layoutCanvasWrap" style="overflow:auto;max-height:86vh;overscroll-behavior:contain;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:default;">
                   <canvas id="rollLayoutCanvas" style="display:block;"></canvas>
                 </div>
@@ -10715,12 +10720,26 @@ function toggleLayoutGrade() {
 // stored per layer as a flip. 0 deg = up/N clockwise (for compass labels).
 const BLADE_ARROWS = { 0:'\u2191', 45:'\u2197', 90:'\u2192', 135:'\u2198', 180:'\u2193', 225:'\u2199', 270:'\u2190', 315:'\u2196' };
 const BLADE_COMPASS = { 0:'N', 45:'NE', 90:'E', 135:'SE', 180:'S', 225:'SW', 270:'W', 315:'NW' };
-// Long edge (data space) of a 4-corner rectangle — the roll's run direction. Pure.
-function rectLongAxisData(rect) {
-  if (!rect || rect.length < 3) return { x: 0, y: -1 };
-  const e1 = { x: rect[1].x - rect[0].x, y: rect[1].y - rect[0].y };
-  const e2 = { x: rect[2].x - rect[1].x, y: rect[2].y - rect[1].y };
-  return (Math.hypot(e1.x, e1.y) >= Math.hypot(e2.x, e2.y)) ? e1 : e2;
+// Roll run direction (data space) = the FIRST edge of a strip's rectangle, which is
+// built along the roll's length (orderedLength) regardless of whether the run is longer
+// or shorter than the roll width. Using the geometric long edge was wrong for skinny
+// pieces (run shorter than the 15ft roll width). Pure.
+// Show a small "N on" count in the collapsed Display-options twisty summary.
+function updateDisplayOptsCount() {
+  const el = document.getElementById('displayOptsCount');
+  if (!el) return;
+  const ids = ['showRectanglesToggle','showDimensionsToggle','showPieceDimensionsToggle','showShapeLabelsToggle','showRollLabelsToggle','showBladesToggle'];
+  const on = ids.reduce((n, id) => { const d = document.getElementById(id); return n + (d && d.checked ? 1 : 0); }, 0);
+  el.textContent = on ? `· ${on} on` : '';
+}
+
+// Roll run direction (data space) = the FIRST edge of a strip's rectangle, which is
+// built along the roll's length (orderedLength) regardless of whether the run is longer
+// or shorter than the roll width. Using the geometric long edge was wrong for skinny
+// pieces (run shorter than the 15ft roll width). Pure.
+function rectRunAxisData(rect) {
+  if (!rect || rect.length < 2) return { x: 0, y: -1 };
+  return { x: rect[1].x - rect[0].x, y: rect[1].y - rect[0].y };
 }
 // A representative strip rectangle for a layer, to read its roll axis. Pure.
 function layerRepRect(layout, layerId) {
@@ -10737,7 +10756,7 @@ function layerRepRect(layout, layerId) {
 // Blade arrow + compass for a layer, from its roll axis (data space) + flip. Pure.
 function layerBladeArrow(layout, layerId, flip) {
   const rect = layerRepRect(layout, layerId);
-  const long = rectLongAxisData(rect || [{x:0,y:0},{x:0,y:-1},{x:1,y:-1}]);
+  const long = rectRunAxisData(rect || [{x:0,y:0},{x:0,y:-1}]);
   let deg = Math.atan2(long.x, -long.y) * 180 / Math.PI; // data +x = E, -y = N
   if (flip) deg += 180;
   const d = ((Math.round(deg / 45) * 45) % 360 + 360) % 360;
@@ -10936,7 +10955,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   // arrow instead (blades face in toward the green).
   function drawBladeArrowInPoly(clipPoly, rect, layerId) {
     const axisSrc = (rect && rect.length >= 4) ? rect : clipPoly;
-    let long = rectLongAxisData(axisSrc);
+    let long = rectRunAxisData(axisSrc);
     if (window._wtBladeFlip && window._wtBladeFlip[layerId]) long = { x: -long.x, y: -long.y };
     drawBladeArrowAt(clipPoly, long);
   }
@@ -11044,6 +11063,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   { const d = document.getElementById('showRollLabelsToggle'); window._wtShowRollLabels = d ? d.checked : true; }
   { const d = document.getElementById('showBladesToggle'); window._wtShowBlades = d ? d.checked : false; }
   { const pj = getCurrentProject(); window._wtBladeFlip = (pj && pj.layout && pj.layout.bladeFlip) || {}; }
+  if (typeof updateDisplayOptsCount === 'function') updateDisplayOptsCount();
   const primaryVisible = layout.layerVisibility.primary !== false;
 
   // Build a lookup of all units by key (across every install layer), needed to

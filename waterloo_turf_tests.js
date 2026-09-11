@@ -8268,13 +8268,16 @@ section('174. Blade direction — per layer, along the roll, flippable');
   // Arrow follows each piece's roll rectangle (long edge) and a per-layer flip.
   assert(/function drawBladeArrowInPoly\(clipPoly, rect, layerId\)/.test(src), 'arrow helper takes the piece rect + layer id');
   assert(/if \(!window\._wtShowBlades \|\| !clipPoly/.test(src), 'arrows only draw when Show blade direction is on');
-  assert(/let long = rectLongAxisData\(axisSrc\)/.test(src) && /function drawBladeArrowAt/.test(src), 'roll-axis arrow follows the roll rectangle long edge; fringe/PG handled separately');
+  assert(/let long = rectRunAxisData\(axisSrc\)/.test(src) && /function drawBladeArrowAt/.test(src), 'roll-axis arrow follows the strip run edge; fringe/PG handled separately');
   assert(/if \(window\._wtBladeFlip && window\._wtBladeFlip\[layerId\]\)/.test(src), 'a per-layer flip reverses which end the blades face');
   assert((src.match(/drawBladeArrowInPoly\([^;]*displayRect/g) || []).length >= 4, 'arrows drawn on primary, install, and PG pieces with their rect');
   // Pure helpers behave.
-  assert(typeof ctx.rectLongAxisData === 'function', 'rectLongAxisData exists');
-  const horiz = ctx.rectLongAxisData([{x:0,y:0},{x:10,y:0},{x:10,y:2},{x:0,y:2}]);
-  assert(Math.abs(horiz.x) > Math.abs(horiz.y), 'long axis of a wide rect is horizontal');
+  assert(typeof ctx.rectRunAxisData === 'function', 'rectRunAxisData exists');
+  // Run axis = first edge, i.e. the roll length — even when the run is SHORTER than the roll width.
+  const wideRun = ctx.rectRunAxisData([{x:0,y:0},{x:10,y:0},{x:10,y:2},{x:0,y:2}]);
+  assert(Math.abs(wideRun.x) > Math.abs(wideRun.y), 'run axis is along the first edge (horizontal here)');
+  const skinnyRun = ctx.rectRunAxisData([{x:0,y:0},{x:10,y:0},{x:10,y:15},{x:0,y:15}]);
+  assert(Math.abs(skinnyRun.x) > Math.abs(skinnyRun.y), 'skinny piece (run 10 < roll width 15): run axis still horizontal, not the longer edge');
   // Compass from a rect that runs east-west, and a flip reverses it.
   const east = ctx.layerBladeArrow({ strips:[{ displayRect:[{x:0,y:0},{x:10,y:0},{x:10,y:2},{x:0,y:2}] }] }, 'primary', false);
   const west = ctx.layerBladeArrow({ strips:[{ displayRect:[{x:0,y:0},{x:10,y:0},{x:10,y:2},{x:0,y:2}] }] }, 'primary', true);
@@ -8307,6 +8310,18 @@ section('175. Configurable backup-staleness warning (default 2 days)');
   assert(ctx.backupStatus(now - 1*day, now, 2).stale === false, 'a 1-day-old backup is not stale at threshold 2');
   assert(ctx.backupStatus(now - 3*day, now, 7).stale === false, 'a 3-day-old backup is not stale at threshold 7');
   assert(ctx.backupStatus(null, now, 2).stale === true, 'never-backed-up is always stale');
+}
+
+section('176. Display-options twisty (compact toggles)');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/<details id="displayOptsTwisty"/.test(src), 'the display toggles live in a collapsible twisty');
+  assert(/grid-template-columns:repeat\(auto-fit,minmax\(190px,1fr\)\)/.test(src), 'toggles lay out in an auto-fit multi-column grid');
+  // All six toggles still present inside the twisty (ids unchanged).
+  ['showRectanglesToggle','showDimensionsToggle','showPieceDimensionsToggle','showShapeLabelsToggle','showRollLabelsToggle','showBladesToggle'].forEach(id => {
+    assert(src.includes('id="' + id + '"'), id + ' still present');
+  });
+  assert(/function updateDisplayOptsCount\(\)/.test(src) && /`· \$\{on\} on`/.test(src), 'the collapsed summary shows how many options are on');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
