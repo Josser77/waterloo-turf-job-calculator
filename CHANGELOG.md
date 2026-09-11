@@ -5,6 +5,19 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-11 — Only real-area shapes become turf layers (no turf card for lines)
+
+Hardened the draw-to-turf guard: a shape must have real area to become a turf layer, not just 3+
+points. This blocks a line (2 points) and also any zero-area squiggle/near-collinear freehand from
+becoming a "layer" that wrongly shows turf settings (Blades, Roll dir, Seam offset, Rolls) and whose
+visibility toggle wouldn't behave. Combined with the earlier type-name and line-markup fixes, a line
+now stays markup: no turf card, nothing to hide/show as a layer.
+
+Tests **2102 -> 2103** (README **2103**): Make Layer requires real area. Green under UTC and
+America/Los_Angeles.
+
+---
+
 ## 2026-09-11 — Drawn layers named by type; lines clearly markup-only
 
 Follow-up to the draw-to-turf work. A drawn shape turned into a layer is now named by its actual

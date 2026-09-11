@@ -12827,6 +12827,13 @@ function makeLayerFromSelectedAnnotation() {
     showLayoutToast('Select a closed shape (rectangle, circle, or freehand area) first — a line has no area, so it can\'t become a layer.');
     return;
   }
+  // Belt-and-suspenders: only a shape with real area is turf. Blocks a zero-area squiggle
+  // or a near-collinear freehand that slipped past the 3-point check, so nothing without
+  // area ever gets a turf layer card (Blades, Roll dir, Seam, etc.).
+  if (typeof polygonArea === 'function' && Math.abs(polygonArea(a.points)) < 0.25) {
+    showLayoutToast('That shape has no real area, so it can\'t become turf. Draw a Rectangle or Circle instead.');
+    return;
+  }
   // Rectangles and circles get a real-dimensions prompt so the layer is measured, not
   // sized by the arbitrary drawing. Freehand areas convert at their drawn scale.
   if (a.type === 'rect' || a.type === 'circle') { openShapeDimModal(i, a); return; }

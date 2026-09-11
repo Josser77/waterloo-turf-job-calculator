@@ -8411,6 +8411,8 @@ section('182. Drawn layers named by type; lines are markup-only');
   assert(/if \(!a \|\| !a\.points \|\| a\.points\.length < 3\)/.test(src), 'Make Layer refuses shapes with fewer than 3 points (lines)');
   // Drawing a line tells the user it is markup-only.
   assert(/Lines are markup only/.test(src), 'drawing a line explains it is markup-only');
+  // Only a shape with real area can become turf (blocks zero-area squiggles too).
+  assert(/Math\.abs\(polygonArea\(a\.points\)\) < 0\.25/.test(src), 'Make Layer requires real area (not just >=3 points)');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
