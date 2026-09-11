@@ -8402,6 +8402,17 @@ section('181. Draw → set-size discoverability');
   assert(/if \(canTurf\) \{ ml\.classList\.add\('btn-primary'\)/.test(src), 'the button becomes prominent when a shape is ready to size');
 }
 
+section('182. Drawn layers named by type; lines are markup-only');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Layer naming maps each shape type explicitly — a line/wall/fence is never mislabeled "Rectangle".
+  assert(/const typeName = \(\{ circle: 'Circle', rect: 'Rectangle', freehand: 'Freehand', line: 'Line', wall: 'Wall', fence: 'Fence' \}\)\[a\.type\] \|\| 'Shape'/.test(src), 'drawn layer named by actual shape type (no default Rectangle)');
+  // Make Layer still refuses a line (2 points, no area).
+  assert(/if \(!a \|\| !a\.points \|\| a\.points\.length < 3\)/.test(src), 'Make Layer refuses shapes with fewer than 3 points (lines)');
+  // Drawing a line tells the user it is markup-only.
+  assert(/Lines are markup only/.test(src), 'drawing a line explains it is markup-only');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

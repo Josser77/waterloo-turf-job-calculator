@@ -5,6 +5,20 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-11 — Drawn layers named by type; lines clearly markup-only
+
+Follow-up to the draw-to-turf work. A drawn shape turned into a layer is now named by its actual
+type (Circle / Rectangle / Freehand / Line / Wall / Fence, else Shape) — no more defaulting odd
+shapes to "Drawn Rectangle." Make Layer still correctly refuses a line (2 points, no area, so no turf
+grain/arrow), and now drawing a line shows a note that lines are markup only — draw a Rectangle or
+Circle to make turf. This closes the confusion where a line looked like it should become turf but
+couldn't.
+
+Tests **2099 -> 2102** (README **2102**): explicit type-name map, line still refused, markup-only
+note. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-11 — Blade arrow: center it better on long/thin layers
 
 On a long, curvy layer (a side yard), the single arrow drifted to the widest bulge because it used

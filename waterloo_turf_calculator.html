@@ -12527,6 +12527,10 @@ function onDrawMouseUp(evt) {
       window._wtSelectedAnno = proj.layout.annotations.length - 1;
       updateAnnoDeleteBtn();
       showLayoutToast('Shape drawn. To turn it into turf, tap 📐 Set size & lay turf and enter its real dimensions.');
+    } else if (ip.type === 'line') {
+      // A line has no area, so it can't become turf — say so, so it isn't mistaken for
+      // a turf shape that "won't lay."
+      showLayoutToast('Lines are markup only — they can\'t become turf. Draw a Rectangle or Circle, then 📐 Set size & lay turf.');
     }
     save();
   }
@@ -12893,7 +12897,7 @@ function finalizeLayerFromAnnotation(i, a) {
   proj.layout.secondaryShapeModes = proj.layout.secondaryShapeModes || {};
   proj.layout.layerOffsets = proj.layout.layerOffsets || {};
   const idx = proj.layout.secondaryShapes.length;
-  const typeName = a.type === 'circle' ? 'Circle' : a.type === 'rect' ? 'Rectangle' : a.type === 'freehand' ? 'Freehand' : 'Shape';
+  const typeName = ({ circle: 'Circle', rect: 'Rectangle', freehand: 'Freehand', line: 'Line', wall: 'Wall', fence: 'Fence' })[a.type] || 'Shape';
   const name = 'Drawn ' + typeName + ' ' + (idx + 1);
   proj.layout.secondaryShapes.push({ name: name, points: pts, area: area, layer: 'Drawn' });
   proj.layout.layerOffsets[idx] = { dx: 0, dy: 0, rotation: 0 };
