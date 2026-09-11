@@ -5,6 +5,19 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-11 — Blade arrow: center it better on long/thin layers
+
+On a long, curvy layer (a side yard), the single arrow drifted to the widest bulge because it used
+the farthest-from-edge point. Now the arrow uses the layer's **area centroid** when that's inside the
+shape — which reads as the visual middle for both compact and elongated shapes — and only falls back
+to farthest-from-edge when the centroid is outside (L-shapes, crescents). Result: the side-yard arrow
+sits mid-length, the L-yard arrow stays inside an arm.
+
+Tests **2099** (README **2099**): unchanged count; centroid-first placement verified on-canvas (long
+curvy side yard arrow now mid-length; L-shape still inside). Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-11 — Blade direction: one clear arrow per layer (robust on any shape)
 
 Settled the blade-arrow approach: instead of a field of arrows (which kept coming out scattered or

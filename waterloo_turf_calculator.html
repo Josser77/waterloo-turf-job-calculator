@@ -11011,11 +11011,24 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   // layer's roll direction), so the grain reads as "this whole area runs this way"
   // rather than one arrow per cut piece. Handles concave shapes; a shape too small for
   // the grid gets a single centered arrow.
-  // Most-interior point of a canvas polygon: the inside sample farthest from any edge
-  // (approx. pole of inaccessibility). Guarantees the point is inside and looks centered
-  // even for L-shapes/crescents where a raw centroid falls outside. Returns null if the
-  // polygon has no interior sample.
+  // A well-centered point that is guaranteed inside the polygon. For most shapes
+  // (compact or long/thin) the area centroid reads as the visual middle; use it when it's
+  // inside. Only when the centroid falls outside (L-shapes, crescents) do we fall back to
+  // the "farthest from any edge" interior sample, which stays inside an arm.
   function bestInteriorPoint(cpoly) {
+    if (!cpoly || cpoly.length < 3) return null;
+    // Area-weighted polygon centroid (shoelace).
+    let A = 0, cx = 0, cy = 0;
+    for (let i = 0, n = cpoly.length; i < n; i++) {
+      const p = cpoly[i], q = cpoly[(i + 1) % n];
+      const cross = p.x * q.y - q.x * p.y;
+      A += cross; cx += (p.x + q.x) * cross; cy += (p.y + q.y) * cross;
+    }
+    if (Math.abs(A) > 1e-6) {
+      const centroid = { x: cx / (3 * A), y: cy / (3 * A) };
+      if (pointInPoly(centroid, cpoly)) return centroid;
+    }
+    // Centroid is outside the shape → farthest-from-edge interior sample.
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     cpoly.forEach(p => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
     const distToSeg = (px, py, a, b) => {
