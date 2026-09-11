@@ -5,6 +5,19 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-10 — Blade arrows show better: on top, smaller, with a halo
+
+The roll-direction arrows were getting buried under piece/shape labels and were cramped on small
+pieces. Now they're collected during drawing and rendered in a **final pass on top of everything**
+(labels no longer cover them), drawn **smaller** so they fit tight spaces, and given a **white halo**
+so the dark-green arrow stands out against the turf, roll lines, and labels. Still one arrow centered
+in each piece, following that layer's roll axis.
+
+Tests **2071 -> 2075** (README **2075**): arrows queued + flushed last, smaller sizing, white halo.
+Verified on-canvas (arrows clearly visible with labels on). Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-10 — Fix skinny-layer blade arrows; collapse display toggles to reclaim canvas
 
 Two layout fixes:

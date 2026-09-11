@@ -10925,6 +10925,9 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
   // turf piece pointing the chosen blade direction (0° = up, clockwise, screen frame).
   // Draw a blade arrow centered in a piece, pointing in a given DATA-space direction
   // (transformed to canvas). Gated on the Show-blade-direction toggle.
+  // Blade arrows are collected here and drawn in a final pass (flushBladeArrows) so
+  // labels and outlines never cover them.
+  const _bladeQueue = [];
   function drawBladeArrowAt(clipPoly, dataDir) {
     if (!window._wtShowBlades || !clipPoly || clipPoly.length < 3 || !dataDir) return;
     const cpts = clipPoly.map(toCanvas);
@@ -10936,17 +10939,28 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
     let ax = p1.x - p0.x, ay = p1.y - p0.y;
     const m = Math.hypot(ax, ay) || 1; ax /= m; ay /= m;
     const short = Math.min(maxX - minX, maxY - minY);
-    const len = Math.max(9, Math.min(32, short * 0.7));
-    if (short < 6) return; // piece too small on screen to show an arrow legibly
-    const x0 = cx - ax * len / 2, y0 = cy - ay * len / 2, x1 = cx + ax * len / 2, y1 = cy + ay * len / 2;
+    if (short < 5) return; // piece too small on screen for even a small arrow
+    const len = Math.max(8, Math.min(22, short * 0.6)); // smaller, fits tight spaces
+    _bladeQueue.push({ cx, cy, ax, ay, len });
+  }
+  // Draw all queued blade arrows last, on top of everything, each with a white halo so
+  // it stands out against the turf, lines, and labels underneath.
+  function flushBladeArrows() {
+    if (!_bladeQueue.length) return;
     ctx.save();
-    ctx.strokeStyle = 'rgba(18,62,23,0.9)'; ctx.fillStyle = 'rgba(18,62,23,0.9)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
-    const a = Math.atan2(ay, ax), ah = Math.max(6, len * 0.3);
-    ctx.beginPath(); ctx.moveTo(x1, y1);
-    ctx.lineTo(x1 - ah * Math.cos(a - 0.42), y1 - ah * Math.sin(a - 0.42));
-    ctx.lineTo(x1 - ah * Math.cos(a + 0.42), y1 - ah * Math.sin(a + 0.42));
-    ctx.closePath(); ctx.fill();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    _bladeQueue.forEach(({ cx, cy, ax, ay, len }) => {
+      const x0 = cx - ax * len / 2, y0 = cy - ay * len / 2, x1 = cx + ax * len / 2, y1 = cy + ay * len / 2;
+      const a = Math.atan2(ay, ax), ah = Math.max(4, len * 0.32);
+      const hlx = x1 - ah * Math.cos(a - 0.42), hly = y1 - ah * Math.sin(a - 0.42);
+      const hrx = x1 - ah * Math.cos(a + 0.42), hry = y1 - ah * Math.sin(a + 0.42);
+      ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(hlx, hly); ctx.lineTo(hrx, hry); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(18,62,23,0.95)'; ctx.fillStyle = 'rgba(18,62,23,0.95)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(hlx, hly); ctx.lineTo(hrx, hry); ctx.closePath(); ctx.fill();
+    });
     ctx.restore();
   }
   // Roll-axis blade arrow for base/install turf: follows the piece's roll rectangle
@@ -12046,6 +12060,9 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       });
     }
   } catch (err) { console.warn('edging debug skipped:', err); }
+
+  // Final pass: blade arrows on top of everything so labels never cover them.
+  flushBladeArrows();
 }
 
 // ───────────────────────────────────────────────────────

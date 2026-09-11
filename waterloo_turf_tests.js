@@ -8324,6 +8324,18 @@ section('176. Display-options twisty (compact toggles)');
   assert(/function updateDisplayOptsCount\(\)/.test(src) && /`· \$\{on\} on`/.test(src), 'the collapsed summary shows how many options are on');
 }
 
+section('177. Blade arrows draw last, smaller, with a halo');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Arrows are queued during piece draws and flushed in a final pass on top of labels.
+  assert(/const _bladeQueue = \[\]/.test(src) && /_bladeQueue\.push\(/.test(src), 'blade arrows are queued, not drawn inline');
+  assert(/function flushBladeArrows\(\)/.test(src) && /flushBladeArrows\(\);/.test(src), 'a final flush pass draws them last');
+  // Smaller size to fit tight spaces.
+  assert(/Math\.max\(8, Math\.min\(22, short \* 0\.6\)\)/.test(src), 'arrows are sized smaller to fit small pieces');
+  // White halo underneath for contrast.
+  assert(/rgba\(255,255,255,0\.95\)/.test(src), 'arrows get a white halo so they stand out');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
