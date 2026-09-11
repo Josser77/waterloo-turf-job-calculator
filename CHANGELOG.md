@@ -5,6 +5,38 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-10 — Make the "draw → set size → turf" step obvious
+
+The feature worked but the path was hidden: nothing told you that turning a drawing into turf means
+setting its dimensions, and the button was cryptically labeled "Make Layer." Three fixes:
+- Renamed the button to **📐 Set size & lay turf** (with a clearer tooltip).
+- After you draw a closed shape (rectangle/circle/freehand), it now **auto-selects** and a prompt
+  says to tap the button and enter real dimensions.
+- The button goes **prominent (green)** the moment a turf-capable shape is selected, so the next
+  step is unmissable.
+
+Setting the dimensions is still what turns markup into a real turf area with a roll layout and order
+(unchanged) — this just makes that step discoverable.
+
+Tests **2092 -> 2097** (README **2097**): button label, turf-capable detection, auto-select, prompt,
+and prominent styling. Verified end-to-end (draw a rectangle → button lights up green, labeled Set
+size & lay turf). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-10 — Fix: Tree landscape stamp drew upside down
+
+The 🌲 Tree stamp rendered trunk-up. The stamp's U-mapping puts uy=0 at the bottom of the box on
+screen and uy=1 at the top (the canvas Y is flipped), but the tree's draw placed the trunk at uy=1.
+Flipped the tree's coordinates so the trunk sits at the base and the tip points up. (The Bush is
+round, so it was never affected.)
+
+Tests **2092** (README **2092**): tree draw retained (tiers + tapered trunk); slice widened for the
+longer draw. Verified with a standalone render (tree now points up). Green under UTC and
+America/Los_Angeles.
+
+---
+
 ## 2026-09-10 — Draw mode: collapse the help wall-of-text into a twisty
 
 Entering Draw mode showed a large paragraph of help under the toolbar. Tucked it into a collapsed

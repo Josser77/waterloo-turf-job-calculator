@@ -1563,14 +1563,14 @@
               <button type="button" class="btn btn-ghost btn-sm" id="drawCopyBtn" onclick="copySelectedAnnotation()" title="Copy the selected shape (Ctrl/Cmd+C)" disabled>⧉ Copy</button>
               <button type="button" class="btn btn-ghost btn-sm" id="drawPasteBtn" onclick="pasteAnnotation()" title="Paste a copied shape (Ctrl/Cmd+V)" disabled>⎘ Paste</button>
               <button type="button" class="btn btn-ghost btn-sm" id="drawDeleteBtn" onclick="deleteSelectedAnnotation()" title="Delete the selected shape (Del)" disabled>🗑 Delete</button>
-              <button type="button" class="btn btn-ghost btn-sm" id="drawMakeLayerBtn" onclick="makeLayerFromSelectedAnnotation()" title="Turn the selected shape into a real install layer — perimeter, installed &amp; ordered sqft, and a roll layout, just like an imported layer" disabled>⬒ Make Layer</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="drawMakeLayerBtn" onclick="makeLayerFromSelectedAnnotation()" title="Set this shape's real size and turn it into turf — you'll enter the actual width & length (or diameter), and it becomes a real turf area with a roll layout and order." disabled>📐 Set size &amp; lay turf</button>
               <button type="button" class="btn btn-ghost btn-sm" onclick="undoDrawAnnotation()" title="Remove the last shape you drew">↶ Undo</button>
               <button type="button" class="btn btn-ghost btn-sm" onclick="clearDrawAnnotations()" title="Remove all drawn shapes">✕ Clear</button>
               <button type="button" class="btn btn-primary btn-sm" onclick="toggleDrawMode()">✓ Done</button>
             </div>
             <details style="margin-top:6px;">
               <summary style="cursor:pointer;font-size:11px;color:var(--text-light);list-style:none;user-select:none;">ⓘ How drawing works <span style="opacity:0.7;">(tap for help)</span></summary>
-              <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Pick a shape and drag on the canvas, or use <strong>↖ Select</strong> to grab a shape — drag its body to move, a corner to resize, or the top handle to rotate. <strong>Copy/Paste</strong> duplicates a selected shape; <strong>Color</strong>, <strong>Width</strong>, and <strong>Fill</strong> (under "Shape style") apply to the basic shapes — Line, Rectangle, Circle, Freehand; landscape elements have their own built-in look and ignore them (a wall's thickness is the separate "Wall in" box, in real inches). <strong>Snap to grid</strong> locks points to the grid spacing. Drawn shapes are <strong>markup only</strong> — they don't change turf, rolls, or the quote. <strong>Landscape</strong> tools add decorative elements: <strong>🌳 Bush</strong> and <strong>🌲 Tree</strong> (click to drop or drag to size); area beds <strong>▦ Pavers</strong>, <strong>🟫 Mulch</strong>, and <strong>⚪ Rock bed</strong> (drag a rectangle); and linear elements <strong>🧱 Wall</strong> and <strong>⊟ Fence</strong> (drag a curved line — the wall gets real thickness, the fence gets posts). Use <strong>↖ Select</strong> to move, resize, or rotate any of them. A selected <strong>wall</strong> shows an orange <strong>thickness handle</strong> you can drag to set its thickness directly (or type inches in the toolbar). All landscape elements are markup only — they never affect any measurement or price. To turn a drawn Rectangle or Circle into a real turf area, select it and use <strong>⬒ Make Layer</strong>, then enter its real dimensions.</div>
+              <div style="font-size:11px;color:var(--text-light);margin-top:6px;line-height:1.4;">Pick a shape and drag on the canvas, or use <strong>↖ Select</strong> to grab a shape — drag its body to move, a corner to resize, or the top handle to rotate. <strong>Copy/Paste</strong> duplicates a selected shape; <strong>Color</strong>, <strong>Width</strong>, and <strong>Fill</strong> (under "Shape style") apply to the basic shapes — Line, Rectangle, Circle, Freehand; landscape elements have their own built-in look and ignore them (a wall's thickness is the separate "Wall in" box, in real inches). <strong>Snap to grid</strong> locks points to the grid spacing. Drawn shapes are <strong>markup only</strong> — they don't change turf, rolls, or the quote. <strong>Landscape</strong> tools add decorative elements: <strong>🌳 Bush</strong> and <strong>🌲 Tree</strong> (click to drop or drag to size); area beds <strong>▦ Pavers</strong>, <strong>🟫 Mulch</strong>, and <strong>⚪ Rock bed</strong> (drag a rectangle); and linear elements <strong>🧱 Wall</strong> and <strong>⊟ Fence</strong> (drag a curved line — the wall gets real thickness, the fence gets posts). Use <strong>↖ Select</strong> to move, resize, or rotate any of them. A selected <strong>wall</strong> shows an orange <strong>thickness handle</strong> you can drag to set its thickness directly (or type inches in the toolbar). All landscape elements are markup only — they never affect any measurement or price. To turn a drawn Rectangle or Circle into real turf, select it and tap <strong>📐 Set size &amp; lay turf</strong>, then enter its real dimensions — it becomes a turf area with a roll layout and order.</div>
             </details>
           </div>
           <p id="layoutIntro" style="font-size:12px;color:var(--text-light);margin-bottom:10px;">
@@ -2735,7 +2735,7 @@
         <div class="docs-h3">Draw Tool (Markup)</div>
         <p>Click <strong>"✏️ Draw"</strong> in the toolbar to open the drawing toolbar, then pick <strong>Line</strong>, <strong>Rectangle</strong>, <strong>Circle</strong>, or <strong>Freehand</strong>, choose a <strong>color</strong> and line <strong>width</strong> (and optional <strong>Fill</strong> for rectangles/circles), and drag on the canvas. Use this to mark up the layout — show where pavers, borders, steppers, or other features go, or annotate for a customer.</p>
         <p><strong>Adjust a shape:</strong> switch to the <strong>↖ Select</strong> tool, then click a shape to select it (a dashed box with handles appears). <strong>Drag the body</strong> to move it, <strong>drag a corner</strong> to resize, or <strong>drag the round handle above the top</strong> to rotate. Changing the color or width while a shape is selected updates that shape. <strong>⧉ Copy</strong> / <strong>⎘ Paste</strong> (or Ctrl/Cmd+C / Ctrl/Cmd+V) duplicate the selected shape — the copy lands slightly offset and selected. <strong>🗑 Delete</strong> (or the Delete key) removes the selected shape; <strong>↶ Undo</strong> removes the last shape you drew; <strong>✕ Clear</strong> removes all; <strong>✓ Done</strong> exits. <strong>Snap to grid</strong> locks new points, moves (in whole grid steps), resizes, and rotation (to 15°) onto the grid spacing set on the Display tab — turn on the grid there to see it. The draw toolbar stays pinned to the top while you work so it's always in reach. Drawn shapes scale and stay anchored to the layout when you zoom, and they save with the project. <strong>Important:</strong> drawn shapes are <em>markup only</em> — they never change turf area, rolls, or the quote — <em>unless</em> you convert one into a layer (below). To make a real cutout that turf works around, use a CSV layer set to Cutout instead. Draw is mutually exclusive with Edit Shape / Move Layers / Cut Mode, and is disabled while the layout is locked. <em>Note: resizing a shape that you've already rotated scales along the yard's axes, so a rotated rectangle can skew — rotate last, or re-draw if it looks off.</em></p>
-        <p><strong>⬒ Make Layer — turn a drawn shape into a real install layer.</strong> Select a closed shape (Rectangle, Circle, or Freehand — a Line has no area and is skipped), then click <strong>⬒ Make Layer</strong>. The shape becomes a full <strong>Install</strong> layer with its own <strong>perimeter, installed sqft, ordered sqft, and roll layout</strong>, exactly like an imported layer — the app jumps to the <strong>Layers</strong> list so you can see those numbers and set the layer's turf and mode. The markup shape is consumed (it's a real layer now). The new layer lands exactly where you drew it, even if the view is rotated. Two things to expect: a <strong>Freehand</strong> blob keeps every point you drew, so its roll layout can have many small pieces — draw with Rectangle/Circle or a deliberate outline for clean cuts; and the new layer starts with no turf product assigned, so pick one in the Layers list to get ordered sqft and pricing.</p>
+        <p><strong>📐 Set size &amp; lay turf — turn a drawn shape into a real install layer.</strong> Draw a closed shape (Rectangle, Circle, or Freehand — a Line has no area and is skipped); it's auto-selected and the button lights up. Tap <strong>📐 Set size &amp; lay turf</strong> and enter the real width &amp; length (or diameter). The shape becomes a full <strong>Install</strong> layer with its own <strong>perimeter, installed sqft, ordered sqft, and roll layout</strong>, exactly like an imported layer — the app jumps to the <strong>Layers</strong> list so you can see those numbers and set the layer's turf and mode. The markup shape is consumed (it's a real layer now). The new layer lands exactly where you drew it, even if the view is rotated. Two things to expect: a <strong>Freehand</strong> blob keeps every point you drew, so its roll layout can have many small pieces — draw with Rectangle/Circle or a deliberate outline for clean cuts; and the new layer starts with no turf product assigned, so pick one in the Layers list to get ordered sqft and pricing.</p>
 
         <div class="docs-h3">Reference Grid</div>
         <p>On the <strong>Display</strong> tab, turn on <strong>Show grid</strong> for a to-scale graph-paper overlay behind the layout, and set <strong>Grid spacing</strong> in inches (e.g. 12 for a 1-ft grid, 6 for 6-in squares). It's a visual scale reference — each square equals the spacing you set at the current zoom — and it has no effect on any calculation. The grid stays available even when the layout is locked.</p>
@@ -8874,25 +8874,27 @@ const LANDSCAPE_ICONS = {
     // Layered conifer: tapered trunk + three foliage tiers (bottom widest → top
     // narrowest) with a light-to-dark shade per tier for depth.
     draw: (ctx, U) => {
-      // Tapered trunk.
-      const bl = U(0.455, 1.0), br = U(0.545, 1.0), tl = U(0.475, 0.80), tr = U(0.525, 0.80);
+      // Note: U maps uy=0 to the BOTTOM of the box on screen and uy=1 to the top
+      // (the canvas Y is flipped), so the trunk sits at low uy and the tip at high uy.
+      // Tapered trunk (at the base).
+      const bl = U(0.455, 0.0), br = U(0.545, 0.0), tl = U(0.475, 0.20), tr = U(0.525, 0.20);
       ctx.fillStyle = '#7a5230';
       ctx.beginPath();
       ctx.moveTo(bl.x, bl.y); ctx.lineTo(br.x, br.y); ctx.lineTo(tr.x, tr.y); ctx.lineTo(tl.x, tl.y);
       ctx.closePath(); ctx.fill();
-      // Three tiers, back (bottom) to front (top).
+      // Three tiers, base (bottom) to tip (top): widest lowest, narrowest highest.
       const tiers = [
-        { a: [0.13, 0.86], b: [0.87, 0.86], c: [0.5, 0.52], fill: 'rgba(42,101,46,0.95)' },
-        { a: [0.19, 0.63], b: [0.81, 0.63], c: [0.5, 0.31], fill: 'rgba(54,120,58,0.95)' },
-        { a: [0.27, 0.42], b: [0.73, 0.42], c: [0.5, 0.10], fill: 'rgba(68,142,72,0.95)' },
+        { a: [0.13, 0.14], b: [0.87, 0.14], c: [0.5, 0.48], fill: 'rgba(42,101,46,0.95)' },
+        { a: [0.19, 0.37], b: [0.81, 0.37], c: [0.5, 0.69], fill: 'rgba(54,120,58,0.95)' },
+        { a: [0.27, 0.58], b: [0.73, 0.58], c: [0.5, 0.90], fill: 'rgba(68,142,72,0.95)' },
       ];
       ctx.strokeStyle = '#1f4a22'; ctx.lineWidth = 1.3; ctx.lineJoin = 'round';
       tiers.forEach(t => {
         const A = U(t.a[0], t.a[1]), B = U(t.b[0], t.b[1]), C = U(t.c[0], t.c[1]);
         ctx.beginPath();
         ctx.moveTo(A.x, A.y); ctx.lineTo(C.x, C.y); ctx.lineTo(B.x, B.y);
-        // Slightly concave base so tiers read as branches, not flat triangles.
-        const mid = U(0.5, t.a[1] + 0.03);
+        // Slightly concave base (bulges down toward the trunk) so tiers read as branches.
+        const mid = U(0.5, t.a[1] - 0.03);
         ctx.quadraticCurveTo(mid.x, mid.y, A.x, A.y);
         ctx.closePath();
         ctx.fillStyle = t.fill; ctx.fill(); ctx.stroke();
@@ -12485,6 +12487,15 @@ function onDrawMouseUp(evt) {
   if (proj && proj.layout && annotationHasSize(ip)) {
     proj.layout.annotations = proj.layout.annotations || [];
     proj.layout.annotations.push(ip);
+    // If it's a closed shape that could become turf (rectangle, circle, freehand),
+    // auto-select it and point the user at the next step — set its real size to lay
+    // turf. This is the step people miss: nothing turns into turf until sized.
+    const isTurfCapable = ip.type !== 'stamp' && ip.type !== 'line' && ip.points && ip.points.length >= 3;
+    if (isTurfCapable) {
+      window._wtSelectedAnno = proj.layout.annotations.length - 1;
+      updateAnnoDeleteBtn();
+      showLayoutToast('Shape drawn. To turn it into turf, tap 📐 Set size & lay turf and enter its real dimensions.');
+    }
     save();
   }
   drawRollLayoutCanvas(window._wtCurrentRollLayout);
@@ -12749,7 +12760,12 @@ function updateAnnoDeleteBtn() {
   if (ml) {
     const proj = getCurrentProject();
     const a = (sel && proj && proj.layout && proj.layout.annotations) ? proj.layout.annotations[window._wtSelectedAnno] : null;
-    ml.disabled = !(a && a.points && a.points.length >= 3); // lines (2 pts) can't be a layer
+    const canTurf = !!(a && a.points && a.points.length >= 3); // lines (2 pts) can't be a layer
+    ml.disabled = !canTurf;
+    // Make it stand out when there's a shape ready to become turf, so it's obvious
+    // that setting the size is the next step.
+    if (canTurf) { ml.classList.add('btn-primary'); ml.classList.remove('btn-ghost'); }
+    else { ml.classList.remove('btn-primary'); ml.classList.add('btn-ghost'); }
   }
 }
 

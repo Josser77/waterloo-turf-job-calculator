@@ -8106,9 +8106,9 @@ section('165. Tree stamp graphic (layered conifer)');
 {
   const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
   // The tree icon draws multiple foliage tiers (not a single lollipop circle).
-  const treeBlock = src.slice(src.indexOf('tree: {'), src.indexOf('tree: {') + 900);
+  const treeBlock = src.slice(src.indexOf('tree: {'), src.indexOf('tree: {') + 1200);
   assert(/const tiers = \[/.test(treeBlock) && (treeBlock.match(/fill:/g) || []).length >= 3, 'the tree stamp draws three layered foliage tiers');
-  assert(/Tapered trunk\./.test(treeBlock), 'the tree has a tapered trunk');
+  assert(/Tapered trunk/.test(treeBlock), 'the tree has a tapered trunk');
   // It stays a visual-only stamp (bush + tree both present, no pricing impact).
   assert(/bush: \{[\s\S]*?label: 'Bush'/.test(src) && /tree: \{[\s\S]*?label: 'Tree'/.test(src), 'bush and tree remain landscape stamps');
 }
@@ -8376,7 +8376,20 @@ section('180. Draw-mode help collapsed into a twisty');
   assert(/<summary[^>]*>ⓘ How drawing works/.test(src), 'draw help is behind a collapsible summary');
   assert(/<details[^>]*>\s*<summary[^>]*>ⓘ How drawing works[\s\S]*?Pick a shape and drag on the canvas/.test(src), 'the full help text is inside the twisty');
   // The help mentions the Make Layer -> dimensions flow.
-  assert(/⬒ Make Layer<\/strong>, then enter its real dimensions/.test(src), 'help notes turning a shape into a measured turf layer');
+  assert(/📐 Set size &amp; lay turf<\/strong>, then enter its real dimensions/.test(src), 'help notes turning a shape into a measured turf layer');
+}
+
+section('181. Draw → set-size discoverability');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Button renamed to say what it does.
+  assert(/id="drawMakeLayerBtn"[^>]*>📐 Set size &amp; lay turf/.test(src), 'the button reads "Set size & lay turf", not "Make Layer"');
+  // A drawn turf-capable shape auto-selects and prompts to set size.
+  assert(/const isTurfCapable = ip\.type !== 'stamp' && ip\.type !== 'line' && ip\.points && ip\.points\.length >= 3/.test(src), 'closed drawn shapes are recognized as turf-capable');
+  assert(/window\._wtSelectedAnno = proj\.layout\.annotations\.length - 1/.test(src), 'a drawn turf-capable shape auto-selects');
+  assert(/To turn it into turf, tap 📐 Set size & lay turf/.test(src), 'a prompt points the user at setting the size');
+  // The button goes prominent (primary) when a turf-capable shape is selected.
+  assert(/if \(canTurf\) \{ ml\.classList\.add\('btn-primary'\)/.test(src), 'the button becomes prominent when a shape is ready to size');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
