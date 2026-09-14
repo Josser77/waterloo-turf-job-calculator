@@ -5,6 +5,19 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-13 — Fix: layout oversized on first CSV import until you click Fit
+
+Creating a project from a Moasure CSV drew the layout too large until you pressed Fit. Cause: the
+first time the Layout panel flips from hidden to visible, its width and on-screen position aren't
+settled when the canvas sizes itself, so it computed an oversized canvas. renderLayoutTab now
+re-fits once on the next animation frame — after the browser has laid the panel out — so the diagram
+is correctly sized on first view without a manual Fit.
+
+Tests **2110 -> 2111** (README **2111**): a deferred re-fit is scheduled after the panel shows. Green
+under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-13 — Daily-minimum floor is turf-install labor only
 
 Per how the crew is actually paid: the daily-minimum floor now measures **turf install labor only**
@@ -6405,3 +6418,5 @@ No new test sections (the bugs were in canvas event handling, which requires a r
 - `waterloo_turf_tests.js` — Node.js unit tests run against the extracted script
 - Sandboxed VM context with mocked DOM/localStorage/ResizeObserver
 - Initial coverage: layout geometry, clipping, nesting, infill, quote generation
+
+<!-- redeploy 2026-09-13 -->

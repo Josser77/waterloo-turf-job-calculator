@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-11</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-13</div>
     </div>
 
     <div class="sort-bar">
@@ -8736,6 +8736,18 @@ function renderLayoutTab() {
   setupLayoutZoomWheel();
   sizeLayoutCanvas();
   if (window._wtLayoutZoom === 1.0) layoutZoomFit();
+  // The first time the Layout panel flips from hidden to visible, its width and
+  // on-screen position aren't settled when the synchronous size above runs, so the
+  // canvas comes out oversized until a manual Fit. Re-fit once on the next frame,
+  // when the browser has laid the panel out, so it's correct without clicking Fit.
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => {
+      if (window._wtCurrentRollLayout && document.getElementById('rollLayoutCanvas')) {
+        sizeLayoutCanvas();
+        drawRollLayoutCanvas(window._wtCurrentRollLayout);
+      }
+    });
+  }
   updateUndoButton(proj);
 }
 

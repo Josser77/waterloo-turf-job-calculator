@@ -8437,6 +8437,15 @@ section('184. Daily-minimum floor counts labor only (not edging materials)');
   }
 }
 
+section('185. Layout auto-fits on first show (no manual Fit needed)');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // renderLayoutTab schedules a deferred re-fit so the freshly-visible panel sizes correctly.
+  assert(/requestAnimationFrame\(\(\) => \{[\s\S]*?sizeLayoutCanvas\(\);[\s\S]*?drawRollLayoutCanvas\(window\._wtCurrentRollLayout\);/.test(src), 'layout re-fits on the next frame after the panel is shown');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
+
+// redeploy marker 2026-09-13
