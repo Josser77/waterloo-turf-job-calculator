@@ -6419,4 +6419,4 @@ No new test sections (the bugs were in canvas event handling, which requires a r
 - Sandboxed VM context with mocked DOM/localStorage/ResizeObserver
 - Initial coverage: layout geometry, clipping, nesting, infill, quote generation
 
-<!-- redeploy 2026-09-13 -->
+<!-- redeploy 2026-09-13.2 -->

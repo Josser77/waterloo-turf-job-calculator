@@ -8448,4 +8448,4 @@ console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: $
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
 
-// redeploy marker 2026-09-13
+// redeploy marker 2026-09-13.2
