@@ -8421,6 +8421,22 @@ section('183. Build stamp present');
   assert(/id="appBuildStamp"[^>]*>build \d{4}-\d{2}-\d{2}/.test(src), 'a build-date stamp is shown so the deployed version is identifiable');
 }
 
+section('184. Daily-minimum floor counts labor only (not edging materials)');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // The floor is TURF INSTALL labor only — not edging (labor or materials), not turf/infill materials.
+  assert(/const laborSubtotal = laborStd \+ laborPg;/.test(src), 'daily-minimum floor compares against turf install labor only (standard + putting green)');
+  assert(!/const laborSubtotal = laborStd \+ laborPg \+ edgeInstallCost;/.test(src) && !/const laborSubtotal = laborStd \+ laborPg \+ edgeCost;/.test(src), 'floor no longer counts any edging cost');
+  // Margin is applied to the full COGS (which includes the floored labor) — 40% across all prices.
+  assert(/const sellPrice = applyMargin\(cogs, marginPct\);/.test(src), 'margin is applied to the full COGS, including the daily-minimum floor');
+  // Pure floor behavior.
+  if (ctx.applyDailyMinimum) {
+    assert(ctx.applyDailyMinimum(300, 1750).shortfall === 1450, 'shortfall = floor - labor when under the floor');
+    assert(ctx.applyDailyMinimum(2000, 1750).shortfall === 0, 'no adjustment when labor clears the floor');
+    assert(ctx.applyDailyMinimum(300, 0).floored === false, 'no floor when the crew has none set');
+  }
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

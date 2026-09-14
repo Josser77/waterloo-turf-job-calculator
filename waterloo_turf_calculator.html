@@ -5920,11 +5920,11 @@ function calcQuote() {
         const pgTieredNote  = itemIsTiered(getCrewItemsForQuote().find(it=>it.key==='putting'))  ? ' tiered' : '';
         const laborStd  = stdSqFt * stdRate;
         const laborPg   = pgSqFt * pgRate;
-        // Daily minimum: a flat per-crew floor on the install labor. Compare it against
-        // the labor lines (turf install + edging) and, on a small job where that total
-        // falls short, add the shortfall so the crew is paid its minimum. Materials
-        // (turf, infill) are NOT part of the floor.
-        const laborSubtotal = laborStd + laborPg + edgeCost;
+        // Daily minimum: a flat per-crew floor on the TURF INSTALL labor only (standard
+        // yard + putting green install). Edging — both its labor and its board materials —
+        // is charged separately on top and does NOT count toward or get absorbed by the
+        // floor. Materials (turf, infill) are not labor and never count.
+        const laborSubtotal = laborStd + laborPg;
         const _dm = applyDailyMinimum(laborSubtotal, getCrewDailyMinimum());
         const dailyMinAdj = _dm.shortfall; // 0 unless the floor bound
         const turfMatCost = turfMaterialCost(tc.rows);

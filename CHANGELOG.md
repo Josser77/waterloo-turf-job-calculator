@@ -5,6 +5,38 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-13 — Daily-minimum floor is turf-install labor only
+
+Per how the crew is actually paid: the daily-minimum floor now measures **turf install labor only**
+(standard yard + putting green install). Edging (its labor and its board materials) is billed
+separately on top and no longer counts toward — or gets absorbed by — the floor. Profit margin
+continues to apply to the full job cost, including the floored labor (40% across all prices).
+
+Example (turf install 95.10, edging total 3.45, floor ,750, 40% margin): the daily-minimum
+adjustment is ,454.90 (floor − turf install), COGS = ,750 floor + 3.45 edging + materials, and
+the 40% margin applies to that whole COGS.
+
+Tests **2110 -> 2110** (README **2110**): floor = turf install only (no edging), margin applied to
+full COGS. Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-13 — Fix: daily-minimum labor floor wrongly counted edging materials
+
+The daily-minimum (labor floor) compared the floor against turf install labor + the edging TOTAL —
+but the edging total includes the board MATERIALS, not just labor. On a floored small job that meant
+edging materials got absorbed into the floor instead of being charged on top, undercharging the job.
+Now the floor counts labor only (turf install + edging install labor); edging board materials are
+billed on top of the floor like every other material.
+
+Example (turf labor 95.10, edging labor ~0, edging boards ~3.45, floor ,750): labor+edging
+COGS was ,750 (boards absorbed) and is now ,783.45 (,750 floor + 3.45 boards).
+
+Tests **2104 -> 2110** (README **2110**): floor uses edging install (labor) not total; pure floor
+behavior (shortfall, clears floor, no floor when unset). Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-11 — Add a visible build stamp
 
 Added a small "build YYYY-MM-DD" stamp under the Job Calculator heading in the sidebar, so it's
