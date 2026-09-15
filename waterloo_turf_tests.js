@@ -6200,7 +6200,7 @@ section('93. Per-tab guide buttons + openGuideAt wiring');
   assert(!html.includes('a checkbox above the canvas that labels'), 'the always-visible Show dimensions paragraph was removed from the layout panel');
   // The mode hints stay (they only appear in their mode), still hidden by default.
   ['editShapeHint','moveLayersHint','cutModeHint'].forEach(id => {
-    const tag = (html.match(new RegExp('<p id="' + id + '"[^>]*>')) || [''])[0];
+    const tag = (html.match(new RegExp('<(p|div) id="' + id + '"[^>]*>')) || [''])[0];
     assert(/display:none/.test(tag), id + ' is hidden by default (shown only in its mode)');
   });
 }
@@ -8300,11 +8300,11 @@ section('174. Blade direction — per layer, along the roll, flippable');
   // Controls: global show toggle + per-layer flip buttons; cut list carries per-layer direction.
   assert(/id="showBladesToggle"/.test(src), 'Show blade direction toggle present');
   assert(/onclick="toggleBladeFlip\('primary'\)"/.test(src) && /onclick="toggleBladeFlip\(\$\{i\}\)"/.test(src), 'per-layer flip buttons on primary + secondary cards');
-  assert(/bladeArrow: blade\.arrow, bladeCompass: blade\.compass/.test(src), 'the cut list carries each layer\'s blade direction');
+  assert(!/bladeArrow: blade\.arrow/.test(src) && !/' blades ' \+/.test(src), 'the cut list no longer prints a blade direction (arrow/compass removed)');
   // Putting green is skipped (pile too low); fringe gets an inward arrow (blades face the green).
   assert(/if \(u\.displayClipped\) \{ drawPoly\(u\.displayClipped, pgFill, '#5FA463'\); \}/.test(src), 'putting green pieces draw no blade arrow');
   assert(/Fringe blades face IN toward the green[\s\S]*?drawBladeArrowAt\(poly, \{ x: -nx, y: -ny \}\)/.test(src), 'fringe pieces draw an inward blade arrow (toward the green)');
-  assert(/isPuttingGreen \? \{ arrow: '', compass: '' \}/.test(src), 'the cut list omits blade direction for a putting green');
+  assert(!/const bladeTag = layer\.bladeArrow/.test(src), 'no blade tag is built for the cut-list header');
   assert(/mode === 'install'\) \? `<button[^`]*toggleBladeFlip/.test(src), 'the blade flip button shows only on install layers, not putting greens');
 }
 
@@ -8447,8 +8447,19 @@ section('185. Layout auto-fits on first show (no manual Fit needed)');
   assert(/if \(name==='layout'\) \{ renderLayoutTab\(\); fitLayoutWhenReady\(\); \}/.test(src), 'switching to the layout tab triggers the ready-fit');
 }
 
+section('186. Mode help collapsed + single Fit button');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Move + Cut help are collapsed into twistys (same pattern as Draw mode).
+  assert(/<div id="moveLayersHint"[\s\S]*?<summary[^>]*>ⓘ How Move Layers works/.test(src), 'Move Layers help is behind a twisty');
+  assert(/<div id="cutModeHint"[\s\S]*?<summary[^>]*>ⓘ How Cut mode works/.test(src), 'Cut mode help is behind a twisty');
+  // The redundant Move-mode "Fit view" button is gone; the main Fit now works in Move mode.
+  assert(!/id="fitLayoutViewBtn"/.test(src), 'the redundant Fit view button is removed');
+  assert(/const wasFrozen = window\._wtFreezeTransform;\s*if \(wasFrozen\) window\._wtFreezeTransform = false;\s*applyLayoutZoom\(\);/.test(src), 'the main Fit unfreezes so it works during Move Layers');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
 
-// redeploy marker 2026-09-13.2
+// redeploy marker 2026-09-14.2

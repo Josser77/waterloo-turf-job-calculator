@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-13.3</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-14.2</div>
     </div>
 
     <div class="sort-bar">
@@ -1499,7 +1499,6 @@
               <button id="lockLayoutBtn" class="btn btn-ghost btn-sm" data-lockok="1" onclick="toggleLayoutLock()" title="Lock the layout to prevent accidental changes to sliders, edits, and adjustments.">🔓 Lock</button>
               <button id="editShapeBtn" class="btn btn-ghost btn-sm" onclick="toggleEditMode()">✎ Edit Shape</button>
               <button id="moveLayersBtn" class="btn btn-ghost btn-sm" onclick="toggleMoveLayersMode()">✋ Move Layers</button>
-              <button id="fitLayoutViewBtn" class="btn btn-ghost btn-sm" onclick="fitLayoutViewNow()" title="Re-fit the view to frame every shape — use after spreading shapes out to lay out a full yard." style="display:none;">⤢ Fit view</button>
               <button id="cutModeBtn" class="btn btn-ghost btn-sm" onclick="toggleCutMode()">✂ Cut Mode</button>
               <button id="drawModeBtn" class="btn btn-ghost btn-sm" onclick="toggleDrawMode()" title="Draw markup shapes (pavers, notes, etc.) over the layout. Visual only — does not change turf or the quote.">✏️ Draw</button>
               <button id="undoShapeBtn" class="btn btn-ghost btn-sm" onclick="undoLayoutEdit()" style="display:none;">↶ Undo</button>
@@ -1520,12 +1519,18 @@
             <button id="editPtDeleteBtn" class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 10px;" onclick="setEditPointMode('delete')" title="Click/tap a point to delete it">➖ Delete</button>
             <span id="editPtModeHint" style="font-size:11px;color:var(--text-light);"></span>
           </div>
-          <p id="moveLayersHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
-            <strong>Move Layers mode:</strong> click and drag any layer (the main shape outline, or any additional shape) to reposition it on the canvas. The view <strong>stays put while you drag</strong>, so shapes don't rescale under your cursor and each one stays exactly where you drop it — spread several out to lay out a full yard. If you drop a shape <strong>outside the visible area the view re-fits automatically</strong> (once, on release — never mid-drag) so nothing gets cut off. You can <strong>drag right off the canvas</strong> — the drag keeps following your cursor anywhere on the page and finishes wherever you release, so a shape can always be moved as far as you need. Use <strong>⤢ Fit view</strong> to re-frame at any time, or zoom in (zoom controls / Ctrl+Cmd scroll) to place shapes precisely. <strong>Every layer can be moved</strong>, including added (install) layers — each imported Moasure CSV arrives on its own origin, so a second measured area lands on top of the primary and needs positioning by hand. A layer's cut pieces follow it, <em>except</em> pieces you've <strong>nested</strong> into another roll's waste: those are cut from their host roll and stay drawn there (the toast says how many when you grab the layer). <strong>Move Layers does not reduce waste</strong> — it's purely visual and never changes area, Ordered SqFt, or roll counts. <strong>To cut waste, exit Move Layers and nest pieces instead:</strong> with "Show purchased roll rectangles" on, press-and-drag a piece onto another roll's red hatched waste (nesting is disabled while Move Layers is on). Click "✓ Done Moving" when finished (that also re-fits the view).
-          </p>
-          <p id="cutModeHint" style="font-size:12px;color:var(--text-light);margin-bottom:10px;display:none;">
-            <strong>Cut mode:</strong> a quick <em>click</em> anywhere along a roll adds a butt-seam cut at that point, splitting it into separate pieces (each piece gets its own cutting margin); click an existing cut line to remove it. With "Show purchased roll rectangles" on, you can also <em>press-and-drag</em> any piece onto another roll's waste area to nest it — without leaving Cut Mode (a click toggles a cut, a drag moves a piece). Click "✂ Cut Mode" again when done.
-          </p>
+          <div id="moveLayersHint" style="margin-bottom:10px;display:none;">
+            <details>
+              <summary style="cursor:pointer;font-size:11px;color:var(--text-light);list-style:none;user-select:none;">ⓘ How Move Layers works <span style="opacity:0.7;">(tap for help)</span></summary>
+              <div style="font-size:12px;color:var(--text-light);margin-top:6px;line-height:1.4;">Click and drag any layer (the main shape outline, or any additional shape) to reposition it on the canvas. The view <strong>stays put while you drag</strong>, so shapes don't rescale under your cursor and each one stays exactly where you drop it — spread several out to lay out a full yard. If you drop a shape <strong>outside the visible area the view re-fits automatically</strong> (once, on release — never mid-drag) so nothing gets cut off. You can <strong>drag right off the canvas</strong> — the drag keeps following your cursor anywhere on the page and finishes wherever you release. Use the <strong>⊙ Fit</strong> button to re-frame everything at any time, or zoom in to place shapes precisely. <strong>Every layer can be moved</strong>, including added (install) layers — each imported Moasure CSV arrives on its own origin, so a second measured area lands on top of the primary and needs positioning by hand. A layer's cut pieces follow it, <em>except</em> pieces you've <strong>nested</strong> into another roll's waste: those are cut from their host roll and stay drawn there. <strong>Move Layers does not reduce waste</strong> — it's purely visual and never changes area, Ordered SqFt, or roll counts. <strong>To cut waste, exit Move Layers and nest pieces instead:</strong> with "Show purchased roll rectangles" on, press-and-drag a piece onto another roll's red hatched waste (nesting is disabled while Move Layers is on). Click "✓ Done Moving" when finished (that also re-fits the view).</div>
+            </details>
+          </div>
+          <div id="cutModeHint" style="margin-bottom:10px;display:none;">
+            <details>
+              <summary style="cursor:pointer;font-size:11px;color:var(--text-light);list-style:none;user-select:none;">ⓘ How Cut mode works <span style="opacity:0.7;">(tap for help)</span></summary>
+              <div style="font-size:12px;color:var(--text-light);margin-top:6px;line-height:1.4;">A quick <em>click</em> anywhere along a roll adds a butt-seam cut at that point, splitting it into separate pieces (each piece gets its own cutting margin); click an existing cut line to remove it. With "Show purchased roll rectangles" on, you can also <em>press-and-drag</em> any piece onto another roll's waste area to nest it — without leaving Cut Mode (a click toggles a cut, a drag moves a piece). Click "✂ Cut Mode" again when done.</div>
+            </details>
+          </div>
           <div id="drawToolbar" style="display:none;position:sticky;top:0;z-index:50;margin-bottom:10px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--cream,#fffdf7);box-shadow:0 2px 10px rgba(0,0,0,0.12);">
             <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
               <span style="font-size:12px;font-weight:600;margin-right:2px;">Draw:</span>
@@ -12338,7 +12343,6 @@ function toggleMoveLayersMode() {
   window._wtFreezeTransform = false;
   const btn = document.getElementById('moveLayersBtn');
   const hint = document.getElementById('moveLayersHint');
-  const fitBtn = document.getElementById('fitLayoutViewBtn');
   const canvas = document.getElementById('rollLayoutCanvas');
   if (window._wtMoveLayersMode) {
     // Mutually exclusive with Edit Shape and Cut modes
@@ -12348,13 +12352,11 @@ function toggleMoveLayersMode() {
     btn.classList.add('btn-primary');
     btn.textContent = '✓ Done Moving';
     hint.style.display = '';
-    if (fitBtn) fitBtn.style.display = '';
     if (canvas) canvas.style.cursor = 'grab';
   } else {
     btn.classList.remove('btn-primary');
     btn.textContent = '✋ Move Layers';
     hint.style.display = 'none';
-    if (fitBtn) fitBtn.style.display = 'none';
     if (canvas) canvas.style.cursor = 'default';
   }
   renderRollLayout();
@@ -13416,7 +13418,6 @@ function buildCutList(layout) {
     if (!L || !Array.isArray(L.strips)) return;
     const labels = assignRollPieceLabels(L);
     // Putting green pile is too low for grain to matter — no blade direction shown.
-    const blade = isPuttingGreen ? { arrow: '', compass: '' } : layerBladeArrow(layout, id, bladeFlipFor(_proj, id));
     const pieces = [];
     let sP = 0, sL = 0, sA = 0;
     L.strips.forEach(s => {
@@ -13472,7 +13473,7 @@ function buildCutList(layout) {
       });
     });
     if (!pieces.length) return;
-    layers.push({ name: name || 'Turf', bladeArrow: blade.arrow, bladeCompass: blade.compass, pieces, subtotal: { pieces: sP, linearFt: sL, area: sA } });
+    layers.push({ name: name || 'Turf', pieces, subtotal: { pieces: sP, linearFt: sL, area: sA } });
     gP += sP; gL += sL; gA += sA;
   });
   return { layers, totals: { pieces: gP, linearFt: gL, area: gA } };
@@ -13486,8 +13487,7 @@ function renderCutListHtml(data) {
   const multi = data.layers.length > 1;
   let html = '';
   data.layers.forEach(layer => {
-    const bladeTag = layer.bladeArrow ? ' <span style="font-weight:600;color:#123e17;">' + layer.bladeArrow + ' blades ' + escAttr(layer.bladeCompass) + '</span>' : '';
-    html += '<div style="font-weight:700;margin:16px 0 8px;color:var(--green);">' + (multi ? escAttr(layer.name) : 'Blade direction') + bladeTag + '</div>';
+    if (multi) html += '<div style="font-weight:700;margin:16px 0 8px;color:var(--green);">' + escAttr(layer.name) + '</div>';
     html += '<div style="display:flex;flex-wrap:wrap;gap:12px;">';
     layer.pieces.forEach(p => {
       const cutW = (p.cutW != null ? p.cutW : p.footW);
@@ -15471,7 +15471,13 @@ function sizeLayoutCanvas() {
 
 function layoutZoomFit() {
   window._wtLayoutZoom = 1.0;
+  // Move Layers freezes the transform so shapes don't rescale mid-arrange, which would
+  // otherwise make the main Fit a no-op in that mode. Temporarily unfreeze so Fit can
+  // re-frame everything, then re-freeze so continued arranging stays stable.
+  const wasFrozen = window._wtFreezeTransform;
+  if (wasFrozen) window._wtFreezeTransform = false;
   applyLayoutZoom();
+  if (wasFrozen && window._wtMoveLayersMode) window._wtFreezeTransform = true;
   const wrap = document.getElementById('layoutCanvasWrap');
   if (wrap) { wrap.scrollLeft = 0; wrap.scrollTop = 0; }
 }

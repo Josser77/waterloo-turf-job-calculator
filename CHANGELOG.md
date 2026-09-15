@@ -5,6 +5,36 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-14 — Remove blade direction from the printed cut list
+
+The cut list printed a per-layer blade line (arrow + compass like "→ blades E"). Removed it — it
+wasn't needed on the cut sheet, and the compass was relative to the drawing's orientation, not a true
+bearing, so it could mislead. Blade direction still shows on the on-screen layout (arrows) and is set
+per layer with the ⇄ Blades button; it's just no longer on the printed cut list. Build stamp set to
+today (2026-09-14).
+
+Tests **2118 -> 2118** (README **2118**): cut list no longer builds a blade tag. Green under UTC and
+America/Los_Angeles.
+
+---
+
+## 2026-09-13 (build .4) — Collapse mode help into twistys; one Fit button
+
+Applied the Draw-mode twisty pattern to the other modes: **Move Layers** and **Cut** help are now
+collapsed under a "ⓘ How … works (tap for help)" summary, so the toolbar stays clean instead of a
+wall of text hogging the canvas area. (Standard going forward — every mode's help collapses.)
+
+Also removed the confusing, redundant **⤢ Fit view** button that only appeared in Move Layers.
+Move Layers freezes the view so shapes don't rescale mid-arrange, which had made the main **⊙ Fit**
+a no-op in that mode — so a second Fit button existed just for Move mode. The main Fit now
+temporarily unfreezes to re-frame everything and re-freezes after, so one Fit button works in every
+mode.
+
+Tests **2114 -> 2118** (README **2118**): Move/Cut help twistys, Fit-view button removed, main Fit
+unfreezes in Move mode. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-13 (build .3) — Layout auto-fits reliably on first CSV import
 
 The earlier single-frame re-fit wasn't enough: right after importing a CSV on a new project, the
@@ -6433,4 +6463,4 @@ No new test sections (the bugs were in canvas event handling, which requires a r
 - Sandboxed VM context with mocked DOM/localStorage/ResizeObserver
 - Initial coverage: layout geometry, clipping, nesting, infill, quote generation
 
-<!-- redeploy 2026-09-13.2 -->
+<!-- redeploy 2026-09-14.2 -->

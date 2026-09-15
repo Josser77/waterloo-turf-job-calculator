@@ -84,7 +84,7 @@ Run the test suite before committing any changes to `waterloo_turf_calculator.ht
 node waterloo_turf_tests.js
 ```
 
-All tests should pass (currently **2114** — this is exactly what
+All tests should pass (currently **2118** — this is exactly what
 `node waterloo_turf_tests.js` prints on its `Tests:` line; if you're updating this
 number, copy it from the runner rather than adding to the previous figure). The
 `Sync and Push.command` script runs
@@ -127,4 +127,4 @@ Live filter box over the project list — matches on name, address, and status (
 
 Import and view each supplier's price list (PDF / Excel / CSV), switchable per vendor like crews. PDFs embed; Excel/CSV render as a table (xlsx parsed library-free via DecompressionStream). Files stored in IndexedDB (not in the JSON backup — re-importable reference docs).
 
-<!-- redeploy 2026-09-13.2 -->
+<!-- redeploy 2026-09-14.2 -->
