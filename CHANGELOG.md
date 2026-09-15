@@ -5,6 +5,20 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-13 (build .3) — Layout auto-fits reliably on first CSV import
+
+The earlier single-frame re-fit wasn't enough: right after importing a CSV on a new project, the
+Layout panel still isn't measurable when the canvas sizes itself, so it stayed oversized until a
+manual Fit. Replaced it with fitLayoutWhenReady — it retries each animation frame until the wrapper
+actually has a real width, then sizes and redraws (and only redraws if it had to wait, so an
+already-visible panel isn't double-drawn). Also runs on tab-switch to Layout. Verified the auto-fit
+now produces the exact same canvas size as clicking Fit.
+
+Tests **2111 -> 2114** (README **2114**): retry-until-ready helper, redraw-only-if-waited, tab-switch
+trigger. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-13 — Fix: layout oversized on first CSV import until you click Fit
 
 Creating a project from a Moasure CSV drew the layout too large until you pressed Fit. Cause: the

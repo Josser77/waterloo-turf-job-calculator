@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-13.2</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-13.3</div>
     </div>
 
     <div class="sort-bar">
@@ -8675,6 +8675,27 @@ function startBlankCanvas() {
   if (!window._wtDrawMode && typeof toggleDrawMode === 'function') toggleDrawMode();
 }
 
+// Re-fit the layout canvas once the wrapper actually has a real (non-zero) width.
+// Right after a CSV import on a new project, the Layout panel isn't laid out yet when
+// we first size the canvas, so it renders oversized until a manual Fit. This retries on
+// each animation frame (briefly) until the wrapper is measurable, then sizes + redraws.
+function fitLayoutWhenReady(tries) {
+  tries = tries || 0;
+  const wrap = document.getElementById('layoutCanvasWrap');
+  const layout = window._wtCurrentRollLayout;
+  if (!wrap || !layout || typeof sizeLayoutCanvas !== 'function') return;
+  if (wrap.clientWidth > 0) {
+    // Only redraw if we actually had to wait — i.e. the panel was hidden (width 0) when
+    // renderLayoutTab first sized it. If it was already visible, that first size was
+    // correct and re-drawing here is redundant.
+    if (tries > 0) { sizeLayoutCanvas(); drawRollLayoutCanvas(layout); }
+    return;
+  }
+  if (tries < 30 && typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => fitLayoutWhenReady(tries + 1));
+  }
+}
+
 function renderLayoutTab() {
   const proj = getCurrentProject();
   const empty = document.getElementById('layoutEmpty');
@@ -8736,18 +8757,11 @@ function renderLayoutTab() {
   setupLayoutZoomWheel();
   sizeLayoutCanvas();
   if (window._wtLayoutZoom === 1.0) layoutZoomFit();
-  // The first time the Layout panel flips from hidden to visible, its width and
-  // on-screen position aren't settled when the synchronous size above runs, so the
-  // canvas comes out oversized until a manual Fit. Re-fit once on the next frame,
-  // when the browser has laid the panel out, so it's correct without clicking Fit.
-  if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame(() => {
-      if (window._wtCurrentRollLayout && document.getElementById('rollLayoutCanvas')) {
-        sizeLayoutCanvas();
-        drawRollLayoutCanvas(window._wtCurrentRollLayout);
-      }
-    });
-  }
+  // The first time the Layout panel becomes visible (e.g. right after importing a CSV on
+  // a new project), its width isn't settled when the synchronous size above runs, so the
+  // canvas comes out oversized until a manual Fit. Keep re-fitting on each frame until the
+  // wrapper actually has a real width, then size to it — no manual Fit needed.
+  fitLayoutWhenReady();
   updateUndoButton(proj);
 }
 
@@ -15783,7 +15797,7 @@ function switchTab(name, el) {
   const panel = document.getElementById('panel-'+name);
   if (panel) panel.classList.add('active');
   if (name==='quote') updateMaterialsSummary();
-  if (name==='layout') renderLayoutTab();
+  if (name==='layout') { renderLayoutTab(); fitLayoutWhenReady(); }
   if (name==='dashboard') renderDashboard();
   if (name==='profit') renderProfitAudit(getCurrentProject());
   if (name==='pavers') renderPaverTab();
