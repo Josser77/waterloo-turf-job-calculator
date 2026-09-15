@@ -8463,7 +8463,7 @@ section('187. Consumables settings styled like the rest of settings');
 {
   const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
   // Inputs use the app's standard field styling (DM Mono 14px, standard padding/radius).
-  assert(/const inp = "box-sizing:border-box;width:100%;padding:9px 11px;border:1px solid var\(--border\);border-radius:7px;font-family:'DM Mono',monospace;font-size:14px;/.test(src), 'consumables inputs match the standard input style');
+  assert(/const inp = "box-sizing:border-box;width:100%;padding:9px 11px;border:1px solid var\(--yellow-border\);border-radius:7px;font-family:'DM Mono',monospace;font-size:14px;color:var\(--text\);background:var\(--yellow\);/.test(src), 'consumables inputs use the standard field style with the beige manual-input background');
   // Column headers match the .settings-table th look (11px, 700, uppercase, letter-spacing).
   assert(/font-size:11px;font-weight:700;letter-spacing:0\.07em;color:var\(--text-light\);text-transform:uppercase/.test(src), 'consumables column headers match settings-table headers');
 }

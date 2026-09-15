@@ -5,6 +5,18 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-14 (build .5) — Consumables fields use the beige manual-input styling
+
+Following the visual-consistency pass, the Installation Consumables input fields now use the app's
+beige manual-input background (the amber --yellow tokens) — the same signal used on every other
+editable value field (labor rates, roll settings, river rock rate). Makes it clear at a glance these
+are fields you fill in.
+
+Tests **2121** (README **2121**): consumables inputs use the standard field style with the beige
+manual-input background. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-14 (build .4) — Installation Consumables settings match the rest of Settings
 
 The Installation Consumables section used its own cramped styling (12px non-mono inputs, tiny

@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-14.4</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-14.5</div>
     </div>
 
     <div class="sort-bar">
@@ -5451,7 +5451,7 @@ function renderConsumablesConfig() {
   if (!el) return;
   const products = getConsumableProducts();
   const defaults = getConsumableDefaults();
-  const inp = "box-sizing:border-box;width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:7px;font-family:'DM Mono',monospace;font-size:14px;color:var(--text);background:var(--surface);";
+  const inp = "box-sizing:border-box;width:100%;padding:9px 11px;border:1px solid var(--yellow-border);border-radius:7px;font-family:'DM Mono',monospace;font-size:14px;color:var(--text);background:var(--yellow);";
   el.innerHTML = CONSUMABLE_DEFS.map(def => {
     const list = products.filter(p => p.category === def.id);
     const rows = list.map(p => `
