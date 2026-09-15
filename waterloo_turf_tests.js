@@ -8453,9 +8453,19 @@ section('186. Mode help collapsed + single Fit button');
   // Move + Cut help are collapsed into twistys (same pattern as Draw mode).
   assert(/<div id="moveLayersHint"[\s\S]*?<summary[^>]*>ⓘ How Move Layers works/.test(src), 'Move Layers help is behind a twisty');
   assert(/<div id="cutModeHint"[\s\S]*?<summary[^>]*>ⓘ How Cut mode works/.test(src), 'Cut mode help is behind a twisty');
+  assert(/<div id="editShapeHint"[\s\S]*?<summary[^>]*>ⓘ How Edit Shape works/.test(src), 'Edit Shape help is behind a twisty');
   // The redundant Move-mode "Fit view" button is gone; the main Fit now works in Move mode.
   assert(!/id="fitLayoutViewBtn"/.test(src), 'the redundant Fit view button is removed');
   assert(/const wasFrozen = window\._wtFreezeTransform;\s*if \(wasFrozen\) window\._wtFreezeTransform = false;\s*applyLayoutZoom\(\);/.test(src), 'the main Fit unfreezes so it works during Move Layers');
+}
+
+section('187. Consumables settings styled like the rest of settings');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Inputs use the app's standard field styling (DM Mono 14px, standard padding/radius).
+  assert(/const inp = "box-sizing:border-box;width:100%;padding:9px 11px;border:1px solid var\(--border\);border-radius:7px;font-family:'DM Mono',monospace;font-size:14px;/.test(src), 'consumables inputs match the standard input style');
+  // Column headers match the .settings-table th look (11px, 700, uppercase, letter-spacing).
+  assert(/font-size:11px;font-weight:700;letter-spacing:0\.07em;color:var\(--text-light\);text-transform:uppercase/.test(src), 'consumables column headers match settings-table headers');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

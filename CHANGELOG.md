@@ -5,6 +5,30 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-14 (build .4) — Installation Consumables settings match the rest of Settings
+
+The Installation Consumables section used its own cramped styling (12px non-mono inputs, tiny
+lowercase-ish column labels, off-spec padding/radius). Restyled it to match every other settings
+section: inputs now use the standard DM Mono 14px field style with the app's padding, radius, text
+and background colors; column headers use the same uppercase bold labels as the settings tables;
+descriptions are the standard 12px; and the section cards use the standard radius and surface
+background. Functionally unchanged (still inline-edit per product) — just visually consistent.
+
+Tests **2119 -> 2121** (README **2121**): consumables inputs + headers match the standard styles.
+Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-14 (build .3) — Collapse Edit Shape help into a twisty too
+
+Applied the same collapse to Edit Shape's help paragraph (behind "ⓘ How Edit Shape works"), matching
+Draw, Move Layers, and Cut. All mode help is now collapsed by default so the toolbar stays clean.
+
+Tests **2118 -> 2119** (README **2119**): Edit Shape help is behind a twisty. Green under UTC and
+America/Los_Angeles.
+
+---
+
 ## 2026-09-14 — Remove blade direction from the printed cut list
 
 The cut list printed a per-layer blade line (arrow + compass like "→ blades E"). Removed it — it
