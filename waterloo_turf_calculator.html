@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-14.5</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-15</div>
     </div>
 
     <div class="sort-bar">
@@ -1990,7 +1990,6 @@
         <div class="card">
           <div class="card-header">
             <div class="card-title">Turf Products</div>
-            <button class="btn btn-primary btn-sm" onclick="openAddItemModal('turf')">＋ Add Product</button>
           </div>
           <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">These appear as options when creating a new project. All rolls are 15 ft wide.</p>
           <div id="settingsTurfTable"></div>
@@ -2000,7 +1999,6 @@
         <div class="card">
           <div class="card-header">
             <div class="card-title">Infill Products</div>
-            <button class="btn btn-primary btn-sm" onclick="openAddItemModal('infill')">＋ Add Product</button>
           </div>
           <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">Coverage per bag is used to calculate how many bags are needed based on installed sq ft.</p>
           <div id="settingsInfillTable"></div>
@@ -2010,7 +2008,6 @@
         <div class="card">
           <div class="card-header">
             <div class="card-title">Rock / Base Materials</div>
-            <button class="btn btn-primary btn-sm" onclick="openAddItemModal('rock')">＋ Add Material</button>
           </div>
           <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">Default depth is used to pre-fill the depth field on the Rock / Base card when this product is added.</p>
           <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--text-mid);cursor:pointer;margin-bottom:14px;">
@@ -2024,7 +2021,6 @@
         <div class="card">
           <div class="card-header">
             <div class="card-title">Edging Materials</div>
-            <button class="btn btn-primary btn-sm" onclick="openAddItemModal('edging')">＋ Add Material</button>
           </div>
           <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">Edging/border products (bender board, etc.) with name, color, notes, and price per 20 ft board. Pick one per project on the Quote Builder's Edging card — its price feeds the quote and its name/color show on the supplier order.</p>
           <div id="settingsEdgingTable"></div>
@@ -2034,7 +2030,6 @@
         <div class="card">
           <div class="card-header">
             <div class="card-title">Miscellaneous Items</div>
-            <button class="btn btn-primary btn-sm" onclick="openMiscModal()">＋ Add Item</button>
           </div>
           <p style="font-size:12px;color:var(--text-light);margin-bottom:14px;">One-off extras like putting cups, pavers, bark dust, river rock, etc. (Seam tape, glue, nails, and weed barrier are auto-calculated under Installation Consumables below.) These appear as selectable items when building a project.</p>
           <div id="miscItemsTable"></div>
@@ -3868,6 +3863,13 @@ function dismissSchemeBanner() {
 }
 
 window.onload = () => {
+  // Close any open turf-type multi-select dropdown when clicking elsewhere on the page
+  // (native <details> doesn't auto-close on outside click).
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll('details.turf-type-dd[open]').forEach(d => {
+      if (!d.contains(e.target)) d.removeAttribute('open');
+    });
+  });
   // The "ResizeObserver loop completed with undelivered notifications" message is a
   // benign browser notification (not a real error). Our observer already defers its
   // work to rAF; this narrowly swallows only that exact message so it can't surface
@@ -6451,137 +6453,181 @@ function updateDefaultShipping(val) {
 
 function renderSettingsTurfTable(items) {
   const el = document.getElementById('settingsTurfTable');
+  if (!el) return;
+  const addBtn = '<button class="btn btn-ghost btn-sm" onclick="addCatalogItemInline(\'turf\')">＋ Add Product</button>';
   if (!items || !items.length) {
-    el.innerHTML = '<div class="empty" style="padding:24px"><div class="empty-msg">No turf products yet.</div></div>';
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px;">No turf products yet.</div>' + addBtn;
     return;
   }
+  const cols = '1.3fr 1.1fr 1.15fr 0.8fr 1.1fr 28px';
+  const inp = SETTINGS_INLINE_INPUT;
+  const has = (t, ty) => getTurfTypes(t).indexOf(ty) !== -1 ? 'checked' : '';
+  const typeDd = (t, i) => `
+    <details class="turf-type-dd" style="position:relative;">
+      <summary style="${inp}list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:6px;">
+        <span id="turfTypeLbl_${i}" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${turfTypesLabel(getTurfTypes(t))}</span><span style="opacity:0.6;">▾</span>
+      </summary>
+      <div style="position:absolute;z-index:20;top:100%;left:0;margin-top:4px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;box-shadow:0 6px 18px rgba(0,0,0,0.14);min-width:150px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin:3px 0;cursor:pointer;"><input type="checkbox" ${has(t,'standard')} onchange="toggleTurfTypeInline(${i},'standard')" style="width:auto;margin:0;">Standard</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin:3px 0;cursor:pointer;"><input type="checkbox" ${has(t,'putting')} onchange="toggleTurfTypeInline(${i},'putting')" style="width:auto;margin:0;">Putting Green</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin:3px 0;cursor:pointer;"><input type="checkbox" ${has(t,'fringe')} onchange="toggleTurfTypeInline(${i},'fringe')" style="width:auto;margin:0;">Fringe</label>
+      </div>
+    </details>`;
+  const rows = items.map((t, i) => `
+    <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:center;margin-bottom:8px;">
+      <input type="text" value="${escAttr(t.name || '')}" placeholder="WT name" style="${inp}" onchange="updateCatalogField('turf',${i},'name',this.value)">
+      <input type="text" value="${escAttr(t.tdName || '')}" placeholder="vendor name" style="${inp}" onchange="updateCatalogField('turf',${i},'tdName',this.value)">
+      ${typeDd(t, i)}
+      <input type="number" step="0.01" value="${t.costPerLinFt || ''}" placeholder="$/sqft" style="${inp}" onchange="updateCatalogField('turf',${i},'costPerLinFt',this.value)">
+      <input type="text" value="${escAttr(t.notes || '')}" placeholder="notes" style="${inp}" onchange="updateCatalogField('turf',${i},'notes',this.value)">
+      <button class="remove-btn" onclick="deleteCatalogItem('turf',${i})" title="Delete">×</button>
+    </div>`).join('');
   el.innerHTML = `
-    <table class="settings-table">
-      <thead><tr>
-        <th>WT Name</th>
-        <th>Vendor Name</th>
-        <th>Type</th>
-        <th>Cost / SqFt</th>
-        <th>Notes</th>
-        <th></th>
-      </tr></thead>
-      <tbody>
-        ${items.map((t,i)=>`
-          <tr>
-            <td><div class="item-name">${t.name}</div></td>
-            <td style="font-size:12px;color:var(--text-mid);">${t.tdName||'—'}</td>
-            <td><span class="chip">${turfTypesLabel(getTurfTypes(t))}</span></td>
-            <td class="item-cost">${t.costPerLinFt ? '$'+parseFloat(t.costPerLinFt).toFixed(2) : '—'}</td>
-            <td style="color:var(--text-light);font-size:12px;">${t.notes||'—'}</td>
-            <td><div class="item-actions">
-              <button class="btn-edit" onclick="openEditItemModal('turf',${i})">Edit</button>
-              <button class="btn-delete" onclick="deleteCatalogItem('turf',${i})">Delete</button>
-            </div></td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>`;
+    <div style="display:grid;grid-template-columns:${cols};gap:8px;${SETTINGS_INLINE_HDR}">
+      <div>WT Name</div><div>Vendor Name</div><div>Type</div><div>Cost / SqFt</div><div>Notes</div><div></div>
+    </div>${rows}
+    <div style="margin-top:4px;">${addBtn}</div>`;
 }
+
+// Inline-editable catalog field update (used by the inline settings tables — infill,
+// rock, edging, misc). Turf keeps its Edit modal (it has a multi-value Type field).
+function updateCatalogField(type, i, field, val) {
+  const cat = getCatalog();
+  if (!cat[type] || !cat[type][i]) return;
+  cat[type][i][field] = val;
+  saveCatalog(cat);
+  if (getCurrentProject()) calcQuote();
+}
+// Add a blank catalog row inline (no modal) and re-render.
+function addCatalogItemInline(type) {
+  const cat = getCatalog();
+  if (!cat[type]) cat[type] = [];
+  const now = Date.now();
+  const blank = {
+    turf:   { id: 'turf_' + now,   name: '', tdName: '', types: ['standard'], costPerLinFt: '', notes: '' },
+    infill: { id: 'infill_' + now, name: '', lbsPerSqFt: '', costPerBag: '', notes: '' },
+    rock:   { id: 'rock_' + now,   name: '', defaultDepth: 4, costPerYard: '', pricePerSqFt1in: '', notes: '' },
+    edging: { id: 'edging_' + now, name: '', color: '', pricePerBoard: '', notes: '' },
+  }[type] || { id: type + '_' + now, name: '' };
+  cat[type].push(blank);
+  saveCatalog(cat);
+  renderSettingsTables();
+}
+// Toggle one turf Type (standard/putting/fringe) on a turf product, inline.
+function toggleTurfTypeInline(i, type) {
+  const cat = getCatalog();
+  const t = cat.turf && cat.turf[i]; if (!t) return;
+  const set = new Set(getTurfTypes(t));
+  if (set.has(type)) set.delete(type); else set.add(type);
+  const order = ['standard', 'putting', 'fringe'];
+  t.types = order.filter(x => set.has(x));
+  if (!t.types.length) t.types = ['standard']; // never empty
+  saveCatalog(cat);
+  const lbl = document.getElementById('turfTypeLbl_' + i);
+  if (lbl) lbl.textContent = turfTypesLabel(t.types);
+  if (getCurrentProject()) calcQuote();
+}
+// Misc items live in their own store (not the catalog).
+function updateMiscItemField(i, field, val) {
+  const items = getMiscItems();
+  if (!items[i]) return;
+  items[i][field] = val;
+  saveMiscItems(items);
+  if (getCurrentProject()) calcQuote();
+}
+function toggleMiscAlways(i, checked) {
+  const items = getMiscItems();
+  if (!items[i]) return;
+  items[i].alwaysInclude = !!checked;
+  saveMiscItems(items);
+  if (getCurrentProject()) calcQuote();
+}
+function addMiscItemInline() {
+  const items = getMiscItems();
+  items.push({ id: 'misc_' + Date.now(), name: '', notes: '', unit: '', price: '', alwaysInclude: false });
+  saveMiscItems(items);
+  renderMiscItemsTable();
+}
+// Shared beige inline-input style for the settings catalog tables.
+const SETTINGS_INLINE_INPUT = "box-sizing:border-box;width:100%;padding:9px 11px;border:1px solid var(--yellow-border);border-radius:7px;font-family:'DM Mono',monospace;font-size:14px;color:var(--text);background:var(--yellow);";
+const SETTINGS_INLINE_HDR = "font-size:11px;font-weight:700;letter-spacing:0.07em;color:var(--text-light);text-transform:uppercase;margin-bottom:6px;";
 
 function renderSettingsInfillTable(items) {
   const el = document.getElementById('settingsInfillTable');
+  if (!el) return;
+  const addBtn = '<button class="btn btn-ghost btn-sm" onclick="addCatalogItemInline(\'infill\')">＋ Add Product</button>';
   if (!items || !items.length) {
-    el.innerHTML = '<div class="empty" style="padding:24px"><div class="empty-msg">No infill products yet.</div></div>';
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px;">No infill products yet.</div>' + addBtn;
     return;
   }
+  const cols = '1.6fr 0.9fr 0.9fr 1.4fr 28px';
+  const inp = SETTINGS_INLINE_INPUT;
+  const rows = items.map((t, i) => `
+    <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:center;margin-bottom:8px;">
+      <input type="text" value="${escAttr(t.name || '')}" placeholder="product name" style="${inp}" onchange="updateCatalogField('infill',${i},'name',this.value)">
+      <input type="number" step="0.1" value="${t.lbsPerSqFt || ''}" placeholder="lbs/sqft" style="${inp}" onchange="updateCatalogField('infill',${i},'lbsPerSqFt',this.value)">
+      <input type="number" step="0.01" value="${t.costPerBag || ''}" placeholder="$/bag" style="${inp}" onchange="updateCatalogField('infill',${i},'costPerBag',this.value)">
+      <input type="text" value="${escAttr(t.notes || '')}" placeholder="notes" style="${inp}" onchange="updateCatalogField('infill',${i},'notes',this.value)">
+      <button class="remove-btn" onclick="deleteCatalogItem('infill',${i})" title="Delete">×</button>
+    </div>`).join('');
   el.innerHTML = `
-    <table class="settings-table">
-      <thead><tr>
-        <th>Product Name</th>
-        <th>Lbs / SqFt</th>
-        <th>Cost / Bag</th>
-        <th>Notes</th>
-        <th></th>
-      </tr></thead>
-      <tbody>
-        ${items.map((t,i)=>`
-          <tr>
-            <td><div class="item-name">${t.name}</div></td>
-            <td>${t.lbsPerSqFt ? t.lbsPerSqFt + ' lbs/sqft' : '—'}</td>
-            <td class="item-cost">${t.costPerBag ? '$'+parseFloat(t.costPerBag).toFixed(2) : '—'}</td>
-            <td style="color:var(--text-light);font-size:12px;">${t.notes||'—'}</td>
-            <td><div class="item-actions">
-              <button class="btn-edit" onclick="openEditItemModal('infill',${i})">Edit</button>
-              <button class="btn-delete" onclick="deleteCatalogItem('infill',${i})">Delete</button>
-            </div></td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>`;
+    <div style="display:grid;grid-template-columns:${cols};gap:8px;${SETTINGS_INLINE_HDR}">
+      <div>Product Name</div><div>Lbs / SqFt</div><div>Cost / Bag</div><div>Notes</div><div></div>
+    </div>${rows}
+    <div style="margin-top:4px;">${addBtn}</div>`;
 }
 
 function renderSettingsEdgingTable(items) {
   const el = document.getElementById('settingsEdgingTable');
   if (!el) return;
+  const addBtn = '<button class="btn btn-ghost btn-sm" onclick="addCatalogItemInline(\'edging\')">＋ Add Material</button>';
   if (!items || !items.length) {
-    el.innerHTML = '<div class="empty" style="padding:24px"><div class="empty-msg">No edging materials yet.</div></div>';
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px;">No edging materials yet.</div>' + addBtn;
     return;
   }
+  const cols = '1.5fr 0.9fr 0.8fr 1.4fr 28px';
+  const inp = SETTINGS_INLINE_INPUT;
+  const rows = items.map((t, i) => `
+    <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:center;margin-bottom:8px;">
+      <input type="text" value="${escAttr(t.name || '')}" placeholder="material name" style="${inp}" onchange="updateCatalogField('edging',${i},'name',this.value)">
+      <input type="text" value="${escAttr(t.color || '')}" placeholder="color" style="${inp}" onchange="updateCatalogField('edging',${i},'color',this.value)">
+      <input type="number" step="0.01" value="${t.pricePerBoard || ''}" placeholder="$/board" style="${inp}" onchange="updateCatalogField('edging',${i},'pricePerBoard',this.value)">
+      <input type="text" value="${escAttr(t.notes || '')}" placeholder="notes" style="${inp}" onchange="updateCatalogField('edging',${i},'notes',this.value)">
+      <button class="remove-btn" onclick="deleteCatalogItem('edging',${i})" title="Delete">×</button>
+    </div>`).join('');
   el.innerHTML = `
-    <table class="settings-table">
-      <thead><tr>
-        <th>Material Name</th>
-        <th>Color</th>
-        <th>$/Board</th>
-        <th>Notes</th>
-        <th></th>
-      </tr></thead>
-      <tbody>
-        ${items.map((t,i)=>`
-          <tr>
-            <td><div class="item-name">${t.name}</div></td>
-            <td>${t.color || '—'}</td>
-            <td class="item-cost">${t.pricePerBoard ? '$'+parseFloat(t.pricePerBoard).toFixed(2) : '—'}</td>
-            <td style="color:var(--text-light);font-size:12px;">${t.notes || '—'}</td>
-            <td><div class="item-actions">
-              <button class="btn-edit" onclick="openEditItemModal('edging',${i})">Edit</button>
-              <button class="btn-delete" onclick="deleteCatalogItem('edging',${i})">Delete</button>
-            </div></td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>`;
+    <div style="display:grid;grid-template-columns:${cols};gap:8px;${SETTINGS_INLINE_HDR}">
+      <div>Material Name</div><div>Color</div><div>$/Board</div><div>Notes</div><div></div>
+    </div>${rows}
+    <div style="margin-top:4px;">${addBtn}</div>`;
 }
 
 function renderSettingsRockTable(items) {
   const el = document.getElementById('settingsRockTable');
   const tog = document.getElementById('rockInQuoteToggle');
   if (tog) tog.checked = getRockInQuote();
+  if (!el) return;
+  const addBtn = '<button class="btn btn-ghost btn-sm" onclick="addCatalogItemInline(\'rock\')">＋ Add Material</button>';
   if (!items || !items.length) {
-    el.innerHTML = '<div class="empty" style="padding:24px"><div class="empty-msg">No rock materials yet.</div></div>';
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px;">No rock materials yet.</div>' + addBtn;
     return;
   }
+  const cols = '1.4fr 0.7fr 0.9fr 0.9fr 1.2fr 28px';
+  const inp = SETTINGS_INLINE_INPUT;
+  const rows = items.map((t, i) => `
+    <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:center;margin-bottom:8px;">
+      <input type="text" value="${escAttr(t.name || '')}" placeholder="material name" style="${inp}" onchange="updateCatalogField('rock',${i},'name',this.value)">
+      <input type="number" step="0.5" value="${t.defaultDepth || ''}" placeholder="depth in" style="${inp}" onchange="updateCatalogField('rock',${i},'defaultDepth',this.value)">
+      <input type="number" step="0.01" value="${t.costPerYard || ''}" placeholder="$/cu yd" style="${inp}" onchange="updateCatalogField('rock',${i},'costPerYard',this.value)">
+      <input type="number" step="0.01" value="${t.pricePerSqFt1in || ''}" placeholder="$/sqft@1in" style="${inp}" onchange="updateCatalogField('rock',${i},'pricePerSqFt1in',this.value)">
+      <input type="text" value="${escAttr(t.notes || '')}" placeholder="notes" style="${inp}" onchange="updateCatalogField('rock',${i},'notes',this.value)">
+      <button class="remove-btn" onclick="deleteCatalogItem('rock',${i})" title="Delete">×</button>
+    </div>`).join('');
   el.innerHTML = `
-    <table class="settings-table">
-      <thead><tr>
-        <th>Material Name</th>
-        <th>Default Depth</th>
-        <th>$/Cu. Yd</th>
-        <th>$/SqFt @ 1"</th>
-        <th>Notes</th>
-        <th></th>
-      </tr></thead>
-      <tbody>
-        ${items.map((t,i)=>`
-          <tr>
-            <td><div class="item-name">${t.name}</div></td>
-            <td>${t.defaultDepth||4}"</td>
-            <td class="item-cost">${t.costPerYard ? '$'+parseFloat(t.costPerYard).toFixed(2) : '—'}</td>
-            <td class="item-cost">${t.pricePerSqFt1in ? '$'+parseFloat(t.pricePerSqFt1in).toFixed(2) : '—'}</td>
-            <td style="color:var(--text-light);font-size:12px;">${t.notes||'—'}</td>
-            <td><div class="item-actions">
-              <button class="btn-edit" onclick="openEditItemModal('rock',${i})">Edit</button>
-              <button class="btn-delete" onclick="deleteCatalogItem('rock',${i})">Delete</button>
-            </div></td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>`;
+    <div style="display:grid;grid-template-columns:${cols};gap:8px;${SETTINGS_INLINE_HDR}">
+      <div>Material Name</div><div>Depth (in)</div><div>$/Cu. Yd</div><div>$/SqFt @ 1"</div><div>Notes</div><div></div>
+    </div>${rows}
+    <div style="margin-top:4px;">${addBtn}</div>`;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -7279,35 +7325,27 @@ function renderMiscItemsTable() {
   const items = getMiscItems();
   const el = document.getElementById('miscItemsTable');
   if (!el) return;
+  const addBtn = '<button class="btn btn-ghost btn-sm" onclick="addMiscItemInline()">＋ Add Item</button>';
   if (!items.length) {
-    el.innerHTML = '<div class="empty" style="padding:24px"><div class="empty-msg">No items yet. Add putting cups, pavers, bark dust, river rock, etc.</div></div>';
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px;">No items yet. Add putting cups, pavers, bark dust, river rock, etc.</div>' + addBtn;
     return;
   }
+  const cols = '1.4fr 1.4fr 0.8fr 0.8fr 90px 28px';
+  const inp = SETTINGS_INLINE_INPUT;
+  const rows = items.map((item, i) => `
+    <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:center;margin-bottom:8px;">
+      <input type="text" value="${escAttr(item.name || '')}" placeholder="item name" style="${inp}" onchange="updateMiscItemField(${i},'name',this.value)">
+      <input type="text" value="${escAttr(item.notes || '')}" placeholder="notes" style="${inp}" onchange="updateMiscItemField(${i},'notes',this.value)">
+      <input type="text" value="${escAttr(item.unit || '')}" placeholder="unit" style="${inp}" onchange="updateMiscItemField(${i},'unit',this.value)">
+      <input type="number" step="0.01" value="${item.price || ''}" placeholder="$/unit" style="${inp}" onchange="updateMiscItemField(${i},'price',this.value)">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-mid);cursor:pointer;justify-content:center;"><input type="checkbox" ${item.alwaysInclude ? 'checked' : ''} onchange="toggleMiscAlways(${i},this.checked)" style="width:auto;margin:0;">always</label>
+      <button class="remove-btn" onclick="deleteMiscItem(${i})" title="Delete">×</button>
+    </div>`).join('');
   el.innerHTML = `
-    <table class="settings-table">
-      <thead><tr>
-        <th>Item Name</th>
-        <th>Notes</th>
-        <th>Unit</th>
-        <th>Price</th>
-        <th>On new jobs</th>
-        <th></th>
-      </tr></thead>
-      <tbody>
-        ${items.map((item, i) => `
-          <tr>
-            <td><div class="item-name">${item.name}</div></td>
-            <td style="font-size:12px;color:var(--text-light);">${item.notes||'—'}</td>
-            <td style="font-size:12px;color:var(--text-mid);">${item.unit||'—'}</td>
-            <td class="item-cost">${item.price ? '$'+parseFloat(item.price).toFixed(2) : '—'}</td>
-            <td style="font-size:12px;">${item.alwaysInclude ? '<span style="color:var(--green,#2e7d32);font-weight:700;">✓ always</span>' : '<span style="color:var(--text-light);">—</span>'}</td>
-            <td><div class="item-actions">
-              <button class="btn-edit" onclick="openMiscModal(${i})">Edit</button>
-              <button class="btn-delete" onclick="deleteMiscItem(${i})">Delete</button>
-            </div></td>
-          </tr>`).join('')}
-      </tbody>
-    </table>`;
+    <div style="display:grid;grid-template-columns:${cols};gap:8px;${SETTINGS_INLINE_HDR}">
+      <div>Item Name</div><div>Notes</div><div>Unit</div><div>Price</div><div style="text-align:center;">On new jobs</div><div></div>
+    </div>${rows}
+    <div style="margin-top:4px;">${addBtn}</div>`;
 }
 
 function openMiscModal(editIdx) {

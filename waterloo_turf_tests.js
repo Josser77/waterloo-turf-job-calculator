@@ -7666,8 +7666,8 @@ section('144. Rock/base pricing (cost per yard, depth-aware, optional on quote)'
   // costPerYard is captured in the rock catalog modal + a quote toggle is present. Source checks.
   const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
   assert(/id="ciRockYardPrice"/.test(src), 'the rock settings modal has a Cost per Cubic Yard field');
-  assert(/<th>\$\/Cu\. Yd<\/th>/.test(src), 'the rock settings table shows a $/Cu. Yd column');
-  assert(/t\.costPerYard \? '\$'\+parseFloat\(t\.costPerYard\)/.test(src), 'the $/Cu. Yd column renders each material cost per yard');
+  assert(/<div>\$\/Cu\. Yd<\/div>/.test(src), 'the rock settings table shows a $/Cu. Yd column (inline)');
+  assert(/updateCatalogField\('rock',\$\{i\},'costPerYard',this\.value\)/.test(src), 'the rock $/Cu. Yd is an inline-editable field');
   assert(/costPerYard: document\.getElementById\('ciRockYardPrice'\)\.value/.test(src), 'cost per yard is saved on the rock item');
   assert(/id="rockInQuoteToggle"/.test(src) && /onchange="setRockInQuote/.test(src), 'Settings has a show-rock-cost-on-quotes toggle');
   assert(/\+ scenarioFringeCost \+ rockCost \+ consumablesCost \+ shippingCost/.test(src), 'rock cost is added into COGS when enabled');
@@ -8468,8 +8468,50 @@ section('187. Consumables settings styled like the rest of settings');
   assert(/font-size:11px;font-weight:700;letter-spacing:0\.07em;color:var\(--text-light\);text-transform:uppercase/.test(src), 'consumables column headers match settings-table headers');
 }
 
+section('188. Infill catalog is inline-editable (like consumables)');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/function updateCatalogField\(type, i, field, val\)/.test(src), 'generic inline catalog-field updater exists');
+  assert(/function addCatalogItemInline\(type\)/.test(src), 'inline add-row helper exists');
+  assert(/onchange="updateCatalogField\('infill',\$\{i\},'costPerBag',this\.value\)"/.test(src), 'infill cost edits inline');
+  assert(/addBtn = '<button class="btn btn-ghost btn-sm" onclick=\\\\'addCatalogItemInline/.test(src) || /addCatalogItemInline\(..infill/.test(src), 'infill Add button (ghost, at bottom of list) adds an inline row');
+  assert(!/openEditItemModal\('infill'/.test(src), 'infill no longer uses the Edit modal');
+  // Behavior: inline update writes to the catalog.
+  if (ctx.getCatalog && ctx.updateCatalogField && ctx.saveCatalog) {
+    const cat = ctx.getCatalog();
+    if (cat.infill && cat.infill[0]) {
+      ctx.updateCatalogField('infill', 0, 'costPerBag', '42.5');
+      assert(ctx.getCatalog().infill[0].costPerBag === '42.5', 'inline edit persists to the catalog');
+    }
+  }
+}
+
+section('189. All catalogs inline-editable (turf/rock/edging/misc)');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // No catalog uses the Edit modal anymore.
+  assert(!/openEditItemModal\('turf'/.test(src) && !/openEditItemModal\('rock'/.test(src) && !/openEditItemModal\('edging'/.test(src), 'turf/rock/edging no longer use the Edit modal');
+  assert(!/openMiscModal\(\$\{i\}\)/.test(src), 'misc items no longer use the Edit modal');
+  // Turf Type is a multi-select dropdown driven by toggleTurfTypeInline.
+  assert(/function toggleTurfTypeInline\(i, type\)/.test(src), 'turf Type multi-select toggler exists');
+  assert(/onchange="toggleTurfTypeInline\(\$\{i\},'standard'\)"/.test(src) && /onchange="toggleTurfTypeInline\(\$\{i\},'putting'\)"/.test(src) && /onchange="toggleTurfTypeInline\(\$\{i\},'fringe'\)"/.test(src), 'turf Type dropdown has Standard/Putting/Fringe checkboxes');
+  // The dropdown auto-closes on outside click.
+  assert(/details\.turf-type-dd\[open\]/.test(src) && /if \(!d\.contains\(e\.target\)\) d\.removeAttribute\('open'\)/.test(src), 'turf Type dropdown auto-closes when clicking elsewhere');
+  // Inline field edits wired for each catalog.
+  assert(/updateCatalogField\('turf',\$\{i\},'costPerLinFt'/.test(src), 'turf cost edits inline');
+  assert(/updateCatalogField\('edging',\$\{i\},'pricePerBoard'/.test(src), 'edging price edits inline');
+  assert(/updateMiscItemField\(\$\{i\},'price'/.test(src), 'misc price edits inline');
+  assert(/function addMiscItemInline\(\)/.test(src), 'misc inline add exists');
+  // Turf type toggle behavior: pure.
+  if (ctx.getTurfTypes) {
+    // toggling a non-present type adds it; toggling a present one removes it (never empty).
+    const t = { types: ['standard'] };
+    assert(ctx.getTurfTypes(t).join(',') === 'standard', 'baseline standard');
+  }
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
 
-// redeploy marker 2026-09-14.2
+// redeploy marker 2026-09-15

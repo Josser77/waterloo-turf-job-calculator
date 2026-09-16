@@ -5,6 +5,59 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-14 (build .9) — Turf Type dropdown auto-closes on outside click
+
+The turf Type multi-select (a <details> element) now closes when you click elsewhere on the page,
+matching normal dropdown behavior. A single document click-listener closes any open turf-type
+dropdown whose bounds the click fell outside.
+
+Tests **2136** (README **2136**): the outside-click close handler is present. Verified end-to-end
+(open the dropdown, click away, it closes). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-14 (build .8) — All Settings catalogs are inline-editable
+
+Converted the remaining Settings catalogs — turf, rock/base, edging, and misc items — to inline
+editing, matching Installation Consumables and infill. Every field is a beige manual-input you type
+directly; each section has a ghost "＋ Add …" button at the bottom and an × to delete a row. The
+Edit-item modal and Add-item modals are retired for these.
+
+Turf's multi-value **Type** is now a **multi-select dropdown** (a beige pull-down showing the current
+types; opening it reveals Standard / Putting Green / Fringe checkboxes) — so turf inline-edits
+cleanly like the rest without a cramped row. Toggling never leaves a product with zero types
+(defaults to Standard).
+
+Tests **2126 -> 2135** (README **2135**): no catalog uses the Edit modal; turf Type dropdown +
+toggler; inline field edits + inline add for each catalog. Verified end-to-end (edit turf/rock/
+edging/misc inline, toggle turf types, add rows). Green under UTC and America/Los_Angeles.
+
+---
+
+## 2026-09-14 (build .7) — Infill Add button matches consumables (ghost, bottom of list)
+
+Moved the infill "＋ Add Product" button to match Installation Consumables exactly: a ghost-style
+button at the bottom of the list (instead of a filled primary button in the card header). Consistent
+add-affordance across the inline settings sections.
+
+Tests **2126** (README **2126**): infill Add button is the ghost bottom-of-list style. Green under UTC
+and America/Los_Angeles.
+
+---
+
+## 2026-09-14 (build .6) — Infill catalog is inline-editable (proof of pattern)
+
+Started converting the Settings catalogs from display-row + Edit-modal to inline editing (matching
+Installation Consumables, which works well). Infill first: name, lbs/sqft, cost/bag, and notes are
+now beige manual-input fields you type directly, "Add Product" appends a blank row, and × deletes.
+Turf stays on its Edit modal for now (it has a multi-value Type selector that doesn't inline
+cleanly). Rock, edging, and misc to follow the same pattern.
+
+Tests **2121 -> 2126** (README **2126**): inline field updater + add helper, infill edits inline and
+persists, no more Edit modal for infill. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-14 (build .5) — Consumables fields use the beige manual-input styling
 
 Following the visual-consistency pass, the Installation Consumables input fields now use the app's
@@ -6499,4 +6552,4 @@ No new test sections (the bugs were in canvas event handling, which requires a r
 - Sandboxed VM context with mocked DOM/localStorage/ResizeObserver
 - Initial coverage: layout geometry, clipping, nesting, infill, quote generation
 
-<!-- redeploy 2026-09-14.2 -->
+<!-- redeploy 2026-09-15 -->
