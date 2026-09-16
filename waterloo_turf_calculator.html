@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-15.2</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-15.3</div>
     </div>
 
     <div class="sort-bar">
@@ -5457,19 +5457,20 @@ function renderConsumablesConfig() {
   el.innerHTML = CONSUMABLE_DEFS.map(def => {
     const list = products.filter(p => p.category === def.id);
     const rows = list.map(p => `
-      <div style="display:grid;grid-template-columns:16px 1.4fr 0.8fr 0.7fr 0.9fr 0.6fr 24px;gap:6px;align-items:center;margin-bottom:6px;">
+      <div style="display:grid;grid-template-columns:16px 1.3fr 0.7fr 100px 92px 78px 1.7fr 24px;gap:6px;align-items:center;margin-bottom:6px;">
         <input type="radio" name="consDefault_${def.id}" ${defaults[def.id]===p.id?'checked':''} onchange="setConsumableDefault('${def.id}','${p.id}')" title="Default for new jobs" style="width:auto;margin:0;">
         <input type="text" value="${(p.name||'').replace(/"/g,'&quot;')}" placeholder="product name" style="${inp}" onchange="updateConsumableProduct('${p.id}','name',this.value)">
         <input type="text" value="${(p.unitLabel||'').replace(/"/g,'&quot;')}" placeholder="unit" style="${inp}" onchange="updateConsumableProduct('${p.id}','unitLabel',this.value)">
-        <input type="number" step="0.01" value="${p.costPerUnit}" placeholder="$/unit" style="${inp}" onchange="updateConsumableProduct('${p.id}','costPerUnit',this.value)">
-        <input type="number" step="0.1" value="${p.coveragePerUnit}" placeholder="${def.id==='seamTape'?'/roll (blank=LF)':'coverage'}" title="${consumableCoverageLabel(def.id)}" style="${inp}" onchange="updateConsumableProduct('${p.id}','coveragePerUnit',this.value)">
-        <input type="number" step="1" value="${p.wastePct}" placeholder="waste%" title="Waste / extra %" style="${inp}" onchange="updateConsumableProduct('${p.id}','wastePct',this.value)">
+        ${settingsPriceInput("updateConsumableProduct('"+p.id+"','costPerUnit',this.value)", p.costPerUnit)}
+        <input type="number" step="0.1" value="${p.coveragePerUnit}" placeholder="${def.id==='seamTape'?'/roll':'cov'}" title="${consumableCoverageLabel(def.id)}" style="${inp}" onchange="updateConsumableProduct('${p.id}','coveragePerUnit',this.value)">
+        <input type="number" step="1" value="${p.wastePct}" placeholder="%" title="Waste / extra %" style="${inp}" onchange="updateConsumableProduct('${p.id}','wastePct',this.value)">
+        <input type="text" value="${(p.notes||'').replace(/"/g,'&quot;')}" placeholder="notes" style="${inp}" onchange="updateConsumableProduct('${p.id}','notes',this.value)">
         <button class="remove-btn" onclick="deleteConsumableProduct('${p.id}')" title="Delete">×</button>
       </div>`).join('');
     return `<div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px;background:var(--surface);">
       <div style="font-weight:600;font-size:15px;color:var(--text);margin-bottom:3px;">${def.label} <span style="font-weight:400;font-size:12px;color:var(--text-light);">— per ${def.metricLabel}</span></div>
       <div style="font-size:12px;color:var(--text-light);margin-bottom:8px;">Add the products you use. The ⦿ radio picks the <strong>default</strong> for new jobs; pick "None" to leave it off by default. You choose per job on the Quote Builder.</div>
-      ${list.length ? `<div style="display:grid;grid-template-columns:16px 1.4fr 0.8fr 0.7fr 0.9fr 0.6fr 24px;gap:6px;font-size:11px;font-weight:700;letter-spacing:0.07em;color:var(--text-light);text-transform:uppercase;margin-bottom:6px;"><div></div><div>Product</div><div>Unit</div><div>$/unit</div><div>Coverage</div><div>Waste%</div><div></div></div>` : ''}
+      ${list.length ? `<div style="display:grid;grid-template-columns:16px 1.3fr 0.7fr 100px 92px 78px 1.7fr 24px;gap:6px;font-size:11px;font-weight:700;letter-spacing:0.07em;color:var(--text-light);text-transform:uppercase;margin-bottom:6px;"><div></div><div>Product</div><div>Unit</div><div>$/unit</div><div>Cov.</div><div>Waste</div><div>Notes</div><div></div></div>` : ''}
       ${rows || '<div style="font-size:12px;color:var(--text-light);padding:2px 0 6px;">No products yet.</div>'}
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-mid);cursor:pointer;margin:4px 0 8px;">
         <input type="radio" name="consDefault_${def.id}" ${!defaults[def.id]?'checked':''} onchange="setConsumableDefault('${def.id}','')" style="width:auto;margin:0;"> None (off by default)
@@ -6459,7 +6460,7 @@ function renderSettingsTurfTable(items) {
     el.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px;">No turf products yet.</div>' + addBtn;
     return;
   }
-  const cols = '1.3fr 1.1fr 1.1fr 0.6fr 1.7fr 28px';
+  const cols = '1.2fr 1fr 150px 108px 2.2fr 28px';
   const inp = SETTINGS_INLINE_INPUT;
   const has = (t, ty) => getTurfTypes(t).indexOf(ty) !== -1 ? 'checked' : '';
   const typeDd = (t, i) => `
@@ -6567,7 +6568,7 @@ function renderSettingsInfillTable(items) {
     el.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px;">No infill products yet.</div>' + addBtn;
     return;
   }
-  const cols = '1.5fr 0.7fr 0.7fr 1.9fr 28px';
+  const cols = '1.3fr 92px 108px 2.4fr 28px';
   const inp = SETTINGS_INLINE_INPUT;
   const rows = items.map((t, i) => `
     <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:center;margin-bottom:8px;">
@@ -6592,7 +6593,7 @@ function renderSettingsEdgingTable(items) {
     el.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px;">No edging materials yet.</div>' + addBtn;
     return;
   }
-  const cols = '1.5fr 0.9fr 0.65fr 1.7fr 28px';
+  const cols = '1.3fr 0.9fr 108px 2.2fr 28px';
   const inp = SETTINGS_INLINE_INPUT;
   const rows = items.map((t, i) => `
     <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:center;margin-bottom:8px;">
@@ -6619,7 +6620,7 @@ function renderSettingsRockTable(items) {
     el.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px;">No rock materials yet.</div>' + addBtn;
     return;
   }
-  const cols = '1.4fr 0.6fr 0.7fr 0.7fr 1.6fr 28px';
+  const cols = '1.2fr 78px 108px 108px 2fr 28px';
   const inp = SETTINGS_INLINE_INPUT;
   const rows = items.map((t, i) => `
     <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:center;margin-bottom:8px;">
@@ -6810,9 +6811,9 @@ function renderLaborRatesTable() {
         ${items.map((item, i) => `
           <tr draggable="true" data-index="${i}">
             <td style="padding:4px 0;text-align:center;"><span class="drag-handle" title="Drag to reorder">⠿</span></td>
-            <td><div class="item-name">${item.name}</div></td>
-            <td style="font-size:12px;color:var(--text-light);">${item.desc||'—'}</td>
-            <td style="font-size:12px;color:var(--text-mid);">${item.unit||''}</td>
+            <td><input type="text" class="manual-input" value="${escAttr(item.name||'')}" placeholder="service name" style="width:100%;" onchange="updateLaborField(${i},'name',this.value)"></td>
+            <td><input type="text" class="manual-input" value="${escAttr(item.desc||'')}" placeholder="notes" style="width:100%;" onchange="updateLaborField(${i},'desc',this.value)"></td>
+            <td><input type="text" class="manual-input" value="${escAttr(item.unit||'')}" placeholder="unit" style="width:100%;" onchange="updateLaborField(${i},'unit',this.value)"></td>
             <td>
               ${(item.key === 'standard' || item.key === 'putting')
                 ? (itemIsTiered(item)
@@ -6846,7 +6847,6 @@ function renderLaborRatesTable() {
                    </div>`}
             </td>
             <td><div class="item-actions">
-              <button class="btn-edit" onclick="openEditRateModal(${i})">Edit</button>
               <button class="btn-delete" onclick="deleteLaborItem(${i})">Delete</button>
             </div></td>
           </tr>`).join('')}
@@ -6896,6 +6896,15 @@ function initLaborRatesDragSort() {
 function updateLaborRate(index, val) {
   const items = getLaborItems();
   items[index].rate = parseFloat(val)||0;
+  saveLaborItems(items);
+  if (currentId) calcQuote();
+}
+// Inline edit of a labor line's text fields (name / desc / unit). The item's `key`
+// (which maps a rate to calc logic) is untouched, so renaming is cosmetic and safe.
+function updateLaborField(index, field, val) {
+  const items = getLaborItems();
+  if (!items[index]) return;
+  items[index][field] = val;
   saveLaborItems(items);
   if (currentId) calcQuote();
 }
@@ -7337,7 +7346,7 @@ function renderMiscItemsTable() {
     el.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px;">No items yet. Add putting cups, pavers, bark dust, river rock, etc.</div>' + addBtn;
     return;
   }
-  const cols = '1.3fr 1.7fr 0.7fr 0.7fr 90px 28px';
+  const cols = '1.1fr 2.2fr 92px 108px 84px 28px';
   const inp = SETTINGS_INLINE_INPUT;
   const rows = items.map((item, i) => `
     <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:center;margin-bottom:8px;">

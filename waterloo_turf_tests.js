@@ -8517,7 +8517,21 @@ section('190. Price fields show $ + tightened widths');
   assert(/left:11px;[\s\S]*?>\$<\/span>/.test(src), 'price inputs render a leading $ sign');
   assert(/padding-left:22px;/.test(src), 'the price input leaves room for the $');
   // Notes columns are wider than the price columns in each catalog (rough proxy: a 1.6fr+ notes col appears).
-  assert(/1\.3fr 1\.1fr 1\.1fr 0\.6fr 1\.7fr 28px/.test(src), 'turf: cost column narrowed, notes widened');
+  assert(/1\.2fr 1fr 150px 108px 2\.2fr 28px/.test(src), 'turf: cost column narrowed (108px), notes widened (2.2fr)');
+  // Price fields are ~10-char fixed columns; notes get the wide fr.
+  assert(/1\.3fr 92px 108px 2\.4fr 28px/.test(src), 'infill: numeric cols fixed-width, notes 2.4fr');
+}
+
+section('191. Labor rates inline; consumables gain a Notes column');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Labor name/desc/unit are inline-editable; Edit modal button removed.
+  assert(/function updateLaborField\(index, field, val\)/.test(src), 'labor inline field updater exists');
+  assert(/onchange="updateLaborField\(\$\{i\},'name',this\.value\)"/.test(src) && /onchange="updateLaborField\(\$\{i\},'unit',this\.value\)"/.test(src), 'labor name + unit edit inline');
+  assert(!/openEditRateModal\(\$\{i\}\)/.test(src), 'labor Edit-rate modal button removed');
+  // Consumables have a Notes field + column.
+  assert(/updateConsumableProduct\('"\+p\.id\+"','notes',this\.value\)|updateConsumableProduct\('\$\{p\.id\}','notes'/.test(src), 'consumables have an editable notes field');
+  assert(/<div>Notes<\/div><div><\/div><\/div>` : ''}/.test(src), 'consumables header includes a Notes column');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

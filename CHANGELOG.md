@@ -5,6 +5,21 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-15 (build .3) — Tighter numeric columns, wider Notes, consumables Notes, inline labor
+
+Settings polish across the board:
+- **All catalogs** (turf, infill, rock, edging, misc): numeric/price columns tightened to ~10-char
+  fixed widths ($ 1,234.56 fits) and Notes columns widened to take the freed space.
+- **Installation Consumables**: fields shortened and a **Notes** column added per product.
+- **Labor Rates & Price Sheet**: the service **name, notes, and unit** are now inline-editable beige
+  fields too (the rate was already inline) — the per-row Edit modal is retired; tiered rates and
+  drag-to-reorder are unchanged. Renaming is cosmetic (the rate's calc key is untouched).
+
+Tests **2140 -> 2146** (README **2146**): tightened columns, consumables notes field/column, labor
+inline field updater + no Edit modal. Verified on-canvas. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-15 (build .2) — Settings catalogs: tighter price columns, wider Notes, $ on prices
 
 Across the inline Settings catalogs (turf, infill, rock, edging, misc), the price/numeric columns
