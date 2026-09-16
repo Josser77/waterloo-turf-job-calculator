@@ -8534,6 +8534,16 @@ section('191. Labor rates inline; consumables gain a Notes column');
   assert(/<div>Notes<\/div><div><\/div><\/div>` : ''}/.test(src), 'consumables header includes a Notes column');
 }
 
+section('192. Wider unit fields + labor × delete');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/const cols = '1\.1fr 2fr 150px 108px 84px 28px'/.test(src), 'misc Unit column widened to ~15 chars (150px)');
+  assert(/<th style="width:150px;">Unit<\/th>/.test(src), 'labor Unit column widened to ~15 chars (150px)');
+  // Labor delete is the × remove-btn like the other catalogs (no Delete text button).
+  assert(/<button class="remove-btn" onclick="deleteLaborItem\(\$\{i\}\)" title="Delete">×<\/button>/.test(src), 'labor delete is the × button');
+  assert(!/<button class="btn-delete" onclick="deleteLaborItem/.test(src), 'the old labor Delete text button is gone');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

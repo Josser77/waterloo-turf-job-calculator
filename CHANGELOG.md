@@ -5,6 +5,17 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-15 (build .4) — Wider Unit fields (misc + labor); labor delete is now ×
+
+Widened the Unit column to ~15 characters on both the Miscellaneous Items and Labor Rates tables
+(they were too narrow for units like "per lin ft"). Changed the Labor Rates row delete from a "Delete"
+text button to the × button used everywhere else, for consistency.
+
+Tests **2146 -> 2150** (README **2150**): misc + labor Unit widths, labor × delete replaces the text
+button. Verified on-canvas. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-15 (build .3) — Tighter numeric columns, wider Notes, consumables Notes, inline labor
 
 Settings polish across the board:
