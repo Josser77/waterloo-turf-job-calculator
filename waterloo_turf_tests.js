@@ -7667,7 +7667,7 @@ section('144. Rock/base pricing (cost per yard, depth-aware, optional on quote)'
   const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
   assert(/id="ciRockYardPrice"/.test(src), 'the rock settings modal has a Cost per Cubic Yard field');
   assert(/<div>\$\/Cu\. Yd<\/div>/.test(src), 'the rock settings table shows a $/Cu. Yd column (inline)');
-  assert(/updateCatalogField\('rock',\$\{i\},'costPerYard',this\.value\)/.test(src), 'the rock $/Cu. Yd is an inline-editable field');
+  assert(/updateCatalogField\('rock',"\+i\+",'costPerYard',this\.value\)/.test(src), 'the rock $/Cu. Yd is an inline-editable $ field');
   assert(/costPerYard: document\.getElementById\('ciRockYardPrice'\)\.value/.test(src), 'cost per yard is saved on the rock item');
   assert(/id="rockInQuoteToggle"/.test(src) && /onchange="setRockInQuote/.test(src), 'Settings has a show-rock-cost-on-quotes toggle');
   assert(/\+ scenarioFringeCost \+ rockCost \+ consumablesCost \+ shippingCost/.test(src), 'rock cost is added into COGS when enabled');
@@ -8473,7 +8473,7 @@ section('188. Infill catalog is inline-editable (like consumables)');
   const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
   assert(/function updateCatalogField\(type, i, field, val\)/.test(src), 'generic inline catalog-field updater exists');
   assert(/function addCatalogItemInline\(type\)/.test(src), 'inline add-row helper exists');
-  assert(/onchange="updateCatalogField\('infill',\$\{i\},'costPerBag',this\.value\)"/.test(src), 'infill cost edits inline');
+  assert(/updateCatalogField\('infill',"\+i\+",'costPerBag',this\.value\)/.test(src), 'infill cost edits inline ($ field)');
   assert(/addBtn = '<button class="btn btn-ghost btn-sm" onclick=\\\\'addCatalogItemInline/.test(src) || /addCatalogItemInline\(..infill/.test(src), 'infill Add button (ghost, at bottom of list) adds an inline row');
   assert(!/openEditItemModal\('infill'/.test(src), 'infill no longer uses the Edit modal');
   // Behavior: inline update writes to the catalog.
@@ -8498,9 +8498,9 @@ section('189. All catalogs inline-editable (turf/rock/edging/misc)');
   // The dropdown auto-closes on outside click.
   assert(/details\.turf-type-dd\[open\]/.test(src) && /if \(!d\.contains\(e\.target\)\) d\.removeAttribute\('open'\)/.test(src), 'turf Type dropdown auto-closes when clicking elsewhere');
   // Inline field edits wired for each catalog.
-  assert(/updateCatalogField\('turf',\$\{i\},'costPerLinFt'/.test(src), 'turf cost edits inline');
-  assert(/updateCatalogField\('edging',\$\{i\},'pricePerBoard'/.test(src), 'edging price edits inline');
-  assert(/updateMiscItemField\(\$\{i\},'price'/.test(src), 'misc price edits inline');
+  assert(/updateCatalogField\('turf',"\+i\+",'costPerLinFt'/.test(src), 'turf cost edits inline ($ field)');
+  assert(/updateCatalogField\('edging',"\+i\+",'pricePerBoard'/.test(src), 'edging price edits inline ($ field)');
+  assert(/updateMiscItemField\("\+i\+",'price'/.test(src), 'misc price edits inline ($ field)');
   assert(/function addMiscItemInline\(\)/.test(src), 'misc inline add exists');
   // Turf type toggle behavior: pure.
   if (ctx.getTurfTypes) {
@@ -8508,6 +8508,16 @@ section('189. All catalogs inline-editable (turf/rock/edging/misc)');
     const t = { types: ['standard'] };
     assert(ctx.getTurfTypes(t).join(',') === 'standard', 'baseline standard');
   }
+}
+
+section('190. Price fields show $ + tightened widths');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/function settingsPriceInput\(onchangeCode, value\)/.test(src), 'a $-prefixed price input helper exists');
+  assert(/left:11px;[\s\S]*?>\$<\/span>/.test(src), 'price inputs render a leading $ sign');
+  assert(/padding-left:22px;/.test(src), 'the price input leaves room for the $');
+  // Notes columns are wider than the price columns in each catalog (rough proxy: a 1.6fr+ notes col appears).
+  assert(/1\.3fr 1\.1fr 1\.1fr 0\.6fr 1\.7fr 28px/.test(src), 'turf: cost column narrowed, notes widened');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

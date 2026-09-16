@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-15</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-15.2</div>
     </div>
 
     <div class="sort-bar">
@@ -6459,7 +6459,7 @@ function renderSettingsTurfTable(items) {
     el.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px;">No turf products yet.</div>' + addBtn;
     return;
   }
-  const cols = '1.3fr 1.1fr 1.15fr 0.8fr 1.1fr 28px';
+  const cols = '1.3fr 1.1fr 1.1fr 0.6fr 1.7fr 28px';
   const inp = SETTINGS_INLINE_INPUT;
   const has = (t, ty) => getTurfTypes(t).indexOf(ty) !== -1 ? 'checked' : '';
   const typeDd = (t, i) => `
@@ -6478,7 +6478,7 @@ function renderSettingsTurfTable(items) {
       <input type="text" value="${escAttr(t.name || '')}" placeholder="WT name" style="${inp}" onchange="updateCatalogField('turf',${i},'name',this.value)">
       <input type="text" value="${escAttr(t.tdName || '')}" placeholder="vendor name" style="${inp}" onchange="updateCatalogField('turf',${i},'tdName',this.value)">
       ${typeDd(t, i)}
-      <input type="number" step="0.01" value="${t.costPerLinFt || ''}" placeholder="$/sqft" style="${inp}" onchange="updateCatalogField('turf',${i},'costPerLinFt',this.value)">
+      ${settingsPriceInput("updateCatalogField('turf',"+i+",'costPerLinFt',this.value)", t.costPerLinFt)}
       <input type="text" value="${escAttr(t.notes || '')}" placeholder="notes" style="${inp}" onchange="updateCatalogField('turf',${i},'notes',this.value)">
       <button class="remove-btn" onclick="deleteCatalogItem('turf',${i})" title="Delete">×</button>
     </div>`).join('');
@@ -6550,6 +6550,13 @@ function addMiscItemInline() {
 }
 // Shared beige inline-input style for the settings catalog tables.
 const SETTINGS_INLINE_INPUT = "box-sizing:border-box;width:100%;padding:9px 11px;border:1px solid var(--yellow-border);border-radius:7px;font-family:'DM Mono',monospace;font-size:14px;color:var(--text);background:var(--yellow);";
+// A price input with a leading "$" so cost fields read as money.
+function settingsPriceInput(onchangeCode, value) {
+  return '<div style="position:relative;">'
+    + '<span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-mid);font-family:\'DM Mono\',monospace;font-size:14px;pointer-events:none;">$</span>'
+    + '<input type="number" step="0.01" value="' + (value || '') + '" placeholder="0.00" style="' + SETTINGS_INLINE_INPUT + 'padding-left:22px;" onchange="' + onchangeCode + '">'
+    + '</div>';
+}
 const SETTINGS_INLINE_HDR = "font-size:11px;font-weight:700;letter-spacing:0.07em;color:var(--text-light);text-transform:uppercase;margin-bottom:6px;";
 
 function renderSettingsInfillTable(items) {
@@ -6560,13 +6567,13 @@ function renderSettingsInfillTable(items) {
     el.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px;">No infill products yet.</div>' + addBtn;
     return;
   }
-  const cols = '1.6fr 0.9fr 0.9fr 1.4fr 28px';
+  const cols = '1.5fr 0.7fr 0.7fr 1.9fr 28px';
   const inp = SETTINGS_INLINE_INPUT;
   const rows = items.map((t, i) => `
     <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:center;margin-bottom:8px;">
       <input type="text" value="${escAttr(t.name || '')}" placeholder="product name" style="${inp}" onchange="updateCatalogField('infill',${i},'name',this.value)">
       <input type="number" step="0.1" value="${t.lbsPerSqFt || ''}" placeholder="lbs/sqft" style="${inp}" onchange="updateCatalogField('infill',${i},'lbsPerSqFt',this.value)">
-      <input type="number" step="0.01" value="${t.costPerBag || ''}" placeholder="$/bag" style="${inp}" onchange="updateCatalogField('infill',${i},'costPerBag',this.value)">
+      ${settingsPriceInput("updateCatalogField('infill',"+i+",'costPerBag',this.value)", t.costPerBag)}
       <input type="text" value="${escAttr(t.notes || '')}" placeholder="notes" style="${inp}" onchange="updateCatalogField('infill',${i},'notes',this.value)">
       <button class="remove-btn" onclick="deleteCatalogItem('infill',${i})" title="Delete">×</button>
     </div>`).join('');
@@ -6585,13 +6592,13 @@ function renderSettingsEdgingTable(items) {
     el.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px;">No edging materials yet.</div>' + addBtn;
     return;
   }
-  const cols = '1.5fr 0.9fr 0.8fr 1.4fr 28px';
+  const cols = '1.5fr 0.9fr 0.65fr 1.7fr 28px';
   const inp = SETTINGS_INLINE_INPUT;
   const rows = items.map((t, i) => `
     <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:center;margin-bottom:8px;">
       <input type="text" value="${escAttr(t.name || '')}" placeholder="material name" style="${inp}" onchange="updateCatalogField('edging',${i},'name',this.value)">
       <input type="text" value="${escAttr(t.color || '')}" placeholder="color" style="${inp}" onchange="updateCatalogField('edging',${i},'color',this.value)">
-      <input type="number" step="0.01" value="${t.pricePerBoard || ''}" placeholder="$/board" style="${inp}" onchange="updateCatalogField('edging',${i},'pricePerBoard',this.value)">
+      ${settingsPriceInput("updateCatalogField('edging',"+i+",'pricePerBoard',this.value)", t.pricePerBoard)}
       <input type="text" value="${escAttr(t.notes || '')}" placeholder="notes" style="${inp}" onchange="updateCatalogField('edging',${i},'notes',this.value)">
       <button class="remove-btn" onclick="deleteCatalogItem('edging',${i})" title="Delete">×</button>
     </div>`).join('');
@@ -6612,14 +6619,14 @@ function renderSettingsRockTable(items) {
     el.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px;">No rock materials yet.</div>' + addBtn;
     return;
   }
-  const cols = '1.4fr 0.7fr 0.9fr 0.9fr 1.2fr 28px';
+  const cols = '1.4fr 0.6fr 0.7fr 0.7fr 1.6fr 28px';
   const inp = SETTINGS_INLINE_INPUT;
   const rows = items.map((t, i) => `
     <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:center;margin-bottom:8px;">
       <input type="text" value="${escAttr(t.name || '')}" placeholder="material name" style="${inp}" onchange="updateCatalogField('rock',${i},'name',this.value)">
       <input type="number" step="0.5" value="${t.defaultDepth || ''}" placeholder="depth in" style="${inp}" onchange="updateCatalogField('rock',${i},'defaultDepth',this.value)">
-      <input type="number" step="0.01" value="${t.costPerYard || ''}" placeholder="$/cu yd" style="${inp}" onchange="updateCatalogField('rock',${i},'costPerYard',this.value)">
-      <input type="number" step="0.01" value="${t.pricePerSqFt1in || ''}" placeholder="$/sqft@1in" style="${inp}" onchange="updateCatalogField('rock',${i},'pricePerSqFt1in',this.value)">
+      ${settingsPriceInput("updateCatalogField('rock',"+i+",'costPerYard',this.value)", t.costPerYard)}
+      ${settingsPriceInput("updateCatalogField('rock',"+i+",'pricePerSqFt1in',this.value)", t.pricePerSqFt1in)}
       <input type="text" value="${escAttr(t.notes || '')}" placeholder="notes" style="${inp}" onchange="updateCatalogField('rock',${i},'notes',this.value)">
       <button class="remove-btn" onclick="deleteCatalogItem('rock',${i})" title="Delete">×</button>
     </div>`).join('');
@@ -7330,14 +7337,14 @@ function renderMiscItemsTable() {
     el.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px;">No items yet. Add putting cups, pavers, bark dust, river rock, etc.</div>' + addBtn;
     return;
   }
-  const cols = '1.4fr 1.4fr 0.8fr 0.8fr 90px 28px';
+  const cols = '1.3fr 1.7fr 0.7fr 0.7fr 90px 28px';
   const inp = SETTINGS_INLINE_INPUT;
   const rows = items.map((item, i) => `
     <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:center;margin-bottom:8px;">
       <input type="text" value="${escAttr(item.name || '')}" placeholder="item name" style="${inp}" onchange="updateMiscItemField(${i},'name',this.value)">
       <input type="text" value="${escAttr(item.notes || '')}" placeholder="notes" style="${inp}" onchange="updateMiscItemField(${i},'notes',this.value)">
       <input type="text" value="${escAttr(item.unit || '')}" placeholder="unit" style="${inp}" onchange="updateMiscItemField(${i},'unit',this.value)">
-      <input type="number" step="0.01" value="${item.price || ''}" placeholder="$/unit" style="${inp}" onchange="updateMiscItemField(${i},'price',this.value)">
+      ${settingsPriceInput("updateMiscItemField("+i+",'price',this.value)", item.price)}
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-mid);cursor:pointer;justify-content:center;"><input type="checkbox" ${item.alwaysInclude ? 'checked' : ''} onchange="toggleMiscAlways(${i},this.checked)" style="width:auto;margin:0;">always</label>
       <button class="remove-btn" onclick="deleteMiscItem(${i})" title="Delete">×</button>
     </div>`).join('');

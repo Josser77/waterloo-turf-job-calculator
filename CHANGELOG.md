@@ -5,6 +5,18 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-15 (build .2) — Settings catalogs: tighter price columns, wider Notes, $ on prices
+
+Across the inline Settings catalogs (turf, infill, rock, edging, misc), the price/numeric columns
+were as wide as the name fields while Notes (which holds long supplier URLs) was cramped. Narrowed
+the price and small numeric columns and widened Notes in every catalog. Price fields now show a
+leading *** so they read as money (e.g. "$ 1.24").
+
+Tests **2136 -> 2140** (README **2140**): prefixed price input helper, leading $ rendered, widened
+notes column. Verified on-canvas. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-14 (build .9) — Turf Type dropdown auto-closes on outside click
 
 The turf Type multi-select (a <details> element) now closes when you click elsewhere on the page,
