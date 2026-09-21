@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-15.4</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-18</div>
     </div>
 
     <div class="sort-bar">
@@ -7536,7 +7536,11 @@ function parseLayoutCsv(text) {
     layerRows.forEach(r => { (grouped[r.path] = grouped[r.path] || []).push(r); });
     Object.keys(grouped).map(Number).sort((a,b)=>a-b).forEach(pathNum => {
       grouped[pathNum]
-        .filter(r => r.pointType !== 'CentrePoint')
+        // Skip arc CENTER points — they sit at the arc's center, not on the perimeter,
+        // so including them draws a stray line shooting to the center. Moasure exports
+        // spell this differently across versions (CentrePoint, Center, CenterPoint), so
+        // match any center spelling rather than one exact string.
+        .filter(r => !/cent(er|re)/i.test(r.pointType || ''))
         .sort((a,b)=>a.point-b.point)
         .forEach(r => {
           const last = points[points.length-1];

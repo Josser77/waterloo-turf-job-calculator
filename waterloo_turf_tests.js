@@ -8544,6 +8544,18 @@ section('192. Wider unit fields + labor × delete');
   assert(!/<button class="btn-delete" onclick="deleteLaborItem/.test(src), 'the old labor Delete text button is gone');
 }
 
+section('193. CSV import drops arc center points (any spelling)');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // The importer must skip center points regardless of Moasure's spelling.
+  assert(/\.filter\(r => !\/cent\(er\|re\)\/i\.test\(r\.pointType \|\| ''\)\)/.test(src), 'importer filters any center-point spelling, not just CentrePoint');
+  assert(!/\.filter\(r => r\.pointType !== 'CentrePoint'\)/.test(src), 'the exact-string CentrePoint filter is gone');
+  // Behavior: the regex catches the spellings Moasure uses and keeps real perimeter points.
+  const re = /cent(er|re)/i;
+  ['CentrePoint','Center','CenterPoint','Centre'].forEach(t => assert(re.test(t), t + ' is treated as a center point'));
+  ['Arc','ArcPoint','Default',''].forEach(t => assert(!re.test(t), t + ' is kept as a perimeter point'));
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

@@ -5,6 +5,23 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-18 — Fix: stray lines on CSV import (arc center points not filtered)
+
+Some Moasure CSVs drew stray lines — a long tail and internal crossings — after import. Cause: the
+importer skipped arc CENTER points by matching the exact string "CentrePoint", but Moasure spells it
+differently across versions (this export used "Center"). Unmatched center points got connected into
+the polygon, drawing a line to each arc's center. The filter now matches any center spelling
+(CentrePoint / Center / CenterPoint / Centre, case-insensitive) while keeping real perimeter points
+(Arc, ArcPoint, Default).
+
+Verified on the affected CSV: 71 -> 65 points (6 center points dropped), shape reconstructs clean,
+area 247.5 matches Moasure's 247.52.
+
+Tests **2150 -> 2160** (README **2160**): center-spelling filter, exact-string filter removed. Green
+under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-15 (build .4) — Wider Unit fields (misc + labor); labor delete is now ×
 
 Widened the Unit column to ~15 characters on both the Miscellaneous Items and Labor Rates tables
