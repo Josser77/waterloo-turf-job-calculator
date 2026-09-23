@@ -8593,6 +8593,18 @@ section('195. Fringe pieces DRAW at their actual cut depth');
   assert(/cur\.p2 = outer;\s*next\.p3 = outer;/.test(src), 'the material model still closes corners');
 }
 
+section('196. Fringe cost uses the nominal (paid-for) roll width, not the trimmed width');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  assert(/function fringeRollWidth\(layout\) \{ return parseFloat\(\(layout \|\| \{\}\)\.rollWidth\) \|\| 15; \}/.test(src), 'a nominal fringe roll-width helper exists');
+  assert(!/computeFringePlan\([^)]*effectiveRollWidth/.test(src), 'no fringe-plan call uses the trimmed width');
+  // Behavior: a side trim does NOT shrink the fringe roll width (you pay for the full roll).
+  const green = [{x:0,y:0},{x:20,y:0},{x:20,y:10},{x:0,y:10}];
+  const p15 = ctx.computeFringePlan(green, 1, 100, 15, 0.5);
+  assert(p15.rollWidth === 15, 'fringe plan reports the 15 ft roll width');
+  assert(Math.abs(p15.orderedSqFt - p15.linearFtToOrder * 15) < 1e-6, 'ordered sqft = linear ft × 15 ft roll');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

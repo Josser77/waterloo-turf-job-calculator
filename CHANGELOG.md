@@ -5,6 +5,21 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-22 (build .8) — Fringe cost on the full 15 ft roll you pay for + clearer wording
+
+Fringe is its own separate roll (a different turf than the green), and you pay for the full 15 ft
+roll width — not the S-seam-trimmed usable width. The fringe cost was using the trimmed width
+(e.g. 14.9 ft), slightly undercharging. Now fringe cost and packing use the NOMINAL roll width
+(default 15 ft), so ordered sqft = linear ft x 15 and the cost matches what you pay the supplier.
+Reworded the fringe summary to show the roll waste explicitly: e.g. "11 lin ft on a 15 ft roll =
+165 sqft ordered ... to cover a 51 sqft border — the rest is roll waste," with the cost shown as
+ordered sqft x cost/sqft. Example: 11 lin ft x 15 ft x $1.75 = $288.75.
+
+Tests **2172 -> 2176** (README **2176**): nominal fringe roll-width helper, no fringe call uses the
+trimmed width, ordered sqft = linear ft x 15. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-22 (build .7) — Fringe fixes: spurious split lines + wrong material cost
 
 Two fringe bugs:

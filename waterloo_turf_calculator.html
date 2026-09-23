@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-22.7</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-22.8</div>
     </div>
 
     <div class="sort-bar">
@@ -5823,7 +5823,7 @@ function calcQuote() {
     const secondaryShapes = (layoutForFringe && layoutForFringe.secondaryShapes) || [];
     const pgShape = pgIdx >= 0 ? secondaryShapes[pgIdx] : null;
     const pgPoints = pgShape ? (pgShape.displayPoints || pgShape.points) : null;
-    const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layoutForFringe && layoutForFringe.rollLength, effectiveRollWidth(layoutForFringe||{}), getFringeSeamFactor()) : null;
+    const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layoutForFringe && layoutForFringe.rollLength, fringeRollWidth(layoutForFringe||{}), getFringeSeamFactor()) : null;
     if (plan) {
       fringeSqFt = plan.totalSqFt;
       fringePerimeter = plan.perimeter;
@@ -8503,7 +8503,7 @@ function renderFringeSection(proj) {
   const pgShape = secondaryShapes[pgIdx];
   const pgPoints = pgShape ? (pgShape.displayPoints || pgShape.points) : null;
   const width = parseFloat(fringe.width) || 0;
-  const plan = pgPoints ? computeFringePlan(pgPoints, width, layout && layout.rollLength, effectiveRollWidth(layout||{}), getFringeSeamFactor()) : null;
+  const plan = pgPoints ? computeFringePlan(pgPoints, width, layout && layout.rollLength, fringeRollWidth(layout||{}), getFringeSeamFactor()) : null;
 
   if (!plan) {
     summaryEl.innerHTML = `<span style="color:var(--text-light);">Set a fringe width to see perimeter and sqft.</span>`;
@@ -8519,9 +8519,9 @@ function renderFringeSection(proj) {
     <div>PG Perimeter: <strong>${plan.perimeter.toFixed(1)} ft</strong></div>
     <div>Fringe Width: <strong>${width.toFixed(1)} ft</strong></div>
     <div>Fringe Ring Area: <strong>${plan.ringArea.toFixed(1)} sqft</strong></div>
-    <div>Fringe Linear Ft to Order: <strong>${plan.linearFtToOrder} lin ft</strong> <span style="color:var(--text-light);">of ${plan.rollWidth.toFixed(1)} ft roll</span></div>
-    ${cpsf ? `<div>Fringe Material Cost: <strong>${fmt(matCost)}</strong></div>` : ''}
-    <div style="margin-top:4px;color:var(--text-light);">${plan.pieces.length} piece${plan.pieces.length===1?'':'s'} cut across the roll width (blades facing the green), packed into ${plan.fringeRows} row${plan.fringeRows===1?'':'s'} → ${plan.linearFtToOrder} lin ft to order. Longer runs over curves are cut wider (fringe width + the curve's bulge) so a straight piece still covers the curve — the Seam merging slider trades more turf for fewer seams.</div>
+    <div>Fringe Linear Ft to Order: <strong>${plan.linearFtToOrder} lin ft</strong> <span style="color:var(--text-light);">on a ${plan.rollWidth.toFixed(0)} ft roll = ${Math.round(plan.orderedSqFt)} sqft ordered</span></div>
+    ${cpsf ? `<div>Fringe Material Cost: <strong>${fmt(matCost)}</strong> <span style="color:var(--text-light);">(${Math.round(plan.orderedSqFt)} sqft × ${fmt(cpsf)}/sqft)</span></div>` : ''}
+    <div style="margin-top:4px;color:var(--text-light);">${plan.pieces.length} piece${plan.pieces.length===1?'':'s'} cut across the roll width (blades facing the green). Fringe is its own full ${plan.rollWidth.toFixed(0)} ft roll, so you order ${plan.linearFtToOrder} lin ft (${Math.round(plan.orderedSqFt)} sqft) to cover a ${plan.ringArea.toFixed(0)} sqft border — the rest is roll waste. Longer runs over curves are cut wider (fringe width + the curve's bulge); the Seam merging slider trades more turf for fewer seams.</div>
   `;
 }
 
@@ -9297,6 +9297,11 @@ function computeFringeOutline(pgPoints, width) {
 function getFringeSeamFactor() {
   try { const f = getCurrentProject().layout.fringe; const v = parseFloat(f && f.seamFactor); return (v > 0) ? v : 2.0; } catch (e) { return 2.0; }
 }
+
+// Fringe is bought as its own full-width roll (a different turf than the green), so its
+// cost and packing use the NOMINAL roll width you pay for (default 15 ft) — not the
+// S-seam-trimmed usable width that main-turf seaming uses.
+function fringeRollWidth(layout) { return parseFloat((layout || {}).rollWidth) || 15; }
 
 function computeFringePlan(pgPoints, width, rollLength, rollWidth, mergeFactor) {
   if (!pgPoints || pgPoints.length < 3 || !(width > 0)) return null;
@@ -11089,7 +11094,7 @@ function layoutFitPoints(layout, showRects) {
     if (pgIdx >= 0 && vis[pgIdx] !== false && fringe.enabled && fringe.width > 0) {
       const pgShape = (layout.secondaryShapes || [])[pgIdx];
       const pgPoints = pgShape ? pgShape.displayPoints : null;
-      const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layout.rollLength, effectiveRollWidth(layout||{}), getFringeSeamFactor()) : null;
+      const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layout.rollLength, fringeRollWidth(layout||{}), getFringeSeamFactor()) : null;
       if (plan) plan.pieces.forEach(p => pts.push(p.p0, p.p1, p.p2, p.p3));
     }
   } catch (e) {}
@@ -11577,7 +11582,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       // of the merged ring is drawn — a single clean outline around the green.
       const fringe = getFringeConfig(getCurrentProject() || {});
       if (fringe.enabled && fringe.width > 0) {
-        const plan = computeFringePlan(s.displayPoints, fringe.width, layout.rollLength, effectiveRollWidth(layout||{}), getFringeSeamFactor());
+        const plan = computeFringePlan(s.displayPoints, fringe.width, layout.rollLength, fringeRollWidth(layout||{}), getFringeSeamFactor());
         if (plan && plan.pieces.length) {
           if (fringe.piecesVisible !== false) {
             // Draw each fringe piece as the clean RECTANGLE it's actually cut from —
@@ -14450,7 +14455,7 @@ function renderPieceList(layout, proj) {
     const secondaryShapes = layout.secondaryShapes || [];
     const pgShape = pgIdx >= 0 ? secondaryShapes[pgIdx] : null;
     const pgPoints = pgShape ? (pgShape.displayPoints || pgShape.points) : null;
-    const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layout.rollLength, effectiveRollWidth(layout||{}), getFringeSeamFactor()) : null;
+    const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layout.rollLength, fringeRollWidth(layout||{}), getFringeSeamFactor()) : null;
     if (plan) {
       plan.pieces.forEach((p, i) => {
         rows.push({ label: `Fringe ${i+1}`, length: p.length, width: p.width, sqft: p.length*p.width, nested: false, note: 'PG fringe', sortKey: Infinity });
@@ -14807,7 +14812,7 @@ function projectFringeOrder(proj) {
   const pgShape = pgIdx >= 0 ? shapes[pgIdx] : null;
   const pgPoints = pgShape ? (pgShape.displayPoints || pgShape.points) : null;
   if (!pgPoints) return null;
-  const plan = computeFringePlan(pgPoints, fringe.width, layout && layout.rollLength, effectiveRollWidth(layout || {}), getFringeSeamFactor());
+  const plan = computeFringePlan(pgPoints, fringe.width, layout && layout.rollLength, fringeRollWidth(layout || {}), getFringeSeamFactor());
   if (!plan || !(plan.linearFtToOrder > 0)) return null;
   return { product: fringe.turfProduct || 'Fringe turf', linearFt: plan.linearFtToOrder };
 }
