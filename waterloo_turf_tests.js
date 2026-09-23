@@ -8579,6 +8579,15 @@ section('194. Fringe seam-merging factor (fewer seams / more turf)');
   if (tight) assert(tight.pieces.every(x => x.width >= 1.5 - 1e-6), 'every piece is at least the fringe width deep');
 }
 
+section('195. Fringe pieces DRAW at their actual cut depth');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // The on-canvas fringe rectangle must use the piece depth, not the base fringe width.
+  assert(/const depth = \(p\.width > 0\) \? p\.width : fringe\.width;/.test(src), 'the draw picks the piece cut depth');
+  assert(/r2 = \{ x: p\.p1\.x \+ nx \* depth,/.test(src) && /r3 = \{ x: p\.p0\.x \+ nx \* depth,/.test(src), 'the fringe rectangle is drawn to the piece depth');
+  assert(!/nx \* fringe\.width, y: p\.p1\.y \+ ny \* fringe\.width/.test(src), 'the old fixed-fringe-width draw is gone');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

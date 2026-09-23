@@ -5,6 +5,18 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-22 (build .4) — Fix: fringe canvas didn't redraw at the new piece depth
+
+Follow-up to build .3: the fringe material numbers updated with the seam slider, but the drawn pieces
+stayed thin. Cause: the canvas draw built each piece rectangle at the base fringe width, ignoring the
+piece's actual cut depth (fringe width + curve bulge). Now the draw uses the piece depth, so the
+canvas matches the order — pieces visibly fatten over curves and thin out on straight runs.
+
+Tests **2167 -> 2170** (README **2170**): the fringe draw uses the piece depth, not the fixed width.
+Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-22 (build .3) — Fringe: longer runs cut wider to cover the curve (accurate turf order)
 
 Corrected the fringe model. To run one long STRAIGHT piece over a curved section of the green, the

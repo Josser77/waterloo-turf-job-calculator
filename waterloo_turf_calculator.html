@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-22.3</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-22.4</div>
     </div>
 
     <div class="sort-bar">
@@ -11587,9 +11587,13 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
               let nx = -ey / el, ny = ex / el;
               const toOuterX = p.p3.x - p.p0.x, toOuterY = p.p3.y - p.p0.y;
               if (nx * toOuterX + ny * toOuterY < 0) { nx = -nx; ny = -ny; }
+              // Use the piece's ACTUAL cut depth (fringe width + the curve's bulge), not the
+              // base fringe width — so a longer run over a curve draws as the real wider
+              // rectangle it gets cut as, matching the material order.
+              const depth = (p.width > 0) ? p.width : fringe.width;
               const r0 = p.p0, r1 = p.p1;
-              const r2 = { x: p.p1.x + nx * fringe.width, y: p.p1.y + ny * fringe.width };
-              const r3 = { x: p.p0.x + nx * fringe.width, y: p.p0.y + ny * fringe.width };
+              const r2 = { x: p.p1.x + nx * depth, y: p.p1.y + ny * depth };
+              const r3 = { x: p.p0.x + nx * depth, y: p.p0.y + ny * depth };
               const poly = [r0, r1, r2, r3];
               drawPoly(poly, 'rgba(27,94,32,0.40)', '#123E17'); // fringe — darkest green
               // Label each fringe piece at its centroid — hidden while the blade
