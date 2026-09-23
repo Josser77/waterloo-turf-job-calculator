@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-18</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-18.2</div>
     </div>
 
     <div class="sort-bar">
@@ -8749,10 +8749,18 @@ function fitLayoutWhenReady(tries) {
   const layout = window._wtCurrentRollLayout;
   if (!wrap || !layout || typeof sizeLayoutCanvas !== 'function') return;
   if (wrap.clientWidth > 0) {
-    // Only redraw if we actually had to wait — i.e. the panel was hidden (width 0) when
-    // renderLayoutTab first sized it. If it was already visible, that first size was
-    // correct and re-drawing here is redundant.
-    if (tries > 0) { sizeLayoutCanvas(); drawRollLayoutCanvas(layout); }
+    // Re-fit once the wrapper has a real width. Always redraw (not only when we had to
+    // wait): on the first switch to the Layout tab, the synchronous size in
+    // renderLayoutTab can run a tick before the just-shown panel has settled its width,
+    // leaving the canvas oversized until a manual Fit. Re-fitting here on the next
+    // frame — after layout has settled — makes it correct without clicking Fit.
+    const refit = () => {
+      if (window._wtCurrentRollLayout && document.getElementById('layoutCanvasWrap')) {
+        sizeLayoutCanvas();
+        drawRollLayoutCanvas(window._wtCurrentRollLayout);
+      }
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(refit);
     return;
   }
   if (tries < 30 && typeof requestAnimationFrame === 'function') {

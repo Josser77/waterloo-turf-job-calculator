@@ -5,6 +5,21 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-18 (build .2) — Fix: layout still not auto-fitting on first Layout-tab view after CSV import
+
+The previous auto-fit only redrew when it had waited for the panel to appear (a "tries > 0" guard).
+But on the first switch to the Layout tab, the synchronous size can run a tick before the just-shown
+panel has settled its width — the width then reads fine, so the guard skipped the re-fit and left the
+canvas oversized until a manual Fit. Now fitLayoutWhenReady always re-fits on the next animation frame
+once the wrapper has a real width, correcting that stale size. Verified: after creating a project from
+a CSV and later opening the Layout tab, the diagram is correctly sized with no Fit click (auto-fit
+matches manual Fit).
+
+Tests **2160** (README **2160**): re-fits on the next frame when width is ready. Green under UTC and
+America/Los_Angeles.
+
+---
+
 ## 2026-09-18 — Fix: stray lines on CSV import (arc center points not filtered)
 
 Some Moasure CSVs drew stray lines — a long tail and internal crossings — after import. Cause: the

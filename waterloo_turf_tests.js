@@ -8442,7 +8442,7 @@ section('185. Layout auto-fits on first show (no manual Fit needed)');
   const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
   // renderLayoutTab schedules a deferred re-fit so the freshly-visible panel sizes correctly.
   assert(/function fitLayoutWhenReady\(tries\)/.test(src), 'a retry-until-ready fit helper exists');
-  assert(/if \(wrap\.clientWidth > 0\) \{[\s\S]*?if \(tries > 0\) \{ sizeLayoutCanvas\(\); drawRollLayoutCanvas\(layout\); \}/.test(src), 'it re-fits once the wrapper has a real width (only redraws if it had to wait)');
+  assert(/if \(wrap\.clientWidth > 0\) \{[\s\S]*?if \(typeof requestAnimationFrame === 'function'\) requestAnimationFrame\(refit\);/.test(src), 'it re-fits on the next frame once the wrapper has a real width (corrects a stale sync size)');
   assert(/if \(tries < 30 && typeof requestAnimationFrame/.test(src), 'it retries across frames until the panel is measurable');
   assert(/if \(name==='layout'\) \{ renderLayoutTab\(\); fitLayoutWhenReady\(\); \}/.test(src), 'switching to the layout tab triggers the ready-fit');
 }
