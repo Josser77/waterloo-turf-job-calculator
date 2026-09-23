@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-22</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-22.2</div>
     </div>
 
     <div class="sort-bar">
@@ -1741,6 +1741,11 @@
                           <label style="font-size:11px;">Fringe Width (ft)</label>
                           <input type="number" id="fringeWidth" min="0.5" step="0.5" onchange="updateFringeConfig()" style="width:100%;">
                         </div>
+                      </div>
+                      <div style="margin-bottom:8px;">
+                        <label style="font-size:11px;display:flex;justify-content:space-between;"><span>Seam merging</span><span id="fringeSeamVal" style="color:var(--text-light);"></span></label>
+                        <input type="range" id="fringeSeamFactor" min="0.5" max="4" step="0.5" value="2" oninput="document.getElementById('fringeSeamVal').textContent=this.value+'×'" onchange="updateFringeConfig()" style="width:100%;">
+                        <div style="font-size:10px;color:var(--text-light);line-height:1.3;">Left = hug the curve (more seams, less turf). Right = longer runs (fewer seams, orders more turf). Blades still face the green.</div>
                       </div>
                       <label style="display:flex;align-items:center;gap:6px;font-weight:500;margin-bottom:6px;font-size:12px;">
                         <input type="checkbox" id="fringePiecesVisible" checked onchange="updateFringeConfig()" style="width:auto;margin:0;">
@@ -4427,6 +4432,7 @@ function createProject() {
       turfProduct: fringeSelection.product,
       width: existingFringe.width || 3,
       piecesVisible: existingFringe.piecesVisible !== false,
+      seamFactor: existingFringe.seamFactor || 2.0,
     };
   }
 
@@ -5817,7 +5823,7 @@ function calcQuote() {
     const secondaryShapes = (layoutForFringe && layoutForFringe.secondaryShapes) || [];
     const pgShape = pgIdx >= 0 ? secondaryShapes[pgIdx] : null;
     const pgPoints = pgShape ? (pgShape.displayPoints || pgShape.points) : null;
-    const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layoutForFringe && layoutForFringe.rollLength, effectiveRollWidth(layoutForFringe||{})) : null;
+    const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layoutForFringe && layoutForFringe.rollLength, effectiveRollWidth(layoutForFringe||{}), getFringeSeamFactor()) : null;
     if (plan) {
       fringeSqFt = plan.totalSqFt;
       fringePerimeter = plan.perimeter;
@@ -8394,7 +8400,7 @@ function getPuttingGreenShapeIndex(proj) {
 }
 
 function getFringeConfig(proj) {
-  return (proj.layout && proj.layout.fringe) || { enabled: false, width: 3, turfProduct: '', piecesVisible: true };
+  return (proj.layout && proj.layout.fringe) || { enabled: false, width: 3, turfProduct: '', piecesVisible: true, seamFactor: 2.0 };
 }
 // Human label for a turf product's type. Pure.
 function turfTypeLabel(type) {
@@ -8483,6 +8489,7 @@ function renderFringeSection(proj) {
     `<option value="${t.name}" ${t.name===chosen?'selected':''}>${t.name}${t.type==='fringe'?' (fringe)':''}</option>`
   ).join('') || '<option value="">No turf products in catalog</option>';
   widthEl.value = fringe.width || 3;
+  { const seamEl = document.getElementById('fringeSeamFactor'); if (seamEl) { const v = (fringe.seamFactor > 0) ? fringe.seamFactor : 2.0; seamEl.value = v; const lbl = document.getElementById('fringeSeamVal'); if (lbl) lbl.textContent = v + '×'; } }
 
   if (!fringe.enabled) { summaryEl.innerHTML = ''; return; }
 
@@ -8492,7 +8499,7 @@ function renderFringeSection(proj) {
   const pgShape = secondaryShapes[pgIdx];
   const pgPoints = pgShape ? (pgShape.displayPoints || pgShape.points) : null;
   const width = parseFloat(fringe.width) || 0;
-  const plan = pgPoints ? computeFringePlan(pgPoints, width, layout && layout.rollLength, effectiveRollWidth(layout||{})) : null;
+  const plan = pgPoints ? computeFringePlan(pgPoints, width, layout && layout.rollLength, effectiveRollWidth(layout||{}), getFringeSeamFactor()) : null;
 
   if (!plan) {
     summaryEl.innerHTML = `<span style="color:var(--text-light);">Set a fringe width to see perimeter and sqft.</span>`;
@@ -8528,11 +8535,13 @@ function updateFringeConfig() {
   const enabled = enabledEl.checked;
   fieldsEl.style.display = enabled ? '' : 'none';
 
+  const seamEl = document.getElementById('fringeSeamFactor');
   proj.layout.fringe = {
     enabled,
     turfProduct: productEl.value || '',
     width: Math.max(0, parseFloat(widthEl.value) || 0),
     piecesVisible: visibleEl.checked,
+    seamFactor: seamEl ? (parseFloat(seamEl.value) || 2.0) : (proj.layout.fringe && proj.layout.fringe.seamFactor) || 2.0,
   };
   save();
   renderFringeSection(proj);
@@ -9279,7 +9288,13 @@ function computeFringeOutline(pgPoints, width) {
   });
 }
 
-function computeFringePlan(pgPoints, width, rollLength, rollWidth) {
+// Fringe seam-merge preference (multiple of fringe width). Higher = fewer seams / more
+// turf ordered. Read from the current project's fringe config; default 2.0.
+function getFringeSeamFactor() {
+  try { const f = getCurrentProject().layout.fringe; const v = parseFloat(f && f.seamFactor); return (v > 0) ? v : 2.0; } catch (e) { return 2.0; }
+}
+
+function computeFringePlan(pgPoints, width, rollLength, rollWidth, mergeFactor) {
   if (!pgPoints || pgPoints.length < 3 || !(width > 0)) return null;
   rollLength = rollLength > 0 ? rollLength : 100;
   // Fringe blades must all face IN toward the green, so the grain runs radially
@@ -9288,6 +9303,11 @@ function computeFringePlan(pgPoints, width, rollLength, rollWidth) {
   // piece can be longer than the roll is wide. Longer runs get split into pieces that
   // each fit the roll width. Default 15 ft.
   rollWidth = rollWidth > 0 ? rollWidth : 15;
+  // How aggressively to merge the green's curved outline into longer straight fringe
+  // chords, as a multiple of the fringe width (the max the chord may deviate from the
+  // true curve). Higher = longer runs / fewer seams, at the cost of ordering more turf
+  // (a straight chord across a curve overshoots the boundary). Default 2.0.
+  const mf = (mergeFactor != null && mergeFactor > 0) ? mergeFactor : 2.0;
 
   // True perimeter/area from the original (unmerged) outline — used for
   // reporting, independent of how pieces are cut.
@@ -9300,7 +9320,7 @@ function computeFringePlan(pgPoints, width, rollLength, rollWidth) {
   // width (half the width — the piece still fully covers the true boundary),
   // and each merged run is capped well under a roll length so a single piece
   // can still be cut from one roll.
-  const mergedPoints = mergeCollinearEdges(pgPoints, width/2, Math.max(1, rollLength - width));
+  const mergedPoints = mergeCollinearEdges(pgPoints, width * mf, Math.max(1, rollLength - width));
 
   const signedArea = signedPolygonArea(mergedPoints);
   // For CCW (positive signed area) polygons, the outward normal of an edge
@@ -11032,7 +11052,7 @@ function layoutFitPoints(layout, showRects) {
     if (pgIdx >= 0 && vis[pgIdx] !== false && fringe.enabled && fringe.width > 0) {
       const pgShape = (layout.secondaryShapes || [])[pgIdx];
       const pgPoints = pgShape ? pgShape.displayPoints : null;
-      const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layout.rollLength, effectiveRollWidth(layout||{})) : null;
+      const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layout.rollLength, effectiveRollWidth(layout||{}), getFringeSeamFactor()) : null;
       if (plan) plan.pieces.forEach(p => pts.push(p.p0, p.p1, p.p2, p.p3));
     }
   } catch (e) {}
@@ -11520,7 +11540,7 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
       // of the merged ring is drawn — a single clean outline around the green.
       const fringe = getFringeConfig(getCurrentProject() || {});
       if (fringe.enabled && fringe.width > 0) {
-        const plan = computeFringePlan(s.displayPoints, fringe.width, layout.rollLength, effectiveRollWidth(layout||{}));
+        const plan = computeFringePlan(s.displayPoints, fringe.width, layout.rollLength, effectiveRollWidth(layout||{}), getFringeSeamFactor());
         if (plan && plan.pieces.length) {
           if (fringe.piecesVisible !== false) {
             plan.pieces.forEach((p, pi) => {
@@ -14379,7 +14399,7 @@ function renderPieceList(layout, proj) {
     const secondaryShapes = layout.secondaryShapes || [];
     const pgShape = pgIdx >= 0 ? secondaryShapes[pgIdx] : null;
     const pgPoints = pgShape ? (pgShape.displayPoints || pgShape.points) : null;
-    const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layout.rollLength, effectiveRollWidth(layout||{})) : null;
+    const plan = pgPoints ? computeFringePlan(pgPoints, fringe.width, layout.rollLength, effectiveRollWidth(layout||{}), getFringeSeamFactor()) : null;
     if (plan) {
       plan.pieces.forEach((p, i) => {
         rows.push({ label: `Fringe ${i+1}`, length: p.length, width: p.width, sqft: p.length*p.width, nested: false, note: 'PG fringe', sortKey: Infinity });
@@ -14736,7 +14756,7 @@ function projectFringeOrder(proj) {
   const pgShape = pgIdx >= 0 ? shapes[pgIdx] : null;
   const pgPoints = pgShape ? (pgShape.displayPoints || pgShape.points) : null;
   if (!pgPoints) return null;
-  const plan = computeFringePlan(pgPoints, fringe.width, layout && layout.rollLength, effectiveRollWidth(layout || {}));
+  const plan = computeFringePlan(pgPoints, fringe.width, layout && layout.rollLength, effectiveRollWidth(layout || {}), getFringeSeamFactor());
   if (!plan || !(plan.linearFtToOrder > 0)) return null;
   return { product: fringe.turfProduct || 'Fringe turf', linearFt: plan.linearFtToOrder };
 }

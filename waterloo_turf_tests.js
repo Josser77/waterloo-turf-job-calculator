@@ -8556,6 +8556,22 @@ section('193. CSV import drops arc center points (any spelling)');
   ['Arc','ArcPoint','Default',''].forEach(t => assert(!re.test(t), t + ' is kept as a perimeter point'));
 }
 
+section('194. Fringe seam-merging factor (fewer seams / more turf)');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // computeFringePlan takes a merge factor and uses it for the merge deviation.
+  assert(/const mf = \(mergeFactor != null && mergeFactor > 0\) \? mergeFactor : 2\.0;/.test(src), 'computeFringePlan accepts a merge factor (default 2.0)');
+  assert(/mergeCollinearEdges\(pgPoints, width \* mf,/.test(src), 'the merge deviation scales with the factor');
+  assert(/function getFringeSeamFactor\(\)/.test(src) && (src.match(/getFringeSeamFactor\(\)\)/g)||[]).length >= 6, 'all fringe-plan call sites pass the configured factor');
+  assert(/id="fringeSeamFactor"/.test(src), 'a seam-merging slider exists in the fringe config');
+  // Behavior: a higher factor never increases the piece count (fewer/equal seams).
+  const green = [];
+  for (let i = 0; i < 40; i++) { const t = i/40*2*Math.PI; green.push({ x: 10*Math.cos(t), y: 10*Math.sin(t) }); }
+  const tight = ctx.computeFringePlan(green, 1.5, 100, 15, 0.5);
+  const loose = ctx.computeFringePlan(green, 1.5, 100, 15, 4.0);
+  if (tight && loose) assert(loose.pieces.length <= tight.pieces.length, 'a higher seam factor yields fewer or equal fringe pieces');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);

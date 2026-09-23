@@ -5,6 +5,25 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-22 (build .2) — Fringe: tunable seam merging (fewer seams / longer runs)
+
+Fringe pieces are cut with blades facing IN toward the green, which caps each piece at the roll width
+and, on a curved green, produced many short pieces. Added a **Seam merging** slider to the fringe
+config: it controls how aggressively the green's curved outline merges into longer straight chords
+(as a multiple of the fringe width). Slide right for fewer seams / longer runs (orders a bit more
+turf, since a straight chord across a curve overshoots); left to hug the curve. Blades still face the
+green either way. Default 2× (was effectively 0.5×). On a sample ~168 ft² green: 8 pieces at 0.5×,
+6 at 2×, 4 at 4×.
+
+Note: a round green still needs several inward-facing pieces — you can't wrap it in 2–3 long straight
+strips without the blades pointing off-center — so there's a floor the slider can't go below.
+
+Tests **2160 -> 2165** (README **2165**): merge-factor param + deviation scaling, all 6 call sites pass
+the config value, slider present, higher factor never increases piece count. Green under UTC and
+America/Los_Angeles.
+
+---
+
 ## 2026-09-18 (build .2) — Fix: layout still not auto-fitting on first Layout-tab view after CSV import
 
 The previous auto-fit only redrew when it had waited for the panel to appear (a "tries > 0" guard).
