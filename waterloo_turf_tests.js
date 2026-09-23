@@ -8564,12 +8564,19 @@ section('194. Fringe seam-merging factor (fewer seams / more turf)');
   assert(/mergeCollinearEdges\(pgPoints, width \* mf,/.test(src), 'the merge deviation scales with the factor');
   assert(/function getFringeSeamFactor\(\)/.test(src) && (src.match(/getFringeSeamFactor\(\)\)/g)||[]).length >= 6, 'all fringe-plan call sites pass the configured factor');
   assert(/id="fringeSeamFactor"/.test(src), 'a seam-merging slider exists in the fringe config');
-  // Behavior: a higher factor never increases the piece count (fewer/equal seams).
+  // Behavior: a higher factor cuts pieces DEEPER (to span curves) and orders MORE turf —
+  // that's the real trade (fewer/longer runs paid for with wider pieces).
   const green = [];
   for (let i = 0; i < 40; i++) { const t = i/40*2*Math.PI; green.push({ x: 10*Math.cos(t), y: 10*Math.sin(t) }); }
   const tight = ctx.computeFringePlan(green, 1.5, 100, 15, 0.5);
   const loose = ctx.computeFringePlan(green, 1.5, 100, 15, 4.0);
-  if (tight && loose) assert(loose.pieces.length <= tight.pieces.length, 'a higher seam factor yields fewer or equal fringe pieces');
+  if (tight && loose) {
+    const avgDepth = pl => pl.pieces.reduce((s,x)=>s+x.width,0)/pl.pieces.length;
+    assert(avgDepth(loose) >= avgDepth(tight) - 1e-9, 'a higher seam factor cuts deeper pieces (width + curve bulge)');
+    assert(loose.linearFtToOrder >= tight.linearFtToOrder, 'a higher seam factor orders more (or equal) turf');
+  }
+  // A piece's depth is fringe width + its curve bulge (>= the base width).
+  if (tight) assert(tight.pieces.every(x => x.width >= 1.5 - 1e-6), 'every piece is at least the fringe width deep');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

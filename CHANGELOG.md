@@ -5,6 +5,25 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-22 (build .3) — Fringe: longer runs cut wider to cover the curve (accurate turf order)
+
+Corrected the fringe model. To run one long STRAIGHT piece over a curved section of the green, the
+piece must be cut deeper so its straight edge still covers the whole curved fringe band. Previously
+every piece was drawn/ordered at a fixed fringe width, so longer merged runs looked like thin bars
+slicing across the curve and under-ordered turf. Now each piece's cut depth = **fringe width + the
+curve's bulge** (how far the true green boundary bows from the straight chord over that run). The
+drawing shows the real wider pieces, and the material order (linear feet) reflects them. The Seam
+merging slider now genuinely trades turf for seams: more merging → longer runs → deeper pieces → more
+turf ordered. Packing consumes each row's deepest piece.
+
+On the sample ~168 ft² green (1.5 ft fringe): avg piece depth 2.2 ft / 12 lin ft at 0.5×, 3.8 ft /
+27 lin ft at 2×, 5.3 ft / 37 lin ft at 4×.
+
+Tests **2165 -> 2167** (README **2167**): per-edge bulge → depth, deeper pieces + more turf at higher
+factor, depth ≥ fringe width, packing by per-piece depth. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-22 (build .2) — Fringe: tunable seam merging (fewer seams / longer runs)
 
 Fringe pieces are cut with blades facing IN toward the green, which caps each piece at the roll width

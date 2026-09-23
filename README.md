@@ -100,7 +100,7 @@ Run the test suite before shipping any change to `waterloo_turf_calculator.html`
 node waterloo_turf_tests.js
 ```
 
-All tests should pass (currently **2165** — copy this from the runner's `Tests:`
+All tests should pass (currently **2167** — copy this from the runner's `Tests:`
 line rather than adding to the previous figure). Each session that produces an
 updated calculator file also updates this README and bumps the sidebar build stamp
 to the current date (`.2`, `.3`, … for multiple builds on the same day).

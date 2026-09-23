@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-22.2</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-22.3</div>
     </div>
 
     <div class="sort-bar">
@@ -8517,7 +8517,7 @@ function renderFringeSection(proj) {
     <div>Fringe Ring Area: <strong>${plan.ringArea.toFixed(1)} sqft</strong></div>
     <div>Fringe Linear Ft to Order: <strong>${plan.linearFtToOrder} lin ft</strong> <span style="color:var(--text-light);">of ${plan.rollWidth.toFixed(1)} ft roll</span></div>
     ${cpsf ? `<div>Fringe Material Cost: <strong>${fmt(matCost)}</strong></div>` : ''}
-    <div style="margin-top:4px;color:var(--text-light);">${plan.pieces.length} piece${plan.pieces.length===1?'':'s'} cut across the roll width (blades facing the green), packed into ${plan.fringeRows} row${plan.fringeRows===1?'':'s'} → ${plan.linearFtToOrder} lin ft to order. Nearby straight/gently-curved sections are merged with mitered corners to minimize seams.</div>
+    <div style="margin-top:4px;color:var(--text-light);">${plan.pieces.length} piece${plan.pieces.length===1?'':'s'} cut across the roll width (blades facing the green), packed into ${plan.fringeRows} row${plan.fringeRows===1?'':'s'} → ${plan.linearFtToOrder} lin ft to order. Longer runs over curves are cut wider (fringe width + the curve's bulge) so a straight piece still covers the curve — the Seam merging slider trades more turf for fewer seams.</div>
   `;
 }
 
@@ -9329,8 +9329,31 @@ function computeFringePlan(pgPoints, width, rollLength, rollWidth, mergeFactor) 
 
   const n = mergedPoints.length;
 
+  // Per merged chord, the "bulge" is how far the TRUE (unmerged) green boundary bows away
+  // from the straight chord. To run one long STRAIGHT piece over that curved section, the
+  // piece must be cut deeper — by the bulge — so its straight edge still covers the whole
+  // curved fringe band. So each piece's cut depth = fringe width + its bulge. Longer runs
+  // over sharper curves cost more turf (deeper pieces) but fewer seams — the real trade.
+  const perpDistTo = (pt, a, b) => {
+    const dx = b.x-a.x, dy = b.y-a.y, L = Math.hypot(dx,dy);
+    if (L < 1e-9) return Math.hypot(pt.x-a.x, pt.y-a.y);
+    return Math.abs((pt.x-a.x)*dy - (pt.y-a.y)*dx) / L;
+  };
+  const idxOfMerged = mergedPoints.map(mp => pgPoints.indexOf(mp));
+  const bulges = mergedPoints.map((mp, i) => {
+    const a = mergedPoints[i], b = mergedPoints[(i+1) % n];
+    let i0 = idxOfMerged[i], i1 = idxOfMerged[(i+1) % n];
+    if (i0 < 0 || i1 < 0) return 0;                 // reference not found → no bulge
+    let maxd = 0, k = (i0 + 1) % pgPoints.length, guard = 0;
+    while (k !== i1 && guard++ < pgPoints.length) {
+      maxd = Math.max(maxd, perpDistTo(pgPoints[k], a, b));
+      k = (k + 1) % pgPoints.length;
+    }
+    return maxd;
+  });
+
   // Outward offset line for each edge: a point on the line plus its unit
-  // direction vector, offset perpendicular by `width`.
+  // direction vector, offset perpendicular by the piece DEPTH (width + bulge).
   const edges = [];
   for (let i = 0; i < n; i++) {
     const a = mergedPoints[i], b = mergedPoints[(i+1) % n];
@@ -9338,11 +9361,12 @@ function computeFringePlan(pgPoints, width, rollLength, rollWidth, mergeFactor) 
     const len = Math.hypot(dx,dy);
     const ux = len>1e-9 ? dx/len : 1, uy = len>1e-9 ? dy/len : 0;
     const nx = outwardSign*uy, ny = -outwardSign*ux;
+    const depth = width + (bulges[i] || 0);
     edges.push({
-      a, b, len, ux, uy, nx, ny,
-      // offset line passes through a+width*normal, direction (ux,uy)
-      offA: { x: a.x+nx*width, y: a.y+ny*width },
-      offB: { x: b.x+nx*width, y: b.y+ny*width },
+      a, b, len, ux, uy, nx, ny, depth,
+      // offset line passes through a+depth*normal, direction (ux,uy)
+      offA: { x: a.x+nx*depth, y: a.y+ny*depth },
+      offB: { x: b.x+nx*depth, y: b.y+ny*depth },
     });
   }
 
@@ -9378,17 +9402,17 @@ function computeFringePlan(pgPoints, width, rollLength, rollWidth, mergeFactor) 
     // (a/b + width*normal), fall back to that simple offset point (a bevel)
     // instead of an unbounded spike. This keeps every piece a reasonable
     // size regardless of how jagged the original outline is.
-    const miterLimit = width * 2;
+    const miterLimit = e.depth * 2;
     function limitMiter(pt, simple) {
       const d = Math.hypot(pt.x-simple.x, pt.y-simple.y);
       return d > miterLimit ? simple : pt;
     }
-    const simpleStart = { x: e.a.x + e.nx*width, y: e.a.y + e.ny*width };
-    const simpleEnd   = { x: e.b.x + e.nx*width, y: e.b.y + e.ny*width };
+    const simpleStart = { x: e.a.x + e.nx*e.depth, y: e.a.y + e.ny*e.depth };
+    const simpleEnd   = { x: e.b.x + e.nx*e.depth, y: e.b.y + e.ny*e.depth };
     const oStart = limitMiter(outerStart, simpleStart);
     const oEnd = limitMiter(outerEnd, simpleEnd);
 
-    // Piece quad: inner edge (true PG boundary, a->b) + outer edge (mitered offset, oStart->oEnd)
+    // Piece quad: inner edge (chord a->b) + outer edge (mitered offset at depth, oStart->oEnd)
     const quad = [e.a, e.b, oEnd, oStart];
     const area = polygonArea(quad);
     const innerLen = e.len;
@@ -9398,7 +9422,7 @@ function computeFringePlan(pgPoints, width, rollLength, rollWidth, mergeFactor) 
     pieces.push({
       edgeIndex: i,
       length: pieceLen,
-      width: width,
+      width: e.depth,      // actual cut depth (fringe width + curve bulge)
       area,
       // Polygon corners in order (inner edge then outer edge), suitable for drawing
       p0: e.a, p1: e.b, p2: oEnd, p3: oStart,
@@ -9470,7 +9494,7 @@ function computeFringePlan(pgPoints, width, rollLength, rollWidth, mergeFactor) 
   // pieces share one "row" across the 15 ft width, and each row consumes one fringe-width of
   // roll LENGTH. Ordered linear feet come from packing the pieces across the width.
   const totalSqFt = pieces.reduce((s,p)=>s + p.length*p.width, 0);
-  const order = fringeOrderFromPieces(pieces.map(p=>p.length), rollWidth, width);
+  const order = fringeOrderFromPieces(pieces, rollWidth, width);
 
   return { pieces, perimeter, pgArea, ringArea, totalSqFt, rollWidth,
     linearFtToOrder: order.linearFt,   // linear feet of roll to order (pieces packed across the width)
@@ -9485,21 +9509,28 @@ function computeFringePlan(pgPoints, width, rollLength, rollWidth, mergeFactor) 
 // is one strip across the roll that consumes one fringe-width of roll length. Returns the
 // row count, the linear feet of roll to order (rows × fringe width, rounded up to a whole
 // foot), and the roll area that buys. Testable.
-function fringeOrderFromPieces(pieceLengths, rollWidth, fringeWidth) {
+function fringeOrderFromPieces(pieces, rollWidth, fringeWidth) {
   const cap = rollWidth > 0 ? rollWidth : 15;
-  const w = fringeWidth > 0 ? fringeWidth : 0;
-  const items = (pieceLengths || []).filter(l => l > 1e-9).map(l => Math.min(l, cap)).sort((a,b)=>b-a);
-  const used = [];
-  items.forEach(len => {
+  const fallback = fringeWidth > 0 ? fringeWidth : 0;
+  // Accept either [{length,width}] (per-piece cut depth) or a plain [lengths] with a
+  // fringeWidth fallback. Each piece's DEPTH (fringe width + curve bulge) is how much roll
+  // LENGTH its row consumes; a row (pieces packed across the roll width) consumes its
+  // DEEPEST piece. Ordered linear feet = sum of each row's max depth.
+  const items = (pieces || [])
+    .map(p => (typeof p === 'number') ? { len: p, depth: fallback } : { len: p.length, depth: (p.width > 0 ? p.width : fallback) })
+    .filter(it => it.len > 1e-9)
+    .map(it => ({ len: Math.min(it.len, cap), depth: it.depth }))
+    .sort((a, b) => b.len - a.len);
+  const rows = [];
+  items.forEach(it => {
     let placed = false;
-    for (let i = 0; i < used.length; i++) {
-      if (used[i] + len <= cap + 1e-9) { used[i] += len; placed = true; break; }
+    for (const row of rows) {
+      if (row.used + it.len <= cap + 1e-9) { row.used += it.len; row.depth = Math.max(row.depth, it.depth); placed = true; break; }
     }
-    if (!placed) used.push(len);
+    if (!placed) rows.push({ used: it.len, depth: it.depth });
   });
-  const rows = used.length;
-  const linearFt = w > 0 ? Math.ceil(rows * w - 1e-9) : 0;
-  return { rows, linearFt, orderedSqFt: linearFt * cap };
+  const linearFt = Math.ceil(rows.reduce((s, r) => s + r.depth, 0) - 1e-9);
+  return { rows: rows.length, linearFt, orderedSqFt: linearFt * cap };
 }
 
 // Sutherland-Hodgman: clip polygon to axis-aligned rect [xmin,xmax] x [ymin,ymax]
