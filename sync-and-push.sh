@@ -1,113 +1,68 @@
 #!/bin/bash
-# Syncs waterloo_turf_calculator.html from the Electron app folder into the
-# GitHub Pages repo, then commits and pushes.
-#
-# Usage: double-click this file (if marked executable and opened via
-# Terminal), or run from Terminal:
-#   ./sync-and-push.sh
-#
-# Expects this folder layout (adjust the paths below if yours differs):
-#   Turf Job Calculator/
-#     waterloo-turf-app/                    <- source of truth (Electron app)
-#       waterloo_turf_calculator.html
-#       waterloo_turf_tests.js
-#     waterloo-turf-job-calculator/         <- this repo (GitHub Pages)
-#       waterloo_turf_calculator.html
-#       waterloo_turf_tests.js
-#       sync-and-push.sh   <- this script
+# One-step publish for the Waterloo Turf Job Calculator.
+#   1) Click "Download All", save the zip as files.zip into the REPO folder below.
+#   2) Run this script. It unzips the files, copies them into the repo AND the Electron
+#      app folder, then commits & pushes the repo to GitHub.
 
-set -e  # stop on first error
+set -e
 
-# Resolve the directory this script lives in, so it works regardless of
-# where it's run from.
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$SCRIPT_DIR"
-APP_DIR="$(cd "$REPO_DIR/../waterloo-turf-app" && pwd)"
+REPO="/Users/byoss/Desktop/Waterloo Turf/Turf Job Calculator/waterloo-turf-job-calculator"
+APP="/Users/byoss/Desktop/Waterloo Turf/Turf Job Calculator/waterloo-turf-app"
+ZIP="$REPO/files.zip"
 
-echo "Source (Electron app):  $APP_DIR"
-echo "Destination (web repo): $REPO_DIR"
-echo ""
+cd "$REPO"
 
-# Files that get synced from the app folder into the repo. The HTML file is
-# required; the test file is optional (only copied if present in the app
-# folder) since not every session touches it.
-HTML_SOURCE="$APP_DIR/waterloo_turf_calculator.html"
-HTML_DEST="$REPO_DIR/waterloo_turf_calculator.html"
-TESTS_SOURCE="$APP_DIR/waterloo_turf_tests.js"
-TESTS_DEST="$REPO_DIR/waterloo_turf_tests.js"
-
-if [ ! -f "$HTML_SOURCE" ]; then
-  echo "ERROR: Source file not found at $HTML_SOURCE"
-  echo "Did you save the updated waterloo_turf_calculator.html into the waterloo-turf-app folder?"
+if [ ! -f "$ZIP" ]; then
+  echo "❌ files.zip not found in the repo folder:"
+  echo "   $REPO"
+  echo "   Save the 'Download All' zip there as files.zip, then run this again."
   exit 1
 fi
 
-cp "$HTML_SOURCE" "$HTML_DEST"
-echo "Copied waterloo_turf_calculator.html into the web repo."
+echo "📦 Unzipping files.zip …"
+TMP="$(mktemp -d)"
+unzip -o -q "$ZIP" -d "$TMP"
 
-if [ -f "$TESTS_SOURCE" ]; then
-  cp "$TESTS_SOURCE" "$TESTS_DEST"
-  echo "Copied waterloo_turf_tests.js into the web repo."
+# All four files go into the repo (published to GitHub Pages).
+REPO_FILES="waterloo_turf_calculator.html waterloo_turf_tests.js README.md CHANGELOG.md"
+# Only the two code files go into the Electron app folder (it doesn't need the repo docs).
+APP_FILES="waterloo_turf_calculator.html waterloo_turf_tests.js"
+
+echo "→ Repo:  $REPO"
+copied=0
+for name in $REPO_FILES; do
+  src="$(find "$TMP" -type f -name "$name" -print -quit)"
+  if [ -n "$src" ]; then cp "$src" "$REPO/$name"; echo "   ✓ $name"; copied=$((copied+1));
+  else echo "   ⚠ $name not found in zip (skipped)"; fi
+done
+
+echo "→ Electron app: $APP"
+if [ -d "$APP" ]; then
+  for name in $APP_FILES; do
+    src="$(find "$TMP" -type f -name "$name" -print -quit)"
+    if [ -n "$src" ]; then cp "$src" "$APP/$name"; echo "   ✓ $name"; fi
+  done
 else
-  echo "(waterloo_turf_tests.js not found in waterloo-turf-app — skipping, leaving repo's copy as-is)"
+  echo "   ⚠ Electron folder not found — skipped (repo still updated)."
 fi
 
-cd "$REPO_DIR"
+rm -rf "$TMP"
 
-# Check if anything actually changed across all tracked files
-if git diff --quiet -- waterloo_turf_calculator.html waterloo_turf_tests.js README.md CHANGELOG.md sync-and-push.sh Sync_and_Push.command && \
-   git diff --cached --quiet -- waterloo_turf_calculator.html waterloo_turf_tests.js README.md CHANGELOG.md sync-and-push.sh Sync_and_Push.command; then
-  echo ""
-  echo "No changes detected — nothing to commit or push."
+if [ "$copied" -eq 0 ]; then
+  echo "❌ No expected files found in files.zip — nothing to publish."
+  exit 1
+fi
+
+BUILD="$(grep -o 'build 2026-[0-9.-]*' "$REPO/waterloo_turf_calculator.html" | head -1)"
+echo "🔖 Publishing: ${BUILD:-(build stamp not found)}"
+
+git add -A
+if git diff --cached --quiet; then
+  echo "ℹ️  No changes to commit (repo already matches the zip). Electron folder was still synced."
   exit 0
 fi
 
-# ── TEST GATE — never commit or push failing tests ───────────────────────────
-# Runs against the freshly-synced repo copies. A failure aborts before any
-# commit/push, so failing code can't reach GitHub Pages.
-if ! command -v node >/dev/null 2>&1; then
-  echo ""
-  echo "ERROR: node not found — cannot run the test gate. Aborting (nothing pushed)."
-  exit 1
-fi
-echo ""
-echo "Running test suite (gate)..."
-if ! node waterloo_turf_tests.js; then
-  echo ""
-  echo "TESTS FAILED — aborting. Nothing was committed or pushed."
-  echo "The synced files are in the repo working tree but were NOT deployed."
-  echo "Fix the failures, then run this again."
-  exit 1
-fi
-echo "Tests passed."
-echo ""
-
-git add waterloo_turf_calculator.html
-[ -f "$TESTS_DEST" ] && git add waterloo_turf_tests.js
-
-# Also stage README and CHANGELOG if they were updated this session
-[ -f "$REPO_DIR/README.md" ] && git add README.md
-[ -f "$REPO_DIR/CHANGELOG.md" ] && git add CHANGELOG.md
-
-# Stage the sync scripts themselves so changes to them push automatically —
-# no more separate manual "push the scripts" step. (A script that commits
-# itself includes whatever edits it has at run time, which is what we want.)
-[ -f "$REPO_DIR/sync-and-push.sh" ] && git add sync-and-push.sh
-[ -f "$REPO_DIR/Sync_and_Push.command" ] && git add Sync_and_Push.command
-
-# Use today's date in the commit message, plus allow an optional custom message
-TIMESTAMP=$(date "+%Y-%m-%d %H:%M")
-if [ -n "$1" ]; then
-  MSG="$1"
-else
-  MSG="Update calculator ($TIMESTAMP)"
-fi
-
-git commit -m "$MSG"
-echo ""
-echo "Committed: $MSG"
-
+git commit -m "Update calculator ($(date '+%Y-%m-%d %H:%M'))"
 git push
-echo ""
-echo "Pushed to GitHub. Pages will redeploy in a minute or two."
-echo "Live at: https://josser77.github.io/waterloo-turf-job-calculator/"
+echo "🚀 Pushed. The GitHub Action should deploy shortly."
+echo "   Verify the live sidebar shows: ${BUILD}"

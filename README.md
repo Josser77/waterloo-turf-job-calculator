@@ -127,4 +127,4 @@ Live filter box over the project list — matches on name, address, and status (
 
 Import and view each supplier's price list (PDF / Excel / CSV), switchable per vendor like crews. PDFs embed; Excel/CSV render as a table (xlsx parsed library-free via DecompressionStream). Files stored in IndexedDB (not in the JSON backup — re-importable reference docs).
 
-<!-- redeploy 2026-09-15 -->
+<!-- redeploy 2026-09-22 -->
