@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-22.6</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-22.7</div>
     </div>
 
     <div class="sort-bar">
@@ -5832,7 +5832,11 @@ function calcQuote() {
       // Fringe is bought as roll: order LINEAR FEET (pieces packed across the roll width),
       // not the raw material sqft. Pricing is per linear foot of roll.
       fringeLinearFt = plan.linearFtToOrder;
-      fringeCost = fringeLinearFt * cpsf;
+      // cpsf is cost per SQ FT (same field the main turf uses as $/sqft). Fringe is
+      // bought as roll, so the cost is the ORDERED ROLL AREA (linear ft x roll width)
+      // x cost/sqft — not linear ft x cost/sqft, which mixed linear feet with a per-sqft
+      // rate and drastically under-charged.
+      fringeCost = (plan.orderedSqFt || fringeLinearFt * plan.rollWidth) * cpsf;
     }
   }
 
@@ -8509,7 +8513,7 @@ function renderFringeSection(proj) {
   const cat2 = getCatalog();
   const ci = cat2.turf.find(t=>t.name===fringe.turfProduct);
   const cpsf = ci ? parseFloat(ci.costPerLinFt)||0 : 0;
-  const matCost = plan.linearFtToOrder * cpsf;
+  const matCost = (plan.orderedSqFt || plan.linearFtToOrder * plan.rollWidth) * cpsf;
 
   summaryEl.innerHTML = `
     <div>PG Perimeter: <strong>${plan.perimeter.toFixed(1)} ft</strong></div>
@@ -9416,8 +9420,11 @@ function computeFringePlan(pgPoints, width, rollLength, rollWidth, mergeFactor) 
     const quad = [e.a, e.b, oEnd, oStart];
     const area = polygonArea(quad);
     const innerLen = e.len;
-    const outerLen = Math.hypot(oEnd.x-oStart.x, oEnd.y-oStart.y);
-    const pieceLen = Math.max(innerLen, outerLen);
+    // Piece length = the run along the green's perimeter (inner chord). The mitered
+    // OUTER edge can be longer at corners, but that's not the cut dimension — the piece
+    // is cut with its run across the roll width — so length must be the run, or a corner
+    // miter could spuriously trip the roll-width split below.
+    const pieceLen = innerLen;
 
     pieces.push({
       edgeIndex: i,
@@ -9450,9 +9457,7 @@ function computeFringePlan(pgPoints, width, rollLength, rollWidth, mergeFactor) 
     [cur, next].forEach(p => {
       const quad = [p.p0, p.p1, p.p2, p.p3];
       p.area = polygonArea(quad);
-      const outerLen = Math.hypot(p.p2.x-p.p3.x, p.p2.y-p.p3.y);
-      const innerLen = Math.hypot(p.p1.x-p.p0.x, p.p1.y-p.p0.y);
-      p.length = Math.max(innerLen, outerLen);
+      p.length = Math.hypot(p.p1.x-p.p0.x, p.p1.y-p.p0.y); // run length (inner chord)
     });
   }
 
@@ -9464,7 +9469,8 @@ function computeFringePlan(pgPoints, width, rollLength, rollWidth, mergeFactor) 
   const lerpPt = (p, q, t) => ({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t });
   const splitPieces = [];
   pieces.forEach(p => {
-    const k = Math.max(1, Math.ceil((p.length - 1e-6) / rollWidth));
+    const runLen = Math.hypot(p.p1.x-p.p0.x, p.p1.y-p.p0.y);
+    const k = Math.max(1, Math.ceil((runLen - 1e-6) / rollWidth));
     if (k <= 1) { splitPieces.push(p); return; }
     for (let j = 0; j < k; j++) {
       const t0 = j / k, t1 = (j + 1) / k;
@@ -9475,7 +9481,7 @@ function computeFringePlan(pgPoints, width, rollLength, rollWidth, mergeFactor) 
       const outerLen = Math.hypot(o1.x - o0.x, o1.y - o0.y);
       splitPieces.push({
         edgeIndex: p.edgeIndex, subIndex: j, split: true,
-        length: Math.max(innerLen, outerLen), width: p.width,
+        length: innerLen, width: p.width,   // run length (cut across the roll width)
         area: polygonArea(quad),
         p0: i0, p1: i1, p2: o1, p3: o0,
       });

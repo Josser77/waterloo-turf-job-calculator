@@ -2450,12 +2450,12 @@ section('36. computeFringePlan: perimeter, ring area, and per-edge cutting piece
 
     // Split-side lengths: 24 → two 12s; 14 → stays 14.
     const lengths = plan.pieces.map(p=>p.length).sort((a,b)=>a-b);
-    assert(JSON.stringify(lengths) === JSON.stringify([12,12,12,12,14,14]), `piece lengths after the roll-width split (got ${JSON.stringify(lengths)})`);
+    assert(JSON.stringify(lengths) === JSON.stringify([10,10,10,10,10,10]), `piece lengths after the roll-width split (got ${JSON.stringify(lengths)})`);
     // The total run length is preserved: 2×24 + 2×14 = 76 = sum of split pieces.
-    assert(near(lengths.reduce((s,x)=>s+x,0), 76), 'splitting preserves total run length (76 ft)');
+    assert(near(lengths.reduce((s,x)=>s+x,0), 60), 'splitting preserves total run length = inner perimeter (60 ft)');
     // totalSqFt = sum(length*width). Splitting preserves total length, so this is
     // unchanged from the unsplit ring: (24+14+24+14)*2 = 152.
-    assert(near(plan.totalSqFt, 152), `totalSqFt = sum of piece rectangles = 152 (got ${plan.totalSqFt})`);
+    assert(near(plan.totalSqFt, 120), `totalSqFt = sum of piece rectangles (run x depth) = 120 (got ${plan.totalSqFt})`);
 
     // Every piece's rectangle should lie OUTSIDE the PG polygon. Corners may
     // legitimately sit ON the PG boundary (shared vertices by construction),
@@ -2479,7 +2479,7 @@ section('36. computeFringePlan: perimeter, ring area, and per-edge cutting piece
     const pgCW = [{x:0,y:0},{x:0,y:10},{x:20,y:10},{x:20,y:0}]; // CW
     const planCW = ctx.computeFringePlan(pgCW, 2);
     assert(near(planCW.perimeter, 60), 'CW: perimeter unchanged by winding');
-    assert(near(planCW.totalSqFt, 152), 'CW: totalSqFt unchanged by winding');
+    assert(near(planCW.totalSqFt, 120), 'CW: totalSqFt unchanged by winding');
     planCW.pieces.forEach((p, idx) => {
       const rectPoly = [p.p0, p.p1, p.p2, p.p3];
       const cx = rectPoly.reduce((s,pt)=>s+pt.x,0)/4, cy = rectPoly.reduce((s,pt)=>s+pt.y,0)/4;
@@ -2659,7 +2659,7 @@ section('37. Putting green fringe: layer mode, config persistence, and quote cos
     const summary = inputs.fringeSummary.innerHTML;
     assert(summary.includes('60.0 ft'), `fringe summary shows PG perimeter 60.0 ft (got: ${summary})`);
     assert(summary.includes('12 lin ft'), `fringe summary shows 12 linear ft to order (got: ${summary})`);
-    assert(summary.includes('$24.00'), `fringe summary shows fringe material cost $24.00 = 12 lin ft * 2.00 (got: ${summary})`);
+    assert(summary.includes('$360.00'), `fringe cost = ordered roll area (180 sqft) x $2/sqft = $360 (got: ${summary})`);
 
     // Quote: "No Putting Green" card has no fringe line; "With PG" card does, and COGS includes it
     const html = inputs.quoteOptionsContainer.innerHTML;
@@ -2668,7 +2668,7 @@ section('37. Putting green fringe: layer mode, config persistence, and quote cos
     const withPgCard = cards.find(c => c.includes('WT PDX Putt 85'));
     assert(noPgCard && !noPgCard.includes('PG Fringe'), '"No Putting Green" card has no PG Fringe line');
     assert(withPgCard && withPgCard.includes('PG Fringe'), '"With Putting Green" card includes a PG Fringe line');
-    assert(withPgCard.includes('$24.00'), '"With Putting Green" card shows fringe cost $24.00 (12 lin ft * $2.00)');
+    assert(withPgCard.includes('$360.00'), '"With Putting Green" card shows fringe cost $360 (180 ordered sqft x $2/sqft)');
     assert(withPgCard.includes('Putting green turf'), '"With Putting Green" card shows the green\'s turf material line');
 
     // Sanity: total COGS for the PG card includes fringe cost as an additive component.
@@ -2678,7 +2678,7 @@ section('37. Putting green fringe: layer mode, config persistence, and quote cos
     // roll, so it needs a second width). Base install (labor) is outline−green = 1800.
     // Std yard: 1800*$8=$14,400; PG labor: 200*$12=$2,400; base turf mat: 2250*$2.50=$5,625;
     // PG turf mat: 300*$3.50=$1,050; fringe: $304.
-    const expectedCogs = 1800*8 + 200*12 + 2250*2.50 + 300*3.50 + 24; // fringe now 12 lin ft * $2 = $24
+    const expectedCogs = 1800*8 + 200*12 + 2250*2.50 + 300*3.50 + 360; // fringe = ordered roll area x $2/sqft = $360
     const priceMatch = withPgCard.match(/opt-price\">(\$[\d,]+\.\d\d)<\/div>/);
     assert(priceMatch, 'PG card has a price figure');
     const actualCogs = parseFloat(priceMatch[1].replace(/[$,]/g,''));
@@ -2862,7 +2862,7 @@ section('38. Piece List shows length/width/sqft for every roll piece and fringe 
       assert(near(parseFloat(wid), 2.0), `fringe piece width is 2.0 (got ${wid})`);
     });
     const fringeLengths = fringeRows.map(([_,len])=>parseFloat(len)).sort((a,b)=>a-b);
-    assert(JSON.stringify(fringeLengths) === JSON.stringify([12,12,12,12,14,14]), `fringe piece lengths after roll-width split (got ${JSON.stringify(fringeLengths)})`);
+    assert(JSON.stringify(fringeLengths) === JSON.stringify([10,10,10,10,10,10]), `fringe piece lengths after roll-width split (got ${JSON.stringify(fringeLengths)})`);
   }
 
   // ── No layout -> piece list hidden ──
@@ -6983,10 +6983,10 @@ section('118. Fringe: blades face the green, pieces capped at the roll width');
   assert(plan.maxPieceLength === 15, 'max piece length = the roll width (15)');
   assert(plan.pieces.every(p => p.length <= 15 + 1e-6), 'NO fringe piece exceeds the 15 ft roll width');
   // 40 ft side → mitered 46 → ceil(46/15)=4 pieces; 30 ft → 36 → 3; total 2*(4+3)=14.
-  assert(plan.pieces.length === 14, 'long sides split into roll-width pieces (14 total)');
+  assert(plan.pieces.length === 10, 'long sides split by run into roll-width pieces (10 total: 40->3, 30->2, x2)');
 
   // Splitting preserves the ordered total: same run length × width as the unsplit ring.
-  const unsplitTotal = 2*(46+36) * 3; // (2×46 + 2×36) ft × 3 ft
+  const unsplitTotal = 2*(40+30) * 3; // inner run perimeter (2×40 + 2×30) ft × 3 ft depth
   assert(near(plan.totalSqFt, unsplitTotal, 1), 'total sqft to order is preserved by splitting');
 
   // A small green (both sides < 15 ft after miter) is unaffected — one piece per side.

@@ -5,6 +5,24 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-22 (build .7) — Fringe fixes: spurious split lines + wrong material cost
+
+Two fringe bugs:
+1) **Stray "cut" lines mid-piece.** Pieces were split at the roll width using the mitered OUTER edge
+   length, which the deeper (bulge) pieces inflated past 15 ft even on short runs — so pieces got
+   split that didn't need to be. Now the split uses the piece's RUN length (inner chord = the
+   dimension actually cut across the roll width). A run under the roll width is one piece, no line.
+2) **Fringe material cost was wrong.** It computed linear feet times cost-per-sqft — mixing a length
+   with a per-area rate, drastically under-charging (e.g. $33 for what should be hundreds). The turf
+   product's cost field is actually cost per SqFt (the main turf uses it as $/sqft), so fringe cost is
+   now the ORDERED ROLL AREA (linear ft times roll width) times cost/sqft, consistent with how the
+   main turf is priced. Calculated in calcQuote and in the Fringe summary.
+
+Tests **2172** (README **2172**): split by run length, no piece exceeds the roll width, cost = ordered
+roll area × cost/sqft, updated affected scenarios. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-22 (build .6) — Fringe drawing: clean rectangles + cut lines (no confusing miters)
 
 The mitered-quad fringe drawing drew diagonal lines mid-run that looked like cuts where there are
