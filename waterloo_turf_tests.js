@@ -8582,12 +8582,15 @@ section('194. Fringe seam-merging factor (fewer seams / more turf)');
 section('195. Fringe pieces DRAW at their actual cut depth');
 {
   const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
-  // The on-canvas fringe piece is drawn as its actual computed quad (depth + corner
-  // closure), not a rebuilt rectangle — so pieces are full-depth AND meet at corners.
-  assert(/const poly = \[p\.p0, p\.p1, p\.p2, p\.p3\];/.test(src), 'the fringe piece draws its actual quad (carries depth + corner closure)');
-  assert(!/const depth = \(p\.width > 0\) \? p\.width : fringe\.width;/.test(src), 'the old rebuilt-rectangle draw is gone');
-  // The corner-close step (one piece extends to meet its neighbour) is still present.
-  assert(/cur\.p2 = outer;\s*next\.p3 = outer;/.test(src), 'adjacent fringe pieces share the outer corner (no bare wedge)');
+  // The on-canvas fringe piece is drawn as a CLEAN RECTANGLE (length × depth, square
+  // ends = cut lines), not a mitered quad — with a turn-scaled corner lap so one piece
+  // covers the corner wedge.
+  assert(/const depth = \(p\.width > 0\) \? p\.width : fringe\.width;/.test(src), 'the fringe piece draws at its real cut depth');
+  assert(/lap = Math\.min\(depth, depth \* Math\.tan\(Math\.min\(turn \/ 2, 1\.3\)\)\)/.test(src), 'the corner lap scales with the turn angle');
+  assert(/const a1 = \{ x: p\.p1\.x \+ ux \* lap, y: p\.p1\.y \+ uy \* lap \};/.test(src), 'the far end laps over the next piece by the corner lap');
+  assert(!/const poly = \[p\.p0, p\.p1, p\.p2, p\.p3\];/.test(src), 'the confusing mitered-quad draw is gone');
+  // The material corner-close step (one piece extends) is still present in the model.
+  assert(/cur\.p2 = outer;\s*next\.p3 = outer;/.test(src), 'the material model still closes corners');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

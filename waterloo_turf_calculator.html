@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-22.5</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-22.6</div>
     </div>
 
     <div class="sort-bar">
@@ -11574,20 +11574,37 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
         const plan = computeFringePlan(s.displayPoints, fringe.width, layout.rollLength, effectiveRollWidth(layout||{}), getFringeSeamFactor());
         if (plan && plan.pieces.length) {
           if (fringe.piecesVisible !== false) {
+            // Draw each fringe piece as the clean RECTANGLE it's actually cut from —
+            // length along its run × its cut depth (fringe width + curve bulge), with
+            // square ends. The two end edges ARE the cut lines between pieces. This is
+            // what the installer cuts and seams; the earlier mitered/angled quad drew
+            // confusing diagonal lines mid-run that looked like cuts where there are none.
             plan.pieces.forEach((p, pi) => {
-              // Draw the piece's actual computed quad: inner edge (p0->p1) plus the
-              // outer edge (p3->p2), whose corners were snapped to meet the neighbouring
-              // pieces. This carries BOTH the real cut depth (fringe width + curve bulge)
-              // and the corner closure — so pieces render at full depth AND meet at
-              // corners (one piece extends to cover the wedge) with no bare gap, matching
-              // how they're cut and ordered.
-              const poly = [p.p0, p.p1, p.p2, p.p3];
-              // Outward normal of this piece (for the inward-facing blade arrow below).
               const ex = p.p1.x - p.p0.x, ey = p.p1.y - p.p0.y;
               const el = Math.hypot(ex, ey) || 1;
-              let nx = -ey / el, ny = ex / el;
+              const ux = ex / el, uy = ey / el;           // run direction (unit)
+              let nx = -ey / el, ny = ex / el;            // outward normal
               const toOuterX = p.p3.x - p.p0.x, toOuterY = p.p3.y - p.p0.y;
               if (nx * toOuterX + ny * toOuterY < 0) { nx = -nx; ny = -ny; }
+              const depth = (p.width > 0) ? p.width : fringe.width;
+              // Lap the far (p1) end over the NEXT piece just enough to cover the corner
+              // wedge — scaled by how sharply the perimeter turns there. Gentle curves
+              // barely lap; only sharp corners need a real overlap. One-piece overlap (each
+              // piece laps only its own far end), so no double waste and no bare gap.
+              const nxt = plan.pieces[(pi + 1) % plan.pieces.length];
+              let lap = 0;
+              if (nxt && !(p.split && nxt.split && nxt.edgeIndex === p.edgeIndex)) {
+                const ndx = nxt.p1.x - nxt.p0.x, ndy = nxt.p1.y - nxt.p0.y, ndl = Math.hypot(ndx, ndy) || 1;
+                const dot = Math.max(-1, Math.min(1, ux * (ndx / ndl) + uy * (ndy / ndl)));
+                const turn = Math.acos(dot);                 // 0 (straight) .. PI
+                lap = Math.min(depth, depth * Math.tan(Math.min(turn / 2, 1.3)));
+              }
+              const a0 = p.p0;
+              const a1 = { x: p.p1.x + ux * lap, y: p.p1.y + uy * lap };
+              const r0 = a0, r1 = a1;
+              const r2 = { x: a1.x + nx * depth, y: a1.y + ny * depth };
+              const r3 = { x: a0.x + nx * depth, y: a0.y + ny * depth };
+              const poly = [r0, r1, r2, r3];
               drawPoly(poly, 'rgba(27,94,32,0.40)', '#123E17'); // fringe — darkest green
               // Label each fringe piece at its centroid — hidden while the blade
               // arrows are on (they'd crowd the thin fringe pieces), shown otherwise.

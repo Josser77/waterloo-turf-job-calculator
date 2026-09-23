@@ -5,6 +5,21 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-22 (build .6) — Fringe drawing: clean rectangles + cut lines (no confusing miters)
+
+The mitered-quad fringe drawing drew diagonal lines mid-run that looked like cuts where there are
+none, and expressed the corner overlap as confusing slants. Redrew each fringe piece as the clean
+RECTANGLE it's actually cut from — length along its run × cut depth (fringe width + curve bulge),
+square ends. The square ends are the real cut lines between pieces. At each corner, one piece laps
+over the next by an amount scaled to how sharply the perimeter turns (gentle curves barely lap; sharp
+corners lap more), covering the corner wedge with no bare gap and no double overlap. Much clearer for
+the installer: rectangles to cut + obvious seams.
+
+Tests **2170 -> 2172** (README **2172**): clean-rectangle draw at real depth, turn-scaled corner lap,
+mitered-quad draw removed. Verified on a square green. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-22 (build .5) — Fringe: close the corner gaps between pieces
 
 At each corner of the green, two adjacent fringe pieces run at different angles, leaving an uncovered
