@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-22.4</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-22.5</div>
     </div>
 
     <div class="sort-bar">
@@ -11575,26 +11575,19 @@ function drawRollLayoutCanvas(layout, dragUnitKey, dragPos) {
         if (plan && plan.pieces.length) {
           if (fringe.piecesVisible !== false) {
             plan.pieces.forEach((p, pi) => {
-              // Draw each piece at its FULL cut width (a clean rectangle fringe-width
-              // deep), not the mitered trapezoid — so what you see matches what gets
-              // cut. The trapezoid's slanted mitered ends made corner pieces look
-              // shallower than the fringe width even though the cut rectangle is full
-              // depth. Build the rectangle from the inner edge extended outward by the
-              // fringe width along the edge's outward normal.
+              // Draw the piece's actual computed quad: inner edge (p0->p1) plus the
+              // outer edge (p3->p2), whose corners were snapped to meet the neighbouring
+              // pieces. This carries BOTH the real cut depth (fringe width + curve bulge)
+              // and the corner closure — so pieces render at full depth AND meet at
+              // corners (one piece extends to cover the wedge) with no bare gap, matching
+              // how they're cut and ordered.
+              const poly = [p.p0, p.p1, p.p2, p.p3];
+              // Outward normal of this piece (for the inward-facing blade arrow below).
               const ex = p.p1.x - p.p0.x, ey = p.p1.y - p.p0.y;
               const el = Math.hypot(ex, ey) || 1;
-              // outward normal = the side that points away from the green (toward p3/p2)
               let nx = -ey / el, ny = ex / el;
               const toOuterX = p.p3.x - p.p0.x, toOuterY = p.p3.y - p.p0.y;
               if (nx * toOuterX + ny * toOuterY < 0) { nx = -nx; ny = -ny; }
-              // Use the piece's ACTUAL cut depth (fringe width + the curve's bulge), not the
-              // base fringe width — so a longer run over a curve draws as the real wider
-              // rectangle it gets cut as, matching the material order.
-              const depth = (p.width > 0) ? p.width : fringe.width;
-              const r0 = p.p0, r1 = p.p1;
-              const r2 = { x: p.p1.x + nx * depth, y: p.p1.y + ny * depth };
-              const r3 = { x: p.p0.x + nx * depth, y: p.p0.y + ny * depth };
-              const poly = [r0, r1, r2, r3];
               drawPoly(poly, 'rgba(27,94,32,0.40)', '#123E17'); // fringe — darkest green
               // Label each fringe piece at its centroid — hidden while the blade
               // arrows are on (they'd crowd the thin fringe pieces), shown otherwise.

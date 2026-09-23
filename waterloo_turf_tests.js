@@ -8582,10 +8582,12 @@ section('194. Fringe seam-merging factor (fewer seams / more turf)');
 section('195. Fringe pieces DRAW at their actual cut depth');
 {
   const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
-  // The on-canvas fringe rectangle must use the piece depth, not the base fringe width.
-  assert(/const depth = \(p\.width > 0\) \? p\.width : fringe\.width;/.test(src), 'the draw picks the piece cut depth');
-  assert(/r2 = \{ x: p\.p1\.x \+ nx \* depth,/.test(src) && /r3 = \{ x: p\.p0\.x \+ nx \* depth,/.test(src), 'the fringe rectangle is drawn to the piece depth');
-  assert(!/nx \* fringe\.width, y: p\.p1\.y \+ ny \* fringe\.width/.test(src), 'the old fixed-fringe-width draw is gone');
+  // The on-canvas fringe piece is drawn as its actual computed quad (depth + corner
+  // closure), not a rebuilt rectangle — so pieces are full-depth AND meet at corners.
+  assert(/const poly = \[p\.p0, p\.p1, p\.p2, p\.p3\];/.test(src), 'the fringe piece draws its actual quad (carries depth + corner closure)');
+  assert(!/const depth = \(p\.width > 0\) \? p\.width : fringe\.width;/.test(src), 'the old rebuilt-rectangle draw is gone');
+  // The corner-close step (one piece extends to meet its neighbour) is still present.
+  assert(/cur\.p2 = outer;\s*next\.p3 = outer;/.test(src), 'adjacent fringe pieces share the outer corner (no bare wedge)');
 }
 
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);

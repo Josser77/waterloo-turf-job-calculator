@@ -5,6 +5,21 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-22 (build .5) — Fringe: close the corner gaps between pieces
+
+At each corner of the green, two adjacent fringe pieces run at different angles, leaving an uncovered
+wedge of bare ground between their straight outer edges. The material model already closed this (it
+extends one piece to meet its neighbour's outer corner — a single-piece overlap, no double waste),
+but the canvas draw was rebuilding clean rectangles that ignored it, so the gaps showed. The draw now
+renders each piece's actual computed quad, which carries the corner closure — so pieces meet at
+corners with no bare gap while staying full depth along their runs. Blade direction stays correct on
+the long runs; only the tiny corner slivers are marginally off (accepted — fringe is a narrow border).
+
+Tests **2170** (README **2170**): the fringe piece draws its actual quad; corner-close step present.
+Verified on a square green (corners meet, continuous ring). Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-22 (build .4) — Fix: fringe canvas didn't redraw at the new piece depth
 
 Follow-up to build .3: the fringe material numbers updated with the seam slider, but the drawn pieces
