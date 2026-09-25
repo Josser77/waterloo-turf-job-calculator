@@ -8605,8 +8605,18 @@ section('196. Fringe cost uses the nominal (paid-for) roll width, not the trimme
   assert(Math.abs(p15.orderedSqFt - p15.linearFtToOrder * 15) < 1e-6, 'ordered sqft = linear ft × 15 ft roll');
 }
 
+section('197. Backup filename uses local date; leaving Edging clears its click mode');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Backup filename built from local date parts, not UTC toISOString.
+  assert(/wt_backup_\$\{_localDate\}/.test(src) && /_bd\.getFullYear\(\)/.test(src), 'backup filename uses the local date');
+  assert(!/wt_backup_\$\{new Date\(\)\.toISOString/.test(src), 'backup filename no longer uses UTC toISOString');
+  // Switching away from the Edging sub-tab ends edging click mode.
+  assert(/if \(name !== 'edging' && window\._wtEdgingClickMode && typeof toggleEdgingClickMode === 'function'\) toggleEdgingClickMode\(\);/.test(src), 'leaving the Edging sub-tab clears its click mode (unblocks nesting)');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
 
-// redeploy marker 2026-09-22
+// redeploy marker 2026-09-24

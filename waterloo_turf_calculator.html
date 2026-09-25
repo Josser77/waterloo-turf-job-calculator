@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-22.8</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-24</div>
     </div>
 
     <div class="sort-bar">
@@ -3776,7 +3776,8 @@ async function downloadAutoBackup(i) {
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `wt_autobackup_${new Date(snap.time).toISOString().slice(0,16).replace(/[:T]/g,'-')}.json`;
+  { const _d = new Date(snap.time), _p = n => String(n).padStart(2, '0');
+    a.download = `wt_autobackup_${_d.getFullYear()}-${_p(_d.getMonth()+1)}-${_p(_d.getDate())}_${_p(_d.getHours())}-${_p(_d.getMinutes())}.json`; }
   a.click();
 }
 
@@ -8437,6 +8438,11 @@ function productHasType(product, type) { return getTurfTypes(product).indexOf(ty
 function switchLayoutSubtab(name) {
   const sidebar = document.getElementById('layoutSidebar');
   if (!sidebar) return;
+  // Leaving the Edging sub-tab must end its click mode. Otherwise the roll-plan canvas
+  // keeps swallowing every mousedown as an edging-segment click, which blocks piece
+  // nesting (and panning) until some other mode toggle — e.g. Move Layers on/off —
+  // happens to clear it.
+  if (name !== 'edging' && window._wtEdgingClickMode && typeof toggleEdgingClickMode === 'function') toggleEdgingClickMode();
   window._wtLayoutSubtab = name;
   sidebar.querySelectorAll('.layout-subpanel').forEach(p => {
     p.classList.toggle('active', p.getAttribute('data-panel') === name);
@@ -15763,7 +15769,11 @@ async function exportBackup(scope) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   const suffix = scope === 'selected' ? `_${exportProjects.length}project${exportProjects.length===1?'':'s'}` : '';
-  a.download = `wt_backup_${new Date().toISOString().slice(0,10)}${suffix}.json`;
+  // Local date (not toISOString, which is UTC — an evening backup in a negative-offset
+  // timezone would otherwise be stamped with tomorrow's date).
+  const _bd = new Date(), _bp = n => String(n).padStart(2, '0');
+  const _localDate = `${_bd.getFullYear()}-${_bp(_bd.getMonth() + 1)}-${_bp(_bd.getDate())}`;
+  a.download = `wt_backup_${_localDate}${suffix}.json`;
   a.click();
   // A full "Export Everything" is the real safety net — record it so we can nudge on staleness.
   if (scope !== 'selected') { try { localStorage.setItem(LAST_BACKUP_KEY, String(Date.now())); } catch(e){} renderBackupStatus(); }

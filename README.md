@@ -100,7 +100,7 @@ Run the test suite before shipping any change to `waterloo_turf_calculator.html`
 node waterloo_turf_tests.js
 ```
 
-All tests should pass (currently **2176** — copy this from the runner's `Tests:`
+All tests should pass (currently **2179** — copy this from the runner's `Tests:`
 line rather than adding to the previous figure). Each session that produces an
 updated calculator file also updates this README and bumps the sidebar build stamp
 to the current date (`.2`, `.3`, … for multiple builds on the same day).
@@ -132,3 +132,5 @@ Live filter box over the project list — matches on name, address, and status (
 ## Vendor Pricing (tab)
 
 Import and view each supplier's price list (PDF / Excel / CSV), switchable per vendor like crews. PDFs embed; Excel/CSV render as a table (xlsx parsed library-free via DecompressionStream). Files stored in IndexedDB (not in the JSON backup — re-importable reference docs).
+
+<!-- redeploy 2026-09-24 -->

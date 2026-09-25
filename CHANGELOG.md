@@ -5,6 +5,23 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-22 (build .9) — Fix: backup filename date + nesting blocked after using Edging tab
+
+Two fixes:
+1) Backup filenames used the UTC date (toISOString), so an evening backup in Pacific time got
+   tomorrow's date. Now the filename uses the LOCAL date (both the manual Export and the
+   auto-backup download).
+2) After using the Edging sub-tab and switching back to the roll plan, you couldn't drag/nest
+   pieces until toggling Move Layers on and off. Cause: leaving the Edging sub-tab didn't end its
+   click mode, so the canvas kept swallowing every mousedown as an edging click (entering Move
+   Layers happened to clear it). Switching sub-tabs now ends edging click mode, so nesting works
+   immediately.
+
+Tests **2176 -> 2179** (README **2179**): backup uses local date, edging click mode cleared on
+sub-tab switch. Verified end-to-end. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-22 (build .8) — Fringe cost on the full 15 ft roll you pay for + clearer wording
 
 Fringe is its own separate roll (a different turf than the green), and you pay for the full 15 ft
@@ -6735,4 +6752,4 @@ No new test sections (the bugs were in canvas event handling, which requires a r
 - Sandboxed VM context with mocked DOM/localStorage/ResizeObserver
 - Initial coverage: layout geometry, clipping, nesting, infill, quote generation
 
-<!-- redeploy 2026-09-22 -->
+<!-- redeploy 2026-09-24 -->
