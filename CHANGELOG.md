@@ -5,6 +5,22 @@ Format: newest sessions at the top. Each entry covers one development session.
 
 ---
 
+## 2026-09-24 (build .2) — Edging: per-material board length (e.g. steel 10 ft vs benderboard 20 ft)
+
+Board length was hardcoded at 20 ft everywhere, so steel edging (sold in 10 ft lengths) ordered the
+wrong number of boards. Each edging material now has its own **Length (ft)** field in Settings
+(benderboard 20, steel 10, etc.). The 'boards to order' count, the quote's edging material cost,
+and the supplier order all use the SELECTED material's board length. The Boards-to-Order label shows
+the length (e.g. '10 ft Boards to Order'). Default/unset length is 20 ft, so existing projects are
+unchanged.
+
+Example: 45 ft of edging = 3 boards on 20 ft benderboard, 5 boards on 10 ft steel.
+
+Tests **2179 -> 2187** (README **2187**): per-material board length, calc uses it, settings Length
+column, hardcoded /20 removed. Green under UTC and America/Los_Angeles.
+
+---
+
 ## 2026-09-22 (build .9) — Fix: backup filename date + nesting blocked after using Edging tab
 
 Two fixes:
@@ -6752,4 +6768,4 @@ No new test sections (the bugs were in canvas event handling, which requires a r
 - Sandboxed VM context with mocked DOM/localStorage/ResizeObserver
 - Initial coverage: layout geometry, clipping, nesting, infill, quote generation
 
-<!-- redeploy 2026-09-24 -->
+<!-- redeploy 2026-09-25 -->

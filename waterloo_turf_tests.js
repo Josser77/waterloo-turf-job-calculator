@@ -8615,8 +8615,23 @@ section('197. Backup filename uses local date; leaving Edging clears its click m
   assert(/if \(name !== 'edging' && window\._wtEdgingClickMode && typeof toggleEdgingClickMode === 'function'\) toggleEdgingClickMode\(\);/.test(src), 'leaving the Edging sub-tab clears its click mode (unblocks nesting)');
 }
 
+section('198. Edging board length is per-material (steel 10 ft vs benderboard 20 ft)');
+{
+  const src = require('fs').readFileSync(__dirname + '/waterloo_turf_calculator.html', 'utf8');
+  // Board count uses a per-material board length, not a hardcoded 20.
+  assert(ctx.edgingBoardsForLength(45, 20) === 3, '45 ft on 20 ft boards = 3');
+  assert(ctx.edgingBoardsForLength(45, 10) === 5, '45 ft on 10 ft boards = 5');
+  assert(ctx.edgingBoardsForLength(45) === 3, 'default board length is 20 ft');
+  assert(ctx.edgingBoardsForLength(20, 10) === 2 && ctx.edgingBoardsForLength(21, 10) === 3, 'rounds up to whole boards');
+  // The material's length drives the calc + the settings table has a Length column.
+  assert(/function edgingBoardLength\(proj, cat\)/.test(src), 'a per-material board-length lookup exists');
+  assert(/const boardLen = edgingBoardLength\(proj, cat\);\s*const boards = edgingBoardsForLength\(linFt, boardLen\);/.test(src), 'calcEdging uses the material board length');
+  assert(/updateCatalogField\('edging',\$\{i\},'lengthFt',this\.value\)/.test(src), 'the edging settings table edits board length');
+  assert(!/const boards = linFt > 0 \? Math\.ceil\(linFt\/20\) : 0;/.test(src), 'the hardcoded /20 board count is gone from calcEdging');
+}
+
 console.log(`  Tests: ${passed + failed} | ✓ Passed: ${passed} | ✗ Failed: ${failed}`);
 console.log('═'.repeat(58));
 process.exit(failed > 0 ? 1 : 0);
 
-// redeploy marker 2026-09-24
+// redeploy marker 2026-09-25

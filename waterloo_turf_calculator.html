@@ -1205,7 +1205,7 @@
         </g>
       </svg>
       <div class="sub" style="text-align:center;">Job Calculator</div>
-      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-24</div>
+      <div class="sub" style="text-align:center;font-size:10px;opacity:0.6;margin-top:2px;" id="appBuildStamp" title="App build date — tells you which version is deployed">build 2026-09-25 19:37</div>
     </div>
 
     <div class="sort-bar">
@@ -1425,7 +1425,7 @@
               <div class="hint" id="useLayoutPerimeterHint" style="display:none;">Every edge of every shape — trim to the runs that actually need edging (not walls, patios, or driveways).</div>
             </div>
             <div class="field-group">
-              <label>20 ft Boards to Order ↑</label>
+              <label id="edgingBoardsLabel">Boards to Order ↑</label>
               <input type="number" id="edgingBoards" class="auto-filled" readonly placeholder="—">
               <div class="hint" id="edgingBoardsHint">board, stakes, screws</div>
             </div>
@@ -2997,7 +2997,7 @@ const DEFAULT_ROCK_CATALOG = [
 ];
 
 const DEFAULT_EDGING_CATALOG = [
-  { id:'bender_black', name:'Bender Board', color:'Black', pricePerBoard:'', notes:'20 ft boards' },
+  { id:'bender_black', name:'Bender Board', color:'Black', lengthFt:20, pricePerBoard:'', notes:'20 ft boards' },
 ];
 
 function ensureCrewItems(crews) {
@@ -4370,7 +4370,7 @@ function createProject() {
   let edging = { linFt:'', boards:'', installCost:'', materialsCost:'', totalCost:'' };
   if (edgingLinFt) {
     const rates = getRates();
-    const boards = Math.ceil(edgingLinFt/20);
+    const boards = edgingBoardsForLength(edgingLinFt);
     const installCost = edgingLinFt * rates.edging;
     const materialsCost = boards * rates.edgingBoard;
     edging = { linFt: edgingLinFt, boards, installCost, materialsCost, totalCost: installCost + materialsCost };
@@ -5093,10 +5093,18 @@ function edgingSideSelected(side, selection) {
   return side.edgeKeys.length > 0 && side.edgeKeys.every(k => sel.has(k));
 }
 
-// Boards needed for a length of edging (benderboard is sold in 20 ft boards). Pure.
-function edgingBoardsForLength(linFt) {
+// Boards needed for a length of edging. Board length varies by material (benderboard is
+// 20 ft, steel edging is 10 ft, etc.), so it's a parameter — default 20. Pure.
+function edgingBoardsForLength(linFt, boardLen) {
   const v = parseFloat(linFt) || 0;
-  return v > 0 ? Math.ceil(v / 20) : 0;
+  const L = parseFloat(boardLen) > 0 ? parseFloat(boardLen) : 20;
+  return v > 0 ? Math.ceil(v / L) : 0;
+}
+// The selected edging material's board length in feet (default 20 if unset).
+function edgingBoardLength(proj, cat) {
+  const mat = getProjectEdgingMaterial(proj, cat);
+  const v = mat && parseFloat(mat.lengthFt);
+  return (v > 0) ? v : 20;
 }
 
 // ── Edging selection state + wiring (checklist for now; canvas click to follow) ─────────────
@@ -5524,13 +5532,15 @@ function calcEdging() {
   const rates = getRates();
   const cat = getCatalog();
   const linFt = parseFloat(document.getElementById('edgingLinFt').value)||0;
-  const boards = linFt > 0 ? Math.ceil(linFt/20) : 0;
+  const boardLen = edgingBoardLength(proj, cat);
+  const boards = edgingBoardsForLength(linFt, boardLen);
   const boardCost = edgingBoardCost(proj, rates, cat);
   const installCost = linFt * rates.edging;
   const materialsCost = boards * boardCost;
   const totalCost = installCost + materialsCost;
 
   setVal('edgingBoards', boards||'');
+  { const lbl = document.getElementById('edgingBoardsLabel'); if (lbl) lbl.textContent = boardLen + ' ft Boards to Order ↑'; }
   setVal('edgingInstallCost', installCost ? installCost.toFixed(2) : '');
   setVal('edgingMaterialsCost', materialsCost ? materialsCost.toFixed(2) : '');
   setVal('edgingTotalCost', totalCost ? totalCost.toFixed(2) : '');
@@ -6519,7 +6529,7 @@ function addCatalogItemInline(type) {
     turf:   { id: 'turf_' + now,   name: '', tdName: '', types: ['standard'], costPerLinFt: '', notes: '' },
     infill: { id: 'infill_' + now, name: '', lbsPerSqFt: '', costPerBag: '', notes: '' },
     rock:   { id: 'rock_' + now,   name: '', defaultDepth: 4, costPerYard: '', pricePerSqFt1in: '', notes: '' },
-    edging: { id: 'edging_' + now, name: '', color: '', pricePerBoard: '', notes: '' },
+    edging: { id: 'edging_' + now, name: '', color: '', lengthFt: 20, pricePerBoard: '', notes: '' },
   }[type] || { id: type + '_' + now, name: '' };
   cat[type].push(blank);
   saveCatalog(cat);
@@ -6604,19 +6614,20 @@ function renderSettingsEdgingTable(items) {
     el.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:2px 0 8px;">No edging materials yet.</div>' + addBtn;
     return;
   }
-  const cols = '1.3fr 0.9fr 108px 2.2fr 28px';
+  const cols = '1.4fr 0.85fr 68px 108px 1.9fr 28px';
   const inp = SETTINGS_INLINE_INPUT;
   const rows = items.map((t, i) => `
     <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:center;margin-bottom:8px;">
       <input type="text" value="${escAttr(t.name || '')}" placeholder="material name" style="${inp}" onchange="updateCatalogField('edging',${i},'name',this.value)">
       <input type="text" value="${escAttr(t.color || '')}" placeholder="color" style="${inp}" onchange="updateCatalogField('edging',${i},'color',this.value)">
+      <input type="number" step="1" value="${(t.lengthFt != null && t.lengthFt !== '') ? t.lengthFt : ''}" placeholder="20" title="Board length in feet (benderboard 20, steel 10, etc.)" style="${inp}" onchange="updateCatalogField('edging',${i},'lengthFt',this.value)">
       ${settingsPriceInput("updateCatalogField('edging',"+i+",'pricePerBoard',this.value)", t.pricePerBoard)}
       <input type="text" value="${escAttr(t.notes || '')}" placeholder="notes" style="${inp}" onchange="updateCatalogField('edging',${i},'notes',this.value)">
       <button class="remove-btn" onclick="deleteCatalogItem('edging',${i})" title="Delete">×</button>
     </div>`).join('');
   el.innerHTML = `
     <div style="display:grid;grid-template-columns:${cols};gap:8px;${SETTINGS_INLINE_HDR}">
-      <div>Material Name</div><div>Color</div><div>$/Board</div><div>Notes</div><div></div>
+      <div>Material Name</div><div>Color</div><div>Length ft</div><div>$/Board</div><div>Notes</div><div></div>
     </div>${rows}
     <div style="margin-top:4px;">${addBtn}</div>`;
 }

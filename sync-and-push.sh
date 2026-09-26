@@ -1,8 +1,8 @@
 #!/bin/bash
 # One-step publish for the Waterloo Turf Job Calculator.
 #   1) Click "Download All", save the zip as files.zip into the REPO folder below.
-#   2) Run this script. It unzips the files, copies them into the repo AND the Electron
-#      app folder, then commits & pushes the repo to GitHub.
+#   2) Run this script. It unzips the files, stamps the real build date+time, copies
+#      them into the repo AND the Electron app folder, then commits & pushes to GitHub.
 
 set -e
 
@@ -36,11 +36,26 @@ for name in $REPO_FILES; do
   else echo "   ⚠ $name not found in zip (skipped)"; fi
 done
 
+if [ "$copied" -eq 0 ]; then
+  echo "❌ No expected files found in files.zip — nothing to publish."
+  rm -rf "$TMP"; exit 1
+fi
+
+# ── Stamp the REAL build date+time (this Mac's clock, at push time) into the sidebar
+#    marker. Every push gets a unique, ordered stamp — no manual date/counter to get wrong.
+BUILD="$(date '+%Y-%m-%d %H:%M')"
+if grep -q '>build [0-9]' "$REPO/waterloo_turf_calculator.html"; then
+  sed -i '' "s/>build [0-9][0-9-]* *[0-9:]*</>build ${BUILD}</" "$REPO/waterloo_turf_calculator.html"
+  echo "🔖 Stamped build: ${BUILD}"
+else
+  echo "⚠ Build marker not found in the HTML — skipped stamping (published as-is)."
+fi
+
+# Copy the (now-stamped) code files into the Electron app folder too.
 echo "→ Electron app: $APP"
 if [ -d "$APP" ]; then
   for name in $APP_FILES; do
-    src="$(find "$TMP" -type f -name "$name" -print -quit)"
-    if [ -n "$src" ]; then cp "$src" "$APP/$name"; echo "   ✓ $name"; fi
+    if [ -f "$REPO/$name" ]; then cp "$REPO/$name" "$APP/$name"; echo "   ✓ $name"; fi
   done
 else
   echo "   ⚠ Electron folder not found — skipped (repo still updated)."
@@ -48,21 +63,13 @@ fi
 
 rm -rf "$TMP"
 
-if [ "$copied" -eq 0 ]; then
-  echo "❌ No expected files found in files.zip — nothing to publish."
-  exit 1
-fi
-
-BUILD="$(grep -o 'build 2026-[0-9.-]*' "$REPO/waterloo_turf_calculator.html" | head -1)"
-echo "🔖 Publishing: ${BUILD:-(build stamp not found)}"
-
 git add -A
 if git diff --cached --quiet; then
-  echo "ℹ️  No changes to commit (repo already matches the zip). Electron folder was still synced."
+  echo "ℹ️  No changes to commit (repo already matches). Electron folder was still synced."
   exit 0
 fi
 
-git commit -m "Update calculator ($(date '+%Y-%m-%d %H:%M'))"
+git commit -m "Update calculator — build ${BUILD}"
 git push
 echo "🚀 Pushed. The GitHub Action should deploy shortly."
-echo "   Verify the live sidebar shows: ${BUILD}"
+echo "   Verify the live sidebar shows: build ${BUILD}"
